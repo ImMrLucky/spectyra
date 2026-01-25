@@ -14,7 +14,7 @@ import { AuthService } from '../../core/auth/auth.service';
         <h1>Create Account</h1>
         <p class="subtitle">Sign up for Spectyra and start saving on LLM costs</p>
         
-        <form (ngSubmit)="register()" [formGroup]="form" *ngIf="!success">
+        <form (ngSubmit)="register()" *ngIf="!success">
           <div class="form-group">
             <label for="email">Email</label>
             <input
@@ -182,7 +182,6 @@ export class RegisterPage {
   error: string | null = null;
   apiKey: string | null = null;
   trialEndsAt: string | null = null;
-  form: any = {}; // Simple form, not using reactive forms
 
   constructor(
     private authService: AuthService,
