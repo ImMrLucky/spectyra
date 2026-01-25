@@ -29,6 +29,7 @@ app.use("/v1/runs", runsRouter);
 app.use("/v1/savings", savingsRouter);
 app.use("/v1/admin", adminRouter);
 
-app.listen(config.port, () => {
-  console.log(`Spectyra API server running on http://localhost:${config.port}`);
+app.listen(config.port, "0.0.0.0", () => {
+  console.log(`Spectyra API listening on port ${config.port}`);
 });
+
