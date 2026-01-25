@@ -1,0 +1,158 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>Spectyra Settings</title>
+  <style>
+    body {
+      max-width: 600px;
+      margin: 0 auto;
+      padding: 24px;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      font-size: 14px;
+    }
+    h1 {
+      margin: 0 0 24px;
+      font-size: 24px;
+      font-weight: 600;
+    }
+    .form-group {
+      margin-bottom: 20px;
+    }
+    label {
+      display: block;
+      margin-bottom: 6px;
+      font-weight: 500;
+      color: #333;
+    }
+    input[type="text"],
+    input[type="url"],
+    select {
+      width: 100%;
+      padding: 8px 12px;
+      border: 1px solid #ddd;
+      border-radius: 4px;
+      font-size: 14px;
+      box-sizing: border-box;
+    }
+    input[type="checkbox"] {
+      margin-right: 8px;
+    }
+    .slider-container {
+      margin-top: 8px;
+    }
+    .slider {
+      width: 100%;
+      margin: 8px 0;
+    }
+    .slider-labels {
+      display: flex;
+      justify-content: space-between;
+      font-size: 12px;
+      color: #666;
+      margin-top: 4px;
+    }
+    .help-text {
+      font-size: 12px;
+      color: #666;
+      margin-top: 4px;
+    }
+    button {
+      padding: 10px 20px;
+      background: #007bff;
+      color: white;
+      border: none;
+      border-radius: 4px;
+      font-size: 14px;
+      font-weight: 500;
+      cursor: pointer;
+      margin-right: 8px;
+    }
+    button:hover {
+      opacity: 0.9;
+    }
+    .btn-secondary {
+      background: #6c757d;
+    }
+    .status {
+      padding: 12px;
+      border-radius: 4px;
+      margin-bottom: 20px;
+      display: none;
+    }
+    .status.success {
+      background: #d4edda;
+      color: #155724;
+      display: block;
+    }
+    .status.error {
+      background: #f8d7da;
+      color: #721c24;
+      display: block;
+    }
+  </style>
+</head>
+<body>
+  <h1>Spectyra Settings</h1>
+  
+  <div id="status" class="status"></div>
+  
+  <form id="settings-form">
+    <div class="form-group">
+      <label>
+        <input type="checkbox" id="enabled" checked>
+        Enable Spectyra
+      </label>
+    </div>
+    
+    <div class="form-group">
+      <label for="spectyra-api-url">Spectyra API URL</label>
+      <input type="url" id="spectyra-api-url" placeholder="https://spectyra.up.railway.app/v1" required>
+      <div class="help-text">Base URL for Spectyra API</div>
+    </div>
+    
+    <div class="form-group">
+      <label for="spectyra-key">Spectyra API Key</label>
+      <input type="text" id="spectyra-key" placeholder="sk-..." required>
+      <div class="help-text">Your Spectyra API key</div>
+    </div>
+    
+    <div class="form-group">
+      <label for="provider-key">Provider API Key (BYOK)</label>
+      <input type="text" id="provider-key" placeholder="sk-..." required>
+      <div class="help-text">Your LLM provider API key (OpenAI, Anthropic, etc.) - stored locally only</div>
+    </div>
+    
+    <div class="form-group">
+      <label for="path">Path</label>
+      <select id="path">
+        <option value="talk">Talk (Chat/Q&A)</option>
+        <option value="code">Code (Coding workflows)</option>
+      </select>
+      <div class="help-text">Optimization path for your use case</div>
+    </div>
+    
+    <div class="form-group">
+      <label for="optimization-level">Optimization Level: <span id="level-value">2</span></label>
+      <div class="slider-container">
+        <input type="range" id="optimization-level" min="0" max="4" value="2" class="slider">
+        <div class="slider-labels">
+          <span>Minimal</span>
+          <span>Conservative</span>
+          <span>Balanced</span>
+          <span>Aggressive</span>
+          <span>Maximum</span>
+        </div>
+      </div>
+      <div class="help-text">Higher levels = more aggressive optimization = more savings</div>
+    </div>
+    
+    <div>
+      <button type="submit">Save Settings</button>
+      <button type="button" class="btn-secondary" id="reset-btn">Reset to Defaults</button>
+    </div>
+  </form>
+  
+  <script src="options.js"></script>
+</body>
+</html>

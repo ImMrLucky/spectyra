@@ -1,0 +1,11 @@
+# Extension build artifacts
+*.crx
+*.pem
+*.zip
+
+# Node modules (if any)
+node_modules/
+
+# IDE
+.idea/
+.vscode/

@@ -1,0 +1,24 @@
+{
+  "name": "@spectyra/sdk",
+  "version": "0.1.0",
+  "description": "Spectyra SDK for real-time LLM optimization",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "type": "module",
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsc --watch"
+  },
+  "keywords": [
+    "llm",
+    "optimization",
+    "token-reduction",
+    "spectyra"
+  ],
+  "author": "",
+  "license": "MIT",
+  "dependencies": {},
+  "devDependencies": {
+    "typescript": "~5.4.0"
+  }
+}

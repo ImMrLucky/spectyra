@@ -1,4 +1,5 @@
 import { Router } from "express";
+import { authenticate, type AuthenticatedRequest } from "../middleware/auth.js";
 import { providerRegistry } from "../services/llm/providerRegistry.js";
 import { createOptimizerProvider } from "../services/optimizer/providerAdapter.js";
 import { getEmbedder } from "../services/embeddings/embedderRegistry.js";
@@ -15,13 +16,16 @@ import {
 
 export const proofRouter = Router();
 
+// Apply authentication middleware
+proofRouter.use(authenticate);
+
 /**
  * POST /v1/proof/estimate
  * 
  * Estimates savings for a pasted conversation without making real LLM calls.
  * Used for proof/demo purposes.
  */
-proofRouter.post("/estimate", async (req, res) => {
+proofRouter.post("/estimate", async (req: AuthenticatedRequest, res) => {
   try {
     const { path, provider, model, optimization_level, messages } = req.body as {
       path: Path;

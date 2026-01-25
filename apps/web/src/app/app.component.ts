@@ -1,10 +1,13 @@
-import { Component } from '@angular/core';
+import { Component, OnInit, OnDestroy } from '@angular/core';
 import { RouterOutlet, RouterModule } from '@angular/router';
+import { CommonModule } from '@angular/common';
+import { AuthService } from './core/auth/auth.service';
+import { Subscription } from 'rxjs';
 
 @Component({
   selector: 'app-root',
   standalone: true,
-  imports: [RouterOutlet, RouterModule],
+  imports: [RouterOutlet, RouterModule, CommonModule],
   template: `
     <div class="app-container">
       <header class="app-header">
@@ -15,6 +18,14 @@ import { RouterOutlet, RouterModule } from '@angular/router';
           <a routerLink="/savings">Savings</a>
           <a routerLink="/runs">Runs History</a>
           <a routerLink="/settings">Settings</a>
+          <span *ngIf="!isAuthenticated" class="auth-links">
+            <a routerLink="/login">Login</a>
+            <a routerLink="/register">Sign Up</a>
+          </span>
+          <span *ngIf="isAuthenticated" class="auth-links">
+            <span class="user-email">{{ userEmail }}</span>
+            <button (click)="logout()" class="btn-logout">Logout</button>
+          </span>
         </nav>
       </header>
       <main class="app-main">
@@ -52,11 +63,52 @@ import { RouterOutlet, RouterModule } from '@angular/router';
     .app-header nav a:hover {
       text-decoration: underline;
     }
+    .auth-links {
+      display: flex;
+      gap: 12px;
+      align-items: center;
+    }
+    .user-email {
+      font-size: 14px;
+      opacity: 0.9;
+    }
+    .btn-logout {
+      background: rgba(255,255,255,0.2);
+      border: 1px solid rgba(255,255,255,0.3);
+      color: white;
+      padding: 6px 12px;
+      border-radius: 4px;
+      cursor: pointer;
+      font-size: 14px;
+    }
+    .btn-logout:hover {
+      background: rgba(255,255,255,0.3);
+    }
     .app-main {
       flex: 1;
       padding: 20px;
     }
   `],
 })
-export class AppComponent {
+export class AppComponent implements OnInit, OnDestroy {
+  isAuthenticated = false;
+  userEmail: string | null = null;
+  private authSub?: Subscription;
+
+  constructor(private authService: AuthService) {}
+
+  ngOnInit() {
+    this.authSub = this.authService.authState.subscribe(state => {
+      this.isAuthenticated = !!state.user && !!state.apiKey;
+      this.userEmail = state.user?.email || null;
+    });
+  }
+
+  ngOnDestroy() {
+    this.authSub?.unsubscribe();
+  }
+
+  logout() {
+    this.authService.logout();
+  }
 }

@@ -1,6 +1,8 @@
 import { Router } from "express";
 import { v4 as uuidv4 } from "uuid";
+import { authenticate, type AuthenticatedRequest } from "../middleware/auth.js";
 import { providerRegistry } from "../services/llm/providerRegistry.js";
+import { createProviderWithKey } from "../services/llm/providerFactory.js";
 import { runOptimizedOrBaseline } from "../services/optimizer/optimizer.js";
 import { createOptimizerProvider } from "../services/optimizer/providerAdapter.js";
 import { getEmbedder } from "../services/embeddings/embedderRegistry.js";
@@ -24,7 +26,10 @@ import { confidenceToBand } from "../services/savings/confidence.js";
 
 export const chatRouter = Router();
 
-chatRouter.post("/", async (req, res) => {
+// Apply authentication middleware to all chat routes
+chatRouter.use(authenticate);
+
+chatRouter.post("/", async (req: AuthenticatedRequest, res) => {
   try {
     const { path, conversation_id, provider, model, messages, mode, optimization_level, dry_run } = req.body as {
       path: Path;
@@ -41,9 +46,23 @@ chatRouter.post("/", async (req, res) => {
       return res.status(400).json({ error: "Missing required fields" });
     }
     
-    const llmProvider = providerRegistry.get(provider);
-    if (!llmProvider) {
-      return res.status(400).json({ error: `Provider ${provider} not available` });
+    // BYOK (Bring Your Own Key): Check for X-PROVIDER-KEY header
+    // If provided, create provider with user's key; otherwise use default from env
+    const providerKey = req.headers["x-provider-key"] as string | undefined;
+    let llmProvider;
+    
+    if (providerKey) {
+      // Create provider with user's API key (BYOK)
+      llmProvider = createProviderWithKey(provider, providerKey);
+      if (!llmProvider) {
+        return res.status(400).json({ error: `Provider ${provider} not supported for BYOK` });
+      }
+    } else {
+      // Use default provider from registry (env vars)
+      llmProvider = providerRegistry.get(provider);
+      if (!llmProvider) {
+        return res.status(400).json({ error: `Provider ${provider} not available. Provide X-PROVIDER-KEY header for BYOK.` });
+      }
     }
     
     // Convert Message[] to ChatMessage[]

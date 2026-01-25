@@ -1,4 +1,5 @@
 import { Router } from "express";
+import { authenticate, type AuthenticatedRequest } from "../middleware/auth.js";
 import {
   getSavingsSummary,
   getSavingsTimeseries,
@@ -40,6 +41,9 @@ function buildWhereClause(filters: SavingsFilters, tablePrefix: string = "l"): {
 }
 
 export const savingsRouter = Router();
+
+// Apply authentication middleware to all savings routes
+savingsRouter.use(authenticate);
 
 savingsRouter.get("/summary", (req, res) => {
   try {

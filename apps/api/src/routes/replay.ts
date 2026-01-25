@@ -1,4 +1,5 @@
 import { Router } from "express";
+import { authenticate, type AuthenticatedRequest } from "../middleware/auth.js";
 import { providerRegistry } from "../services/llm/providerRegistry.js";
 import { readFileSync } from "fs";
 import { join, dirname } from "path";
@@ -24,7 +25,10 @@ const scenariosDir = join(__dirname, "../../scenarios");
 
 export const replayRouter = Router();
 
-replayRouter.post("/", async (req, res) => {
+// Apply authentication middleware
+replayRouter.use(authenticate);
+
+replayRouter.post("/", async (req: AuthenticatedRequest, res) => {
   try {
     const { scenario_id, provider, model, optimization_level } = req.body as {
       scenario_id: string;

@@ -17,7 +17,8 @@
     "@anthropic-ai/sdk": "^0.20.1",
     "@google/generative-ai": "^0.2.1",
     "tiktoken": "^1.0.10",
-    "uuid": "^9.0.1"
+    "uuid": "^9.0.1",
+    "stripe": "^14.21.0"
   },
   "devDependencies": {
     "@types/express": "^4.17.21",

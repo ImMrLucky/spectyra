@@ -1,4 +1,5 @@
 import { Router } from "express";
+import { authenticate, type AuthenticatedRequest } from "../middleware/auth.js";
 import { readFileSync } from "fs";
 import { join, dirname } from "path";
 import { fileURLToPath } from "url";
@@ -24,13 +25,16 @@ const scenariosDir = join(__dirname, "../../scenarios");
 
 export const replaySimulateRouter = Router();
 
+// Apply authentication middleware
+replaySimulateRouter.use(authenticate);
+
 /**
  * POST /v1/replay/simulate
  * 
  * Simulates a replay scenario without making real LLM calls.
  * Returns estimated baseline and optimized runs for comparison.
  */
-replaySimulateRouter.post("/", async (req, res) => {
+replaySimulateRouter.post("/", async (req: AuthenticatedRequest, res) => {
   try {
     const { scenario_id, provider, model, optimization_level } = req.body as {
       scenario_id: string;
