@@ -331,7 +331,8 @@ export class ProofPage {
   provider = 'openai';
   model = 'gpt-4o-mini';
   optimizationLevel = 2;
-  conversationJson = '';
+  conversationInput = '';
+  parsedMessages: any[] = [];
   estimate: ProofEstimate | null = null;
   loading = false;
   error: string | null = null;
