@@ -220,32 +220,3 @@ savingsRouter.get("/export", (req, res) => {
     res.status(500).json({ error: error.message || "Internal server error" });
   }
 });
-
-function buildWhereClause(filters: SavingsFilters, tablePrefix: string = "l"): { sql: string; params: any[] } {
-  const conditions: string[] = [];
-  const params: any[] = [];
-  const prefix = tablePrefix;
-  
-  if (filters.from) {
-    conditions.push(`${prefix}.created_at >= ?`);
-    params.push(filters.from);
-  }
-  
-  if (filters.to) {
-    conditions.push(`${prefix}.created_at <= ?`);
-    params.push(filters.to + " 23:59:59");
-  }
-  
-  if (filters.provider) {
-    conditions.push(`${prefix}.provider = ?`);
-    params.push(filters.provider);
-  }
-  
-  if (filters.model) {
-    conditions.push(`${prefix}.model = ?`);
-    params.push(filters.model);
-  }
-  
-  const where = conditions.length > 0 ? `WHERE ${conditions.join(" AND ")}` : "";
-  return { sql: where, params };
-}
