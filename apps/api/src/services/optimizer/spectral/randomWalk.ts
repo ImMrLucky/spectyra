@@ -6,7 +6,8 @@
  */
 
 import type { SignedGraph } from "./types.js";
-import { matVec, rayleighQuotient, orthogonalizeToOnes, normalize } from "./powerIteration.js";
+import { matVec, rayleighQuotient, orthogonalizeToOnes } from "./powerIteration.js";
+import { normalize } from "./math.js";
 
 /**
  * Build transition matrix P from positive edges only
