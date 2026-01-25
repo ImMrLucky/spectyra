@@ -112,7 +112,7 @@ export class SavingsPage implements OnInit {
   providers: any[] = [];
   loading = false;
   
-  constructor(private api: ApiClientService) {}
+  constructor(private apiClient: ApiClientService) {}
   
   ngOnInit() {
     this.loadProviders();
@@ -126,7 +126,7 @@ export class SavingsPage implements OnInit {
   }
   
   loadProviders() {
-    this.api.getProviders().subscribe(providers => {
+    this.apiClient.getProviders().subscribe(providers => {
       this.providers = providers;
     });
   }
@@ -140,7 +140,7 @@ export class SavingsPage implements OnInit {
     this.loading = true;
     
     // Load all data in parallel
-    this.api.getSavingsSummary(this.filters).subscribe({
+    this.apiClient.getSavingsSummary(this.filters).subscribe({
       next: summary => {
         this.summary = summary;
         this.loading = false;
@@ -151,21 +151,21 @@ export class SavingsPage implements OnInit {
       },
     });
     
-    this.api.getSavingsTimeseries({ ...this.filters, bucket: 'day' }).subscribe({
+    this.apiClient.getSavingsTimeseries({ ...this.filters, bucket: 'day' }).subscribe({
       next: data => {
         this.timeseries = data;
       },
       error: err => console.error('Timeseries error:', err),
     });
     
-    this.api.getSavingsByLevel(this.filters).subscribe({
+    this.apiClient.getSavingsByLevel(this.filters).subscribe({
       next: data => {
         this.byLevel = data;
       },
       error: err => console.error('By-level error:', err),
     });
     
-    this.api.getSavingsByPath(this.filters).subscribe({
+    this.apiClient.getSavingsByPath(this.filters).subscribe({
       next: data => {
         this.byPath = data;
       },
@@ -183,10 +183,8 @@ export class SavingsPage implements OnInit {
     params.set('type', type);
     params.set('format', 'csv');
     
-    window.open(`${this.api.baseUrl}/savings/export?${params}`, '_blank');
-  }
-  
-  get api() {
-    return this.api;
+    // Use the API base URL - in production this should come from environment config
+    const baseUrl = 'http://localhost:8080/v1';
+    window.open(`${baseUrl}/savings/export?${params}`, '_blank');
   }
 }
