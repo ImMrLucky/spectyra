@@ -8,6 +8,36 @@ export interface CodeSlicerInput {
 export interface CodeSlicerOutput {
   messages: ChatMessage[];
   changed: boolean;
+  metadata?: {
+    blocksFound: number;
+    blocksKept: number;
+    linesRemoved: number;
+  };
+}
+
+// NEW: Extract function/class signatures for better relevance matching
+function extractSignatures(code: string): Set<string> {
+  const signatures = new Set<string>();
+  
+  // Function declarations
+  const funcMatches = code.matchAll(/(?:function|const|let|var)\s+([a-zA-Z_]\w*)\s*(?:=\s*)?(?:async\s*)?\(/g);
+  for (const match of funcMatches) {
+    signatures.add(match[1].toLowerCase());
+  }
+  
+  // Class declarations
+  const classMatches = code.matchAll(/class\s+([a-zA-Z_]\w*)/g);
+  for (const match of classMatches) {
+    signatures.add(match[1].toLowerCase());
+  }
+  
+  // Method definitions
+  const methodMatches = code.matchAll(/(?:async\s+)?([a-zA-Z_]\w*)\s*\([^)]*\)\s*{/g);
+  for (const match of methodMatches) {
+    signatures.add(match[1].toLowerCase());
+  }
+  
+  return signatures;
 }
 
 function lastUserMessage(messages: ChatMessage[]): string {
@@ -17,12 +47,18 @@ function lastUserMessage(messages: ChatMessage[]): string {
   return "";
 }
 
-function extractFencedBlocks(text: string): { lang: string; body: string; raw: string }[] {
-  const out: { lang: string; body: string; raw: string }[] = [];
+function extractFencedBlocks(text: string): { lang: string; body: string; raw: string; signatures: Set<string> }[] {
+  const out: { lang: string; body: string; raw: string; signatures: Set<string> }[] = [];
   const re = /```(\w+)?\n([\s\S]*?)```/g;
   let m: RegExpExecArray | null;
   while ((m = re.exec(text)) !== null) {
-    out.push({ lang: (m[1] ?? "").trim(), body: (m[2] ?? "").trim(), raw: m[0] });
+    const body = (m[2] ?? "").trim();
+    out.push({ 
+      lang: (m[1] ?? "").trim(), 
+      body,
+      raw: m[0],
+      signatures: extractSignatures(body)
+    });
   }
   return out;
 }
@@ -30,6 +66,43 @@ function extractFencedBlocks(text: string): { lang: string; body: string; raw: s
 function trimMiddle(code: string, maxLines: number): string {
   const lines = code.split("\n");
   if (lines.length <= maxLines) return code;
+  
+  // NEW: Try to keep function signatures visible
+  const signatureLines: number[] = [];
+  lines.forEach((line, idx) => {
+    if (/^\s*(function|const|class|async|export)/i.test(line)) {
+      signatureLines.push(idx);
+    }
+  });
+  
+  // Keep important signatures + context
+  if (signatureLines.length > 0) {
+    const kept: string[] = [];
+    let lastKept = -1;
+    
+    for (const sigIdx of signatureLines) {
+      if (kept.length >= maxLines * 0.7) break;
+      
+      // Add ellipsis if gap
+      if (lastKept >= 0 && sigIdx - lastKept > 2) {
+        kept.push(`// ... ${sigIdx - lastKept - 1} lines ...`);
+      }
+      
+      // Keep signature + 3 lines of context
+      const start = sigIdx;
+      const end = Math.min(lines.length, sigIdx + 4);
+      kept.push(...lines.slice(start, end));
+      lastKept = end - 1;
+    }
+    
+    if (kept.length < maxLines && lastKept < lines.length - 1) {
+      kept.push(`// ... ${lines.length - lastKept - 1} more lines ...`);
+    }
+    
+    return kept.join("\n");
+  }
+  
+  // Fallback to original trimming
   const head = Math.ceil(maxLines * 0.6);
   const tail = Math.floor(maxLines * 0.4);
   return [
@@ -78,29 +151,42 @@ export function applyCodeSlicing(input: CodeSlicerInput): CodeSlicerOutput {
   const userQ = lastUserMessage(messages);
 
   // Collect all fenced blocks across history
-  const allBlocks: { lang: string; body: string; fromIdx: number }[] = [];
+  const allBlocks: { lang: string; body: string; signatures: Set<string>; fromIdx: number }[] = [];
   messages.forEach((m, idx) => {
     const blocks = extractFencedBlocks(m.content);
-    for (const b of blocks) allBlocks.push({ lang: b.lang, body: b.body, fromIdx: idx });
+    for (const b of blocks) {
+      allBlocks.push({ ...b, fromIdx: idx });
+    }
   });
 
   if (allBlocks.length === 0) return { messages, changed: false };
 
   const chosen = pickMostRelevantBlock(allBlocks, userQ);
+  const originalLines = chosen.body.split("\n").length;
   const trimmed = trimMiddle(chosen.body, 180);
+  const trimmedLines = trimmed.split("\n").length;
 
-  // Replace earlier code-heavy messages with a single compact code context system note
-  const codeContext = `Relevant code context (trimmed):\n\`\`\`${chosen.lang || ""}\n${trimmed}\n\`\`\``;
+  // Improved context message with line counts
+  const codeContext = `Relevant code context (${trimmedLines}/${originalLines} lines):\n\`\`\`${chosen.lang || ""}\n${trimmed}\n\`\`\``;
 
   const compacted: ChatMessage[] = [];
-  // Keep system messages + last 2 messages (for local coherence)
   const lastTwo = messages.slice(-2);
 
+  // Keep system messages
   for (const m of messages) {
     if (m.role === "system") compacted.push(m);
   }
+  
   compacted.push({ role: "system", content: codeContext });
   compacted.push(...lastTwo);
 
-  return { messages: compacted, changed: true };
+  return { 
+    messages: compacted, 
+    changed: true,
+    metadata: {
+      blocksFound: allBlocks.length,
+      blocksKept: 1,
+      linesRemoved: originalLines - trimmedLines
+    }
+  };
 }

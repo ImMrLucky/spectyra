@@ -15,6 +15,7 @@ export function buildGraph(input: BuildGraphInput): SignedGraph {
 
   edges.push(...buildSimilarityEdges(units, input.opts, input.path));
   edges.push(...buildContradictionEdges(units, input.opts, input.path));
+  edges.push(...buildDependencyEdges(units, input.path));
 
   // Ensure no out-of-range edges
   const filtered = edges.filter(e => e.i >= 0 && e.j >= 0 && e.i < n && e.j < n && e.i !== e.j);

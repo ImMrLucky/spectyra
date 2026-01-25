@@ -222,10 +222,23 @@ chatRouter.post("/", async (req: AuthenticatedRequest, res) => {
     });
     const promptHash = computePromptHash(result.promptFinal.messages);
     
-    // Store debug internals separately
-    const debugInternal = {
-      spectral: result.spectral,
-      optimizer: result.debug,
+    // Store debug internals separately (use result.debugInternal if available, otherwise build it)
+    const debugInternal = result.debugInternal || {
+      mode: result.debug.mode || "optimized",
+      ...result.debug,
+      spectral: result.spectral ? {
+        nNodes: result.spectral.nNodes,
+        nEdges: result.spectral.nEdges,
+        lambda2: result.spectral.lambda2,
+        contradictionEnergy: result.spectral.contradictionEnergy,
+        stabilityIndex: result.spectral.stabilityIndex,
+        recommendation: result.spectral.recommendation,
+        stableCount: result.spectral.stableNodeIdx?.length || 0,
+        unstableCount: result.spectral.unstableNodeIdx?.length || 0,
+        ...(result.spectral._internal || {}),
+      } : undefined,
+      cacheHit: false,
+      driftScore: undefined,
     };
     
     // Create run record

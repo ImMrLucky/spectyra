@@ -17,8 +17,33 @@ export interface UnitizeInput {
   opts: UnitizeOptions;
 }
 
-function makeId(prefix: string): string {
-  return `${prefix}_${crypto.randomBytes(8).toString("hex")}`;
+/**
+ * Generate deterministic ID from text content, kind, and role
+ * Format: "u_" + first 16 chars of SHA256 hash
+ */
+function makeDeterministicId(text: string, kind: SemanticUnitKind, role: ChatMessage["role"]): string {
+  const normalized = text.replace(/\s+/g, " ").trim().toLowerCase();
+  const input = `${normalized}|${kind}|${role}`;
+  const hash = crypto.createHash("sha256").update(input).digest("hex");
+  return `u_${hash.slice(0, 16)}`;
+}
+
+/**
+ * Generate ID with collision handling
+ */
+function makeId(units: SemanticUnit[], text: string, kind: SemanticUnitKind, role: ChatMessage["role"]): string {
+  let baseId = makeDeterministicId(text, kind, role);
+  let id = baseId;
+  let suffix = 2;
+  
+  // Check for collisions and append suffix if needed
+  const existingIds = new Set(units.map(u => u.id));
+  while (existingIds.has(id)) {
+    id = `${baseId}_${suffix}`;
+    suffix++;
+  }
+  
+  return id;
 }
 
 function normalizeText(s: string): string {
@@ -155,9 +180,10 @@ export function unitizeMessages(input: UnitizeInput): SemanticUnit[] {
     const chunks = clampChunks(rawChunks, opts);
 
     for (const chunk of chunks) {
+      const kind = inferKind(path, msg.role, chunk);
       units.push({
-        id: makeId("u"),
-        kind: inferKind(path, msg.role, chunk),
+        id: makeId(units, chunk, kind, msg.role),
+        kind,
         text: chunk,
         stabilityScore: 0.5,          // will be updated by spectral pass / reuse later
         createdAtTurn: lastTurnIndex

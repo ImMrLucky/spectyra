@@ -167,9 +167,23 @@ replayRouter.post("/", async (req: AuthenticatedRequest, res) => {
     } : undefined;
     
     const optimizedPromptHash = computePromptHash(optimizedResult.promptFinal.messages);
-    const optimizedDebugInternal = {
-      spectral: optimizedResult.spectral,
-      optimizer: optimizedResult.debug,
+    // Store debug internals (use result.debugInternal if available, otherwise build it)
+    const optimizedDebugInternal = optimizedResult.debugInternal || {
+      mode: optimizedResult.debug.mode || "optimized",
+      ...optimizedResult.debug,
+      spectral: optimizedResult.spectral ? {
+        nNodes: optimizedResult.spectral.nNodes,
+        nEdges: optimizedResult.spectral.nEdges,
+        lambda2: optimizedResult.spectral.lambda2,
+        contradictionEnergy: optimizedResult.spectral.contradictionEnergy,
+        stabilityIndex: optimizedResult.spectral.stabilityIndex,
+        recommendation: optimizedResult.spectral.recommendation,
+        stableCount: optimizedResult.spectral.stableNodeIdx?.length || 0,
+        unstableCount: optimizedResult.spectral.unstableNodeIdx?.length || 0,
+        ...(optimizedResult.spectral._internal || {}),
+      } : undefined,
+      cacheHit: false,
+      driftScore: undefined,
     };
     
     const optimized: RunRecord = {

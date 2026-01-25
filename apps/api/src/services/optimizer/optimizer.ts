@@ -62,6 +62,9 @@ export interface OptimizeInput {
 
   // For quality guard
   requiredChecks?: RequiredCheck[];
+  
+  // For dry-run mode (skip provider call, return estimates)
+  dryRun?: boolean;
 }
 
 export interface OptimizeOutput {
@@ -71,6 +74,7 @@ export interface OptimizeOutput {
   debug: any;
   spectral?: any;
   quality?: { pass: boolean; failures: string[]; retried?: boolean };
+  debugInternal?: any; // Internal operator signals for debug_internal_json storage
 }
 
 function makeClarifyQuestion(path: PathKind): string {
@@ -133,24 +137,50 @@ export async function runOptimizedOrBaseline(
   // 3) Build graph
   const graph = buildGraph({ path, units, opts: cfg.spectral });
 
-  // 4) Spectral analysis (MOAT)
-  const spectral = spectralAnalyze(graph, cfg.spectral);
+  // 4) Spectral analysis (MOAT) - with multi-operator stability
+  const spectral = spectralAnalyze({
+    graph,
+    opts: cfg.spectral,
+    units,
+    currentTurn: turnIndex,
+  });
 
   // 5) If unstable: clarify short-circuit (saves tokens and avoids wrong answers)
   if (spectral.recommendation === "ASK_CLARIFY") {
     const qText = makeClarifyQuestion(path);
     const q = runQualityGuard({ text: qText, requiredChecks }); // usually passes if no checks
+    
+    // Build debug internal for short-circuit
+    const debugInternal = {
+      mode: "optimized",
+      shortCircuit: "ASK_CLARIFY",
+      spectral: {
+        nNodes: spectral.nNodes,
+        nEdges: spectral.nEdges,
+        lambda2: spectral.lambda2,
+        contradictionEnergy: spectral.contradictionEnergy,
+        stabilityIndex: spectral.stabilityIndex,
+        recommendation: spectral.recommendation,
+        stableCount: spectral.stableNodeIdx.length,
+        unstableCount: spectral.unstableNodeIdx.length,
+        ...(spectral._internal || {}),
+      },
+      cacheHit: false,
+      driftScore: undefined,
+    };
+    
     return {
       promptFinal: { messages },
       responseText: qText,
       usage: { input_tokens: 0, output_tokens: 0, total_tokens: 0, estimated: true },
       spectral,
       quality: { ...q, retried: false },
-      debug: { mode: "optimized", shortCircuit: "ASK_CLARIFY" }
+      debug: { mode: "optimized", shortCircuit: "ASK_CLARIFY" },
+      debugInternal,
     };
   }
 
-  // Helper to run once with given policy overrides
+    // Helper to run once with given policy overrides
   const runOnce = async (policyOverride?: Partial<OptimizerConfig>): Promise<OptimizeOutput> => {
     const localCfg: OptimizerConfig = {
       ...cfg,
@@ -186,6 +216,18 @@ export async function runOptimizedOrBaseline(
       policyDebug = p.debug;
     }
 
+    // If dry-run, skip provider call and return placeholder
+    if (dryRun) {
+      return {
+        promptFinal: { messages: messagesFinal },
+        responseText: "DRY_RUN: No provider call made",
+        usage: { input_tokens: 0, output_tokens: 0, total_tokens: 0, estimated: true },
+        spectral,
+        quality: { pass: true, failures: [] },
+        debug: { mode: "optimized", ...policyDebug, dryRun: true }
+      };
+    }
+
     const out = await callWithPolicy(path, provider, model, messagesFinal, localCfg, false);
 
     // Post-process output
@@ -196,13 +238,35 @@ export async function runOptimizedOrBaseline(
 
     const quality = runQualityGuard({ text: responseText, requiredChecks });
 
+    // Build comprehensive debug internal data
+    const debugInternal = {
+      mode: "optimized",
+      ...policyDebug,
+      spectral: {
+        // Public-safe fields (already in spectral result)
+        nNodes: spectral.nNodes,
+        nEdges: spectral.nEdges,
+        lambda2: spectral.lambda2,
+        contradictionEnergy: spectral.contradictionEnergy,
+        stabilityIndex: spectral.stabilityIndex,
+        recommendation: spectral.recommendation,
+        stableCount: spectral.stableNodeIdx.length,
+        unstableCount: spectral.unstableNodeIdx.length,
+        // Internal operator signals (from _internal)
+        ...(spectral._internal || {}),
+      },
+      cacheHit: false, // Phase 3: will be set when cache is implemented
+      driftScore: undefined, // Phase 2: will be set when drift is implemented
+    };
+
     return {
       promptFinal: { messages: messagesFinal },
       responseText,
       usage: out.usage,
       spectral,
       quality: { ...quality, retried: false },
-      debug: { mode: "optimized", ...policyDebug }
+      debug: { mode: "optimized", ...policyDebug },
+      debugInternal, // Include for storage
     };
   };
 
@@ -221,6 +285,7 @@ export async function runOptimizedOrBaseline(
     path === "talk"
       ? {
           talkPolicy: {
+            ...cfg.talkPolicy,
             compactionAggressive: false,
             trimAggressive: false
           },
@@ -229,6 +294,7 @@ export async function runOptimizedOrBaseline(
         }
       : {
           codePolicy: {
+            ...cfg.codePolicy,
             patchModeDefault: false,
             patchModeAggressiveOnReuse: false,
             trimAggressive: false
@@ -286,6 +352,28 @@ export async function runOptimizedOrBaseline(
 
     const quality = runQualityGuard({ text: responseText, requiredChecks });
 
+    // Build debug internal for retry
+    const debugInternal = {
+      mode: "optimized",
+      retry: true,
+      retry_reason: "QUALITY_GUARD_FAIL",
+      first_failures: first.quality?.failures ?? [],
+      ...policyDebug,
+      spectral: {
+        nNodes: spectral.nNodes,
+        nEdges: spectral.nEdges,
+        lambda2: spectral.lambda2,
+        contradictionEnergy: spectral.contradictionEnergy,
+        stabilityIndex: spectral.stabilityIndex,
+        recommendation: spectral.recommendation,
+        stableCount: spectral.stableNodeIdx.length,
+        unstableCount: spectral.unstableNodeIdx.length,
+        ...(spectral._internal || {}),
+      },
+      cacheHit: false,
+      driftScore: undefined,
+    };
+
     return {
       promptFinal: { messages: messagesFinal },
       responseText,
@@ -298,7 +386,8 @@ export async function runOptimizedOrBaseline(
         retry_reason: "QUALITY_GUARD_FAIL",
         first_failures: first.quality?.failures ?? [],
         ...policyDebug
-      }
+      },
+      debugInternal,
     } as OptimizeOutput;
   })();
 

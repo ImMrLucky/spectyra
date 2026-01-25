@@ -42,4 +42,13 @@ export interface SpectralResult {
   recommendation: "REUSE" | "EXPAND" | "ASK_CLARIFY";
   stableNodeIdx: number[];
   unstableNodeIdx: number[];
+  // Internal operator signals (stored in debug_internal_json, not public API)
+  _internal?: {
+    rwGap?: number;
+    heatComplexity?: number;
+    curvature?: { min: number; p10: number; avg: number };
+    noveltyAvg?: number;
+    stabilityComponents?: any;
+    edgeCountsByType?: { similarity: number; contradiction: number; dependency: number };
+  };
 }

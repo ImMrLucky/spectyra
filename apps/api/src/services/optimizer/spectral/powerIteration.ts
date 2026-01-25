@@ -5,7 +5,9 @@ export function matVec(A: number[][], x: number[]): number[] {
   const y = new Array(n).fill(0);
   for (let i = 0; i < n; i++) {
     let s = 0;
-    for (let j = 0; j < n; j++) s += A[i][j] * x[j];
+    for (let j = 0; j < n; j++) {
+      s += A[i][j] * x[j];
+    }
     y[i] = s;
   }
   return y;
