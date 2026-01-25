@@ -1,0 +1,13 @@
+[build]
+  base = "."
+  command = "pnpm install && cd apps/web && pnpm build"
+  publish = "apps/web/dist/web/browser"
+
+[build.environment]
+  NODE_VERSION = "20"
+  PNPM_VERSION = "8.15.0"
+
+[[redirects]]
+  from = "/*"
+  to = "/index.html"
+  status = 200
