@@ -1,0 +1,5 @@
+apps/api
+tools
+extensions
+*.md
+!.vercelignore

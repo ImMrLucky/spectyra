@@ -1,7 +1,7 @@
 {
-  "buildCommand": "corepack enable && corepack prepare pnpm@8.15.0 --activate && pnpm install && pnpm --filter web build --configuration production",
+  "buildCommand": "pnpm --filter web build --configuration production",
   "outputDirectory": "apps/web/dist/web/browser",
-  "installCommand": "corepack enable && corepack prepare pnpm@8.15.0 --activate && pnpm install",
+  "installCommand": "pnpm install --no-frozen-lockfile",
   "framework": null,
   "rewrites": [
     {
