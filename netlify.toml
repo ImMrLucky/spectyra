@@ -6,16 +6,10 @@
 [build.environment]
   NODE_VERSION = "20"
   PNPM_VERSION = "8.15.0"
+  # Set your Railway API URL here (or in Netlify dashboard)
+  # API_URL = "https://your-api.railway.app/v1"
 
-# Proxy API requests to backend (update URL to your Railway/deployed API)
-# Example: https://your-api.railway.app
-[[redirects]]
-  from = "/v1/*"
-  to = "https://your-api.railway.app/v1/:splat"
-  status = 200
-  force = true
-
-# SPA fallback - must be last
+# SPA fallback
 [[redirects]]
   from = "/*"
   to = "/index.html"
