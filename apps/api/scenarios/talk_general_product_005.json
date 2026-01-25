@@ -1,0 +1,26 @@
+{
+  "id": "talk_general_product_005",
+  "path": "talk",
+  "title": "Product comparison question",
+  "turns": [
+    {
+      "role": "user",
+      "content": "What's the difference between the Basic and Pro plans?"
+    },
+    {
+      "role": "assistant",
+      "content": "The Basic plan ($9/month) includes: 5 projects, basic analytics, email support, and up to 3 team members. The Pro plan ($49/month) includes: unlimited projects, advanced analytics, priority support, custom integrations, team collaboration for up to 10 members, and API access."
+    },
+    {
+      "role": "user",
+      "content": "Can I upgrade from Basic to Pro mid-month?"
+    }
+  ],
+  "required_checks": [
+    {
+      "name": "includes_upgrade_info",
+      "type": "regex",
+      "pattern": "upgrade|prorated|refund|credit"
+    }
+  ]
+}

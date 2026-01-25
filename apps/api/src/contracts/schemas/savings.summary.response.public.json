@@ -1,0 +1,82 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://example.local/schemas/savings.summary.response.public.json",
+  "title": "Savings Summary (Public)",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["range", "verified", "estimated", "combined"],
+  "properties": {
+    "range": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["from", "to"],
+      "properties": {
+        "from": {
+          "type": "string"
+        },
+        "to": {
+          "type": "string"
+        }
+      }
+    },
+    "verified": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["replays", "tokens_saved", "cost_saved_usd", "pct_saved"],
+      "properties": {
+        "replays": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "tokens_saved": {
+          "type": "number"
+        },
+        "cost_saved_usd": {
+          "type": "number"
+        },
+        "pct_saved": {
+          "type": "number"
+        }
+      }
+    },
+    "estimated": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["rows", "tokens_saved", "cost_saved_usd", "pct_saved", "avg_confidence_band"],
+      "properties": {
+        "rows": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "tokens_saved": {
+          "type": "number"
+        },
+        "cost_saved_usd": {
+          "type": "number"
+        },
+        "pct_saved": {
+          "type": "number"
+        },
+        "avg_confidence_band": {
+          "$ref": "defs.json#/$defs/ConfidenceBand"
+        }
+      }
+    },
+    "combined": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["tokens_saved", "cost_saved_usd", "pct_saved"],
+      "properties": {
+        "tokens_saved": {
+          "type": "number"
+        },
+        "cost_saved_usd": {
+          "type": "number"
+        },
+        "pct_saved": {
+          "type": "number"
+        }
+      }
+    }
+  }
+}

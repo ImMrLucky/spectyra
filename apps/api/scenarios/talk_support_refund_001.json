@@ -1,0 +1,31 @@
+{
+  "id": "talk_support_refund_001",
+  "path": "talk",
+  "title": "Refund dispute + recurring charge",
+  "turns": [
+    {
+      "role": "user",
+      "content": "I was charged $99.99 for a subscription on January 15th, but I cancelled it on January 10th. I want a refund."
+    },
+    {
+      "role": "assistant",
+      "content": "I understand your concern. Let me check your account. I can see that you did cancel on January 10th, but the charge went through on January 15th. This appears to be a billing system delay. I'll process a full refund of $99.99 to your original payment method. The refund should appear within 5-7 business days."
+    },
+    {
+      "role": "user",
+      "content": "Can you also make sure this doesn't happen again? I don't want to be charged after cancellation."
+    }
+  ],
+  "required_checks": [
+    {
+      "name": "includes_next_steps",
+      "type": "regex",
+      "pattern": "next steps|Next steps|will|should|can"
+    },
+    {
+      "name": "mentions_timeline",
+      "type": "regex",
+      "pattern": "within \\d+|days|business days|5-7|5 to 7"
+    }
+  ]
+}

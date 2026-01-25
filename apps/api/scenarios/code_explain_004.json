@@ -1,0 +1,26 @@
+{
+  "id": "code_explain_004",
+  "path": "code",
+  "title": "Explain complex algorithm",
+  "turns": [
+    {
+      "role": "user",
+      "content": "Can you explain what this code does?\n\n```typescript\nfunction quicksort(arr: number[]): number[] {\n  if (arr.length <= 1) return arr;\n  const pivot = arr[Math.floor(arr.length / 2)];\n  const left = arr.filter(x => x < pivot);\n  const right = arr.filter(x => x > pivot);\n  return [...quicksort(left), pivot, ...quicksort(right)];\n}\n```"
+    },
+    {
+      "role": "assistant",
+      "content": "This is a quicksort implementation. It works by:\n1. Selecting a pivot (middle element)\n2. Partitioning the array into elements less than and greater than the pivot\n3. Recursively sorting both partitions\n4. Combining the results\n\nTime complexity: O(n log n) average, O(n²) worst case."
+    },
+    {
+      "role": "user",
+      "content": "What's the space complexity?"
+    }
+  ],
+  "required_checks": [
+    {
+      "name": "includes_complexity",
+      "type": "regex",
+      "pattern": "O\\(|complexity|space|memory"
+    }
+  ]
+}

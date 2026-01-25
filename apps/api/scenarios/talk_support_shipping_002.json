@@ -1,0 +1,31 @@
+{
+  "id": "talk_support_shipping_002",
+  "path": "talk",
+  "title": "Shipping delay inquiry",
+  "turns": [
+    {
+      "role": "user",
+      "content": "I ordered a product on January 20th and it was supposed to arrive by January 25th, but I haven't received it yet. What's the status?"
+    },
+    {
+      "role": "assistant",
+      "content": "I apologize for the delay. Let me check your order status. I can see that your order was shipped on January 22nd via standard shipping. Due to weather conditions in your region, there's been a 2-3 day delay. Your package is currently in transit and should arrive by January 28th. I'll send you tracking updates via email."
+    },
+    {
+      "role": "user",
+      "content": "What if it doesn't arrive by then?"
+    }
+  ],
+  "required_checks": [
+    {
+      "name": "includes_next_steps",
+      "type": "regex",
+      "pattern": "next steps|Next steps|will|should|can|if|contact"
+    },
+    {
+      "name": "mentions_timeline",
+      "type": "regex",
+      "pattern": "January \\d+|by|within|days"
+    }
+  ]
+}

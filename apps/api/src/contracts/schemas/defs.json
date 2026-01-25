@@ -1,0 +1,29 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://example.local/schemas/defs.json",
+  "title": "Common Definitions",
+  "type": "object",
+  "$defs": {
+    "Path": {
+      "type": "string",
+      "enum": ["talk", "code"]
+    },
+    "Mode": {
+      "type": "string",
+      "enum": ["baseline", "optimized"]
+    },
+    "SavingsType": {
+      "type": "string",
+      "enum": ["verified", "shadow_verified", "estimated"]
+    },
+    "ConfidenceBand": {
+      "type": "string",
+      "enum": ["high", "medium", "low"]
+    },
+    "ISODateTime": {
+      "type": "string",
+      "description": "ISO 8601 timestamp",
+      "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}(\\.\\d{3})?Z?$"
+    }
+  }
+}

@@ -1,0 +1,31 @@
+{
+  "id": "code_bugfix_001",
+  "path": "code",
+  "title": "Fix null pointer exception in user service",
+  "turns": [
+    {
+      "role": "user",
+      "content": "I'm getting a NullPointerException in my UserService when trying to get user preferences. Here's the code:\n\n```typescript\nclass UserService {\n  getUserPreferences(userId: string): Preferences {\n    const user = this.userRepository.findById(userId);\n    return user.preferences; // NPE here\n  }\n}\n```\n\nHow do I fix this?"
+    },
+    {
+      "role": "assistant",
+      "content": "The issue is that `findById` might return `null` or `undefined`. You need to add a null check:\n\n```typescript\nclass UserService {\n  getUserPreferences(userId: string): Preferences | null {\n    const user = this.userRepository.findById(userId);\n    if (!user) {\n      return null;\n    }\n    return user.preferences;\n  }\n}\n```\n\nAlternatively, you could throw a custom exception or return default preferences."
+    },
+    {
+      "role": "user",
+      "content": "What if I want to return default preferences instead of null?"
+    }
+  ],
+  "required_checks": [
+    {
+      "name": "includes_code",
+      "type": "regex",
+      "pattern": "```|function|class|const|let|return"
+    },
+    {
+      "name": "includes_explanation",
+      "type": "regex",
+      "pattern": "default|preferences|return"
+    }
+  ]
+}

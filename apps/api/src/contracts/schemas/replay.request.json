@@ -1,0 +1,30 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://example.local/schemas/replay.request.json",
+  "title": "Replay Request",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["scenario_id", "path", "optimization_level", "provider", "model"],
+  "properties": {
+    "scenario_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "path": {
+      "$ref": "defs.json#/$defs/Path"
+    },
+    "optimization_level": {
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 4
+    },
+    "provider": {
+      "type": "string",
+      "minLength": 1
+    },
+    "model": {
+      "type": "string",
+      "minLength": 1
+    }
+  }
+}

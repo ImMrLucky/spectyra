@@ -1,0 +1,31 @@
+{
+  "id": "code_test_003",
+  "path": "code",
+  "title": "Write unit test for calculator",
+  "turns": [
+    {
+      "role": "user",
+      "content": "I need a unit test for this calculator function:\n\n```typescript\nfunction add(a: number, b: number): number {\n  return a + b;\n}\n```"
+    },
+    {
+      "role": "assistant",
+      "content": "Here's a unit test using Jest:\n\n```typescript\ndescribe('add', () => {\n  it('should add two positive numbers', () => {\n    expect(add(2, 3)).toBe(5);\n  });\n  \n  it('should handle negative numbers', () => {\n    expect(add(-1, 1)).toBe(0);\n  });\n});\n```"
+    },
+    {
+      "role": "user",
+      "content": "Can you also test edge cases like zero and decimal numbers?"
+    }
+  ],
+  "required_checks": [
+    {
+      "name": "includes_test_code",
+      "type": "regex",
+      "pattern": "describe|it\\(|expect|test"
+    },
+    {
+      "name": "includes_edge_cases",
+      "type": "regex",
+      "pattern": "zero|0|decimal|edge"
+    }
+  ]
+}

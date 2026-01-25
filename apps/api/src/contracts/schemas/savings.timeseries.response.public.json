@@ -1,0 +1,64 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://example.local/schemas/savings.timeseries.response.public.json",
+  "title": "Savings Timeseries (Public)",
+  "type": "array",
+  "items": {
+    "type": "object",
+    "additionalProperties": false,
+    "required": ["date", "verified", "estimated", "combined"],
+    "properties": {
+      "date": {
+        "type": "string"
+      },
+      "verified": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["tokens_saved", "cost_saved_usd", "replays"],
+        "properties": {
+          "tokens_saved": {
+            "type": "number"
+          },
+          "cost_saved_usd": {
+            "type": "number"
+          },
+          "replays": {
+            "type": "integer"
+          }
+        }
+      },
+      "estimated": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["tokens_saved", "cost_saved_usd", "rows", "avg_confidence_band"],
+        "properties": {
+          "tokens_saved": {
+            "type": "number"
+          },
+          "cost_saved_usd": {
+            "type": "number"
+          },
+          "rows": {
+            "type": "integer"
+          },
+          "avg_confidence_band": {
+            "$ref": "defs.json#/$defs/ConfidenceBand"
+          }
+        }
+      },
+      "combined": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["tokens_saved", "cost_saved_usd"],
+        "properties": {
+          "tokens_saved": {
+            "type": "number"
+          },
+          "cost_saved_usd": {
+            "type": "number"
+          }
+        }
+      }
+    }
+  }
+}

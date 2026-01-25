@@ -1,0 +1,30 @@
+{
+  "name": "api",
+  "version": "0.1.0",
+  "type": "module",
+  "scripts": {
+    "dev": "tsx watch src/index.ts",
+    "build": "tsc",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@spectyra/shared": "workspace:*",
+    "express": "^4.18.2",
+    "cors": "^2.8.5",
+    "dotenv": "^16.3.1",
+    "better-sqlite3": "^9.2.2",
+    "openai": "^4.24.1",
+    "@anthropic-ai/sdk": "^0.20.1",
+    "@google/generative-ai": "^0.2.1",
+    "tiktoken": "^1.0.10",
+    "uuid": "^9.0.1"
+  },
+  "devDependencies": {
+    "@types/express": "^4.17.21",
+    "@types/cors": "^2.8.17",
+    "@types/better-sqlite3": "^7.6.8",
+    "@types/uuid": "^9.0.7",
+    "tsx": "^4.7.1",
+    "typescript": "^5.3.3"
+  }
+}

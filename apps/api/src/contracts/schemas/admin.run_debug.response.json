@@ -1,0 +1,18 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://example.local/schemas/admin.run_debug.response.json",
+  "title": "Admin Run Debug Response",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["run_id", "debug_internal_json"],
+  "properties": {
+    "run_id": {
+      "type": "string"
+    },
+    "debug_internal_json": {
+      "type": "object",
+      "description": "Server-only internal structure; may contain spectral/operator details",
+      "additionalProperties": true
+    }
+  }
+}

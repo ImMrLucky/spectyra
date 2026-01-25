@@ -1,0 +1,20 @@
+{
+  "name": "@spectyra/cli",
+  "version": "0.1.0",
+  "type": "module",
+  "bin": {
+    "spectyra": "./spectyra.ts"
+  },
+  "scripts": {
+    "dev": "tsx watch spectyra.ts",
+    "build": "tsc"
+  },
+  "dependencies": {
+    "commander": "^11.1.0"
+  },
+  "devDependencies": {
+    "@types/node": "^20.11.0",
+    "tsx": "^4.7.1",
+    "typescript": "^5.3.3"
+  }
+}

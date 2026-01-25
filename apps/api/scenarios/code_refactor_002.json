@@ -1,0 +1,31 @@
+{
+  "id": "code_refactor_002",
+  "path": "code",
+  "title": "Refactor duplicate validation logic",
+  "turns": [
+    {
+      "role": "user",
+      "content": "I have duplicate email validation logic in multiple places. How can I refactor this?\n\n```typescript\n// In UserController\nif (!email.includes('@')) {\n  throw new Error('Invalid email');\n}\n\n// In RegistrationService\nif (!email.includes('@')) {\n  throw new Error('Invalid email');\n}\n```"
+    },
+    {
+      "role": "assistant",
+      "content": "Create a shared validation utility:\n\n```typescript\n// utils/emailValidator.ts\nexport function validateEmail(email: string): void {\n  if (!email.includes('@')) {\n    throw new Error('Invalid email');\n  }\n}\n```\n\nThen use it in both places:\n\n```typescript\nimport { validateEmail } from './utils/emailValidator';\nvalidateEmail(email);\n```"
+    },
+    {
+      "role": "user",
+      "content": "Can you also add regex validation for a more robust check?"
+    }
+  ],
+  "required_checks": [
+    {
+      "name": "includes_code",
+      "type": "regex",
+      "pattern": "```|function|export|import"
+    },
+    {
+      "name": "includes_regex",
+      "type": "regex",
+      "pattern": "regex|RegExp|/.*@.*/"
+    }
+  ]
+}

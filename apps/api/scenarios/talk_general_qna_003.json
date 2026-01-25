@@ -1,0 +1,26 @@
+{
+  "id": "talk_general_qna_003",
+  "path": "talk",
+  "title": "Product feature question",
+  "turns": [
+    {
+      "role": "user",
+      "content": "What features does the Pro plan include?"
+    },
+    {
+      "role": "assistant",
+      "content": "The Pro plan includes: unlimited projects, advanced analytics, priority support, custom integrations, team collaboration for up to 10 members, and API access. It costs $49/month when billed annually."
+    },
+    {
+      "role": "user",
+      "content": "Can I try it before committing?"
+    }
+  ],
+  "required_checks": [
+    {
+      "name": "includes_trial_info",
+      "type": "regex",
+      "pattern": "trial|free|try|demo|test"
+    }
+  ]
+}

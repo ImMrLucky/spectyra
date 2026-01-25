@@ -1,0 +1,26 @@
+{
+  "id": "talk_support_billing_006",
+  "path": "talk",
+  "title": "Billing question about charges",
+  "turns": [
+    {
+      "role": "user",
+      "content": "I see two charges on my credit card - $29.99 and $49.99. Can you explain what these are for?"
+    },
+    {
+      "role": "assistant",
+      "content": "I can help clarify those charges. The $29.99 charge is from your subscription renewal on January 15th. The $49.99 charge is from an upgrade to the Pro plan on January 20th. Both charges are legitimate. Would you like me to send you a detailed invoice?"
+    },
+    {
+      "role": "user",
+      "content": "Yes, please send the invoice to my email."
+    }
+  ],
+  "required_checks": [
+    {
+      "name": "includes_action",
+      "type": "regex",
+      "pattern": "send|email|invoice|will"
+    }
+  ]
+}

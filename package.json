@@ -1,0 +1,22 @@
+{
+  "name": "spectyra",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Spectral Token & Cost Reduction Engine",
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "scripts": {
+    "dev:api": "pnpm --filter api dev",
+    "dev:web": "pnpm --filter web dev",
+    "dev": "pnpm --parallel --filter \"./apps/*\" dev",
+    "build": "pnpm --recursive build",
+    "typecheck": "pnpm --recursive typecheck"
+  },
+  "devDependencies": {
+    "@types/node": "^20.11.0",
+    "typescript": "^5.3.3"
+  },
+  "packageManager": "pnpm@8.15.0"
+}

@@ -1,0 +1,26 @@
+{
+  "id": "talk_support_account_004",
+  "path": "talk",
+  "title": "Account access issue",
+  "turns": [
+    {
+      "role": "user",
+      "content": "I can't log into my account. I've tried resetting my password but the email never arrives."
+    },
+    {
+      "role": "assistant",
+      "content": "I'm sorry you're having trouble. Let me help you troubleshoot. First, please check your spam folder. If the email isn't there, I can resend it to a different email address. Also, make sure you're using the correct email address associated with your account."
+    },
+    {
+      "role": "user",
+      "content": "I checked spam and it's not there. Can you send it to my backup email?"
+    }
+  ],
+  "required_checks": [
+    {
+      "name": "includes_solution",
+      "type": "regex",
+      "pattern": "send|resend|email|backup|alternative"
+    }
+  ]
+}

@@ -1,0 +1,55 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://example.local/schemas/replay.response.public.json",
+  "title": "Replay Response (Public)",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["replay_id", "created_at", "scenario_id", "path", "optimization_level", "provider", "model", "baseline", "optimized", "verified_savings"],
+  "properties": {
+    "replay_id": {
+      "type": "string"
+    },
+    "created_at": {
+      "$ref": "defs.json#/$defs/ISODateTime"
+    },
+    "scenario_id": {
+      "type": "string"
+    },
+    "path": {
+      "$ref": "defs.json#/$defs/Path"
+    },
+    "optimization_level": {
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 4
+    },
+    "provider": {
+      "type": "string"
+    },
+    "model": {
+      "type": "string"
+    },
+    "baseline": {
+      "$ref": "chat.response.public.json"
+    },
+    "optimized": {
+      "$ref": "chat.response.public.json"
+    },
+    "verified_savings": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["tokens_saved", "pct_saved", "cost_saved_usd"],
+      "properties": {
+        "tokens_saved": {
+          "type": "number"
+        },
+        "pct_saved": {
+          "type": "number"
+        },
+        "cost_saved_usd": {
+          "type": "number"
+        }
+      }
+    }
+  }
+}
