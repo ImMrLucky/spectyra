@@ -1,7 +1,7 @@
 [build]
-  base = "."
-  command = "pnpm install && cd apps/web && pnpm build"
-  publish = "apps/web/dist/web/browser"
+  base = "apps/web"
+  command = "cd ../.. && pnpm install && pnpm --filter web build"
+  publish = "dist/web/browser"
 
 [build.environment]
   NODE_VERSION = "20"
