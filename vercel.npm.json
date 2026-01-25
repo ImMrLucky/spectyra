@@ -1,0 +1,12 @@
+{
+  "buildCommand": "npm install && cd apps/web && npm run build -- --configuration production",
+  "outputDirectory": "apps/web/dist/web/browser",
+  "installCommand": "npm install",
+  "framework": null,
+  "rewrites": [
+    {
+      "source": "/(.*)",
+      "destination": "/index.html"
+    }
+  ]
+}
