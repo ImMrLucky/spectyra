@@ -80,19 +80,30 @@ interface ProofEstimate {
       </div>
       
       <div class="card">
-        <h3>Conversation JSON</h3>
+        <h3>Paste Conversation</h3>
+        <p class="help-text">Paste a conversation from ChatGPT, Claude, or any chat interface. You can paste the raw text or JSON format.</p>
         <textarea 
           class="textarea"
-          [(ngModel)]="conversationJson"
-          placeholder='[{"role":"user","content":"..."},{"role":"assistant","content":"..."}]'
-          rows="10">
+          [(ngModel)]="conversationInput"
+          placeholder="Paste your conversation here... (supports plain text or JSON format)"
+          rows="12">
         </textarea>
         <button 
           class="btn btn-primary"
           (click)="estimateSavings()"
-          [disabled]="loading || !conversationJson.trim()">
+          [disabled]="loading || !conversationInput.trim()">
           {{ loading ? 'Estimating...' : 'Estimate Savings' }}
         </button>
+      </div>
+      
+      <div *ngIf="parsedMessages && parsedMessages.length > 0" class="card conversation-preview">
+        <h3>Conversation Preview</h3>
+        <div class="conversation-messages">
+          <div *ngFor="let msg of parsedMessages; let i = index" class="message" [class.user]="msg.role === 'user'" [class.assistant]="msg.role === 'assistant'">
+            <div class="message-role">{{ msg.role === 'user' ? 'You' : 'Assistant' }}</div>
+            <div class="message-content">{{ msg.content }}</div>
+          </div>
+        </div>
       </div>
       
       <div *ngIf="estimate && !loading" class="results">
@@ -200,14 +211,53 @@ interface ProofEstimate {
       font-size: 12px;
       color: #666;
     }
+    .help-text {
+      color: #666;
+      font-size: 14px;
+      margin-bottom: 10px;
+    }
     .textarea {
       width: 100%;
       padding: 10px;
       border: 1px solid #ddd;
       border-radius: 4px;
-      font-family: monospace;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
       font-size: 14px;
       margin-bottom: 15px;
+      resize: vertical;
+    }
+    .conversation-preview {
+      margin-top: 20px;
+    }
+    .conversation-messages {
+      max-height: 400px;
+      overflow-y: auto;
+    }
+    .message {
+      margin-bottom: 16px;
+      padding: 12px;
+      border-radius: 6px;
+      border-left: 4px solid #ddd;
+    }
+    .message.user {
+      background: #f0f7ff;
+      border-left-color: #007bff;
+    }
+    .message.assistant {
+      background: #f8f9fa;
+      border-left-color: #6c757d;
+    }
+    .message-role {
+      font-weight: 600;
+      font-size: 12px;
+      text-transform: uppercase;
+      color: #666;
+      margin-bottom: 6px;
+    }
+    .message-content {
+      color: #333;
+      white-space: pre-wrap;
+      word-wrap: break-word;
     }
     .btn {
       padding: 10px 20px;
@@ -310,19 +360,40 @@ export class ProofPage {
   }
   
   estimateSavings() {
-    if (!this.conversationJson.trim()) {
-      this.error = 'Please paste a conversation JSON';
+    if (!this.conversationInput.trim()) {
+      this.error = 'Please paste a conversation';
       return;
     }
     
     let messages: any[];
     try {
-      messages = JSON.parse(this.conversationJson);
-      if (!Array.isArray(messages)) {
-        throw new Error('Messages must be an array');
+      // Try to parse as JSON first
+      const trimmed = this.conversationInput.trim();
+      if (trimmed.startsWith('[') || trimmed.startsWith('{')) {
+        messages = JSON.parse(trimmed);
+        if (!Array.isArray(messages)) {
+          throw new Error('JSON must be an array of messages');
+        }
+      } else {
+        // Parse as plain text conversation
+        messages = this.parsePlainTextConversation(trimmed);
       }
+      
+      // Validate messages format
+      if (!Array.isArray(messages) || messages.length === 0) {
+        throw new Error('No valid messages found');
+      }
+      
+      // Ensure messages have required fields
+      messages = messages.map(msg => ({
+        role: msg.role || 'user',
+        content: msg.content || String(msg)
+      }));
+      
+      this.parsedMessages = messages;
     } catch (err: any) {
-      this.error = `Invalid JSON: ${err.message}`;
+      this.error = `Failed to parse conversation: ${err.message}`;
+      this.parsedMessages = [];
       return;
     }
     
@@ -346,6 +417,63 @@ export class ProofPage {
         this.loading = false;
       },
     });
+  }
+  
+  /**
+   * Parse plain text conversation into message format
+   * Handles common formats like:
+   * - "User: ...\nAssistant: ..."
+   * - "Human: ...\nAI: ..."
+   * - Lines starting with "You:" or "ChatGPT:"
+   */
+  parsePlainTextConversation(text: string): any[] {
+    const messages: any[] = [];
+    const lines = text.split('\n');
+    let currentRole: 'user' | 'assistant' = 'user';
+    let currentContent: string[] = [];
+    
+    const rolePatterns = [
+      { pattern: /^(user|you|human|human:)/i, role: 'user' as const },
+      { pattern: /^(assistant|ai|chatgpt|claude|gpt|bot|assistant:)/i, role: 'assistant' as const },
+    ];
+    
+    for (const line of lines) {
+      let matched = false;
+      for (const { pattern, role } of rolePatterns) {
+        if (pattern.test(line)) {
+          // Save previous message
+          if (currentContent.length > 0) {
+            messages.push({
+              role: currentRole,
+              content: currentContent.join('\n').trim()
+            });
+          }
+          // Start new message
+          currentRole = role;
+          currentContent = [line.replace(pattern, '').trim()];
+          matched = true;
+          break;
+        }
+      }
+      
+      if (!matched) {
+        if (currentContent.length === 0 && line.trim()) {
+          // First line without role marker - assume user
+          currentRole = 'user';
+        }
+        currentContent.push(line);
+      }
+    }
+    
+    // Add last message
+    if (currentContent.length > 0) {
+      messages.push({
+        role: currentRole,
+        content: currentContent.join('\n').trim()
+      });
+    }
+    
+    return messages;
   }
   
   formatCurrency = formatCurrency;

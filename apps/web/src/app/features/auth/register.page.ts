@@ -141,7 +141,9 @@ import { AuthService } from '../../core/auth/auth.service';
       flex: 1;
       font-family: monospace;
       font-size: 14px;
-      word-break: break-all;
+      word-break: break-word;
+      overflow-wrap: break-word;
+      white-space: pre-wrap;
       color: #333;
     }
     .trial-info {
