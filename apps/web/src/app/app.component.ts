@@ -11,6 +11,7 @@ import { RouterOutlet, RouterModule } from '@angular/router';
         <h1>Spectyra</h1>
         <nav>
           <a routerLink="/scenarios">Scenarios</a>
+          <a routerLink="/proof">Proof</a>
           <a routerLink="/savings">Savings</a>
           <a routerLink="/runs">Runs History</a>
           <a routerLink="/settings">Settings</a>

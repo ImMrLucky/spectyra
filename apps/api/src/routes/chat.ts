@@ -15,12 +15,18 @@ import { writeEstimatedSavings } from "../services/savings/ledgerWriter.js";
 import { redactRun } from "../middleware/redact.js";
 import type { RunRecord, Message, Path, Mode } from "@spectyra/shared";
 import type { ChatMessage } from "../services/optimizer/unitize.js";
+import {
+  estimateBaselineTokens,
+  estimateOptimizedTokens,
+  getPricingConfig,
+} from "../services/proof/tokenEstimator.js";
+import { confidenceToBand } from "../services/savings/confidence.js";
 
 export const chatRouter = Router();
 
 chatRouter.post("/", async (req, res) => {
   try {
-    const { path, conversation_id, provider, model, messages, mode, optimization_level } = req.body as {
+    const { path, conversation_id, provider, model, messages, mode, optimization_level, dry_run } = req.body as {
       path: Path;
       conversation_id?: string;
       provider: string;
@@ -28,6 +34,7 @@ chatRouter.post("/", async (req, res) => {
       messages: Message[];
       mode: Mode;
       optimization_level?: number;
+      dry_run?: boolean;
     };
     
     if (!path || !provider || !model || !messages || !mode) {
@@ -56,7 +63,99 @@ chatRouter.post("/", async (req, res) => {
     const optimizationLevel = optimization_level ?? 2; // default to 2
     const cfg = mapOptimizationLevelToConfig(path as "talk" | "code", optimizationLevel, baseConfig);
     
-    // Run optimizer
+    // Handle dry-run mode (no real LLM calls)
+    if (dry_run === true) {
+      // Run optimizer pipeline to get optimized prompt (but don't call provider)
+      const result = await runOptimizedOrBaseline({
+        mode: "optimized",
+        path: path as "talk" | "code",
+        conversationId: conversation_id,
+        model,
+        provider: optimizerProvider,
+        embedder,
+        messages: chatMessages,
+        turnIndex: Date.now(),
+        dryRun: true,
+      }, cfg);
+      
+      // Estimate baseline tokens
+      const pricing = getPricingConfig(provider);
+      const baselineEstimate = estimateBaselineTokens(chatMessages, provider, pricing);
+      
+      // Estimate optimized tokens
+      const optimizedEstimate = estimateOptimizedTokens(
+        result.promptFinal.messages,
+        path as "talk" | "code",
+        optimizationLevel,
+        provider,
+        pricing
+      );
+      
+      // Calculate savings
+      const tokensSaved = baselineEstimate.total_tokens - optimizedEstimate.total_tokens;
+      const pctSaved = baselineEstimate.total_tokens > 0 
+        ? (tokensSaved / baselineEstimate.total_tokens) * 100 
+        : 0;
+      const costSaved = baselineEstimate.cost_usd - optimizedEstimate.cost_usd;
+      
+      // Get confidence (for estimated savings, use medium confidence in dry-run)
+      const confidenceBand = "Medium"; // Dry-run estimates are always medium confidence
+      
+      // Build explanation summary (generic, no moat internals)
+      const explanationParts: string[] = [];
+      if (result.debug.refsUsed && result.debug.refsUsed.length > 0) {
+        explanationParts.push("Stable context compacted");
+      }
+      if (result.debug.deltaUsed) {
+        explanationParts.push("Delta prompting");
+      }
+      if (path === "code" && result.debug.codeSliced) {
+        explanationParts.push("Code slicing + patch mode");
+      }
+      if (result.debug.patchMode) {
+        explanationParts.push("Patch mode");
+      }
+      explanationParts.push("Output budget enforcement");
+      
+      return res.json({
+        run_id: uuidv4(),
+        created_at: new Date().toISOString(),
+        mode: "optimized",
+        path,
+        optimization_level: optimizationLevel,
+        provider,
+        model,
+        response_text: "DRY_RUN: No provider call made. See baseline_estimate and optimized_estimate for token/cost projections.",
+        usage: {
+          input_tokens: optimizedEstimate.input_tokens,
+          output_tokens: optimizedEstimate.output_tokens,
+          total_tokens: optimizedEstimate.total_tokens,
+        },
+        cost_usd: optimizedEstimate.cost_usd,
+        savings: {
+          savings_type: "estimated",
+          tokens_saved: tokensSaved,
+          pct_saved: pctSaved,
+          cost_saved_usd: costSaved,
+          confidence_band: confidenceBand.toLowerCase() as "high" | "medium" | "low",
+        },
+        baseline_estimate: {
+          input_tokens: baselineEstimate.input_tokens,
+          output_tokens: baselineEstimate.output_tokens,
+          total_tokens: baselineEstimate.total_tokens,
+          cost_usd: baselineEstimate.cost_usd,
+        },
+        optimized_estimate: {
+          input_tokens: optimizedEstimate.input_tokens,
+          output_tokens: optimizedEstimate.output_tokens,
+          total_tokens: optimizedEstimate.total_tokens,
+          cost_usd: optimizedEstimate.cost_usd,
+        },
+        explanation_summary: explanationParts.join(", "),
+      });
+    }
+    
+    // Run optimizer (real mode)
     const result = await runOptimizedOrBaseline({
       mode,
       path: path as "talk" | "code",

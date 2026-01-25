@@ -102,7 +102,7 @@ export async function runOptimizedOrBaseline(
   input: OptimizeInput,
   cfg: OptimizerConfig
 ): Promise<OptimizeOutput> {
-  const { mode, path, provider, embedder, model, messages, turnIndex, requiredChecks } = input;
+  const { mode, path, provider, embedder, model, messages, turnIndex, requiredChecks, dryRun } = input;
 
   // Baseline: forward as-is (still can be quality-checked in replay)
   if (mode === "baseline") {

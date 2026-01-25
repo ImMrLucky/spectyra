@@ -79,7 +79,7 @@ export interface SavingsFilters {
   model?: string;
 }
 
-function buildWhereClause(filters: SavingsFilters, tablePrefix: string = "p"): { sql: string; params: any[] } {
+function buildWhereClause(filters: SavingsFilters, tablePrefix: string = "l"): { sql: string; params: any[] } {
   const conditions: string[] = [];
   const params: any[] = [];
   const prefix = tablePrefix;
@@ -115,18 +115,7 @@ function buildWhereClause(filters: SavingsFilters, tablePrefix: string = "p"): {
 
 export function getSavingsSummary(filters: SavingsFilters): SavingsSummary {
   const db = getDb();
-  const { sql: whereClause, params } = buildWhereClause(filters, "l");
-  
-  // Build path filter for ledger
-  let ledgerWhere = whereClause;
-  if (filters.path && filters.path !== "both") {
-    ledgerWhere = ledgerWhere 
-      ? `${ledgerWhere} AND l.path = ?`
-      : `WHERE l.path = ?`;
-    if (!ledgerWhere.includes("WHERE")) {
-      params.push(filters.path);
-    }
-  }
+  const { sql: ledgerWhere, params } = buildWhereClause(filters, "l");
   
   // Get date range from ledger
   const dateRange = db.prepare(`
@@ -134,16 +123,15 @@ export function getSavingsSummary(filters: SavingsFilters): SavingsSummary {
       MIN(created_at) as from_date,
       MAX(created_at) as to_date
     FROM savings_ledger l
-    ${ledgerWhere || ""}
-  `).get(...(ledgerWhere ? params : [])) as { from_date: string | null; to_date: string | null };
+    ${ledgerWhere}
+  `).get(...params) as { from_date: string | null; to_date: string | null };
   
   // Count replays (verified only)
   const replayCount = db.prepare(`
     SELECT COUNT(DISTINCT replay_id) as count
     FROM savings_ledger l
-    WHERE l.savings_type IN ('verified', 'shadow_verified')
-    ${ledgerWhere || ""}
-  `).get(...(ledgerWhere ? params : [])) as { count: number };
+    ${ledgerWhere ? ledgerWhere + " AND" : "WHERE"} l.savings_type IN ('verified', 'shadow_verified')
+  `).get(...params) as { count: number };
   
   // Aggregate verified savings
   const verified = db.prepare(`
@@ -152,9 +140,8 @@ export function getSavingsSummary(filters: SavingsFilters): SavingsSummary {
       SUM(tokens_saved) as tokens_saved,
       SUM(cost_saved_usd) as cost_saved
     FROM savings_ledger l
-    WHERE l.savings_type IN ('verified', 'shadow_verified')
-    ${ledgerWhere || ""}
-  `).get(...(ledgerWhere ? params : [])) as any;
+    ${ledgerWhere ? ledgerWhere + " AND" : "WHERE"} l.savings_type IN ('verified', 'shadow_verified')
+  `).get(...params) as any;
   
   // Aggregate estimated savings
   const estimated = db.prepare(`
@@ -165,9 +152,8 @@ export function getSavingsSummary(filters: SavingsFilters): SavingsSummary {
       SUM(cost_saved_usd) as cost_saved,
       AVG(confidence) as avg_confidence
     FROM savings_ledger l
-    WHERE l.savings_type = 'estimated'
-    ${ledgerWhere || ""}
-  `).get(...(ledgerWhere ? params : [])) as any;
+    ${ledgerWhere ? ledgerWhere + " AND" : "WHERE"} l.savings_type = 'estimated'
+  `).get(...params) as any;
   
   const vSaved = verified.tokens_saved || 0;
   const vBaseTokens = verified.baseline_tokens || 0;
@@ -295,7 +281,7 @@ export function getSavingsTimeseries(filters: SavingsFilters, bucket: "day" | "w
       day AS date,
       verified_tokens_saved,
       verified_cost_saved_usd,
-      verified_replays AS verified_replays,
+      verified_replays,
       estimated_tokens_saved,
       estimated_cost_saved_usd,
       estimated_rows,
@@ -333,18 +319,7 @@ export function getSavingsTimeseries(filters: SavingsFilters, bucket: "day" | "w
 
 export function getSavingsByLevel(filters: SavingsFilters): LevelBreakdown[] {
   const db = getDb();
-  const { sql: whereClause, params } = buildWhereClause(filters, "l");
-  
-  // Build path filter
-  let ledgerWhere = whereClause;
-  if (filters.path && filters.path !== "both") {
-    ledgerWhere = ledgerWhere 
-      ? `${ledgerWhere} AND l.path = ?`
-      : `WHERE l.path = ?`;
-    if (!ledgerWhere.includes("WHERE")) {
-      params.push(filters.path);
-    }
-  }
+  const { sql: ledgerWhere, params } = buildWhereClause(filters, "l");
   
   const rows = db.prepare(`
     SELECT 
@@ -356,10 +331,10 @@ export function getSavingsByLevel(filters: SavingsFilters): LevelBreakdown[] {
       SUM(cost_saved_usd) as cost_saved,
       AVG(CASE WHEN l.savings_type = 'estimated' THEN l.confidence ELSE NULL END) as avg_confidence
     FROM savings_ledger l
-    ${ledgerWhere || ""}
+    ${ledgerWhere}
     GROUP BY l.optimization_level, l.savings_type
     ORDER BY l.optimization_level ASC
-  `).all(...(ledgerWhere ? params : [])) as any[];
+  `).all(...params) as any[];
   
   // Group by level
   const byLevel = new Map<number, {
@@ -416,10 +391,9 @@ export function getSavingsByLevel(filters: SavingsFilters): LevelBreakdown[] {
       l.optimization_level as level,
       COUNT(DISTINCT l.replay_id) as replays
     FROM savings_ledger l
-    WHERE l.savings_type IN ('verified', 'shadow_verified')
-    ${ledgerWhere || ""}
+    ${ledgerWhere ? ledgerWhere + " AND" : "WHERE"} l.savings_type IN ('verified', 'shadow_verified')
     GROUP BY l.optimization_level
-  `).all(...(ledgerWhere ? params : [])) as any[];
+  `).all(...params) as any[];
   
   const replayMap = new Map(replayCounts.map(r => [r.level, r.replays || 0]));
   
@@ -429,10 +403,9 @@ export function getSavingsByLevel(filters: SavingsFilters): LevelBreakdown[] {
       COUNT(*) as rows,
       AVG(l.confidence) as avg_confidence
     FROM savings_ledger l
-    WHERE l.savings_type = 'estimated'
-    ${ledgerWhere || ""}
+    ${ledgerWhere ? ledgerWhere + " AND" : "WHERE"} l.savings_type = 'estimated'
     GROUP BY l.optimization_level
-  `).all(...(ledgerWhere ? params : [])) as any[];
+  `).all(...params) as any[];
   
   const estimatedMap = new Map(estimatedStats.map(r => [
     r.level,

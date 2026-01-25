@@ -124,4 +124,23 @@ export class ApiClientService {
     if (params.bucket) queryParams.set('bucket', params.bucket);
     return this.http.get<any[]>(`${this.baseUrl}/savings/level-usage-timeseries?${queryParams}`);
   }
+
+  proofEstimate(params: {
+    path: 'talk' | 'code';
+    provider: string;
+    model: string;
+    optimization_level: number;
+    messages: any[];
+  }): Observable<any> {
+    return this.http.post<any>(`${this.baseUrl}/proof/estimate`, params);
+  }
+
+  replaySimulate(params: {
+    scenario_id: string;
+    provider: string;
+    model: string;
+    optimization_level?: number;
+  }): Observable<any> {
+    return this.http.post<any>(`${this.baseUrl}/replay/simulate`, params);
+  }
 }
