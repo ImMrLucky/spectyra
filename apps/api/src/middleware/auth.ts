@@ -59,9 +59,13 @@ export async function authenticate(
     }
     
     // Update last used timestamp (async, don't block)
-    updateApiKeyLastUsed(keyHash).catch(() => {
-      // Ignore errors
-    });
+    // Wrap in try-catch since updateApiKeyLastUsed is synchronous
+    try {
+      updateApiKeyLastUsed(keyHash);
+    } catch (error) {
+      // Ignore errors - don't block request if update fails
+      console.warn("Failed to update API key last used:", error);
+    }
     
     // Attach user info to request
     req.userId = user.id;

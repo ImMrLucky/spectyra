@@ -4,7 +4,7 @@
 
 **Spectyra** is a Spectral Token & Cost Reduction Engine that reduces LLM token usage and costs by preventing semantic recomputation. It works as middleware between users and LLM providers (OpenAI, Anthropic, Gemini, Grok), intelligently optimizing prompts before sending them to the LLM while maintaining output quality.
 
-The system uses a proprietary "Spectral Core v0" decision engine based on graph theory and spectral analysis to determine when content is semantically stable and can be reused, versus when it needs to be expanded or clarified.
+The system uses a proprietary "Spectral Core v1" decision engine based on graph theory and spectral analysis to determine when content is semantically stable and can be reused, versus when it needs to be expanded or clarified. The core combines multiple spectral operators (signed Laplacian, random walk gap, heat-trace complexity, curvature analysis) for robust stability assessment.
 
 ---
 
@@ -62,6 +62,8 @@ For coding assistant workflows:
    - `provider`: OpenAI, Anthropic, Gemini, or Grok
    - `model`: Specific model name
    - `mode`: "baseline" or "optimized"
+   - `dry_run`: Optional boolean (if true, skips LLM call, returns estimates)
+   - `X-PROVIDER-KEY`: Optional header for BYOK (Bring Your Own Key)
 
 3. **If mode = "baseline":**
    - Request is forwarded directly to LLM provider
@@ -80,19 +82,44 @@ For coding assistant workflows:
    - **Step 3: Graph Construction**
      - Builds a signed weighted graph where:
        - Nodes = semantic units
-       - Edges = similarity (positive weight) or contradiction (negative weight)
-     - Similarity edges: cosine similarity > threshold (0.85)
-     - Contradiction edges: numeric conflicts, negation patterns, keyword overlap
+       - Edges = similarity (positive weight), contradiction (negative weight), or dependency (code path)
+     - **Similarity edges**: 
+       - Base: cosine similarity > threshold (0.85)
+       - Temporal boost: +0.15 (same turn), +0.08 (adjacent), +0.03 (recent)
+       - Kind boost: +0.12 (constraints), +0.08 (facts), +0.05 (explanations)
+     - **Contradiction edges**:
+       - Numeric conflicts: Relative difference > 15% (weighted by strength)
+       - Negation patterns: Detects "not", "never", "can't", etc.
+       - Semantic contradictions: Detects opposites (always/never, include/exclude, increase/decrease)
+       - Temporal contradictions: Past vs future markers
+     - **Dependency edges** (code path only):
+       - Patch → code blocks (weight 0.7)
+       - Constraint → code blocks (weight 0.5-0.7)
+       - Code block references (weight 0.6)
    
-   - **Step 4: Spectral Analysis (The Moat)**
+   - **Step 4: Spectral Analysis (The Moat - Multi-Operator)**
      - Computes signed Laplacian matrix from the graph
      - Estimates λ₂ (second smallest eigenvalue) using power iteration
      - Calculates contradiction energy
-     - Computes stability index: `sigmoid(a*λ₂ - b*contradictionEnergy)`
+     - **Additional Operators:**
+       - **Random Walk Gap**: Measures topic mixing/stability (high gap = well-mixing = safe REUSE)
+       - **Heat-Trace Complexity**: Estimates compressibility (lower = more compressible)
+       - **Curvature Analysis**: Detects local conflict hotspots (Forman-Ricci-like)
+       - **Node Features**: Age, length, kind weight, novelty per unit
+     - **Combined Stability Index**:
+       - Spectral component: Enhanced with non-linear contradiction penalty and connectivity reward
+       - Random walk gap component
+       - Heat complexity component (inverted)
+       - Curvature component (normalized)
+       - Novelty component (inverted)
+       - Final: Weighted combination (w1=0.40, w2=0.20, w3=0.15, w4=0.10, w5=0.15)
+     - **Adaptive Thresholds** (based on conversation history):
+       - If past stability < 0.5: Increase thresholds (more conservative)
+       - If contradictions increasing: Increase tHigh by 0.08 (more cautious)
      - Generates recommendation:
-       - **REUSE**: stabilityIndex >= 0.70 → Aggressive optimization
-       - **EXPAND**: 0.35 < stabilityIndex < 0.70 → Moderate optimization
-       - **ASK_CLARIFY**: stabilityIndex <= 0.35 → Return clarifying question (saves tokens)
+       - **REUSE**: stabilityFinal >= tHigh (default 0.70) → Aggressive optimization
+       - **EXPAND**: tLow < stabilityFinal < tHigh → Moderate optimization
+       - **ASK_CLARIFY**: stabilityFinal <= tLow (default 0.35) OR high contradiction OR low curvature → Return clarifying question (saves tokens)
    
    - **Step 5: Apply Policy Transforms**
      - **Talk Policy** (if path = "talk"):
@@ -108,14 +135,27 @@ For coding assistant workflows:
        - Output trimming: Enforce patch format, remove scaffolding
    
    - **Step 6: LLM Call**
-     - Sends optimized prompt to provider
+     - **If `dry_run=true`**: Skips provider call, returns placeholder response with estimated usage
+     - **If `dry_run=false`**: Sends optimized prompt to provider
      - Includes `maxOutputTokens` limit (450 for optimized, unlimited for baseline)
-     - Receives response text and usage tokens
+     - Receives response text and usage tokens (or estimates if dry-run)
    
-   - **Step 7: Post-Processing**
-     - Strips common boilerplate ("Sure, here's...", "Let me know...")
-     - Compresses verbose scaffolding
-     - Enforces patch format if patch mode was used
+   - **Step 7: Post-Processing** (Content-Aware)
+     - **Extended boilerplate removal**:
+       - "Sure, here's...", "Let me know...", "Hope this helps"
+       - "Here's the code", "I've created/made/written"
+       - "As I mentioned", "To summarize"
+     - **Code block preservation**:
+       - Extracts and preserves code blocks during processing
+       - Restores code blocks after trimming
+       - Shows count of trimmed code blocks
+     - **Smart trimming**:
+       - Preserves complete sentences (not hard cuts)
+       - Preserves function signatures in code
+       - Removes redundant phrases
+     - **Patch format enforcement**:
+       - Keeps unified diff + essential bullets
+       - Preserves important warnings/notes
      - Applies aggressive trimming if REUSE recommendation
    
    - **Step 8: Quality Guard**
@@ -168,7 +208,11 @@ User → POST /v1/chat { path: "talk", mode: "optimized", optimization_level: 3,
 
 ---
 
-### B. Proof Mode (Replay/Scenario Testing)
+### B. Proof Mode (Replay/Scenario Testing & Conversation Paste)
+
+**Proof Mode has two sub-modes:**
+
+#### B1. Scenario Replay Mode
 
 **How it works:**
 1. User selects a scenario from `/v1/scenarios` endpoint
@@ -219,7 +263,37 @@ User → POST /v1/chat { path: "talk", mode: "optimized", optimization_level: 3,
      - `verified_savings`: { tokens_saved, pct_saved, cost_saved_usd }
      - `quality`: { baseline_pass, optimized_pass }
 
-**Proof Mode Flow Example:**
+#### B2. Conversation Paste Mode
+
+**How it works:**
+1. User navigates to `/proof` page
+2. User pastes a conversation from:
+   - ChatGPT, Claude, or any chat interface
+   - Plain text format (e.g., "User: ... Assistant: ...")
+   - JSON format (array of messages)
+3. System automatically parses the conversation:
+   - Detects common formats: "User:", "Assistant:", "Human:", "AI:", "You:", "ChatGPT:", etc.
+   - Converts to standard message format
+   - Shows preview of parsed conversation
+4. User configures:
+   - Path (talk/code)
+   - Provider and model
+   - Optimization level (0-4)
+5. User clicks "Estimate Savings"
+6. System calls `/v1/proof/estimate` endpoint:
+   - Runs optimization pipeline (dry-run, no real LLM calls)
+   - Estimates baseline tokens/cost
+   - Estimates optimized tokens/cost
+   - Calculates savings and confidence
+7. **Response shows only:**
+   - Savings summary (tokens saved, cost saved, % saved)
+   - Confidence band (High/Medium/Low)
+   - Baseline and optimized estimates
+   - **No internal breakdown** (no spectral numbers, no optimizer steps, no REFs)
+
+**Proof Mode Flow Examples:**
+
+**Scenario Replay:**
 ```
 User → POST /v1/replay { scenario_id: "talk_support_refund_001", optimization_level: 2 }
   → Load scenario
@@ -236,6 +310,20 @@ User → POST /v1/replay { scenario_id: "talk_support_refund_001", optimization_
   
   → Write verified savings to ledger
   → Return comparison result
+```
+
+**Conversation Paste:**
+```
+User → /proof page
+  → Paste conversation (plain text or JSON)
+  → System parses and shows preview
+  → User clicks "Estimate Savings"
+  → POST /v1/proof/estimate { path, provider, model, optimization_level, messages }
+  → Run optimizer pipeline (dry-run mode)
+  → Estimate baseline tokens/cost
+  → Estimate optimized tokens/cost
+  → Calculate savings
+  → Return savings summary (no moat internals)
 ```
 
 ---
@@ -531,19 +619,94 @@ All providers:
 
 ---
 
+## Enhanced Algorithms & Features
+
+### Deterministic Unit IDs
+- Semantic units use SHA256 hash of normalized text + kind + role
+- Enables stable reuse across sessions
+- Supports caching and long-horizon stability tracking
+
+### Enhanced Contradiction Detection
+- **Numeric contradictions**: Relative difference calculation with strength weighting
+- **Negation patterns**: Extended list with regex word boundaries
+- **Semantic contradictions**: Detects opposites (always/never, include/exclude, increase/decrease, active/inactive, valid/invalid)
+- **Temporal contradictions**: Detects past vs future markers (was/will, previous/next)
+- **Weighted system**: Accumulates weights from multiple sources (0.4 numeric, 0.3 negation, 0.35 semantic, 0.25 temporal)
+
+### Enhanced Similarity Detection
+- **Temporal proximity boost**: Same turn (+0.15), adjacent (+0.08), recent (+0.03)
+- **Kind similarity boost**: Constraints (+0.12), facts (+0.08), explanations (+0.05)
+- **Context-aware**: Combines embedding similarity with conversation structure
+
+### Enhanced Stability Index Calculation
+- **Non-linear contradiction penalty**: Exponential penalty when contradiction > 0.3
+- **Connectivity reward**: 15% bonus when lambda2 > 0.5
+- **Multi-factor stability**: Combines spectral, random walk, heat trace, curvature, and novelty
+- **Confidence scoring**: Graph structure quality metrics
+
+### Adaptive Thresholds
+- Adjusts REUSE/EXPAND thresholds based on conversation history
+- Unstable past → more conservative (higher thresholds)
+- Increasing contradictions → more cautious
+
+### AST-Aware Code Slicing
+- Extracts function/class/method signatures
+- Signature matching for relevance (highest priority)
+- Preserves function signatures when trimming
+- Recency bonus for code blocks
+
+### Content-Aware Post-Processing
+- Extended boilerplate patterns
+- Code block preservation during trimming
+- Smart sentence preservation (not hard cuts)
+- Preserves warnings/notes in patch mode
+
+---
+
 ## Key Algorithms
 
-### Spectral Core v0 (The Moat)
+### Spectral Core v1 (The Moat - Multi-Operator)
 
 1. **Unitization**: Chunk messages into semantic units
+   - Deterministic IDs: SHA256 hash of normalized text + kind + role
+   - Enables stable reuse and caching across sessions
+
 2. **Embedding**: Generate vectors for similarity
+   - Uses OpenAI text-embedding-3-small
+   - Safe cosine similarity (handles missing embeddings)
+
 3. **Graph Build**: Create signed weighted graph
-   - Positive edges: Similarity (cosine > 0.85)
-   - Negative edges: Contradictions (numeric conflicts, negations)
+   - **Similarity edges**: 
+     - Base cosine similarity > 0.85
+     - Temporal proximity boost (same turn: +0.15, adjacent: +0.08)
+     - Kind similarity boost (constraints: +0.12, facts: +0.08)
+   - **Contradiction edges**:
+     - Numeric conflicts (relative difference > 15%, weighted by strength)
+     - Negation patterns (extended list: "not", "never", "can't", "shouldn't", etc.)
+     - Semantic contradictions (always/never, include/exclude, increase/decrease, active/inactive, valid/invalid)
+     - Temporal contradictions (past vs future markers)
+   - **Dependency edges** (code path):
+     - Patch → code blocks (0.7)
+     - Constraint → code blocks (0.5-0.7)
+     - Code references (0.6)
+
 4. **Signed Laplacian**: Compute L = D - W
-5. **Eigenvalue Estimation**: Estimate λ₂ using power iteration
-6. **Stability Index**: `sigmoid(1.8*λ₂ - 3.0*contradictionEnergy)`
-7. **Recommendation**: Map stabilityIndex to REUSE/EXPAND/ASK_CLARIFY
+
+5. **Eigenvalue Estimation**: Estimate λ₂ using power iteration with orthogonalization
+
+6. **Multi-Operator Stability Analysis**:
+   - **Spectral component**: Enhanced sigmoid with non-linear contradiction penalty and connectivity reward
+   - **Random walk gap**: Measures topic mixing (high gap = stable state)
+   - **Heat-trace complexity**: Estimates compressibility using Hutchinson estimator
+   - **Curvature analysis**: Forman-Ricci-like curvature per node (detects conflict hotspots)
+   - **Node features**: Age, length, kind weight, novelty (centroid distance)
+   - **Combined stability**: Weighted combination of all operators
+
+7. **Adaptive Thresholds**: Adjusts tHigh/tLow based on conversation history
+   - Unstable past → more conservative
+   - Increasing contradictions → more cautious
+
+8. **Recommendation**: Map stabilityFinal to REUSE/EXPAND/ASK_CLARIFY
 
 ### Welford's Algorithm (Baseline Sampling)
 
@@ -593,6 +756,13 @@ confidence = 0.15 + 0.55*sample_conf + 0.20*stability_conf + 0.10*recency_conf
 
 ## Frontend (Angular)
 
+### Authentication
+
+- **Registration** (`/register`): Create account, receive API key (shown once)
+- **Login** (`/login`): Enter API key to authenticate
+- API key stored in localStorage, automatically included in all API requests
+- User email displayed in navigation when logged in
+
 ### Pages
 
 1. **Scenarios Page** (`/scenarios`)
@@ -612,19 +782,27 @@ confidence = 0.15 + 0.55*sample_conf + 0.20*stability_conf + 0.10*recency_conf
      - Quality status
      - Advanced debug panel (hidden by default)
 
-3. **Savings Page** (`/savings`)
+3. **Proof Page** (`/proof`) - **New**
+   - Paste conversation from ChatGPT, Claude, or any chat interface
+   - Supports plain text or JSON format
+   - Automatic parsing with preview
+   - Configuration: path, provider, model, optimization level
+   - Shows estimated savings (no internal breakdown)
+   - No real LLM calls (dry-run mode)
+
+4. **Savings Page** (`/savings`)
    - KPI cards (verified, total, tokens, replays)
    - Time series chart (verified vs estimated)
    - Breakdown by level and path
    - Filters (date range, path, provider, model)
    - Export buttons
 
-4. **Runs History** (`/runs`)
+5. **Runs History** (`/runs`)
    - Table of all runs
    - Filter and sort
    - Link to run details
 
-5. **Settings** (`/settings`)
+6. **Settings** (`/settings`)
    - Default provider/model per path
    - Pricing configuration
    - Threshold adjustments
@@ -687,6 +865,31 @@ confidence = 0.15 + 0.55*sample_conf + 0.20*stability_conf + 0.10*recency_conf
 - **Math**: Custom spectral analysis (no external math libs for MVP)
 - **Deployment**: Railway (API), Netlify (Frontend)
 
+## Additional Components
+
+### SDK Package (`packages/sdk`)
+- NPM package for integrating Spectyra into applications
+- `SpectyraClient` interface with `chat()` method
+- Supports Spectyra API key and BYOK (provider keys)
+- TypeScript types and examples
+
+### Browser Extension (`extensions/browser-extension`)
+- Chrome/Edge MV3 extension
+- Intercepts LLM API calls (OpenAI, Anthropic, Gemini, Grok)
+- Routes through Spectyra automatically
+- Shows real-time savings widget overlay
+- Session savings tracking
+- Configurable optimization level and path
+
+### Local Proxy (`tools/proxy`)
+- OpenAI-compatible endpoint
+- Routes requests through Spectyra
+- For tools that support custom API endpoints
+
+### CLI Wrapper (`tools/cli`)
+- Command-line interface for code workflows
+- Commands: `spectyra talk`, `spectyra code`, `spectyra replay`
+
 ---
 
 ## Key Metrics Tracked
@@ -702,6 +905,36 @@ confidence = 0.15 + 0.55*sample_conf + 0.20*stability_conf + 0.10*recency_conf
 
 ---
 
+## User Authentication & API Keys
+
+### Registration Flow
+1. User provides email address
+2. System creates user account with 7-day free trial
+3. System generates first API key (shown once)
+4. API key stored in browser localStorage
+5. User automatically logged in
+
+### API Key Usage
+- **Spectyra API Key**: Authenticates requests to Spectyra API
+  - Sent via `X-SPECTYRA-KEY` header
+  - Stored in localStorage after registration/login
+  - Automatically included in all API requests from frontend
+  - Used to identify user account and check trial/subscription status
+
+- **Provider API Keys** (BYOK): User's own LLM provider keys
+  - Sent via `X-PROVIDER-KEY` header
+  - Never stored server-side
+  - Used only for the current request
+  - Allows users to use their own provider billing
+
+### API Key Management
+- Users can create multiple API keys
+- Keys can be named for organization
+- Keys can be deleted
+- Last used timestamp tracked
+
+---
+
 ## Future Enhancements (Not in MVP)
 
 - Shadow baseline sampling (automatic baseline measurement in production)
@@ -711,3 +944,6 @@ confidence = 0.15 + 0.55*sample_conf + 0.20*stability_conf + 0.10*recency_conf
 - Custom scenario creation UI
 - A/B testing framework
 - Real-time savings notifications
+- Response cache (skip LLM calls for highly stable prompts)
+- Markov drift detection (semantic state changes)
+- Stripe billing integration (7-day trial + subscriptions)
