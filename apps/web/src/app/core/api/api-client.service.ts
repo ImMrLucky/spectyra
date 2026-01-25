@@ -1,13 +1,14 @@
 import { Injectable } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { Observable } from 'rxjs';
+import { environment } from '../../../environments/environment';
 import type { Scenario, RunRecord, ReplayResult, Provider } from './models';
 
 @Injectable({
   providedIn: 'root',
 })
 export class ApiClientService {
-  private baseUrl = 'http://localhost:8080/v1';
+  private baseUrl = environment.apiUrl;
 
   constructor(private http: HttpClient) {}
 

@@ -2,6 +2,7 @@ import { Component, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { ApiClientService } from '../../core/api/api-client.service';
+import { environment } from '../../../environments/environment';
 import { SavingsFiltersComponent } from './savings-filters.component';
 import { SavingsKpisComponent } from './savings-kpis.component';
 import { SavingsTimeseriesChartComponent } from './savings-timeseries-chart.component';
@@ -183,8 +184,6 @@ export class SavingsPage implements OnInit {
     params.set('type', type);
     params.set('format', 'csv');
     
-    // Use the API base URL - in production this should come from environment config
-    const baseUrl = 'http://localhost:8080/v1';
-    window.open(`${baseUrl}/savings/export?${params}`, '_blank');
+    window.open(`${environment.apiUrl}/savings/export?${params}`, '_blank');
   }
 }

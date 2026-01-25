@@ -1,12 +1,21 @@
 [build]
   base = "apps/web"
-  command = "cd ../.. && pnpm install && pnpm --filter web build"
+  command = "cd ../.. && pnpm install && cd apps/web && pnpm build --configuration production"
   publish = "dist/web/browser"
 
 [build.environment]
   NODE_VERSION = "20"
   PNPM_VERSION = "8.15.0"
 
+# Proxy API requests to backend (update URL to your Railway/deployed API)
+# Example: https://your-api.railway.app
+[[redirects]]
+  from = "/v1/*"
+  to = "https://your-api.railway.app/v1/:splat"
+  status = 200
+  force = true
+
+# SPA fallback - must be last
 [[redirects]]
   from = "/*"
   to = "/index.html"
