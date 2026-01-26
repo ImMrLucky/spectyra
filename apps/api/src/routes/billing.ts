@@ -1,22 +1,20 @@
 /**
  * Billing Routes
  * 
- * Handles Stripe checkout and webhooks
+ * Handles Stripe checkout and webhooks for org-based subscriptions
  */
 
 import { Router } from "express";
 import Stripe from "stripe";
-import { config } from "../config.js";
 import {
-  getUserByEmail,
-  createUser,
-  getUserByStripeCustomerId,
-  updateUserSubscription,
-  updateStripeCustomerId,
-  createApiKey,
-} from "../services/billing/usersRepo.js";
-import { authenticate, type AuthenticatedRequest } from "../middleware/auth.js";
-import { hasActiveAccess } from "../services/billing/usersRepo.js";
+  getOrgById,
+  getOrgByStripeCustomerId,
+  updateOrgSubscription,
+  updateOrgStripeCustomerId,
+} from "../services/storage/orgsRepo.js";
+import { requireSpectyraApiKey, optionalProviderKey, type AuthenticatedRequest } from "../middleware/auth.js";
+import { hasActiveAccess } from "../services/storage/orgsRepo.js";
+import { safeLog } from "../utils/redaction.js";
 
 export const billingRouter = Router();
 
@@ -28,40 +26,40 @@ const stripe = new Stripe(process.env.STRIPE_SECRET_KEY || "", {
 /**
  * POST /v1/billing/checkout
  * 
- * Creates a Stripe checkout session with 7-day trial
+ * Creates a Stripe checkout session for org subscription
+ * Requires authentication (org context)
  */
-billingRouter.post("/checkout", async (req, res) => {
+billingRouter.post("/checkout", requireSpectyraApiKey, optionalProviderKey, async (req: AuthenticatedRequest, res) => {
   try {
-    const { email, success_url, cancel_url } = req.body as {
-      email: string;
+    if (!req.context) {
+      return res.status(401).json({ error: "Not authenticated" });
+    }
+    
+    const { success_url, cancel_url } = req.body as {
       success_url?: string;
       cancel_url?: string;
     };
     
-    if (!email) {
-      return res.status(400).json({ error: "Email is required" });
-    }
-    
-    // Get or create user
-    let user = getUserByEmail(email);
-    if (!user) {
-      user = createUser(email, 7); // 7-day trial
+    const org = getOrgById(req.context.org.id);
+    if (!org) {
+      return res.status(404).json({ error: "Organization not found" });
     }
     
     // Create or get Stripe customer
-    let customerId = user.stripe_customer_id;
+    let customerId = org.stripe_customer_id;
     if (!customerId) {
       const customer = await stripe.customers.create({
-        email,
+        email: `${org.id}@spectyra.local`, // Placeholder, can be updated
+        name: org.name,
         metadata: {
-          spectyra_user_id: user.id,
+          spectyra_org_id: org.id,
         },
       });
       customerId = customer.id;
-      updateStripeCustomerId(user.id, customerId);
+      updateOrgStripeCustomerId(org.id, customerId);
     }
     
-    // Create checkout session with trial
+    // Create checkout session
     const session = await stripe.checkout.sessions.create({
       customer: customerId,
       mode: "subscription",
@@ -73,15 +71,14 @@ billingRouter.post("/checkout", async (req, res) => {
         },
       ],
       subscription_data: {
-        trial_period_days: 7, // 7-day trial
         metadata: {
-          spectyra_user_id: user.id,
+          spectyra_org_id: org.id,
         },
       },
       success_url: success_url || `${req.headers.origin || "https://spectyra.com"}/billing/success?session_id={CHECKOUT_SESSION_ID}`,
       cancel_url: cancel_url || `${req.headers.origin || "https://spectyra.com"}/billing/cancel`,
       metadata: {
-        spectyra_user_id: user.id,
+        spectyra_org_id: org.id,
       },
     });
     
@@ -90,7 +87,7 @@ billingRouter.post("/checkout", async (req, res) => {
       session_id: session.id,
     });
   } catch (error: any) {
-    console.error("Checkout error:", error);
+    safeLog("error", "Checkout error", { error: error.message });
     res.status(500).json({ error: error.message || "Internal server error" });
   }
 });
@@ -106,7 +103,7 @@ billingRouter.post("/webhook", async (req, res) => {
   const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET || "";
   
   if (!webhookSecret) {
-    console.error("STRIPE_WEBHOOK_SECRET not set");
+    safeLog("error", "STRIPE_WEBHOOK_SECRET not set");
     return res.status(500).json({ error: "Webhook secret not configured" });
   }
   
@@ -118,7 +115,7 @@ billingRouter.post("/webhook", async (req, res) => {
   try {
     event = stripe.webhooks.constructEvent(body, sig, webhookSecret);
   } catch (err: any) {
-    console.error("Webhook signature verification failed:", err.message);
+    safeLog("error", "Webhook signature verification failed", { error: err.message });
     return res.status(400).json({ error: `Webhook Error: ${err.message}` });
   }
   
@@ -130,15 +127,20 @@ billingRouter.post("/webhook", async (req, res) => {
         const subscription = event.data.object as Stripe.Subscription;
         const customerId = subscription.customer as string;
         
-        const user = getUserByStripeCustomerId(customerId);
-        if (user) {
+        const org = getOrgByStripeCustomerId(customerId);
+        if (org) {
           const isActive = subscription.status === "active" || subscription.status === "trialing";
-          updateUserSubscription(
-            user.id,
+          updateOrgSubscription(
+            org.id,
             subscription.id,
             subscription.status,
             isActive
           );
+          safeLog("info", "Subscription updated", {
+            org_id: org.id,
+            status: subscription.status,
+            active: isActive,
+          });
         }
         break;
       }
@@ -147,9 +149,10 @@ billingRouter.post("/webhook", async (req, res) => {
         const subscription = event.data.object as Stripe.Subscription;
         const customerId = subscription.customer as string;
         
-        const user = getUserByStripeCustomerId(customerId);
-        if (user) {
-          updateUserSubscription(user.id, null, "canceled", false);
+        const org = getOrgByStripeCustomerId(customerId);
+        if (org) {
+          updateOrgSubscription(org.id, null, "canceled", false);
+          safeLog("info", "Subscription canceled", { org_id: org.id });
         }
         break;
       }
@@ -158,23 +161,18 @@ billingRouter.post("/webhook", async (req, res) => {
         const session = event.data.object as Stripe.Checkout.Session;
         const customerId = session.customer as string;
         
-        // User has completed checkout, subscription will be created via subscription.created event
-        // But we can ensure they have an API key
-        const user = getUserByStripeCustomerId(customerId);
-        if (user) {
-          // Check if user has any API keys, create one if not
-          // (This would require a helper function, but for now we'll let them create via another endpoint)
-        }
+        // Subscription will be created via subscription.created event
+        safeLog("info", "Checkout completed", { customer_id: customerId });
         break;
       }
       
       default:
-        console.log(`Unhandled event type: ${event.type}`);
+        safeLog("info", "Unhandled webhook event", { type: event.type });
     }
     
     res.json({ received: true });
   } catch (error: any) {
-    console.error("Webhook handler error:", error);
+    safeLog("error", "Webhook handler error", { error: error.message });
     res.status(500).json({ error: error.message || "Internal server error" });
   }
 });
@@ -182,99 +180,36 @@ billingRouter.post("/webhook", async (req, res) => {
 /**
  * GET /v1/billing/status
  * 
- * Get current subscription status (requires auth)
+ * Get current org billing status (requires auth)
  */
-billingRouter.get("/status", authenticate, async (req: AuthenticatedRequest, res) => {
+billingRouter.get("/status", requireSpectyraApiKey, optionalProviderKey, async (req: AuthenticatedRequest, res) => {
   try {
-    const { getUserById } = await import("../services/billing/usersRepo.js");
-    const user = getUserById(req.userId!);
-    
-    if (!user) {
-      return res.status(404).json({ error: "User not found" });
+    if (!req.context) {
+      return res.status(401).json({ error: "Not authenticated" });
     }
     
-    const hasAccess = hasActiveAccess(user);
-    const trialEnd = user.trial_ends_at ? new Date(user.trial_ends_at) : null;
+    const org = getOrgById(req.context.org.id);
+    if (!org) {
+      return res.status(404).json({ error: "Organization not found" });
+    }
+    
+    const hasAccess = hasActiveAccess(org);
+    const trialEnd = org.trial_ends_at ? new Date(org.trial_ends_at) : null;
     const isTrialActive = trialEnd ? trialEnd > new Date() : false;
     
     res.json({
+      org: {
+        id: org.id,
+        name: org.name,
+      },
       has_access: hasAccess,
-      trial_ends_at: user.trial_ends_at,
+      trial_ends_at: org.trial_ends_at,
       trial_active: isTrialActive,
-      subscription_active: user.subscription_active,
-      subscription_status: user.subscription_status,
+      subscription_status: org.subscription_status,
+      subscription_active: org.subscription_status === "active",
     });
   } catch (error: any) {
-    console.error("Billing status error:", error);
-    res.status(500).json({ error: error.message || "Internal server error" });
-  }
-});
-
-/**
- * POST /v1/billing/api-keys
- * 
- * Create a new API key (requires auth)
- */
-billingRouter.post("/api-keys", authenticate, async (req: AuthenticatedRequest, res) => {
-  try {
-    const { name } = req.body as { name?: string };
-    const { createApiKey } = await import("../services/billing/usersRepo.js");
-    
-    const { key, apiKey } = createApiKey(req.userId!, name || null);
-    
-    // Return the key only once (it's hashed in DB)
-    res.json({
-      id: apiKey.id,
-      key, // Only returned on creation
-      name: apiKey.name,
-      created_at: apiKey.created_at,
-    });
-  } catch (error: any) {
-    console.error("Create API key error:", error);
-    res.status(500).json({ error: error.message || "Internal server error" });
-  }
-});
-
-/**
- * GET /v1/billing/api-keys
- * 
- * List API keys (requires auth)
- */
-billingRouter.get("/api-keys", authenticate, async (req: AuthenticatedRequest, res) => {
-  try {
-    const { getUserApiKeys } = await import("../services/billing/usersRepo.js");
-    const keys = getUserApiKeys(req.userId!);
-    
-    // Don't return key hashes, just metadata
-    res.json(keys.map(k => ({
-      id: k.id,
-      name: k.name,
-      created_at: k.created_at,
-      last_used_at: k.last_used_at,
-    })));
-  } catch (error: any) {
-    console.error("List API keys error:", error);
-    res.status(500).json({ error: error.message || "Internal server error" });
-  }
-});
-
-/**
- * DELETE /v1/billing/api-keys/:id
- * 
- * Delete an API key (requires auth)
- */
-billingRouter.delete("/api-keys/:id", authenticate, async (req: AuthenticatedRequest, res) => {
-  try {
-    const { deleteApiKey } = await import("../services/billing/usersRepo.js");
-    const deleted = deleteApiKey(req.params.id, req.userId!);
-    
-    if (!deleted) {
-      return res.status(404).json({ error: "API key not found" });
-    }
-    
-    res.json({ success: true });
-  } catch (error: any) {
-    console.error("Delete API key error:", error);
+    safeLog("error", "Billing status error", { error: error.message });
     res.status(500).json({ error: error.message || "Internal server error" });
   }
 });

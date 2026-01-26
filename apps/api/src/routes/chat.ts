@@ -1,6 +1,7 @@
 import { Router } from "express";
 import { v4 as uuidv4 } from "uuid";
 import { requireSpectyraApiKey, optionalProviderKey, type AuthenticatedRequest } from "../middleware/auth.js";
+import { requireActiveAccess } from "../middleware/trialGate.js";
 import { providerRegistry } from "../services/llm/providerRegistry.js";
 import { createProviderWithKey } from "../services/llm/providerFactory.js";
 import { runOptimizedOrBaseline } from "../services/optimizer/optimizer.js";
@@ -30,6 +31,8 @@ export const chatRouter = Router();
 // Apply authentication middleware to all chat routes
 chatRouter.use(requireSpectyraApiKey);
 chatRouter.use(optionalProviderKey);
+// Require active access (trial or subscription) for live provider calls
+chatRouter.use(requireActiveAccess);
 
 chatRouter.post("/", async (req: AuthenticatedRequest, res) => {
   try {

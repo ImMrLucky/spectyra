@@ -2,17 +2,17 @@
 
 ## Overview
 
-**Spectyra** is a Spectral Token & Cost Reduction Engine that reduces LLM token usage and costs by preventing semantic recomputation. It works as middleware between users and LLM providers (OpenAI, Anthropic, Gemini, Grok), intelligently optimizing prompts before sending them to the LLM while maintaining output quality.
+**Spectyra** is an **Enterprise AI Inference Cost-Control Gateway** that reduces LLM token usage and costs by 40-65% for teams and organizations. It works as secure middleware between users and LLM providers (OpenAI, Anthropic, Gemini, Grok), intelligently optimizing prompts before sending them to the LLM while maintaining output quality.
 
 The system uses a proprietary "Spectral Core v1" decision engine based on graph theory and spectral analysis to determine when content is semantically stable and can be reused, versus when it needs to be expanded or clarified. The core combines multiple spectral operators (signed Laplacian, random walk gap, heat-trace complexity, curvature analysis) for robust stability assessment.
 
-### Developer-Focused Platform
+### Enterprise AI Gateway Platform
 
-Spectyra is optimized for developers using coding assistants (GitHub Copilot, Cursor, Claude Code, etc.), providing 40-65% token savings on coding workflows through specialized code path optimization. The platform supports multiple integration methods:
-- **Local Proxy**: For desktop coding tools (recommended)
-- **Browser Extension**: For web-based LLM tools
-- **SDK**: For custom applications and integrations
-- **Direct API**: For maximum flexibility
+Spectyra is an enterprise-grade AI inference cost-control gateway that reduces LLM token usage and costs by 40-65% for teams and organizations. The platform is optimized for developers using coding assistants (GitHub Copilot, Cursor, Claude Code, etc.) and supports multiple integration methods:
+- **Hosted Gateway**: Direct API integration (recommended for production)
+- **Local Proxy**: For desktop coding tools and IDE integrations
+- **Server SDK**: For custom applications and programmatic integrations
+- **Browser Extension**: For web-based LLM tools (optional)
 
 ---
 
@@ -93,7 +93,8 @@ For coding assistant workflows:
    - `model`: Specific model name
    - `mode`: "baseline" or "optimized"
    - `dry_run`: Optional boolean (if true, skips LLM call, returns estimates)
-   - `X-PROVIDER-KEY`: Optional header for BYOK (Bring Your Own Key)
+   - `X-SPECTYRA-API-KEY`: Required header for org/project authentication
+   - `X-PROVIDER-KEY`: Optional header for ephemeral provider key (BYOK, never stored)
 
 3. **If mode = "baseline":**
    - Request is forwarded directly to LLM provider
@@ -293,33 +294,24 @@ User → POST /v1/chat { path: "talk", mode: "optimized", optimization_level: 3,
      - `verified_savings`: { tokens_saved, pct_saved, cost_saved_usd }
      - `quality`: { baseline_pass, optimized_pass }
 
-#### B2. Conversation Paste Mode
+#### B2. Estimator Mode (Proof without Real LLM Calls)
 
 **How it works:**
-1. User navigates to `/proof` page
-2. User pastes a conversation from:
-   - ChatGPT, Claude, or any chat interface
-   - Plain text format (e.g., "User: ... Assistant: ...")
-   - JSON format (array of messages)
-3. System automatically parses the conversation:
-   - Detects common formats: "User:", "Assistant:", "Human:", "AI:", "You:", "ChatGPT:", etc.
-   - Converts to standard message format
-   - Shows preview of parsed conversation
-4. User configures:
-   - Path (talk/code)
-   - Provider and model
-   - Optimization level (0-4)
-5. User clicks "Estimate Savings"
-6. System calls `/v1/proof/estimate` endpoint:
-   - Runs optimization pipeline (dry-run, no real LLM calls)
-   - Estimates baseline tokens/cost
-   - Estimates optimized tokens/cost
+1. User selects a scenario or provides messages
+2. User selects "Estimator" proof mode (instead of "Live")
+3. System calls `/v1/replay` with `proof_mode: "estimator"`
+4. System uses token estimation instead of real LLM calls:
+   - Estimates baseline tokens/cost using heuristics
+   - Estimates optimized tokens/cost using heuristics
    - Calculates savings and confidence
-7. **Response shows only:**
+   - Returns placeholder response text: `"[ESTIMATED]..."`
+5. **Response shows:**
    - Savings summary (tokens saved, cost saved, % saved)
    - Confidence band (High/Medium/Low)
    - Baseline and optimized estimates
+   - "ESTIMATED" badge (vs "VERIFIED" for live mode)
    - **No internal breakdown** (no spectral numbers, no optimizer steps, no REFs)
+6. **Key benefit**: Works even if trial expired (no real LLM calls = no provider costs)
 
 **Proof Mode Flow Examples:**
 
@@ -342,18 +334,17 @@ User → POST /v1/replay { scenario_id: "talk_support_refund_001", optimization_
   → Return comparison result
 ```
 
-**Conversation Paste:**
+**Estimator Mode:**
 ```
-User → /proof page
-  → Paste conversation (plain text or JSON)
-  → System parses and shows preview
-  → User clicks "Estimate Savings"
-  → POST /v1/proof/estimate { path, provider, model, optimization_level, messages }
-  → Run optimizer pipeline (dry-run mode)
+User → /scenarios/:id/run
+  → Select "Estimator" proof mode
+  → POST /v1/replay { scenario_id, provider, model, proof_mode: "estimator" }
+  → Use token estimation (no real LLM calls)
   → Estimate baseline tokens/cost
   → Estimate optimized tokens/cost
   → Calculate savings
-  → Return savings summary (no moat internals)
+  → Return savings summary with "ESTIMATED" badge (no moat internals)
+  → Works even if trial expired (no provider costs)
 ```
 
 ---
@@ -489,9 +480,26 @@ Response (Redacted - No Moat Internals)
 
 ### Database Schema
 
+**`orgs` table:**
+- Organization entities
+- Fields: id, name, created_at, trial_ends_at, stripe_customer_id, subscription_status
+- Trial defaults to 7 days
+
+**`projects` table:**
+- Project entities (optional grouping within orgs)
+- Fields: id, org_id, name, created_at
+- Foreign key to orgs
+
+**`api_keys` table:**
+- API key authentication
+- Fields: id, org_id, project_id (nullable), name, key_hash, created_at, last_used_at, revoked_at
+- Keys stored as SHA256 hash (never plaintext)
+- Can be org-level or project-scoped
+
 **`runs` table:**
 - Stores individual LLM calls
 - Includes: tokens, cost, quality, optimization_level
+- **New fields**: org_id, project_id, provider_key_fingerprint (audit only, never the actual key)
 - `workload_key`: Groups comparable runs
 - `debug_internal_json`: Moat internals (server-only)
 
@@ -502,6 +510,7 @@ Response (Redacted - No Moat Internals)
 
 **`savings_ledger` table:**
 - Customer-facing accounting rows
+- **New fields**: org_id, project_id (for org/project filtering)
 - Separates verified vs estimated
 - Includes confidence scores
 - Used for dashboard and exports
@@ -544,6 +553,7 @@ After optimized response:
 - Optimizer internals (REFs used, delta used, code sliced, patch mode)
 - Prompt content (only token counts)
 - Debug internal JSON
+- Provider API keys (ephemeral, never stored, never logged)
 
 **Always exposed:**
 - Usage tokens (input/output/total)
@@ -551,12 +561,34 @@ After optimized response:
 - Savings numbers (tokens saved, %, cost saved)
 - Confidence band (High/Medium/Low, not numeric score)
 - Quality pass/fail (boolean, no details)
+- Savings type badge ("VERIFIED" or "ESTIMATED")
+
+### Security Features
+
+**Provider Key Handling:**
+- Provider keys sent via `X-PROVIDER-KEY` header
+- **Never stored in database** (ephemeral, in-memory only)
+- **Never logged** (redacted in all logs via centralized redaction utilities)
+- Only fingerprint stored for audit: SHA256(last6 + org_id + salt)
+- Constant-time key comparison to prevent timing attacks
+
+**Authentication:**
+- Spectyra API keys stored as SHA256 hash (never plaintext)
+- Constant-time comparison for key validation
+- Org/project context attached to all requests
+- Trial/subscription status checked per-request
+
+**Logging:**
+- Centralized redaction utilities (`redactSecrets()`, `safeLog()`)
+- All logs automatically redact API keys and provider keys
+- Request bodies not logged in production
+- Headers redacted in error messages
 
 ### Admin Debug Access
 
 - Endpoint: `/v1/admin/runs/:id/debug`
 - Requires: `X-ADMIN-TOKEN` header
-- Returns: `debug_internal_json` with full moat internals
+- Returns: `debug_internal_json` with full moat internals (redacted for provider keys)
 - **Never used by public UI**
 
 ---
@@ -765,22 +797,30 @@ confidence = 0.15 + 0.55*sample_conf + 0.20*stability_conf + 0.10*recency_conf
 
 ### Public Endpoints
 
+**Authentication Required** (X-SPECTYRA-API-KEY header):
 - `GET /v1/providers` - List available LLM providers
 - `GET /v1/scenarios` - List test scenarios
 - `GET /v1/scenarios/:id` - Get scenario details
-- `POST /v1/chat` - Real-time chat (baseline or optimized)
-- `POST /v1/replay` - Run scenario in proof mode
-- `GET /v1/runs` - List run history
+- `POST /v1/chat` - Real-time chat (baseline or optimized) - **Requires active trial or subscription**
+- `POST /v1/replay` - Run scenario in proof mode (estimator mode allowed even if trial expired)
+- `GET /v1/runs` - List run history (filtered by org/project)
 - `GET /v1/runs/:id` - Get run details
-- `GET /v1/savings/summary` - Overall savings summary
-- `GET /v1/savings/timeseries` - Daily/weekly trends
-- `GET /v1/savings/by-level` - Breakdown by optimization level
-- `GET /v1/savings/by-path` - Breakdown by talk/code
-- `GET /v1/savings/export` - CSV/JSON export
+- `GET /v1/savings/summary` - Overall savings summary (filtered by org/project)
+- `GET /v1/savings/timeseries` - Daily/weekly trends (filtered by org/project)
+- `GET /v1/savings/by-level` - Breakdown by optimization level (filtered by org/project)
+- `GET /v1/savings/by-path` - Breakdown by talk/code (filtered by org/project)
+- `GET /v1/savings/export` - CSV/JSON export (filtered by org/project)
+- `GET /v1/integrations/snippets` - Get integration code snippets
+- `GET /v1/billing/status` - Get org billing status and trial info
+- `POST /v1/billing/checkout` - Create Stripe checkout session
+
+**No Authentication Required**:
+- `POST /v1/billing/webhook` - Stripe webhook handler (uses signature verification)
+- `POST /v1/auth/register` - Register new organization
 
 ### Admin Endpoints
 
-- `GET /v1/admin/runs/:id/debug` - Get moat internals (requires admin token)
+- `GET /v1/admin/runs/:id/debug` - Get moat internals (requires X-ADMIN-TOKEN header)
 
 ---
 
@@ -788,64 +828,69 @@ confidence = 0.15 + 0.55*sample_conf + 0.20*stability_conf + 0.10*recency_conf
 
 ### Authentication
 
-- **Registration** (`/register`): Create account, receive API key (shown once)
+- **Registration** (`/register`): Create organization, receive API key (shown once)
 - **Login** (`/login`): Enter API key to authenticate
 - API key stored in localStorage, automatically included in all API requests
-- User email displayed in navigation when logged in
+- Organization name displayed in navigation when logged in
+- Trial status and subscription info available via `/v1/billing/status`
 
 ### Pages
 
-1. **Scenarios Page** (`/scenarios`)
+1. **Proof Scenarios Page** (`/scenarios`)
    - Lists available test scenarios
    - Filter by path (talk/code)
    - Click to run scenario
-   - Banner directing users to Connections page for desktop tools
+   - Hero subtitle: "Optimize API-based LLM usage for teams. Reduce inference cost by 40-65%."
+   - Banner directing users to Integrations page
 
-2. **Connections Page** (`/connections`) - **New**
-   - Step-by-step guide for connecting desktop coding tools
-   - Instructions for Copilot, Cursor, Claude Code, etc.
-   - Links to proxy setup documentation
-   - Explains difference between web UI and proxy
+2. **Integrations Page** (`/integrations`)
+   - Three integration methods:
+     - **Hosted Gateway**: Direct API integration (code snippets)
+     - **Local Proxy**: Desktop coding tools setup
+     - **Server SDK**: Programmatic integration
+   - Dynamic code snippets from `/v1/integrations/snippets` API
+   - Enterprise-focused messaging
 
-2. **Run Page** (`/scenarios/:id/run`)
+3. **Projects Page** (`/projects`)
+   - Project management (placeholder for future)
+   - Enterprise organization structure
+
+4. **Run Page** (`/scenarios/:id/run`)
    - Shows scenario details
    - Optimization level slider (0-4)
    - Provider/model selector
+   - **Proof Mode Toggle**: "Live" vs "Estimator" (estimator mode works without subscription)
    - "Replay Both" button
    - Displays:
-     - Savings card (verified savings, total savings, confidence)
+     - Savings card with "VERIFIED" or "ESTIMATED" badge
      - Side-by-side comparison (baseline vs optimized)
      - Token/cost table
      - Quality status
      - Advanced debug panel (hidden by default)
 
-3. **Proof Page** (`/proof`) - **New**
-   - Paste conversation from ChatGPT, Claude, or any chat interface
-   - Supports plain text or JSON format
-   - Automatic parsing with preview
-   - Configuration: path, provider, model, optimization level
-   - Shows estimated savings (no internal breakdown)
-   - No real LLM calls (dry-run mode)
+5. **Gateway Runs Page** (`/runs`)
+   - Table of all runs (filtered by org/project)
+   - Filter and sort
+   - Link to run details
+   - Enterprise-focused labeling
 
-4. **Savings Page** (`/savings`)
+6. **Org Savings Page** (`/savings`)
    - KPI cards (verified, total, tokens, replays)
    - Time series chart (verified vs estimated)
    - Breakdown by level and path
    - Filters (date range, path, provider, model)
    - Export buttons
+   - All data filtered by authenticated org/project
 
-5. **Runs History** (`/runs`)
-   - Table of all runs
-   - Filter and sort
-   - Link to run details
+7. **Billing Page** (`/billing`)
+   - Trial countdown display
+   - Subscription status
+   - "Upgrade" button (calls Stripe checkout)
+   - Organization information
+   - Trial expired messaging with upgrade CTA
 
-6. **Connections** (`/connections`)
-   - Guide for connecting desktop coding tools
-   - Step-by-step setup instructions
-   - Tool-specific configuration guides
-   - Links to proxy documentation
-
-7. **Settings** (`/settings`)
+8. **Org Settings Page** (`/settings`)
+   - Organization-wide settings
    - Default provider/model per path
    - Pricing configuration
    - Threshold adjustments
@@ -899,10 +944,19 @@ confidence = 0.15 + 0.55*sample_conf + 0.20*stability_conf + 0.10*recency_conf
 - BYOK support for all providers
 
 ✅ **Developer Tools Integration:**
-- Local proxy supports all major coding assistants
-- Real-time savings dashboard
+- Enterprise proxy supports all major coding assistants
+- Secure by default (localhost binding, no key logging)
 - Multi-provider format handling
-- Easy configuration via web UI
+- Environment variable configuration
+- Auto path detection
+
+✅ **Enterprise Features:**
+- Organization/project model
+- Secure authentication (hashed API keys)
+- Ephemeral provider keys (never stored)
+- Trial gating with Stripe billing
+- Org/project-scoped data isolation
+- Centralized security logging
 
 ---
 
@@ -940,22 +994,40 @@ confidence = 0.15 + 0.55*sample_conf + 0.20*stability_conf + 0.10*recency_conf
 - **Compliance**: Works with user-provided API keys (BYOK model)
 - **Note**: For desktop coding tools (Copilot, Cursor, Claude Code), use the Local Proxy instead
 
-### Local Proxy (`tools/proxy`)
+### Enterprise Proxy (`tools/proxy`) - **v2.0.0**
 - **Target Audience**: Desktop coding assistants (GitHub Copilot, Cursor, Claude Code, Codeium, Tabnine)
-- Multi-provider support: OpenAI, Anthropic, Gemini, Grok
-- Automatic API format conversion (handles different provider formats)
-- OpenAI-compatible endpoint (`/v1/chat/completions`)
-- Anthropic-compatible endpoint (`/v1/messages`)
-- Gemini-compatible endpoint support
-- **Real-time Dashboard**: Web UI at http://localhost:3002 showing:
-  - Total requests processed
-  - Total tokens saved
-  - Total cost saved
-  - Recent request history with savings per request
-- **Configuration Management**: Web-based setup for API keys and settings
-- **BYOK Support**: Uses user's own provider API keys
-- Runs on localhost:3001 (proxy) and localhost:3002 (dashboard)
+- **Enterprise-Grade Security**:
+  - Binds to `127.0.0.1` by default (localhost only)
+  - No prompt logging by default
+  - No key logging ever (redaction utilities)
+  - Domain allowlist for outbound requests
+  - Environment variable configuration (no file storage)
+- **Multi-Provider Support**: OpenAI, Anthropic, Gemini, Grok
+- **Automatic Features**:
+  - API format conversion (handles different provider formats)
+  - Path detection (auto-detects "talk" vs "code" from messages)
+  - Provider detection (from model name and endpoint)
+- **Endpoints**:
+  - OpenAI-compatible: `POST /v1/chat/completions`
+  - Anthropic-compatible: `POST /v1/messages`
+- **Pass-Through Mode**: Optional fallback to direct provider if Spectyra unavailable
+- **Client Headers**: Sends `X-SPECTYRA-CLIENT` and `X-SPECTYRA-CLIENT-VERSION` to Spectyra API
+- **Configuration**: Environment variables only (secure, no file storage)
+  - `SPECTYRA_API_URL` (required)
+  - `SPECTYRA_API_KEY` (required)
+  - `OPENAI_API_KEY` (optional, for pass-through)
+  - `ANTHROPIC_API_KEY` (optional)
+  - `PROXY_PORT` (default: 3001)
+  - `SPECTYRA_OPT_LEVEL` (default: 2)
+  - `SPECTYRA_RESPONSE_LEVEL` (default: 2)
+  - `SPECTYRA_MODE` (default: optimized)
+  - `ALLOW_REMOTE_BIND` (default: false)
+  - `DEBUG_LOG_PROMPTS` (default: false)
+  - `ENABLE_PASSTHROUGH` (default: false)
+- **BYOK Support**: Uses user's own provider API keys (ephemeral)
+- Runs on localhost:3001 by default
 - Works with any tool that supports custom API endpoints
+- See: `tools/proxy/README.md` for enterprise usage guide
 
 ### CLI Wrapper (`tools/cli`)
 - Command-line interface for code workflows
@@ -1002,34 +1074,59 @@ confidence = 0.15 + 0.55*sample_conf + 0.20*stability_conf + 0.10*recency_conf
 
 ---
 
-## User Authentication & API Keys
+## Enterprise Authentication & Organization Model
+
+### Organization-Based Architecture
+
+Spectyra uses an enterprise organization/project model:
+
+- **Organizations**: Top-level entities representing companies or teams
+  - Each org has a 7-day free trial
+  - Trial can be extended via Stripe subscription
+  - Multiple projects can belong to one org
+
+- **Projects**: Sub-divisions within an organization
+  - Optional grouping for different teams/products
+  - API keys can be scoped to org-level or project-level
+
+- **API Keys**: Authenticate requests to Spectyra API
+  - Format: `sk_spectyra_<random>`
+  - Stored as SHA256 hash (never plaintext)
+  - Can be org-level or project-scoped
+  - Tracked with last_used_at timestamp
+  - Can be revoked without deletion
 
 ### Registration Flow
-1. User provides email address
-2. System creates user account with 7-day free trial
-3. System generates first API key (shown once)
-4. API key stored in browser localStorage
-5. User automatically logged in
+1. User provides organization name
+2. System creates org with 7-day free trial
+3. System creates default project
+4. System generates first API key (shown once)
+5. API key stored in browser localStorage
+6. User automatically logged in
 
 ### API Key Usage
 - **Spectyra API Key**: Authenticates requests to Spectyra API
-  - Sent via `X-SPECTYRA-KEY` header
+  - Sent via `X-SPECTYRA-API-KEY` header
+  - Identifies org and optional project
   - Stored in localStorage after registration/login
   - Automatically included in all API requests from frontend
-  - Used to identify user account and check trial/subscription status
+  - Used to check trial/subscription status
 
-- **Provider API Keys** (BYOK): User's own LLM provider keys
+- **Provider API Keys** (BYOK - Ephemeral): User's own LLM provider keys
   - Sent via `X-PROVIDER-KEY` header
-  - Never stored server-side
+  - **Never stored server-side** (ephemeral, in-memory only)
+  - **Never logged** (redacted in all logs)
   - Used only for the current request
+  - Only fingerprint stored for audit (SHA256(last6 + org_id + salt))
   - Allows users to use their own provider billing
   - **Supported Providers**: OpenAI, Anthropic, Gemini, Grok
   - **Finding Keys**: See `extensions/browser-extension/FINDING_API_KEYS.md`
 
 ### API Key Management
-- Users can create multiple API keys
+- Organizations can create multiple API keys
 - Keys can be named for organization
-- Keys can be deleted
+- Keys can be org-level or project-scoped
+- Keys can be revoked (soft delete)
 - Last used timestamp tracked
 
 ---
@@ -1045,13 +1142,15 @@ confidence = 0.15 + 0.55*sample_conf + 0.20*stability_conf + 0.10*recency_conf
 - See: `extensions/browser-extension/README.md`
 
 ### For Desktop Coding Tools (Copilot, Cursor, Claude Code, etc.)
-👉 **Use Local Proxy** (Recommended)
+👉 **Use Enterprise Proxy** (Recommended)
+- **Secure by default**: Binds to localhost, no key logging
 - Works with all coding assistants
 - Multi-provider support (OpenAI, Anthropic, Gemini, Grok)
-- Real-time dashboard for savings tracking
+- Automatic path detection (talk vs code)
 - Automatic API format conversion
-- Easy web-based configuration
-- See: `tools/proxy/README.md` and `tools/proxy/SETUP_GUIDE.md`
+- Environment variable configuration (no file storage)
+- Optional pass-through fallback mode
+- See: `tools/proxy/README.md` for enterprise usage guide
 
 ### For Custom Applications
 👉 **Use SDK**
@@ -1061,11 +1160,13 @@ confidence = 0.15 + 0.55*sample_conf + 0.20*stability_conf + 0.10*recency_conf
 - See: `packages/sdk/README.md`
 
 ### For Direct API Integration
-👉 **Use Direct API Calls**
+👉 **Use Hosted Gateway API**
+- Enterprise authentication (X-SPECTYRA-API-KEY)
+- Ephemeral provider keys (X-PROVIDER-KEY)
 - Maximum flexibility
 - Non-JavaScript environments
 - Custom HTTP clients
-- See: `USER_GUIDE.md`
+- See: `/integrations` page for code snippets
 
 ## Compliance & Privacy
 
@@ -1160,6 +1261,35 @@ await client.getGenerativeModel({ ... });
 - See: `extensions/browser-extension/TOS_WARNING.md` for ToS warnings
 - See: `extensions/browser-extension/COMPLIANT_BYOK_SOLUTION.md` for compliant architecture
 
+## Billing & Subscription
+
+### Trial System
+
+- **7-Day Free Trial**: All new organizations get 7-day trial
+- **Trial Enforcement**:
+  - `/v1/chat` (live provider calls) **blocked** if trial expired and no subscription
+  - `/v1/replay` estimator mode **allowed** even if trial expired (no real LLM calls)
+  - `/v1/scenarios` browsing **allowed** (read-only)
+  - Returns `402 Payment Required` with billing URL
+
+### Stripe Integration
+
+- **Checkout**: `POST /v1/billing/checkout` creates Stripe checkout session
+- **Webhook**: `POST /v1/billing/webhook` handles subscription events
+  - `customer.subscription.created` / `updated` → Updates org subscription status
+  - `customer.subscription.deleted` → Marks subscription as canceled
+- **Status**: `GET /v1/billing/status` returns org billing status
+- **Billing UI**: `/billing` page shows trial countdown, subscription status, upgrade button
+
+### Subscription Status
+
+- `trial`: Active trial period
+- `active`: Active paid subscription
+- `canceled`: Subscription canceled (trial expired)
+- `past_due`: Payment failed
+
+---
+
 ## Future Enhancements (Not in MVP)
 
 - Shadow baseline sampling (automatic baseline measurement in production)
@@ -1170,5 +1300,5 @@ await client.getGenerativeModel({ ... });
 - Real-time savings notifications
 - Response cache (skip LLM calls for highly stable prompts)
 - Markov drift detection (semantic state changes)
-- Stripe billing integration (7-day trial + subscriptions)
-- Usage limits and tiered pricing for Spectyra Keys plan (future)
+- Usage limits and tiered pricing for Spectyra service (future)
+- Project-level billing and quotas

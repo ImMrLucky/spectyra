@@ -23,7 +23,7 @@ export class ApiClientService {
     const apiKey = this.authService.currentApiKey;
     const headers: { [key: string]: string } = {};
     if (apiKey) {
-      headers['X-SPECTYRA-KEY'] = apiKey;
+      headers['X-SPECTYRA-API-KEY'] = apiKey;
     }
     return new HttpHeaders(headers);
   }
@@ -181,5 +181,25 @@ export class ApiClientService {
 
   getIntegrationSnippets(): Observable<any> {
     return this.http.get<any>(`${this.baseUrl}/integrations/snippets`);
+  }
+
+  /**
+   * Get billing status
+   */
+  getBillingStatus(): Observable<any> {
+    return this.http.get<any>(`${this.baseUrl}/billing/status`, {
+      headers: this.getHeaders(),
+    });
+  }
+
+  /**
+   * Create Stripe checkout session
+   */
+  createCheckout(successUrl?: string, cancelUrl?: string): Observable<any> {
+    return this.http.post<any>(
+      `${this.baseUrl}/billing/checkout`,
+      { success_url: successUrl, cancel_url: cancelUrl },
+      { headers: this.getHeaders() }
+    );
   }
 }

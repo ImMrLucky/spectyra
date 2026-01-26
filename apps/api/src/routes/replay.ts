@@ -1,5 +1,6 @@
 import { Router } from "express";
 import { requireSpectyraApiKey, optionalProviderKey, type AuthenticatedRequest } from "../middleware/auth.js";
+import { requireActiveAccess, allowEstimatorMode } from "../middleware/trialGate.js";
 import { providerRegistry } from "../services/llm/providerRegistry.js";
 import { createProviderWithKey } from "../services/llm/providerFactory.js";
 import { readFileSync } from "fs";
@@ -34,8 +35,34 @@ export const replayRouter = Router();
 // Apply authentication middleware
 replayRouter.use(requireSpectyraApiKey);
 replayRouter.use(optionalProviderKey);
+// Check trial access per-request (estimator mode allowed even if trial expired)
 
 replayRouter.post("/", async (req: AuthenticatedRequest, res) => {
+  // Check if estimator mode - if so, allow even if trial expired
+  const isEstimatorMode = req.body.proof_mode === "estimator";
+  
+  if (!isEstimatorMode) {
+    // For live mode, require active access
+    if (!req.context) {
+      return res.status(401).json({ error: "Not authenticated" });
+    }
+    
+    const { hasActiveAccess } = await import("../services/storage/orgsRepo.js");
+    const org = req.context.org;
+    if (!org || !hasActiveAccess(org)) {
+      const trialEnd = org?.trial_ends_at ? new Date(org.trial_ends_at) : null;
+      const trialEnded = trialEnd ? trialEnd < new Date() : false;
+      
+      return res.status(402).json({
+        error: "Payment Required",
+        message: "Your trial has expired. Use estimator mode for demos, or subscribe for live runs.",
+        trial_ended: trialEnded,
+        subscription_active: org?.subscription_status === "active",
+        billing_url: "/billing",
+      });
+    }
+  }
+  
   try {
     const { scenario_id, provider, model, optimization_level, proof_mode } = req.body as {
       scenario_id: string;

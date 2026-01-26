@@ -99,15 +99,9 @@ export async function requireSpectyraApiKey(
     }
     
     // Check access (trial or subscription)
-    if (!hasActiveAccess(org)) {
-      res.status(402).json({
-        error: "Payment Required",
-        message: "Your trial has expired. Please subscribe to continue using Spectyra.",
-        trial_ended: org.trial_ends_at ? new Date(org.trial_ends_at) < new Date() : false,
-        subscription_active: org.subscription_status === "active",
-      });
-      return;
-    }
+    // Note: Specific routes may allow estimator/demo mode even if trial expired
+    // This is checked per-route, not here
+    // For now, we attach org info and let routes decide
     
     // Get project if specified
     let project = null;

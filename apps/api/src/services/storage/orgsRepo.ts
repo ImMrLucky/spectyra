@@ -256,3 +256,64 @@ export function deleteApiKey(keyHash: string): void {
     DELETE FROM api_keys WHERE key_hash = ?
   `).run(keyHash);
 }
+
+/**
+ * Get org by Stripe customer ID
+ */
+export function getOrgByStripeCustomerId(customerId: string): Org | null {
+  const db = getDb();
+  const row = db.prepare(`
+    SELECT * FROM orgs WHERE stripe_customer_id = ?
+  `).get(customerId) as any;
+  
+  if (!row) return null;
+  
+  return {
+    id: row.id,
+    name: row.name,
+    created_at: row.created_at,
+    trial_ends_at: row.trial_ends_at,
+    stripe_customer_id: row.stripe_customer_id,
+    subscription_status: row.subscription_status as Org["subscription_status"],
+  };
+}
+
+/**
+ * Update org Stripe customer ID
+ */
+export function updateOrgStripeCustomerId(orgId: string, customerId: string): void {
+  const db = getDb();
+  db.prepare(`
+    UPDATE orgs 
+    SET stripe_customer_id = ?
+    WHERE id = ?
+  `).run(customerId, orgId);
+}
+
+/**
+ * Update org subscription status
+ */
+export function updateOrgSubscription(
+  orgId: string,
+  subscriptionId: string | null,
+  status: string,
+  isActive: boolean
+): void {
+  const db = getDb();
+  
+  // Map isActive to subscription_status
+  let subscriptionStatus: Org["subscription_status"] = "trial";
+  if (isActive && status === "active") {
+    subscriptionStatus = "active";
+  } else if (status === "canceled") {
+    subscriptionStatus = "canceled";
+  } else if (status === "past_due") {
+    subscriptionStatus = "past_due";
+  }
+  
+  db.prepare(`
+    UPDATE orgs 
+    SET subscription_status = ?
+    WHERE id = ?
+  `).run(subscriptionStatus, orgId);
+}
