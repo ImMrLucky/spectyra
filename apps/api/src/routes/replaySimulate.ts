@@ -27,7 +27,8 @@ const scenariosDir = join(__dirname, "../../scenarios");
 export const replaySimulateRouter = Router();
 
 // Apply authentication middleware
-replaySimulateRouter.use(authenticate);
+replaySimulateRouter.use(requireSpectyraApiKey);
+replaySimulateRouter.use(optionalProviderKey);
 
 /**
  * POST /v1/replay/simulate
