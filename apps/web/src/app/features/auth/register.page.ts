@@ -257,26 +257,52 @@ export class RegisterPage {
 
     try {
       // 1. Sign up with Supabase
-      const { error: signUpError } = await this.supabase.signUp(this.email, this.password);
+      const { error: signUpError, session, user } = await this.supabase.signUp(this.email, this.password);
       
       if (signUpError) {
         this.error = signUpError.message || 'Failed to create account';
         this.loading = false;
         return;
       }
-
-      // 2. Wait a moment for Supabase to process
-      await new Promise(resolve => setTimeout(resolve, 500));
-
-      // 3. Get access token
-      const token = await this.supabase.getAccessToken();
-      if (!token) {
-        this.error = 'Failed to get authentication token';
+      
+      // If user was created but no session, email confirmation is likely required
+      if (user && !session) {
+        this.error = 'Account created! Please check your email to confirm your account, then try logging in.';
         this.loading = false;
         return;
       }
 
-      // 4. Bootstrap org/project via API
+      // 2. Get access token (from signup response or by fetching fresh session)
+      let token: string | null = null;
+      
+      // Use session from signup response if available
+      if (session?.access_token) {
+        token = session.access_token;
+        console.log('Using session from signup response');
+      } else {
+        // Wait a moment for Supabase to process and update auth state
+        await new Promise(resolve => setTimeout(resolve, 500));
+        
+        // Try to get fresh session from Supabase
+        token = await this.supabase.getAccessToken();
+        
+        if (!token) {
+          // Wait a bit more and try once more
+          await new Promise(resolve => setTimeout(resolve, 1000));
+          token = await this.supabase.getAccessToken();
+        }
+      }
+
+      if (!token) {
+        // No session available - likely email confirmation required
+        this.error = 'Account created! Please check your email to confirm your account, then try logging in.';
+        this.loading = false;
+        return;
+      }
+      
+      console.log('Got access token, proceeding with bootstrap');
+
+      // 3. Bootstrap org/project via API
       const headers = new HttpHeaders({
         'Authorization': `Bearer ${token}`,
         'Content-Type': 'application/json'
@@ -291,18 +317,29 @@ export class RegisterPage {
         { headers }
       ).toPromise();
 
+      if (!response || !response.api_key) {
+        this.error = 'Failed to create organization. Please try again.';
+        this.loading = false;
+        return;
+      }
+
       this.success = true;
       this.apiKey = response.api_key;
-      this.trialEndsAt = response.org.trial_ends_at || null;
+      this.trialEndsAt = response.org?.trial_ends_at || null;
       
       // Store API key for gateway usage
-      if (response.api_key) {
-        this.authService.setApiKey(response.api_key);
-      }
+      this.authService.setApiKey(response.api_key);
       
       this.loading = false;
     } catch (err: any) {
-      this.error = err.error?.error || 'Failed to create account';
+      console.error('Registration error:', err);
+      if (err.status === 401) {
+        this.error = 'Authentication failed. Please check your email confirmation if required, then try logging in.';
+      } else if (err.status === 400 && err.error?.error?.includes('already exists')) {
+        this.error = 'An organization already exists for this account. Please log in instead.';
+      } else {
+        this.error = err.error?.error || err.message || 'Failed to create account';
+      }
       this.loading = false;
     }
   }

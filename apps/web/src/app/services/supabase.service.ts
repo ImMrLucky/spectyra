@@ -59,8 +59,21 @@ export class SupabaseService {
    * Get current access token (for API calls)
    */
   async getAccessToken(): Promise<string | null> {
-    const session = this.session$.value;
-    return session?.access_token || null;
+    // First try current session
+    let session = this.session$.value;
+    if (session?.access_token) {
+      return session.access_token;
+    }
+    
+    // If no session, try to get it fresh from Supabase
+    const { data: { session: freshSession } } = await this.supabase.auth.getSession();
+    if (freshSession) {
+      this.session$.next(freshSession);
+      this.user$.next(freshSession.user ? { id: freshSession.user.id, email: freshSession.user.email } : null);
+      return freshSession.access_token || null;
+    }
+    
+    return null;
   }
 
   /**
@@ -85,12 +98,22 @@ export class SupabaseService {
   /**
    * Sign up with email
    */
-  async signUp(email: string, password: string): Promise<{ error: Error | null }> {
-    const { error } = await this.supabase.auth.signUp({
+  async signUp(email: string, password: string): Promise<{ error: Error | null; session: AuthSession | null; user: any }> {
+    const { data, error } = await this.supabase.auth.signUp({
       email,
       password,
     });
-    return { error };
+    
+    // Update session immediately if available
+    if (data.session) {
+      this.session$.next(data.session);
+      this.user$.next(data.session.user ? { id: data.session.user.id, email: data.session.user.email } : null);
+    } else if (data.user && !data.session) {
+      // User created but no session (email confirmation required)
+      console.log('User created but session not available - email confirmation may be required');
+    }
+    
+    return { error, session: data.session || null, user: data.user || null };
   }
 
   /**
