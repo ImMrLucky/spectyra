@@ -16,6 +16,8 @@ import {
   hashApiKey,
   getApiKeyByHash,
   revokeApiKey,
+  deleteOrg,
+  updateOrgName,
 } from "../services/storage/orgsRepo.js";
 import { requireSpectyraApiKey, optionalProviderKey, type AuthenticatedRequest } from "../middleware/auth.js";
 import { safeLog } from "../utils/redaction.js";
@@ -222,5 +224,107 @@ authRouter.delete("/api-keys/:id", requireSpectyraApiKey, optionalProviderKey, a
   } catch (error: any) {
     safeLog("error", "Delete API key error", { error: error.message });
     res.status(500).json({ error: error.message || "Internal server error" });
+  }
+});
+
+/**
+ * PATCH /v1/auth/org
+ * 
+ * Update organization name (requires auth)
+ */
+authRouter.patch("/org", requireSpectyraApiKey, optionalProviderKey, async (req: AuthenticatedRequest, res) => {
+  try {
+    if (!req.context) {
+      return res.status(401).json({ error: "Not authenticated" });
+    }
+    
+    const orgId = req.context.org.id;
+    const { name } = req.body as { name?: string };
+    
+    if (!name || name.trim().length === 0) {
+      return res.status(400).json({ error: "Organization name is required" });
+    }
+    
+    try {
+      const updatedOrg = updateOrgName(orgId, name);
+      res.json({
+        success: true,
+        org: {
+          id: updatedOrg.id,
+          name: updatedOrg.name,
+          trial_ends_at: updatedOrg.trial_ends_at,
+          subscription_status: updatedOrg.subscription_status,
+        },
+      });
+    } catch (updateError: any) {
+      safeLog("error", "Update org failed", { orgId, error: updateError.message });
+      return res.status(400).json({
+        error: "Cannot update organization",
+        message: updateError.message,
+      });
+    }
+  } catch (error: any) {
+    safeLog("error", "Update org endpoint error", { error: error.message });
+    res.status(500).json({ error: error.message || "Internal server error" });
+  }
+});
+
+/**
+ * DELETE /v1/auth/org
+ * 
+ * Delete the current organization and all associated data (requires auth)
+ * WARNING: This is irreversible! Deletes org, projects, API keys, runs, and savings data.
+ */
+authRouter.delete("/org", requireSpectyraApiKey, optionalProviderKey, async (req: AuthenticatedRequest, res) => {
+  try {
+    if (!req.context) {
+      return res.status(401).json({ error: "Not authenticated" });
+    }
+    
+    const orgId = req.context.org.id;
+    const orgName = req.context.org.name;
+    
+    // Verify org exists
+    const org = getOrgById(orgId);
+    if (!org) {
+      return res.status(404).json({ 
+        error: "Organization not found",
+        message: `Organization ${orgId} does not exist`
+      });
+    }
+    
+    // Delete the org and all associated data
+    try {
+      safeLog("info", "Deleting organization", { orgId, orgName });
+      deleteOrg(orgId);
+      safeLog("info", "Organization deleted successfully", { orgId, orgName });
+    } catch (deleteError: any) {
+      const errorMessage = deleteError.message || "Unknown error";
+      safeLog("error", "Delete org failed", { 
+        orgId, 
+        orgName,
+        error: errorMessage,
+        stack: deleteError.stack 
+      });
+      return res.status(400).json({ 
+        error: "Cannot delete organization",
+        message: errorMessage,
+        details: "This may be due to database constraints or missing foreign key relationships. Check server logs for details."
+      });
+    }
+    
+    res.json({ 
+      success: true,
+      message: `Organization "${orgName}" and all associated data deleted successfully`
+    });
+  } catch (error: any) {
+    safeLog("error", "Delete org endpoint error", { 
+      error: error.message,
+      stack: error.stack 
+    });
+    res.status(500).json({ 
+      error: "Internal server error",
+      message: error.message || "An unexpected error occurred while deleting the organization"
+    });
   }
 });

@@ -52,6 +52,25 @@ export function createOrg(name: string, trialDays: number = 7): Org {
 }
 
 /**
+ * Get all organizations
+ */
+export function getAllOrgs(): Org[] {
+  const db = getDb();
+  const rows = db.prepare(`
+    SELECT * FROM orgs ORDER BY created_at DESC
+  `).all() as any[];
+  
+  return rows.map(row => ({
+    id: row.id,
+    name: row.name,
+    created_at: row.created_at,
+    trial_ends_at: row.trial_ends_at,
+    stripe_customer_id: row.stripe_customer_id,
+    subscription_status: row.subscription_status as Org["subscription_status"],
+  }));
+}
+
+/**
  * Get org by ID
  */
 export function getOrgById(id: string): Org | null {
@@ -70,6 +89,27 @@ export function getOrgById(id: string): Org | null {
     stripe_customer_id: row.stripe_customer_id,
     subscription_status: row.subscription_status as Org["subscription_status"],
   };
+}
+
+/**
+ * Update organization name
+ */
+export function updateOrgName(orgId: string, newName: string): Org {
+  const db = getDb();
+  
+  if (!newName || newName.trim().length === 0) {
+    throw new Error("Organization name cannot be empty");
+  }
+  
+  const result = db.prepare(`
+    UPDATE orgs SET name = ? WHERE id = ?
+  `).run(newName.trim(), orgId);
+  
+  if (result.changes === 0) {
+    throw new Error(`Organization ${orgId} not found`);
+  }
+  
+  return getOrgById(orgId)!;
 }
 
 /**
@@ -255,6 +295,80 @@ export function deleteApiKey(keyHash: string): void {
   db.prepare(`
     DELETE FROM api_keys WHERE key_hash = ?
   `).run(keyHash);
+}
+
+/**
+ * Delete an organization and all associated data
+ * This will cascade delete projects (via foreign key)
+ * and manually delete API keys, runs, and savings ledger entries
+ */
+export function deleteOrg(orgId: string): void {
+  const db = getDb();
+  
+  // Verify org exists first
+  const org = getOrgById(orgId);
+  if (!org) {
+    throw new Error(`Organization ${orgId} not found`);
+  }
+  
+  // Enable foreign keys for this connection
+  db.pragma("foreign_keys = ON");
+  
+  // Delete in transaction to ensure consistency
+  // Note: better-sqlite3 transactions automatically rollback on error
+  const transaction = db.transaction(() => {
+    // 1. Delete replays that reference runs from this org
+    // (replays table doesn't have org_id, so we need to find them via runs)
+    const orgRunIds = db.prepare(`
+      SELECT id FROM runs WHERE org_id = ?
+    `).all(orgId) as Array<{ id: string }>;
+    
+    if (orgRunIds.length > 0) {
+      const runIds = orgRunIds.map(r => r.id);
+      if (runIds.length > 0) {
+        const placeholders = runIds.map(() => '?').join(',');
+        
+        // Delete replays that reference these runs
+        db.prepare(`
+          DELETE FROM replays 
+          WHERE baseline_run_id IN (${placeholders}) 
+             OR optimized_run_id IN (${placeholders})
+        `).run(...runIds, ...runIds);
+      }
+    }
+    
+    // 2. Delete savings ledger entries (they reference runs, but have ON DELETE SET NULL)
+    db.prepare(`
+      DELETE FROM savings_ledger WHERE org_id = ?
+    `).run(orgId);
+    
+    // 3. Delete runs for this org
+    db.prepare(`
+      DELETE FROM runs WHERE org_id = ?
+    `).run(orgId);
+    
+    // 4. Delete API keys for this org
+    db.prepare(`
+      DELETE FROM api_keys WHERE org_id = ?
+    `).run(orgId);
+    
+    // 5. Delete projects (will cascade if foreign keys are enabled, but we'll do it manually to be safe)
+    db.prepare(`
+      DELETE FROM projects WHERE org_id = ?
+    `).run(orgId);
+    
+    // 6. Finally delete the org
+    const result = db.prepare(`
+      DELETE FROM orgs WHERE id = ?
+    `).run(orgId);
+    
+    if (result.changes === 0) {
+      throw new Error(`Failed to delete organization ${orgId} - no rows affected`);
+    }
+  });
+  
+  // Execute transaction (will throw if any step fails)
+  transaction();
 }
 
 /**

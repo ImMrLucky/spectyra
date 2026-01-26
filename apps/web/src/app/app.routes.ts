@@ -11,6 +11,7 @@ import { ConnectionsPage } from './features/connections/connections.page';
 import { IntegrationsPage } from './features/integrations/integrations.page';
 import { ProjectsPage } from './features/projects/projects.page';
 import { BillingPage } from './features/billing/billing.page';
+import { AdminPage } from './features/admin/admin.page';
 
 export const appRoutes: Routes = [
   { path: '', redirectTo: '/scenarios', pathMatch: 'full' },
@@ -26,4 +27,5 @@ export const appRoutes: Routes = [
   { path: 'integrations', component: IntegrationsPage },
   { path: 'projects', component: ProjectsPage },
   { path: 'billing', component: BillingPage },
+  { path: 'admin', component: AdminPage },
 ];

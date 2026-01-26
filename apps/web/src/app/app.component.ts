@@ -20,6 +20,7 @@ import { Subscription } from 'rxjs';
           <a routerLink="/savings">Org Savings</a>
           <a routerLink="/billing">Billing</a>
           <a routerLink="/settings">Org Settings</a>
+          <a routerLink="/admin" class="admin-link">Admin</a>
           <span *ngIf="!isAuthenticated" class="auth-links">
             <a routerLink="/login">Login</a>
             <a routerLink="/register">Sign Up</a>
@@ -64,6 +65,10 @@ import { Subscription } from 'rxjs';
     }
     .app-header nav a:hover {
       text-decoration: underline;
+    }
+    .admin-link {
+      color: #ffc107 !important;
+      font-weight: 600;
     }
     .auth-links {
       display: flex;
