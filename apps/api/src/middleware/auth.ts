@@ -87,13 +87,28 @@ export async function requireSpectyraApiKey(
     if (!apiKeyRecord) {
       // Use constant-time comparison even for error to prevent timing attacks
       constantTimeCompare(keyHash, "dummy");
+      safeLog("warn", "Invalid API key attempt", { 
+        key_prefix: apiKey.substring(0, 12) + "...",
+        key_hash_prefix: keyHash.substring(0, 8) + "..."
+      });
       res.status(401).json({ error: "Invalid API key" });
+      return;
+    }
+    
+    // Validate org_id exists
+    if (!apiKeyRecord.org_id) {
+      safeLog("error", "API key missing org_id", { key_id: apiKeyRecord.id });
+      res.status(401).json({ error: "API key is not associated with an organization. Please create a new API key." });
       return;
     }
     
     // Get org
     const org = getOrgById(apiKeyRecord.org_id);
     if (!org) {
+      safeLog("error", "Org not found for API key", { 
+        key_id: apiKeyRecord.id, 
+        org_id: apiKeyRecord.org_id 
+      });
       res.status(401).json({ error: "Organization not found" });
       return;
     }

@@ -9,6 +9,7 @@ import {
   updateOrgName,
   getOrgProjects,
   getOrgApiKeys,
+  hashApiKey,
 } from "../services/storage/orgsRepo.js";
 
 export const adminRouter = Router();
@@ -198,6 +199,79 @@ adminRouter.delete("/orgs/:id", requireAdminToken, (req, res) => {
     }
   } catch (error: any) {
     safeLog("error", "Admin delete org error", { error: error.message });
+    res.status(500).json({ error: error.message || "Internal server error" });
+  }
+});
+
+/**
+ * POST /v1/admin/diagnose-key
+ * 
+ * Diagnose an API key (admin only)
+ * Helps debug why a key might not be working
+ */
+adminRouter.post("/diagnose-key", requireAdminToken, (req, res) => {
+  try {
+    const { api_key } = req.body as { api_key?: string };
+    
+    if (!api_key) {
+      return res.status(400).json({ error: "api_key is required" });
+    }
+    
+    const db = getDb();
+    const keyHash = hashApiKey(api_key);
+    
+    // Check if key exists
+    const keyRow = db.prepare(`
+      SELECT id, org_id, project_id, user_id, name, created_at, last_used_at, revoked_at
+      FROM api_keys
+      WHERE key_hash = ?
+    `).get(keyHash) as any;
+    
+    if (!keyRow) {
+      return res.json({
+        found: false,
+        message: "API key not found in database",
+        key_hash_prefix: keyHash.substring(0, 16) + "...",
+      });
+    }
+    
+    // Check org
+    let org = null;
+    if (keyRow.org_id) {
+      org = getOrgById(keyRow.org_id);
+    }
+    
+    // Check if revoked
+    const isRevoked = !!keyRow.revoked_at;
+    
+    return res.json({
+      found: true,
+      key_id: keyRow.id,
+      has_org_id: !!keyRow.org_id,
+      org_id: keyRow.org_id,
+      has_project_id: !!keyRow.project_id,
+      project_id: keyRow.project_id,
+      has_user_id: !!keyRow.user_id,
+      user_id: keyRow.user_id,
+      name: keyRow.name,
+      created_at: keyRow.created_at,
+      last_used_at: keyRow.last_used_at,
+      revoked_at: keyRow.revoked_at,
+      is_revoked: isRevoked,
+      org_exists: !!org,
+      org: org ? {
+        id: org.id,
+        name: org.name,
+        subscription_status: org.subscription_status,
+      } : null,
+      issues: [
+        !keyRow.org_id && "Missing org_id (key created before org model migration)",
+        isRevoked && "Key is revoked",
+        keyRow.org_id && !org && "Org not found for this key",
+      ].filter(Boolean),
+    });
+  } catch (error: any) {
+    safeLog("error", "Admin diagnose key error", { error: error.message });
     res.status(500).json({ error: error.message || "Internal server error" });
   }
 });

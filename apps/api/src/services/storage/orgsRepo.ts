@@ -5,6 +5,7 @@
  */
 
 import { getDb } from "./db.js";
+import { safeLog } from "../utils/redaction.js";
 import crypto from "node:crypto";
 
 export interface Org {
@@ -205,6 +206,16 @@ export function getApiKeyByHash(keyHash: string): ApiKey | null {
   `).get(keyHash) as any;
   
   if (!row) return null;
+  
+  // Check if org_id is missing (old keys from before migration)
+  if (!row.org_id) {
+    safeLog("warn", "API key missing org_id", { 
+      key_id: row.id, 
+      key_hash: keyHash.substring(0, 8) + "...",
+      has_user_id: !!row.user_id 
+    });
+    return null; // Reject keys without org_id
+  }
   
   return {
     id: row.id,
