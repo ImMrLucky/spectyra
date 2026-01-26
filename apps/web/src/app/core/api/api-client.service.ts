@@ -55,11 +55,15 @@ export class ApiClientService {
   }
 
   getRuns(limit: number = 50): Observable<RunRecord[]> {
-    return this.http.get<RunRecord[]>(`${this.baseUrl}/runs?limit=${limit}`);
+    return this.http.get<RunRecord[]>(`${this.baseUrl}/runs?limit=${limit}`, {
+      headers: this.getHeaders(),
+    });
   }
 
   getRun(id: string): Observable<RunRecord> {
-    return this.http.get<RunRecord>(`${this.baseUrl}/runs/${id}`);
+    return this.http.get<RunRecord>(`${this.baseUrl}/runs/${id}`, {
+      headers: this.getHeaders(),
+    });
   }
 
   getSavingsSummary(params: {
@@ -180,7 +184,9 @@ export class ApiClientService {
   }
 
   getIntegrationSnippets(): Observable<any> {
-    return this.http.get<any>(`${this.baseUrl}/integrations/snippets`);
+    return this.http.get<any>(`${this.baseUrl}/integrations/snippets`, {
+      headers: this.getHeaders(),
+    });
   }
 
   /**
