@@ -472,7 +472,53 @@ export function getSavingsByLevel(filters: SavingsFilters): LevelBreakdown[] {
 
 export function getSavingsByPath(filters: SavingsFilters): PathBreakdown[] {
   const db = getDb();
-  const { sql: whereClause, params } = buildWhereClause(filters, "p");
+  
+  // Build where clause for runs table (which has org_id)
+  const conditions: string[] = [];
+  const params: any[] = [];
+  
+  // Filter by org_id from runs table
+  if (filters.orgId) {
+    conditions.push("r.org_id = ?");
+    params.push(filters.orgId);
+  }
+  
+  if (filters.projectId !== undefined && filters.projectId !== null) {
+    conditions.push("r.project_id = ?");
+    params.push(filters.projectId);
+  } else if (filters.projectId === null && filters.orgId) {
+    conditions.push("r.project_id IS NULL");
+  }
+  
+  // Filter by path from replays table
+  if (filters.path && filters.path !== "both") {
+    conditions.push("p.path = ?");
+    params.push(filters.path);
+  }
+  
+  // Filter by provider/model from runs table
+  if (filters.provider) {
+    conditions.push("r.provider = ?");
+    params.push(filters.provider);
+  }
+  
+  if (filters.model) {
+    conditions.push("r.model = ?");
+    params.push(filters.model);
+  }
+  
+  // Date filters from runs table
+  if (filters.from) {
+    conditions.push("r.created_at >= ?");
+    params.push(filters.from);
+  }
+  
+  if (filters.to) {
+    conditions.push("r.created_at <= ?");
+    params.push(filters.to + " 23:59:59");
+  }
+  
+  const whereClause = conditions.length > 0 ? `WHERE ${conditions.join(" AND ")}` : "";
   
   const rows = db.prepare(`
     SELECT 
@@ -511,9 +557,54 @@ export function getSavingsByPath(filters: SavingsFilters): PathBreakdown[] {
 
 export function getLevelUsageTimeseries(filters: SavingsFilters, bucket: "day" | "week" = "day"): Array<{ date: string; levels: Record<number, number> }> {
   const db = getDb();
-  const { sql: whereClause, params } = buildWhereClause(filters, "p");
   
-  const dateFormat = bucket === "week" ? "strftime('%Y-W%W', p.created_at)" : "date(p.created_at)";
+  // Build where clause for runs table (which has org_id)
+  const conditions: string[] = [];
+  const params: any[] = [];
+  
+  // Filter by org_id from runs table
+  if (filters.orgId) {
+    conditions.push("r.org_id = ?");
+    params.push(filters.orgId);
+  }
+  
+  if (filters.projectId !== undefined && filters.projectId !== null) {
+    conditions.push("r.project_id = ?");
+    params.push(filters.projectId);
+  } else if (filters.projectId === null && filters.orgId) {
+    conditions.push("r.project_id IS NULL");
+  }
+  
+  // Filter by path from replays table
+  if (filters.path && filters.path !== "both") {
+    conditions.push("p.path = ?");
+    params.push(filters.path);
+  }
+  
+  // Filter by provider/model from runs table
+  if (filters.provider) {
+    conditions.push("r.provider = ?");
+    params.push(filters.provider);
+  }
+  
+  if (filters.model) {
+    conditions.push("r.model = ?");
+    params.push(filters.model);
+  }
+  
+  // Date filters from runs table
+  if (filters.from) {
+    conditions.push("r.created_at >= ?");
+    params.push(filters.from);
+  }
+  
+  if (filters.to) {
+    conditions.push("r.created_at <= ?");
+    params.push(filters.to + " 23:59:59");
+  }
+  
+  const whereClause = conditions.length > 0 ? `WHERE ${conditions.join(" AND ")}` : "";
+  const dateFormat = bucket === "week" ? "strftime('%Y-W%W', r.created_at)" : "date(r.created_at)";
   
   const rows = db.prepare(`
     SELECT 
@@ -521,6 +612,7 @@ export function getLevelUsageTimeseries(filters: SavingsFilters, bucket: "day" |
       p.optimization_level as level,
       COUNT(*) as count
     FROM replays p
+    JOIN runs r ON r.replay_id = p.replay_id
     ${whereClause}
     GROUP BY ${dateFormat}, p.optimization_level
     ORDER BY date ASC, level ASC
