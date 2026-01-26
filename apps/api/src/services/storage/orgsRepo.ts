@@ -231,10 +231,12 @@ export function createApiKey(
   const key = generateApiKey();
   const keyHash = hashApiKey(key);
   
+  // Insert API key - user_id is nullable (for backward compatibility with old user-based keys)
+  // New org-based keys don't need user_id
   db.prepare(`
-    INSERT INTO api_keys (id, org_id, project_id, name, key_hash)
-    VALUES (?, ?, ?, ?, ?)
-  `).run(id, orgId, projectId, name, keyHash);
+    INSERT INTO api_keys (id, user_id, org_id, project_id, name, key_hash)
+    VALUES (?, ?, ?, ?, ?, ?)
+  `).run(id, null, orgId, projectId, name, keyHash);
   
   const apiKey = getApiKeyByHash(keyHash)!;
   return { key, apiKey };
