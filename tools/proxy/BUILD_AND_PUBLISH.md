@@ -67,7 +67,7 @@ When published to npm, only these files are included:
 
 ## What Users Get
 
-When users install via `npm install -g @spectyra/proxy`:
+When users install via `npm install -g spectyra-proxy`:
 
 **They get:**
 - ✅ Compiled JavaScript (`dist/spectyra-proxy.js`)
@@ -96,7 +96,7 @@ When users install via `npm install -g @spectyra/proxy`:
 ## Distribution Methods
 
 ### Option 1: npm Package (Recommended)
-- Users: `npm install -g @spectyra/proxy`
+- Users: `npm install -g spectyra-proxy`
 - You: `npm publish`
 - **Pros:** Easy for users, automatic updates
 - **Cons:** Requires npm account

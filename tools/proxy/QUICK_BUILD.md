@@ -27,7 +27,7 @@
 
 **Users will install:**
 ```bash
-npm install -g @spectyra/proxy
+npm install -g spectyra-proxy
 ```
 
 **They get:**

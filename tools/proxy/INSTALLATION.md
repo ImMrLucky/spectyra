@@ -7,7 +7,7 @@
 **Once the package is published to npm:**
 
 ```bash
-npm install -g @spectyra/proxy
+npm install -g spectyra-proxy
 ```
 
 **Then start it:**
@@ -75,7 +75,7 @@ Open http://localhost:3002 to verify the dashboard is working.
 ## Troubleshooting
 
 ### "Command not found: spectyra-proxy"
-- Make sure you installed globally: `npm install -g @spectyra/proxy`
+- Make sure you installed globally: `npm install -g spectyra-proxy`
 - Try: `npx @spectyra/proxy` instead
 
 ### "Port already in use"

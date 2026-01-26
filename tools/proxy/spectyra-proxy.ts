@@ -331,7 +331,7 @@ async function handleRequest(req: any, res: any, detectedFormat: string) {
       });
     }
 
-    const data = await response.json();
+    const data = await response.json() as any;
     
     // Track savings
     if (data.savings) {

@@ -43,8 +43,8 @@ npm publish --access public
 
 ## After Publishing
 
-1. Verify package on npm: https://www.npmjs.com/package/@spectyra/proxy
-2. Test installation: `npm install -g @spectyra/proxy`
+1. Verify package on npm: https://www.npmjs.com/package/spectyra-proxy
+2. Test installation: `npm install -g spectyra-proxy`
 3. Update documentation with npm package instructions
 
 ## What Users Get

@@ -95,7 +95,7 @@ npm publish --access public
 **What users see when they install:**
 
 ```bash
-$ npm install -g @spectyra/proxy
+$ npm install -g spectyra-proxy
 $ spectyra-proxy
 ```
 

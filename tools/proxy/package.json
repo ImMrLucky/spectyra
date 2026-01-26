@@ -1,5 +1,5 @@
 {
-  "name": "@spectyra/proxy",
+  "name": "spectyra-proxy",
   "version": "1.0.0",
   "type": "module",
   "description": "Local proxy for Spectyra optimization - works with Copilot, Cursor, Claude Code, and other coding assistants",
