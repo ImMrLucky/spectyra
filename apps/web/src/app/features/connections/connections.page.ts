@@ -63,11 +63,11 @@ import { RouterModule } from '@angular/router';
               </div>
               <p>Or in VS Code settings.json:</p>
               <div class="code-block">
-                <code>{</code><br>
-                <code>  "github.copilot.advanced": {</code><br>
+                <code>{{ '{' }}</code><br>
+                <code>  "github.copilot.advanced": {{ '{' }}</code><br>
                 <code>    "api.baseUrl": "http://localhost:3001/v1"</code><br>
-                <code>  }</code><br>
-                <code>}</code>
+                <code>  {{ '}' }}</code><br>
+                <code>{{ '}' }}</code>
               </div>
             </div>
             
