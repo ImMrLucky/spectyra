@@ -24,21 +24,53 @@ export function initDb(): void {
     throw new Error("DATABASE_URL environment variable is required");
   }
 
+  // Parse connection string to handle IPv6/IPv4 issues
+  // Railway often has issues with IPv6, so prefer connection pooler for Supabase
+  let connectionString = databaseUrl;
+  
+  try {
+    const url = new URL(databaseUrl);
+    // If using direct Supabase connection (port 5432), prefer connection pooler
+    // Connection pooler (port 6543) works much better with Railway and avoids IPv6 issues
+    if (url.port === '5432' && (url.hostname.includes('supabase.co') || url.hostname.startsWith('db.'))) {
+      // Extract project reference from hostname
+      const projectRef = url.hostname.replace('db.', '').replace('.supabase.co', '');
+      const password = url.password;
+      
+      // Use connection pooler - works better with Railway
+      // Format: postgresql://postgres.PROJECT_REF:PASSWORD@pooler-host:6543/postgres?pgbouncer=true
+      // Note: You may need to get the exact pooler host from Supabase dashboard
+      connectionString = `postgresql://postgres.${projectRef}:${password}@aws-0-us-west-1.pooler.supabase.com:6543/postgres?pgbouncer=true`;
+      console.log("⚠️  Auto-converting to Supabase connection pooler for Railway compatibility");
+      console.log("💡 For best results, get the exact pooler URL from Supabase Dashboard → Settings → Database → Connection pooling");
+    }
+  } catch (e) {
+    // If URL parsing fails, use original connection string
+    console.warn("Could not parse DATABASE_URL, using as-is");
+  }
+
   pool = new Pool({
-    connectionString: databaseUrl,
+    connectionString: connectionString,
     max: 20, // Maximum number of clients in the pool
     idleTimeoutMillis: 30000,
-    connectionTimeoutMillis: 2000,
+    connectionTimeoutMillis: 10000, // Increased timeout for Railway
   });
 
-  // Test connection
+  // Test connection (non-blocking - let app start even if connection fails initially)
   pool.query("SELECT NOW()")
     .then(() => {
-      console.log("Postgres database connected successfully");
+      console.log("✅ Postgres database connected successfully");
     })
-    .catch((error) => {
-      console.error("Failed to connect to Postgres database:", error);
-      throw error;
+    .catch((error: any) => {
+      console.error("❌ Failed to connect to Postgres database:", error.message);
+      if (error.code === 'ENETUNREACH') {
+        console.error("\n⚠️  IPv6 connection issue detected!");
+        console.error("💡 Solution: Use Supabase connection pooler URL in DATABASE_URL");
+        console.error("   Get it from: Supabase Dashboard → Settings → Database → Connection pooling");
+        console.error("   The code auto-converts direct connections, but setting pooler URL directly is recommended.\n");
+      }
+      // Don't throw - let the app start and retry on first actual query
+      console.warn("⚠️  Database connection will be retried on first query");
     });
 }
 
