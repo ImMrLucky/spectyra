@@ -48,11 +48,13 @@ export function initDb(): void {
           : databaseUrl + (databaseUrl.includes('?') ? '&' : '?') + 'pgbouncer=true';
         console.log("✅ Using existing connection pooler URL");
       } else {
-        // Try to detect region from existing URL or use us-east-1 as default
-        const regions = ['us-east-1', 'us-west-1', 'eu-west-1'];
-        // Default to us-east-1 (most common)
-        const region = 'us-east-1';
-        connectionString = `postgresql://postgres.${projectRef}:${password}@aws-0-${region}.pooler.supabase.com:6543/postgres?pgbouncer=true`;
+        // Try to detect region from existing URL or use us-east-2 as default
+        const regions = ['us-east-2', 'us-east-1', 'us-west-1', 'eu-west-1'];
+        // Default to us-east-2 (most common for this project)
+        const region = 'us-east-2';
+        // Try aws-1 first (most common), fallback to aws-0
+        const poolerHost = `aws-1-${region}.pooler.supabase.com`;
+        connectionString = `postgresql://postgres.${projectRef}:${password}@${poolerHost}:6543/postgres?pgbouncer=true`;
         console.log("⚠️  Auto-converting to Supabase connection pooler for Railway compatibility");
         console.log(`💡 Using region: ${region}. If this fails, get the exact pooler URL from Supabase Dashboard → Settings → Database → Connection pooling`);
       }
