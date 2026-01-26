@@ -6,7 +6,7 @@
  */
 
 import { query, queryOne, tx } from "./db.js";
-import { safeLog } from "../utils/redaction.js";
+import { safeLog } from "../../utils/redaction.js";
 import crypto from "node:crypto";
 import argon2 from "argon2";
 
