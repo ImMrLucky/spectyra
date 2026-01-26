@@ -7,6 +7,7 @@ import { SavingsPage } from './features/savings/savings.page';
 import { ProofPage } from './features/proof/proof.page';
 import { RegisterPage } from './features/auth/register.page';
 import { LoginPage } from './features/auth/login.page';
+import { ConnectionsPage } from './features/connections/connections.page';
 
 export const appRoutes: Routes = [
   { path: '', redirectTo: '/scenarios', pathMatch: 'full' },
@@ -18,4 +19,5 @@ export const appRoutes: Routes = [
   { path: 'savings', component: SavingsPage },
   { path: 'proof', component: ProofPage },
   { path: 'settings', component: SettingsPage },
+  { path: 'connections', component: ConnectionsPage },
 ];

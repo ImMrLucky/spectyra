@@ -17,6 +17,7 @@ import { Subscription } from 'rxjs';
           <a routerLink="/proof">Proof</a>
           <a routerLink="/savings">Savings</a>
           <a routerLink="/runs">Runs History</a>
+          <a routerLink="/connections">Connect Tools</a>
           <a routerLink="/settings">Settings</a>
           <span *ngIf="!isAuthenticated" class="auth-links">
             <a routerLink="/login">Login</a>

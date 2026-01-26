@@ -12,6 +12,14 @@ import type { Scenario } from '../../core/api/models';
     <div class="container">
       <h1>Scenarios</h1>
       
+      <div class="info-banner" *ngIf="showConnectionsBanner">
+        <div class="banner-content">
+          <strong>💡 Using Copilot, Cursor, or Claude Code?</strong>
+          <p>Connect your coding tools via the Local Proxy. <a routerLink="/connections">Learn how →</a></p>
+        </div>
+        <button class="banner-close" (click)="dismissBanner()">×</button>
+      </div>
+      
       <div class="filter-tabs">
         <button 
           class="tab-btn" 
@@ -98,11 +106,53 @@ import type { Scenario } from '../../core/api/models';
       background: #f3e5f5;
       color: #7b1fa2;
     }
+    .info-banner {
+      background: #e7f3ff;
+      border: 1px solid #b3d9ff;
+      border-radius: 8px;
+      padding: 16px 20px;
+      margin-bottom: 20px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    .banner-content {
+      flex: 1;
+    }
+    .banner-content strong {
+      display: block;
+      margin-bottom: 4px;
+      color: #0056b3;
+    }
+    .banner-content p {
+      margin: 0;
+      color: #333;
+      font-size: 14px;
+    }
+    .banner-content a {
+      color: #007bff;
+      font-weight: 500;
+    }
+    .banner-close {
+      background: none;
+      border: none;
+      font-size: 24px;
+      color: #666;
+      cursor: pointer;
+      padding: 0;
+      width: 24px;
+      height: 24px;
+      line-height: 1;
+    }
+    .banner-close:hover {
+      color: #333;
+    }
   `],
 })
 export class ScenariosPage implements OnInit {
   scenarios: Scenario[] = [];
   selectedPath: 'talk' | 'code' | null = null;
+  showConnectionsBanner = true;
   
   get filteredScenarios(): Scenario[] {
     if (!this.selectedPath) return this.scenarios;
@@ -112,7 +162,13 @@ export class ScenariosPage implements OnInit {
   constructor(
     private api: ApiClientService,
     private router: Router
-  ) {}
+  ) {
+    // Check if user has dismissed banner
+    const dismissed = localStorage.getItem('connections-banner-dismissed');
+    if (dismissed === 'true') {
+      this.showConnectionsBanner = false;
+    }
+  }
   
   ngOnInit() {
     this.api.getScenarios().subscribe(scenarios => {
@@ -122,5 +178,10 @@ export class ScenariosPage implements OnInit {
   
   openScenario(id: string) {
     this.router.navigate(['/scenarios', id, 'run']);
+  }
+  
+  dismissBanner() {
+    this.showConnectionsBanner = false;
+    localStorage.setItem('connections-banner-dismissed', 'true');
   }
 }

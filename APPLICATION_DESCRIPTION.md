@@ -799,6 +799,13 @@ confidence = 0.15 + 0.55*sample_conf + 0.20*stability_conf + 0.10*recency_conf
    - Lists available test scenarios
    - Filter by path (talk/code)
    - Click to run scenario
+   - Banner directing users to Connections page for desktop tools
+
+2. **Connections Page** (`/connections`) - **New**
+   - Step-by-step guide for connecting desktop coding tools
+   - Instructions for Copilot, Cursor, Claude Code, etc.
+   - Links to proxy setup documentation
+   - Explains difference between web UI and proxy
 
 2. **Run Page** (`/scenarios/:id/run`)
    - Shows scenario details
@@ -832,7 +839,13 @@ confidence = 0.15 + 0.55*sample_conf + 0.20*stability_conf + 0.10*recency_conf
    - Filter and sort
    - Link to run details
 
-6. **Settings** (`/settings`)
+6. **Connections** (`/connections`)
+   - Guide for connecting desktop coding tools
+   - Step-by-step setup instructions
+   - Tool-specific configuration guides
+   - Links to proxy documentation
+
+7. **Settings** (`/settings`)
    - Default provider/model per path
    - Pricing configuration
    - Threshold adjustments
@@ -1056,19 +1069,84 @@ confidence = 0.15 + 0.55*sample_conf + 0.20*stability_conf + 0.10*recency_conf
 
 ## Compliance & Privacy
 
+### ✅ 100% Compliant Architecture
+
+**Spectyra uses official provider APIs directly** - this is 100% compliant with all provider Terms of Service.
+
+**How it works:**
+```
+User Application/Tool
+  ↓
+Spectyra API (middleware)
+  ↓ (uses official provider SDKs)
+Provider Official API
+  ↓
+Optimized Response
+```
+
+**Key Safety Features:**
+- ✅ **Official SDKs Only**: Uses `openai`, `@anthropic-ai/sdk`, `@google/generative-ai` npm packages
+- ✅ **Official API Endpoints**: Calls `api.openai.com`, `api.anthropic.com`, etc.
+- ✅ **Direct API Interaction**: No web UI interception (except browser extension)
+- ✅ **No Unauthorized Access**: All calls go through official APIs
+- ✅ **Follows Provider Guidelines**: Uses APIs as intended by providers
+
 ### BYOK (Bring Your Own Key) Model
 - Users provide their own provider API keys
 - Keys are **never stored server-side**
 - Keys used only for the duration of the request
 - Users pay providers directly (no markup)
 - Spectyra charges for optimization service only
+- **Why this is compliant**: Users own the keys, Spectyra uses them to call official APIs
 
-### Terms of Service
-- **Browser Extension**: Intercepts web UI requests (may violate some provider ToS)
-- **Local Proxy**: Uses official provider APIs (100% compliant)
-- **SDK/Direct API**: Uses official provider APIs (100% compliant)
-- Users responsible for complying with provider ToS
-- See: `extensions/browser-extension/TOS_WARNING.md` and `extensions/browser-extension/COMPLIANT_BYOK_SOLUTION.md`
+### Integration Method Compliance
+
+#### ✅ Local Proxy (100% Compliant)
+- **How**: Tool → Proxy → Spectyra API → Official Provider API
+- **Uses**: Official provider SDKs (`openai`, `@anthropic-ai/sdk`, etc.)
+- **Calls**: Official API endpoints (`api.openai.com/v1/chat/completions`)
+- **Result**: 100% compliant - uses official APIs as intended
+
+#### ✅ SDK / Direct API (100% Compliant)
+- **How**: Developer code → Spectyra API → Official Provider API
+- **Uses**: Official provider SDKs
+- **Calls**: Official API endpoints
+- **Result**: 100% compliant - explicit API calls
+
+#### ⚠️ Browser Extension (May Violate ToS)
+- **How**: Intercepts web UI requests (ChatGPT.com, Claude.ai, etc.)
+- **Issue**: Intercepts web UI backend (not official API)
+- **Risk**: May violate provider ToS
+- **Recommendation**: Use for web tools only, understand risks
+- **Alternative**: Use Local Proxy for desktop tools (safer)
+
+### Backend Implementation
+
+**Spectyra backend uses official SDKs:**
+
+```typescript
+// OpenAI
+import OpenAI from "openai";
+const client = new OpenAI({ apiKey: userKey });
+await client.chat.completions.create({ ... });
+
+// Anthropic
+import Anthropic from "@anthropic-ai/sdk";
+const client = new Anthropic({ apiKey: userKey });
+await client.messages.create({ ... });
+
+// Gemini
+import { GoogleGenerativeAI } from "@google/generative-ai";
+const client = new GoogleGenerativeAI(userKey);
+await client.getGenerativeModel({ ... });
+```
+
+**This is 100% compliant** because:
+- ✅ Uses official provider SDKs
+- ✅ Calls official API endpoints
+- ✅ Follows provider API guidelines
+- ✅ No web UI interaction
+- ✅ No unauthorized access
 
 ### Privacy
 - API keys never stored server-side
@@ -1076,6 +1154,11 @@ confidence = 0.15 + 0.55*sample_conf + 0.20*stability_conf + 0.10*recency_conf
 - No data collection or tracking
 - All processing happens in real-time
 - See: `extensions/browser-extension/PRIVACY_AND_DETECTION.md`
+
+### Compliance Documentation
+- See: `COMPLIANCE_ARCHITECTURE.md` for detailed compliance analysis
+- See: `extensions/browser-extension/TOS_WARNING.md` for ToS warnings
+- See: `extensions/browser-extension/COMPLIANT_BYOK_SOLUTION.md` for compliant architecture
 
 ## Future Enhancements (Not in MVP)
 
