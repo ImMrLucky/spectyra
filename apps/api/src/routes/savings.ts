@@ -1,5 +1,5 @@
 import { Router } from "express";
-import { requireSpectyraApiKey, optionalProviderKey, type AuthenticatedRequest } from "../middleware/auth.js";
+import { requireUserSession, requireSpectyraApiKey, optionalProviderKey, type AuthenticatedRequest } from "../middleware/auth.js";
 import {
   getSavingsSummary,
   getSavingsTimeseries,
