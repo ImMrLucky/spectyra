@@ -6,6 +6,14 @@
 
 The system uses a proprietary "Spectral Core v1" decision engine based on graph theory and spectral analysis to determine when content is semantically stable and can be reused, versus when it needs to be expanded or clarified. The core combines multiple spectral operators (signed Laplacian, random walk gap, heat-trace complexity, curvature analysis) for robust stability assessment.
 
+### Developer-Focused Platform
+
+Spectyra is optimized for developers using coding assistants (GitHub Copilot, Cursor, Claude Code, etc.), providing 40-65% token savings on coding workflows through specialized code path optimization. The platform supports multiple integration methods:
+- **Local Proxy**: For desktop coding tools (recommended)
+- **Browser Extension**: For web-based LLM tools
+- **SDK**: For custom applications and integrations
+- **Direct API**: For maximum flexibility
+
 ---
 
 ## Core Value Proposition
@@ -17,6 +25,23 @@ The app proves savings by running the same workload in two modes:
 - **Optimized Mode**: Applies spectral analysis and optimization transforms before sending to the LLM
 
 Both modes are measured for tokens, cost, and quality, enabling side-by-side comparison.
+
+### Target Market: Developer-Focused
+
+**Primary Audience**: Developers using coding assistants
+- GitHub Copilot
+- Cursor
+- Claude Code
+- Codeium
+- Tabnine
+- Other coding tools
+
+**Why Developers?**
+- Developers understand API keys and optimization value
+- Developers already have provider API accounts
+- BYOK model works perfectly (users pay providers directly)
+- Code path optimization is our core strength
+- Clear value proposition: 40-65% savings on coding workflows
 
 ---
 
@@ -34,18 +59,23 @@ For normal chat/Q&A workflows:
 - Delta-only prompting (focus on new/changed information)
 - Output trimming (remove boilerplate and scaffolding)
 
-### 2. **Code Path** (`path: "code"`)
+### 2. **Code Path** (`path: "code"`) - **Recommended for Developers**
 For coding assistant workflows:
 - Bug fixes
 - Code refactoring
 - Feature implementation
 - Code explanations
+- Code generation
+- Code reviews
 
 **Optimization Strategy:**
 - Code slicing (keep only relevant code blocks)
 - Patch-only mode (request unified diffs + 3-bullet explanations)
 - Context compaction (reference stable explanations)
 - Delta prompting (focus on changes)
+- AST-aware code extraction (function signatures, relevant blocks)
+
+**Default Path**: Code path is the default for developer-focused tools
 
 ---
 
@@ -852,6 +882,14 @@ confidence = 0.15 + 0.55*sample_conf + 0.20*stability_conf + 0.10*recency_conf
 - Works with OpenAI, Anthropic, Gemini, Grok
 - Token usage tracked accurately
 - Cost estimation per provider
+- Automatic API format conversion in proxy
+- BYOK support for all providers
+
+✅ **Developer Tools Integration:**
+- Local proxy supports all major coding assistants
+- Real-time savings dashboard
+- Multi-provider format handling
+- Easy configuration via web UI
 
 ---
 
@@ -864,6 +902,8 @@ confidence = 0.15 + 0.55*sample_conf + 0.20*stability_conf + 0.10*recency_conf
 - **Embeddings**: OpenAI text-embedding-3-small
 - **Math**: Custom spectral analysis (no external math libs for MVP)
 - **Deployment**: Railway (API), Netlify (Frontend)
+- **Proxy**: Express server with multi-provider format conversion
+- **Dashboard**: Real-time web UI for savings tracking
 
 ## Additional Components
 
@@ -872,19 +912,37 @@ confidence = 0.15 + 0.55*sample_conf + 0.20*stability_conf + 0.10*recency_conf
 - `SpectyraClient` interface with `chat()` method
 - Supports Spectyra API key and BYOK (provider keys)
 - TypeScript types and examples
+- Best for: Custom applications, scripts, programmatic integrations
+- Usage: `npm install @spectyra/sdk`
 
 ### Browser Extension (`extensions/browser-extension`)
+- **Target Audience**: Web-based LLM tools (ChatGPT, Claude Web, Gemini Web)
 - Chrome/Edge MV3 extension
-- Intercepts LLM API calls (OpenAI, Anthropic, Gemini, Grok)
+- Intercepts LLM API calls from web UIs (OpenAI, Anthropic, Gemini, Grok)
 - Routes through Spectyra automatically
 - Shows real-time savings widget overlay
 - Session savings tracking
 - Configurable optimization level and path
+- **Stealth Mode**: Production-ready with minimal detection footprint
+- **Compliance**: Works with user-provided API keys (BYOK model)
+- **Note**: For desktop coding tools (Copilot, Cursor, Claude Code), use the Local Proxy instead
 
 ### Local Proxy (`tools/proxy`)
-- OpenAI-compatible endpoint
-- Routes requests through Spectyra
-- For tools that support custom API endpoints
+- **Target Audience**: Desktop coding assistants (GitHub Copilot, Cursor, Claude Code, Codeium, Tabnine)
+- Multi-provider support: OpenAI, Anthropic, Gemini, Grok
+- Automatic API format conversion (handles different provider formats)
+- OpenAI-compatible endpoint (`/v1/chat/completions`)
+- Anthropic-compatible endpoint (`/v1/messages`)
+- Gemini-compatible endpoint support
+- **Real-time Dashboard**: Web UI at http://localhost:3002 showing:
+  - Total requests processed
+  - Total tokens saved
+  - Total cost saved
+  - Recent request history with savings per request
+- **Configuration Management**: Web-based setup for API keys and settings
+- **BYOK Support**: Uses user's own provider API keys
+- Runs on localhost:3001 (proxy) and localhost:3002 (dashboard)
+- Works with any tool that supports custom API endpoints
 
 ### CLI Wrapper (`tools/cli`)
 - Command-line interface for code workflows
@@ -902,6 +960,32 @@ confidence = 0.15 + 0.55*sample_conf + 0.20*stability_conf + 0.10*recency_conf
 6. **Optimization Level**: 0-4 slider setting
 7. **Spectral Metrics**: Stability index, λ₂, contradiction energy (debug only)
 8. **Retry Info**: Whether retry occurred, reason, first failures (debug only)
+
+## Real-Time Savings Display
+
+### Browser Extension
+- **Savings Widget**: Overlay on each optimized request showing savings percentage
+- **Popup Stats**: Session totals (calls optimized, tokens saved, cost saved)
+- **Auto-updates**: Real-time tracking as requests are processed
+
+### Local Proxy Dashboard
+- **Web Dashboard**: http://localhost:3002
+- **Real-Time Stats**: Updates every 2 seconds
+  - Total requests processed
+  - Total tokens saved
+  - Total cost saved (USD)
+- **Recent Request History**: Last 100 requests with:
+  - Model used
+  - Savings percentage
+  - Tokens saved per request
+  - Cost saved per request
+  - Timestamp
+- **Configuration UI**: Web-based setup for API keys and settings
+
+### SDK/Direct API
+- **Response Data**: Savings metrics included in API response
+- **Programmatic Access**: Query stats via API endpoints
+- **Custom Dashboards**: Build your own using API data
 
 ---
 
@@ -926,6 +1010,8 @@ confidence = 0.15 + 0.55*sample_conf + 0.20*stability_conf + 0.10*recency_conf
   - Never stored server-side
   - Used only for the current request
   - Allows users to use their own provider billing
+  - **Supported Providers**: OpenAI, Anthropic, Gemini, Grok
+  - **Finding Keys**: See `extensions/browser-extension/FINDING_API_KEYS.md`
 
 ### API Key Management
 - Users can create multiple API keys
@@ -935,10 +1021,65 @@ confidence = 0.15 + 0.55*sample_conf + 0.20*stability_conf + 0.10*recency_conf
 
 ---
 
+## Integration Options
+
+### For Web-Based Tools (ChatGPT, Claude Web, etc.)
+👉 **Use Browser Extension**
+- Zero code changes
+- Automatic interception
+- Works with web UIs
+- Real-time savings widget
+- See: `extensions/browser-extension/README.md`
+
+### For Desktop Coding Tools (Copilot, Cursor, Claude Code, etc.)
+👉 **Use Local Proxy** (Recommended)
+- Works with all coding assistants
+- Multi-provider support (OpenAI, Anthropic, Gemini, Grok)
+- Real-time dashboard for savings tracking
+- Automatic API format conversion
+- Easy web-based configuration
+- See: `tools/proxy/README.md` and `tools/proxy/SETUP_GUIDE.md`
+
+### For Custom Applications
+👉 **Use SDK**
+- Full programmatic control
+- Integrate into your codebase
+- Custom workflows
+- See: `packages/sdk/README.md`
+
+### For Direct API Integration
+👉 **Use Direct API Calls**
+- Maximum flexibility
+- Non-JavaScript environments
+- Custom HTTP clients
+- See: `USER_GUIDE.md`
+
+## Compliance & Privacy
+
+### BYOK (Bring Your Own Key) Model
+- Users provide their own provider API keys
+- Keys are **never stored server-side**
+- Keys used only for the duration of the request
+- Users pay providers directly (no markup)
+- Spectyra charges for optimization service only
+
+### Terms of Service
+- **Browser Extension**: Intercepts web UI requests (may violate some provider ToS)
+- **Local Proxy**: Uses official provider APIs (100% compliant)
+- **SDK/Direct API**: Uses official provider APIs (100% compliant)
+- Users responsible for complying with provider ToS
+- See: `extensions/browser-extension/TOS_WARNING.md` and `extensions/browser-extension/COMPLIANT_BYOK_SOLUTION.md`
+
+### Privacy
+- API keys never stored server-side
+- Request data processed for optimization only
+- No data collection or tracking
+- All processing happens in real-time
+- See: `extensions/browser-extension/PRIVACY_AND_DETECTION.md`
+
 ## Future Enhancements (Not in MVP)
 
 - Shadow baseline sampling (automatic baseline measurement in production)
-- VSCode extension for native Copilot integration
 - Advanced NLI-based contradiction detection
 - Multi-turn conversation state persistence
 - Custom scenario creation UI
@@ -947,3 +1088,4 @@ confidence = 0.15 + 0.55*sample_conf + 0.20*stability_conf + 0.10*recency_conf
 - Response cache (skip LLM calls for highly stable prompts)
 - Markov drift detection (semantic state changes)
 - Stripe billing integration (7-day trial + subscriptions)
+- Usage limits and tiered pricing for Spectyra Keys plan (future)

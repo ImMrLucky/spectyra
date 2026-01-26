@@ -1,5 +1,20 @@
 # Spectyra Browser Extension
 
+## ⚠️ Terms of Service Warning
+
+**Using this extension may violate ChatGPT's and other LLM providers' Terms of Service.**
+
+**Risks:**
+- Account suspension or ban
+- Service disruption
+- Detection is possible despite stealth features
+
+**Use at your own risk.** See `TOS_WARNING.md` for details.
+
+---
+
+# Spectyra Browser Extension
+
 Chrome/Edge browser extension (MV3) that intercepts LLM API calls and routes them through Spectyra for automatic token optimization.
 
 ## Features

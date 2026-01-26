@@ -13,7 +13,7 @@ const DEFAULT_SETTINGS = {
   spectyraKey: '',
   providerKey: '',
   optimizationLevel: 2,
-  path: 'talk',
+  path: 'code', // Default to code path for developers
 };
 
 /**
@@ -280,5 +280,54 @@ document.addEventListener('DOMContentLoaded', () => {
         providerKeyInput.style.borderColor = '';
       }
     });
+  }
+  
+  
+  // Handle "How to find API keys" link
+  const findKeysLink = document.getElementById('find-keys-link');
+  if (findKeysLink) {
+    findKeysLink.addEventListener('click', (e) => {
+      e.preventDefault();
+      const guide = `DEVELOPER GUIDE: FINDING API KEYS
+
+For coding assistants like Claude Code, Copilot, Cursor, etc.
+
+📖 OpenAI (GitHub Copilot, Cursor):
+1. Go to platform.openai.com
+2. Sign in or create account
+3. Click profile → "View API keys"
+4. Click "Create new secret key"
+5. Copy key immediately (you won't see it again!)
+6. Set spending limits in billing settings
+
+📖 Anthropic (Claude Code):
+1. Go to console.anthropic.com
+2. Sign in or create account
+3. Click "API Keys" in sidebar
+4. Click "Create Key"
+5. Copy key immediately
+6. Set spending limits in billing settings
+
+📖 Google Gemini:
+1. Go to aistudio.google.com/apikey
+2. Sign in with Google account
+3. Click "Create API Key"
+4. Copy key immediately
+
+💡 Developer Tips:
+• Set spending limits to avoid surprises
+• Monitor usage in provider dashboard
+• API usage is pay-as-you-go (typically $0.01-0.03 per 1K tokens)
+• Spectyra saves you 40-65% on these costs!
+
+For detailed instructions, see FINDING_API_KEYS.md`;
+      
+      alert(guide);
+    });
+  }
+  
+  // Update find keys link to be developer-focused
+  if (findKeysLink) {
+    findKeysLink.textContent = '📖 Developer Guide: Finding API Keys';
   }
 });

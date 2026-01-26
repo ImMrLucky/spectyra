@@ -18,7 +18,7 @@
     RETRY_DELAY_MS: 1000,
     WIDGET_DISPLAY_DURATION_MS: 5000,
     LOG_PREFIX: '[Spectyra]',
-    DEBUG: true, // Set to true for development - TODO: Set to false for production
+    DEBUG: false, // Set to false for production (stealth mode) - true for debugging
   };
 
   // CRITICAL: Inject script into page context to intercept fetch
@@ -42,9 +42,21 @@
           this.remove();
           log('log', 'Page script should be injected now');
           
-          // Try to verify by sending a test message
+          // Set stealth/debug mode before injection completes
+          // Inject script will check these before logging
+          try {
+            // Set debug mode based on CONFIG.DEBUG
+            window.__spectyraDebug = CONFIG.DEBUG;
+            // Stealth mode is default (can be disabled if needed)
+            window.__spectyraStealth = true;
+          } catch (e) {
+            // If we can't set these, that's okay
+          }
+          
+          // Try to verify by sending a test message (use stealth type if not debug)
+          const pingType = CONFIG.DEBUG ? 'SPECTYRA_PING' : '__sp_png';
           window.postMessage({
-            type: 'SPECTYRA_PING',
+            type: pingType,
             timestamp: Date.now()
           }, '*');
         }, 100);
@@ -84,9 +96,18 @@
    * @param {...any} args - Arguments to log
    */
   function log(level, ...args) {
-    if (level === 'log' && !CONFIG.DEBUG) return;
-    const method = console[level] || console.log;
-    method(CONFIG.LOG_PREFIX, ...args);
+    try {
+      if (level === 'log' && !CONFIG.DEBUG) return;
+      const method = console[level] || console.log;
+      if (method && typeof method === 'function') {
+        method(CONFIG.LOG_PREFIX, ...args);
+      } else {
+        console.log(CONFIG.LOG_PREFIX, ...args);
+      }
+    } catch (error) {
+      // Fallback if logging fails
+      console.error('[Spectyra] Logging error:', error);
+    }
   }
 
   /**
@@ -142,14 +163,17 @@
     
     if (!event.data) return;
     
-    // Handle ready/pong messages for verification
-    if (event.data.type === 'SPECTYRA_READY' || event.data.type === 'SPECTYRA_PONG') {
+    // Handle ready/pong messages for verification (support both stealth and debug modes)
+    const readyTypes = ['SPECTYRA_READY', '__sp_rdy'];
+    const pongTypes = ['SPECTYRA_PONG', '__sp_png_r'];
+    if (readyTypes.includes(event.data.type) || pongTypes.includes(event.data.type)) {
       log('log', 'Page script is active and communicating:', event.data);
       return;
     }
     
-    // Handle intercept requests
-    if (event.data.type !== 'SPECTYRA_INTERCEPT') {
+    // Handle intercept requests (support both stealth and debug modes)
+    const interceptTypes = ['SPECTYRA_INTERCEPT', '__sp_int'];
+    if (!interceptTypes.includes(event.data.type)) {
       return;
     }
     
@@ -171,8 +195,9 @@
     
     if (!isEnabled || !settings) {
       log('log', 'Extension not enabled or settings missing, not intercepting');
+      const responseType = CONFIG.DEBUG ? 'SPECTYRA_RESPONSE' : '__sp_res';
       window.postMessage({
-        type: 'SPECTYRA_RESPONSE',
+        type: responseType,
         requestId: event.data.requestId,
         response: null
       }, '*');
@@ -186,6 +211,94 @@
       
       if (!provider) {
         log('warn', 'Unknown provider for URL:', url);
+        const responseType = CONFIG.DEBUG ? 'SPECTYRA_RESPONSE' : '__sp_res';
+        window.postMessage({
+          type: responseType,
+          requestId: requestId,
+          response: null
+        }, '*');
+        return;
+      }
+      
+      log('log', 'Parsing request for provider:', { provider, url: url.substring(0, 100) });
+      
+      // Log body for debugging ChatGPT format
+      if (url.includes('chatgpt.com') && body) {
+        try {
+          const bodyPreview = typeof body === 'string' ? JSON.parse(body) : body;
+          log('log', 'ChatGPT request body structure:', {
+            keys: Object.keys(bodyPreview),
+            hasMessages: !!bodyPreview.messages,
+            hasInput: !!bodyPreview.input,
+            hasPrompt: !!bodyPreview.prompt,
+            hasText: !!bodyPreview.text,
+            hasQuery: !!bodyPreview.query,
+            hasConversationId: !!bodyPreview.conversation_id,
+            hasModel: !!bodyPreview.model,
+            bodyType: typeof body,
+            bodyLength: typeof body === 'string' ? body.length : 'N/A'
+          });
+        } catch (e) {
+          log('warn', 'Could not parse ChatGPT body for preview:', e);
+        }
+      }
+      
+      let parsedRequest;
+      try {
+        parsedRequest = await parseProviderRequest(url, body, provider);
+      } catch (error) {
+        log('error', 'Failed to parse provider request:', error);
+        const responseType = CONFIG.DEBUG ? 'SPECTYRA_RESPONSE' : '__sp_res';
+        window.postMessage({
+          type: responseType,
+          requestId: requestId,
+          response: null
+        }, '*');
+        return;
+      }
+      
+      if (!parsedRequest || !parsedRequest.messages || parsedRequest.messages.length === 0) {
+        log('warn', 'Not a chat request or could not parse messages', {
+          hasParsedRequest: !!parsedRequest,
+          messageCount: parsedRequest?.messages?.length || 0,
+          url: url.substring(0, 100),
+          parsedKeys: parsedRequest ? Object.keys(parsedRequest) : [],
+          bodyType: typeof body,
+          bodyLength: typeof body === 'string' ? body.length : 'N/A'
+        });
+        const responseType = CONFIG.DEBUG ? 'SPECTYRA_RESPONSE' : '__sp_res';
+        window.postMessage({
+          type: responseType,
+          requestId: requestId,
+          response: null
+        }, '*');
+        return;
+      }
+      
+      // Log message structure before conversion
+      log('log', 'Messages before conversion:', {
+        count: parsedRequest.messages.length,
+        firstMessage: parsedRequest.messages[0],
+        firstMessageKeys: parsedRequest.messages[0] ? Object.keys(parsedRequest.messages[0]) : [],
+        firstMessageType: typeof parsedRequest.messages[0],
+        provider: provider
+      });
+      
+      const messages = convertMessages(parsedRequest.messages, provider);
+      
+      // Log after conversion
+      log('log', 'Messages after conversion:', {
+        count: messages.length,
+        firstMessage: messages[0],
+        provider: provider
+      });
+      
+      if (!messages || messages.length === 0) {
+        log('warn', 'No valid messages after conversion', {
+          originalCount: parsedRequest.messages.length,
+          originalFirstMessage: parsedRequest.messages[0],
+          provider: provider
+        });
         window.postMessage({
           type: 'SPECTYRA_RESPONSE',
           requestId: requestId,
@@ -194,37 +307,48 @@
         return;
       }
       
-      const parsedRequest = await parseProviderRequest(url, body, provider);
-      if (!parsedRequest || !parsedRequest.messages || parsedRequest.messages.length === 0) {
-        log('log', 'Not a chat request');
-        window.postMessage({
-          type: 'SPECTYRA_RESPONSE',
-          requestId: requestId,
-          response: null
-        }, '*');
-        return;
-      }
+      // Determine path based on content (coding vs talk)
+      const allContent = messages.map(m => m.content || '').join(' ').toLowerCase();
+      const isCodePath = allContent.includes('```') || 
+                        allContent.includes('function') || 
+                        allContent.includes('class ') ||
+                        allContent.includes('def ') ||
+                        allContent.includes('import ') ||
+                        allContent.includes('const ') ||
+                        allContent.includes('let ') ||
+                        allContent.includes('var ') ||
+                        allContent.includes('bug') ||
+                        allContent.includes('fix') ||
+                        allContent.includes('refactor') ||
+                        allContent.includes('implement');
+      
+      // Use user's path setting, but auto-detect code if obvious
+      const path = (isCodePath && (settings?.path === 'code' || !settings?.path)) ? 'code' : (settings?.path || 'talk');
       
       log('log', 'Intercepting request from page script:', { 
         provider, 
         model: parsedRequest.model,
-        messageCount: parsedRequest.messages.length,
-        requestId: requestId
+        messageCount: messages.length,
+        requestId: requestId,
+        path: path,
+        isCodePath: isCodePath,
+        isWebUI: url.includes('chatgpt.com') || url.includes('claude.ai') || url.includes('gemini') || url.includes('x.ai')
       });
       
-      const messages = convertMessages(parsedRequest.messages, provider);
-      const spectyraResponse = await callSpectyra(provider, parsedRequest.model, messages);
+      const spectyraResponse = await callSpectyra(provider, parsedRequest.model, messages, path);
       
       if (spectyraResponse && spectyraResponse.response_text) {
-        const providerResponse = transformToProviderResponse(spectyraResponse, provider, parsedRequest);
+        // Pass original URL to detect web UI format
+        const providerResponse = transformToProviderResponse(spectyraResponse, provider, parsedRequest, url);
         
         if (providerResponse) {
-          // Send response back to page script
-          window.postMessage({
-            type: 'SPECTYRA_RESPONSE',
-            requestId: requestId,
-            response: providerResponse
-          }, '*');
+      // Send response back to page script (use stealth type if in stealth mode)
+      const responseType = CONFIG.DEBUG ? 'SPECTYRA_RESPONSE' : '__sp_res';
+      window.postMessage({
+        type: responseType,
+        requestId: requestId,
+        response: providerResponse
+      }, '*');
           
           // Handle savings
           if (spectyraResponse.savings) {
@@ -245,16 +369,18 @@
       }
       
       // Failed to intercept, tell page script to use original
+      const responseType = CONFIG.DEBUG ? 'SPECTYRA_RESPONSE' : '__sp_res';
       window.postMessage({
-        type: 'SPECTYRA_RESPONSE',
+        type: responseType,
         requestId: requestId,
         response: null
       }, '*');
     } catch (error) {
       log('error', 'Error handling intercept request:', error);
+      const responseType = CONFIG.DEBUG ? 'SPECTYRA_RESPONSE' : '__sp_res';
       window.postMessage({
-        type: 'SPECTYRA_RESPONSE',
-        requestId: event.data.requestId,
+        type: responseType,
+        requestId: event.data?.requestId,
         response: null
       }, '*');
     }
@@ -280,10 +406,29 @@
     if (!url || typeof url !== 'string') return null;
     
     const urlLower = url.toLowerCase();
+    
+    // Direct API calls (highest priority - most reliable)
     if (urlLower.includes('api.openai.com')) return 'openai';
     if (urlLower.includes('api.anthropic.com')) return 'anthropic';
     if (urlLower.includes('generativelanguage.googleapis.com')) return 'gemini';
     if (urlLower.includes('api.x.ai')) return 'grok';
+    
+    // Web UI backend APIs (map to their providers)
+    // ChatGPT backend API (routes to OpenAI)
+    if ((urlLower.includes('chatgpt.com') || urlLower.includes('chat.openai.com')) && 
+        urlLower.includes('/backend-api/')) return 'openai';
+    
+    // Claude web UI (routes to Anthropic)
+    if (urlLower.includes('claude.ai') && 
+        (urlLower.includes('/api/') || urlLower.includes('/v1/'))) return 'anthropic';
+    
+    // Gemini web UI (routes to Gemini)
+    if ((urlLower.includes('gemini.google.com') || urlLower.includes('gemini.app')) && 
+        (urlLower.includes('/api/') || urlLower.includes('/v1/'))) return 'gemini';
+    
+    // Grok web UI (routes to Grok)
+    if (urlLower.includes('x.ai') && !urlLower.includes('api.x.ai') && 
+        (urlLower.includes('/api/') || urlLower.includes('/v1/'))) return 'grok';
     
     return null;
   }
@@ -354,7 +499,155 @@
       // Extract model and messages based on provider
       let model, messages;
       
-      if (provider === 'openai' || provider === 'grok') {
+      // Check if this is a web UI backend API format
+      const isChatGPTBackend = url.includes('chatgpt.com/backend-api') || url.includes('chat.openai.com/backend-api');
+      const isClaudeBackend = url.includes('claude.ai');
+      const isGeminiBackend = url.includes('gemini.google.com') || url.includes('gemini.app');
+      const isGrokBackend = url.includes('x.ai') && !url.includes('api.x.ai');
+      
+      if (isChatGPTBackend) {
+        // ChatGPT backend API format
+        // ChatGPT uses various formats - try to extract messages
+        model = parsed.model || parsed.model_name || parsed.model_slug || 'gpt-4';
+        
+        // Check if this is just a resume/fetch request (only has conversation_id and offset)
+        // These don't contain messages, so we should skip them
+        const hasOnlyMetadata = parsed.conversation_id && 
+                                (parsed.offset !== undefined || parsed.limit !== undefined) &&
+                                !parsed.messages && 
+                                !parsed.message && 
+                                !parsed.input && 
+                                !parsed.prompt && 
+                                !parsed.text &&
+                                !parsed.query &&
+                                !parsed.action;
+        
+        if (hasOnlyMetadata) {
+          log('log', 'ChatGPT backend API - skipping resume/fetch request (no messages):', {
+            conversation_id: parsed.conversation_id,
+            offset: parsed.offset,
+            limit: parsed.limit
+          });
+          return null; // Skip this request - it's not a chat completion
+        }
+        
+        // Log full structure for debugging
+        log('log', 'ChatGPT backend API - parsing request:', {
+          keys: Object.keys(parsed),
+          hasMessages: !!parsed.messages,
+          hasInput: !!parsed.input,
+          hasPrompt: !!parsed.prompt,
+          hasText: !!parsed.text,
+          hasQuery: !!parsed.query,
+          hasMessage: !!parsed.message,
+          hasAction: !!parsed.action,
+          hasConversationId: !!parsed.conversation_id,
+          model: model
+        });
+        
+        // Try different message extraction patterns
+        if (parsed.messages && Array.isArray(parsed.messages)) {
+          messages = parsed.messages;
+          log('log', 'Found messages in parsed.messages');
+        } else if (parsed.message) {
+          messages = [{ role: 'user', content: parsed.message }];
+          log('log', 'Found message in parsed.message');
+        } else if (parsed.input) {
+          messages = typeof parsed.input === 'string' 
+            ? [{ role: 'user', content: parsed.input }]
+            : parsed.input;
+          log('log', 'Found input in parsed.input');
+        } else if (parsed.prompt) {
+          messages = [{ role: 'user', content: parsed.prompt }];
+          log('log', 'Found prompt in parsed.prompt');
+        } else if (parsed.text) {
+          messages = [{ role: 'user', content: parsed.text }];
+          log('log', 'Found text in parsed.text');
+        } else if (parsed.query) {
+          messages = [{ role: 'user', content: parsed.query }];
+          log('log', 'Found query in parsed.query');
+        } else if (parsed.action && parsed.action === 'next' && parsed.messages) {
+          // ChatGPT streaming format - messages might be nested
+          messages = parsed.messages;
+          log('log', 'Found messages in action.next format');
+        } else if (parsed.action && parsed.action === 'next') {
+          // ChatGPT might send messages in a different structure
+          // Check for message arrays in other fields
+          for (const key of Object.keys(parsed)) {
+            if (key !== 'action' && key !== 'conversation_id' && Array.isArray(parsed[key]) && parsed[key].length > 0) {
+              const first = parsed[key][0];
+              if (first && (typeof first === 'object') && (first.content || first.text || first.message || first.role)) {
+                messages = parsed[key];
+                log('log', 'Found messages in action.next format, field:', key);
+                break;
+              }
+            }
+          }
+        } else {
+          // Try to find any array that looks like messages
+          log('warn', 'ChatGPT backend API - trying to extract messages from:', Object.keys(parsed));
+          for (const key of Object.keys(parsed)) {
+            if (Array.isArray(parsed[key]) && parsed[key].length > 0) {
+              const first = parsed[key][0];
+              if (first && (typeof first === 'object') && (first.content || first.text || first.message || first.role)) {
+                messages = parsed[key];
+                log('log', 'Found messages in field:', key);
+                break;
+              }
+            }
+          }
+        }
+        
+        // If still no messages, log the full structure for debugging
+        if (!messages || messages.length === 0) {
+          log('warn', 'ChatGPT backend API - could not extract messages. Full request (first 1000 chars):', JSON.stringify(parsed).substring(0, 1000));
+        } else {
+          log('log', 'Successfully extracted messages:', { count: messages.length, firstMessage: messages[0] });
+        }
+      } else if (isClaudeBackend) {
+        // Claude web UI format
+        model = parsed.model || parsed.model_name || 'claude-3-5-sonnet-20241022';
+        
+        if (parsed.messages && Array.isArray(parsed.messages)) {
+          messages = parsed.messages;
+        } else if (parsed.input) {
+          messages = typeof parsed.input === 'string' 
+            ? [{ role: 'user', content: parsed.input }]
+            : parsed.input;
+        } else if (parsed.prompt) {
+          messages = [{ role: 'user', content: parsed.prompt }];
+        } else {
+          log('warn', 'Claude backend API - unknown format:', Object.keys(parsed));
+        }
+      } else if (isGeminiBackend) {
+        // Gemini web UI format
+        model = parsed.model || parsed.modelName || 'gemini-pro';
+        
+        if (parsed.contents && Array.isArray(parsed.contents)) {
+          messages = parsed.contents;
+        } else if (parsed.messages && Array.isArray(parsed.messages)) {
+          messages = parsed.messages;
+        } else if (parsed.input) {
+          messages = typeof parsed.input === 'string' 
+            ? [{ role: 'user', content: parsed.input }]
+            : parsed.input;
+        } else {
+          log('warn', 'Gemini backend API - unknown format:', Object.keys(parsed));
+        }
+      } else if (isGrokBackend) {
+        // Grok web UI format
+        model = parsed.model || parsed.model_name || 'grok-2';
+        
+        if (parsed.messages && Array.isArray(parsed.messages)) {
+          messages = parsed.messages;
+        } else if (parsed.input) {
+          messages = typeof parsed.input === 'string' 
+            ? [{ role: 'user', content: parsed.input }]
+            : parsed.input;
+        } else {
+          log('warn', 'Grok backend API - unknown format:', Object.keys(parsed));
+        }
+      } else if (provider === 'openai' || provider === 'grok') {
         model = parsed.model;
         messages = parsed.messages || [];
       } else if (provider === 'anthropic') {
@@ -425,28 +718,70 @@
       }
       
       // OpenAI, Anthropic, Grok use similar format
+      // But ChatGPT backend API might have different structures
       return providerMessages
         .filter(m => m && typeof m === 'object')
         .map(m => {
           let role = m.role;
+          
+          // Handle ChatGPT's role format (might be 'user', 'assistant', 'system', or other)
+          if (role === 'model') role = 'assistant';
           if (role !== 'user' && role !== 'assistant' && role !== 'system') {
-            role = 'user'; // Default fallback
+            // Try to infer from other fields
+            if (m.author && m.author.role) {
+              role = m.author.role === 'assistant' ? 'assistant' : 'user';
+            } else {
+              role = 'user'; // Default fallback
+            }
           }
           
           let content = '';
+          
+          // Try multiple content extraction patterns
           if (typeof m.content === 'string') {
             content = m.content;
+          } else if (m.content && typeof m.content === 'object') {
+            // ChatGPT might use content.content or content.parts
+            if (typeof m.content.content === 'string') {
+              content = m.content.content;
+            } else if (Array.isArray(m.content.parts) && m.content.parts.length > 0) {
+              content = m.content.parts[0] || '';
+            } else if (Array.isArray(m.content) && m.content.length > 0) {
+              // Handle array content (e.g., Anthropic)
+              const textPart = m.content.find(part => part.type === 'text' || typeof part === 'string');
+              content = textPart?.text || textPart || '';
+            }
           } else if (Array.isArray(m.content) && m.content.length > 0) {
             // Handle array content (e.g., Anthropic)
             const textPart = m.content.find(part => part.type === 'text');
             content = textPart?.text || '';
+          } else if (m.text) {
+            content = m.text;
+          } else if (m.message) {
+            content = m.message;
+          } else if (m.parts && Array.isArray(m.parts) && m.parts.length > 0) {
+            // ChatGPT might use parts array
+            content = m.parts[0] || '';
           }
           
-          return { role, content: String(content || '') };
+          const result = { role, content: String(content || '') };
+          
+          // Log if we couldn't extract content
+          if (!content && DEBUG) {
+            log('warn', 'Could not extract content from message:', {
+              messageKeys: Object.keys(m),
+              message: m
+            });
+          }
+          
+          return result;
         })
         .filter(m => m.content); // Remove empty messages
     } catch (error) {
-      log('error', 'Failed to convert messages:', error);
+      log('error', 'Failed to convert messages:', error, {
+        providerMessages: providerMessages,
+        provider: provider
+      });
       return [];
     }
   }
@@ -456,10 +791,11 @@
    * @param {string} provider - Provider name
    * @param {string} model - Model name
    * @param {Array} messages - Messages array
+   * @param {string} path - 'talk' or 'code' (optional, uses settings if not provided)
    * @param {number} retryCount - Current retry attempt (internal)
    * @returns {Promise<Object|null>} Spectyra response or null on error
    */
-  async function callSpectyra(provider, model, messages, retryCount = 0) {
+  async function callSpectyra(provider, model, messages, path = null, retryCount = 0) {
     // Validate inputs
     if (!settings || !isEnabled) {
       log('warn', 'Cannot call API:', { hasSettings: !!settings, isEnabled });
@@ -490,14 +826,21 @@
       }
       const url = `${apiUrl}/chat`;
       
+      // Use provided path or fall back to settings
+      const finalPath = path || settings.path || 'talk';
+      
       const requestBody = {
-        path: settings.path || 'talk',
+        path: finalPath,
         provider,
         model,
         messages,
         mode: 'optimized',
         optimization_level: Math.max(0, Math.min(4, settings.optimizationLevel || 2)),
       };
+      
+      if (finalPath === 'code') {
+        log('log', 'Using code path optimization');
+      }
       
       log('log', 'Calling API:', { url, provider, model, messageCount: messages.length, retryCount });
       
@@ -527,7 +870,7 @@
           if ((response.status >= 500 || response.status === 429) && retryCount < CONFIG.MAX_RETRIES) {
             log('log', `Retrying after ${CONFIG.RETRY_DELAY_MS}ms (attempt ${retryCount + 1}/${CONFIG.MAX_RETRIES})`);
             await new Promise(resolve => setTimeout(resolve, CONFIG.RETRY_DELAY_MS * (retryCount + 1)));
-            return callSpectyra(provider, model, messages, retryCount + 1);
+            return callSpectyra(provider, model, messages, path, retryCount + 1);
           }
           
           throw new Error(`Spectyra API error: ${response.status} ${response.statusText}`);
@@ -554,7 +897,7 @@
         if (fetchError.name !== 'AbortError' && retryCount < CONFIG.MAX_RETRIES) {
           log('log', `Retrying after network error (attempt ${retryCount + 1}/${CONFIG.MAX_RETRIES})`);
           await new Promise(resolve => setTimeout(resolve, CONFIG.RETRY_DELAY_MS * (retryCount + 1)));
-          return callSpectyra(provider, model, messages, retryCount + 1);
+          return callSpectyra(provider, model, messages, path, retryCount + 1);
         }
         
         throw fetchError;
@@ -574,9 +917,10 @@
    * @param {Object} spectyraResponse - Spectyra API response
    * @param {string} provider - Provider name
    * @param {Object} originalRequest - Original provider request
+   * @param {string} originalUrl - Original request URL (to detect web UI format)
    * @returns {Object|null} Provider-formatted response or null on error
    */
-  function transformToProviderResponse(spectyraResponse, provider, originalRequest) {
+  function transformToProviderResponse(spectyraResponse, provider, originalRequest, originalUrl = '') {
     try {
       // Validate inputs
       if (!spectyraResponse || typeof spectyraResponse !== 'object') {
@@ -600,6 +944,100 @@
       const outputTokens = Math.max(0, parseInt(usage.output_tokens, 10) || 0);
       const totalTokens = Math.max(0, parseInt(usage.total_tokens, 10) || (inputTokens + outputTokens));
 
+      // Check if this is a web UI backend API format
+      const isChatGPTBackend = originalUrl.includes('chatgpt.com/backend-api') || originalUrl.includes('chat.openai.com/backend-api');
+      const isClaudeBackend = originalUrl.includes('claude.ai');
+      const isGeminiBackend = originalUrl.includes('gemini.google.com') || originalUrl.includes('gemini.app');
+      const isGrokBackend = originalUrl.includes('x.ai') && !originalUrl.includes('api.x.ai');
+
+      // ChatGPT backend API format
+      if (isChatGPTBackend) {
+        // ChatGPT backend API format - they use a specific structure
+        // Note: ChatGPT often uses streaming, but we return complete response
+        // The exact format may vary, so we try to match common patterns
+        return {
+          message: {
+            id: id,
+            role: 'assistant',
+            author: {
+              role: 'assistant'
+            },
+            content: {
+              content_type: 'text',
+              parts: [responseText]
+            },
+            create_time: timestamp,
+            status: 'finished_successfully'
+          },
+          conversation_id: originalRequest.conversation_id || id,
+          error: null,
+          // Include usage if available
+          ...(usage && {
+            _spectyra_usage: {
+              input_tokens: inputTokens,
+              output_tokens: outputTokens,
+              total_tokens: totalTokens
+            }
+          })
+        };
+      }
+
+      // Claude web UI format
+      if (isClaudeBackend) {
+        return {
+          content: [{
+            type: 'text',
+            text: responseText
+          }],
+          model: model,
+          stop_reason: 'end_turn',
+          stop_sequence: null,
+          usage: {
+            input_tokens: inputTokens,
+            output_tokens: outputTokens
+          }
+        };
+      }
+
+      // Gemini web UI format
+      if (isGeminiBackend) {
+        return {
+          candidates: [{
+            content: {
+              parts: [{
+                text: responseText
+              }],
+              role: 'model'
+            },
+            finishReason: 'STOP'
+          }],
+          usageMetadata: {
+            promptTokenCount: inputTokens,
+            candidatesTokenCount: outputTokens,
+            totalTokenCount: totalTokens
+          }
+        };
+      }
+
+      // Grok web UI format
+      if (isGrokBackend) {
+        return {
+          choices: [{
+            message: {
+              role: 'assistant',
+              content: responseText
+            },
+            finish_reason: 'stop'
+          }],
+          usage: {
+            prompt_tokens: inputTokens,
+            completion_tokens: outputTokens,
+            total_tokens: totalTokens
+          }
+        };
+      }
+
+      // Direct API formats (standard provider APIs)
       if (provider === 'openai' || provider === 'grok') {
         return {
           id: `chatcmpl-${id}`,
