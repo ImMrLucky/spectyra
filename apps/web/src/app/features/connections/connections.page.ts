@@ -25,14 +25,17 @@ import { RouterModule } from '@angular/router';
             <p><strong>Option A: Install via npm (Recommended)</strong></p>
             <p>Open a terminal/command prompt and run:</p>
             <div class="code-block">
-              <code>npm install -g @spectyra/proxy</code><br>
+              <code>npm install -g &#64;spectyra/proxy</code><br>
               <code>spectyra-proxy</code>
             </div>
             <p class="step-note"><strong>What this does:</strong></p>
             <ul>
-              <li><code>npm install -g @spectyra/proxy</code> - Installs the proxy globally (first time only)</li>
+              <li><code>npm install -g &#64;spectyra/proxy</code> - Installs the proxy globally (first time only)</li>
               <li><code>spectyra-proxy</code> - Starts the proxy server</li>
             </ul>
+            <p class="step-note" style="color: #155724; background: #d4edda; padding: 8px; border-radius: 4px; margin-top: 8px;">
+              <strong>✅ Safe:</strong> The npm package contains only compiled code, not source code. Your code stays private.
+            </p>
             
             <p style="margin-top: 20px;"><strong>Option B: Install from GitHub (If npm package not available)</strong></p>
             <p>If the npm package isn't published yet, you can download from GitHub:</p>

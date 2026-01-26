@@ -426,7 +426,7 @@ app.listen(PORT, () => {
 const dashboard = express();
 dashboard.use(cors());
 dashboard.use(express.json());
-dashboard.use(express.static(path.join(__dirname, "dashboard")));
+dashboard.use(express.static(DASHBOARD_DIR));
 
 // Dashboard API endpoints
 dashboard.get("/api/config", (req, res) => {
@@ -461,7 +461,7 @@ dashboard.get("/api/stats", (req, res) => {
 
 // Serve dashboard HTML
 dashboard.get("*", (req, res) => {
-  res.sendFile(path.join(__dirname, "dashboard", "index.html"));
+  res.sendFile(path.join(DASHBOARD_DIR, "index.html"));
 });
 
 dashboard.listen(DASHBOARD_PORT, () => {

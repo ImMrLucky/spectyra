@@ -9,10 +9,11 @@ Local proxy server that provides an OpenAI-compatible endpoint, routing requests
 - ✅ **Real-time dashboard** - Web UI showing savings and stats
 - ✅ **Configuration management** - Easy setup via web dashboard
 - ✅ **BYOK support** - Use your own API keys
+- ✅ **Multi-provider support** - OpenAI, Anthropic, Gemini, Grok
 
 ## Installation
 
-### Option 1: Install via npm (Recommended - When Published)
+### Option 1: Install via npm (Recommended)
 
 ```bash
 npm install -g @spectyra/proxy
@@ -23,7 +24,11 @@ Then start with:
 spectyra-proxy
 ```
 
-### Option 2: Install from Source (Current Method)
+**Note:** The npm package contains only compiled JavaScript, not source code. Your code remains private.
+
+### Option 2: Install from Source (Development)
+
+If you need to modify the code or the npm package isn't available:
 
 ```bash
 # Clone the repository
@@ -34,6 +39,12 @@ cd spectyra/tools/proxy
 npm install
 # or
 pnpm install
+
+# Build (compiles TypeScript to JavaScript)
+npm run build
+
+# Start
+npm start
 ```
 
 ## Quick Start
@@ -76,7 +87,7 @@ export OPENAI_API_BASE=http://localhost:3001/v1
 
 ### With Cursor
 
-1. Open Cursor settings
+1. Open Cursor Settings
 2. Set API base URL to: `http://localhost:3001/v1`
 3. Restart Cursor
 
@@ -118,6 +129,7 @@ Configuration is saved to `.spectyra-proxy-config.json` in the proxy directory.
 
 ### Proxy Endpoint
 - `POST /v1/chat/completions` - OpenAI-compatible chat endpoint
+- `POST /v1/messages` - Anthropic-compatible messages endpoint
 
 ### Configuration
 - `GET /config` - Get current configuration (without keys)
@@ -171,10 +183,10 @@ Your Coding Tool (Copilot/Cursor/etc)
 
 ```bash
 # Watch mode (auto-restart on changes)
-pnpm dev
+npm run dev
 
-# Build TypeScript
-pnpm build
+# Build for distribution
+npm run build
 ```
 
 ## License

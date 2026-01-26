@@ -9,7 +9,6 @@
   },
   "files": [
     "dist",
-    "dashboard",
     "README.md",
     "SETUP_GUIDE.md",
     "PROVIDER_SUPPORT.md",
@@ -21,7 +20,7 @@
     "start": "tsx spectyra-proxy.ts",
     "build": "tsc && node scripts/prepare-dist.js",
     "prepublishOnly": "npm run build",
-    "postinstall": "node -e \"console.log('Spectyra Proxy installed. Run: spectyra-proxy')\""
+    "postinstall": "node -e \"console.log('✅ Spectyra Proxy installed. Run: spectyra-proxy')\""
   },
   "dependencies": {
     "express": "^4.18.2",
