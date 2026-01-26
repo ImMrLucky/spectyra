@@ -18,6 +18,7 @@ import {
 } from "../services/proof/tokenEstimator.js";
 import { runQualityGuard } from "../services/optimizer/quality/qualityGuard.js";
 import { v4 as uuidv4 } from "uuid";
+import { safeLog } from "../utils/redaction.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -174,7 +175,6 @@ replaySimulateRouter.post("/", async (req: AuthenticatedRequest, res) => {
       simulated: true,
     });
   } catch (error: any) {
-    const { safeLog } = await import("../utils/redaction.js");
     safeLog("error", "Replay simulate error", { error: error.message });
     res.status(500).json({ error: error.message || "Internal server error" });
   }

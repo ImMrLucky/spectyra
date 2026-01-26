@@ -3,6 +3,7 @@ import { requireSpectyraApiKey, optionalProviderKey, type AuthenticatedRequest }
 import { requireActiveAccess, allowEstimatorMode } from "../middleware/trialGate.js";
 import { providerRegistry } from "../services/llm/providerRegistry.js";
 import { createProviderWithKey } from "../services/llm/providerFactory.js";
+import { hasActiveAccess } from "../services/storage/orgsRepo.js";
 import { readFileSync } from "fs";
 import { join, dirname } from "path";
 import { fileURLToPath } from "url";
@@ -20,6 +21,7 @@ import type { ChatMessage } from "../services/optimizer/unitize.js";
 import { computeWorkloadKey, computePromptHash } from "../services/savings/workloadKey.js";
 import { writeVerifiedSavings } from "../services/savings/ledgerWriter.js";
 import { redactReplayResult } from "../middleware/redact.js";
+import { safeLog } from "../utils/redaction.js";
 import { 
   estimateBaselineTokens, 
   estimateOptimizedTokens, 
@@ -47,7 +49,6 @@ replayRouter.post("/", async (req: AuthenticatedRequest, res) => {
       return res.status(401).json({ error: "Not authenticated" });
     }
     
-    const { hasActiveAccess } = await import("../services/storage/orgsRepo.js");
     const org = req.context.org;
     if (!org || !hasActiveAccess(org)) {
       const trialEnd = org?.trial_ends_at ? new Date(org.trial_ends_at) : null;
@@ -399,7 +400,6 @@ replayRouter.post("/", async (req: AuthenticatedRequest, res) => {
     // Redact internal data before sending to client
     res.json(redactReplayResult(replayResult));
   } catch (error: any) {
-    const { safeLog } = await import("../utils/redaction.js");
     safeLog("error", "Replay error", { error: error.message });
     res.status(500).json({ error: error.message || "Internal server error" });
   }

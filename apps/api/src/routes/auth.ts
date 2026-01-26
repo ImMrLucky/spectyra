@@ -15,8 +15,10 @@ import {
   deleteApiKey,
   hashApiKey,
   getApiKeyByHash,
+  revokeApiKey,
 } from "../services/storage/orgsRepo.js";
 import { requireSpectyraApiKey, optionalProviderKey, type AuthenticatedRequest } from "../middleware/auth.js";
+import { safeLog } from "../utils/redaction.js";
 
 export const authRouter = Router();
 
@@ -58,7 +60,6 @@ authRouter.post("/register", async (req, res) => {
       message: "Organization created successfully. Save your API key - it won't be shown again!",
     });
   } catch (error: any) {
-    const { safeLog } = await import("../utils/redaction.js");
     safeLog("error", "Registration error", { error: error.message });
     res.status(500).json({ error: error.message || "Internal server error" });
   }
@@ -94,7 +95,6 @@ authRouter.post("/login", requireSpectyraApiKey, optionalProviderKey, async (req
       has_access: hasAccess,
     });
   } catch (error: any) {
-    const { safeLog } = await import("../utils/redaction.js");
     safeLog("error", "Login error", { error: error.message });
     res.status(500).json({ error: error.message || "Internal server error" });
   }
@@ -132,7 +132,6 @@ authRouter.get("/me", requireSpectyraApiKey, optionalProviderKey, async (req: Au
       trial_active: isTrialActive,
     });
   } catch (error: any) {
-    const { safeLog } = await import("../utils/redaction.js");
     safeLog("error", "Get org error", { error: error.message });
     res.status(500).json({ error: error.message || "Internal server error" });
   }
@@ -164,7 +163,6 @@ authRouter.post("/api-keys", requireSpectyraApiKey, optionalProviderKey, async (
       created_at: apiKey.created_at,
     });
   } catch (error: any) {
-    const { safeLog } = await import("../utils/redaction.js");
     safeLog("error", "Create API key error", { error: error.message });
     res.status(500).json({ error: error.message || "Internal server error" });
   }
@@ -193,7 +191,6 @@ authRouter.get("/api-keys", requireSpectyraApiKey, optionalProviderKey, async (r
       revoked_at: k.revoked_at,
     })));
   } catch (error: any) {
-    const { safeLog } = await import("../utils/redaction.js");
     safeLog("error", "List API keys error", { error: error.message });
     res.status(500).json({ error: error.message || "Internal server error" });
   }
@@ -219,12 +216,10 @@ authRouter.delete("/api-keys/:id", requireSpectyraApiKey, optionalProviderKey, a
     }
     
     // Revoke the key
-    const { revokeApiKey } = await import("../services/storage/orgsRepo.js");
     revokeApiKey(keyHash);
     
     res.json({ success: true });
   } catch (error: any) {
-    const { safeLog } = await import("../utils/redaction.js");
     safeLog("error", "Delete API key error", { error: error.message });
     res.status(500).json({ error: error.message || "Internal server error" });
   }

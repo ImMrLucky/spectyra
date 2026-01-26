@@ -1,7 +1,7 @@
 import { Router } from "express";
 import { getDb } from "../services/storage/db.js";
 import { requireAdminToken } from "../middleware/auth.js";
-import { safeLog } from "../utils/redaction.js";
+import { safeLog, redactSecrets } from "../utils/redaction.js";
 
 export const adminRouter = Router();
 
@@ -33,7 +33,6 @@ adminRouter.get("/runs/:id/debug", requireAdminToken, (req, res) => {
       : null;
     
     // Redact any provider keys that might be in debug data
-    const { redactSecrets } = await import("../utils/redaction.js");
     const safeDebug = redactSecrets(debugInternal);
     
     res.json({

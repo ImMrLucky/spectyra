@@ -13,6 +13,7 @@ import {
   estimateOptimizedTokens,
   getPricingConfig,
 } from "../services/proof/tokenEstimator.js";
+import { safeLog } from "../utils/redaction.js";
 
 export const proofRouter = Router();
 
@@ -130,7 +131,6 @@ proofRouter.post("/estimate", async (req: AuthenticatedRequest, res) => {
       explanation_summary: explanationParts.join(", "),
     });
   } catch (error: any) {
-    const { safeLog } = await import("../utils/redaction.js");
     safeLog("error", "Proof estimate error", { error: error.message });
     res.status(500).json({ error: error.message || "Internal server error" });
   }

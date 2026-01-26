@@ -103,7 +103,6 @@ savingsRouter.get("/by-level", (req: AuthenticatedRequest, res) => {
     const breakdown = getSavingsByLevel(filters);
     res.json(breakdown.map(redactSavingsData));
   } catch (error: any) {
-    const { safeLog } = await import("../utils/redaction.js");
     safeLog("error", "Savings by-level error", { error: error.message });
     res.status(500).json({ error: error.message || "Internal server error" });
   }
@@ -145,7 +144,6 @@ savingsRouter.get("/level-usage-timeseries", (req: AuthenticatedRequest, res) =>
     const timeseries = getLevelUsageTimeseries(filters, bucket);
     res.json(timeseries.map(redactSavingsData));
   } catch (error: any) {
-    const { safeLog } = await import("../utils/redaction.js");
     safeLog("error", "Level usage timeseries error", { error: error.message });
     res.status(500).json({ error: error.message || "Internal server error" });
   }
