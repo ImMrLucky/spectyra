@@ -13,7 +13,7 @@ Local proxy server that provides an OpenAI-compatible endpoint, routing requests
 
 ## Installation
 
-### Option 1: Install via npm (Recommended)
+### Install via npm (Recommended)
 
 ```bash
 npm install -g spectyra-proxy
@@ -30,23 +30,6 @@ spectyra-proxy
 
 If you need to modify the code or the npm package isn't available:
 
-```bash
-# Clone the repository
-git clone https://github.com/your-username/spectyra.git
-cd spectyra/tools/proxy
-
-# Install dependencies
-npm install
-# or
-pnpm install
-
-# Build (compiles TypeScript to JavaScript)
-npm run build
-
-# Start
-npm start
-```
-
 ## Quick Start
 
 1. **Start the proxy:**
@@ -54,13 +37,6 @@ npm start
    **If installed via npm:**
    ```bash
    spectyra-proxy
-   ```
-
-   **If installed from source:**
-   ```bash
-   npm start
-   # or
-   pnpm start
    ```
 
 2. **Configure via dashboard:**
