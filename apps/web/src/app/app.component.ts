@@ -13,12 +13,13 @@ import { Subscription } from 'rxjs';
       <header class="app-header">
         <h1>Spectyra</h1>
         <nav>
-          <a routerLink="/scenarios">Scenarios</a>
-          <a routerLink="/proof">Proof</a>
-          <a routerLink="/savings">Savings</a>
-          <a routerLink="/runs">Runs History</a>
-          <a routerLink="/connections">Connect Tools</a>
-          <a routerLink="/settings">Settings</a>
+          <a routerLink="/scenarios">Proof Scenarios</a>
+          <a routerLink="/integrations">Integrations</a>
+          <a routerLink="/projects">Projects</a>
+          <a routerLink="/runs">Gateway Runs</a>
+          <a routerLink="/savings">Org Savings</a>
+          <a routerLink="/billing">Billing</a>
+          <a routerLink="/settings">Org Settings</a>
           <span *ngIf="!isAuthenticated" class="auth-links">
             <a routerLink="/login">Login</a>
             <a routerLink="/register">Sign Up</a>

@@ -8,7 +8,8 @@ import { FormsModule } from '@angular/forms';
   imports: [CommonModule, FormsModule],
   template: `
     <div class="container">
-      <h1>Settings</h1>
+      <h1>Org Settings</h1>
+      <p class="subtitle">Configure organization-wide AI Gateway settings</p>
       
       <div class="card">
         <h2>Default Providers</h2>

@@ -8,6 +8,9 @@ import { ProofPage } from './features/proof/proof.page';
 import { RegisterPage } from './features/auth/register.page';
 import { LoginPage } from './features/auth/login.page';
 import { ConnectionsPage } from './features/connections/connections.page';
+import { IntegrationsPage } from './features/integrations/integrations.page';
+import { ProjectsPage } from './features/projects/projects.page';
+import { BillingPage } from './features/billing/billing.page';
 
 export const appRoutes: Routes = [
   { path: '', redirectTo: '/scenarios', pathMatch: 'full' },
@@ -20,4 +23,7 @@ export const appRoutes: Routes = [
   { path: 'proof', component: ProofPage },
   { path: 'settings', component: SettingsPage },
   { path: 'connections', component: ConnectionsPage },
+  { path: 'integrations', component: IntegrationsPage },
+  { path: 'projects', component: ProjectsPage },
+  { path: 'billing', component: BillingPage },
 ];

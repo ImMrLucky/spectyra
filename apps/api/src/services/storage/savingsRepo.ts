@@ -77,6 +77,8 @@ export interface SavingsFilters {
   path?: "talk" | "code" | "both";
   provider?: string;
   model?: string;
+  orgId?: string;
+  projectId?: string | null;
 }
 
 function buildWhereClause(filters: SavingsFilters, tablePrefix: string = "l"): { sql: string; params: any[] } {
@@ -107,6 +109,19 @@ function buildWhereClause(filters: SavingsFilters, tablePrefix: string = "l"): {
   if (filters.model) {
     conditions.push(`${prefix}.model = ?`);
     params.push(filters.model);
+  }
+  
+  if (filters.orgId) {
+    conditions.push(`${prefix}.org_id = ?`);
+    params.push(filters.orgId);
+  }
+  
+  if (filters.projectId !== undefined && filters.projectId !== null) {
+    conditions.push(`${prefix}.project_id = ?`);
+    params.push(filters.projectId);
+  } else if (filters.projectId === null && filters.orgId) {
+    // If orgId is set and projectId is explicitly null, filter for org-level only
+    conditions.push(`${prefix}.project_id IS NULL`);
   }
   
   const where = conditions.length > 0 ? `WHERE ${conditions.join(" AND ")}` : "";

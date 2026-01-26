@@ -72,11 +72,11 @@ export class RunPage implements OnInit {
     }
   }
   
-  onRunReplay(event: { provider: string; model: string }) {
+  onRunReplay(event: { provider: string; model: string; proofMode: "live" | "estimator" }) {
     if (!this.scenario) return;
     
     this.loading = true;
-    this.api.replay(this.scenario.id, event.provider, event.model, this.optimizationLevel).subscribe({
+    this.api.replay(this.scenario.id, event.provider, event.model, this.optimizationLevel, event.proofMode).subscribe({
       next: result => {
         this.replayResult = result;
         this.loading = false;

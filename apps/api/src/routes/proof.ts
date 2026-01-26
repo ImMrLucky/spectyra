@@ -1,5 +1,5 @@
 import { Router } from "express";
-import { authenticate, type AuthenticatedRequest } from "../middleware/auth.js";
+import { requireSpectyraApiKey, optionalProviderKey, type AuthenticatedRequest } from "../middleware/auth.js";
 import { providerRegistry } from "../services/llm/providerRegistry.js";
 import { createOptimizerProvider } from "../services/optimizer/providerAdapter.js";
 import { getEmbedder } from "../services/embeddings/embedderRegistry.js";
@@ -17,7 +17,8 @@ import {
 export const proofRouter = Router();
 
 // Apply authentication middleware
-proofRouter.use(authenticate);
+proofRouter.use(requireSpectyraApiKey);
+proofRouter.use(optionalProviderKey);
 
 /**
  * POST /v1/proof/estimate
@@ -129,7 +130,8 @@ proofRouter.post("/estimate", async (req: AuthenticatedRequest, res) => {
       explanation_summary: explanationParts.join(", "),
     });
   } catch (error: any) {
-    console.error("Proof estimate error:", error);
+    const { safeLog } = await import("../utils/redaction.js");
+    safeLog("error", "Proof estimate error", { error: error.message });
     res.status(500).json({ error: error.message || "Internal server error" });
   }
 });

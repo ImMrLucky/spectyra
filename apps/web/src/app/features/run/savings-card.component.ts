@@ -25,10 +25,17 @@ import type { ReplayResult } from '../../core/api/models';
         </div>
       </div>
       
-      <div class="quality-status" *ngIf="result.quality.baseline_pass && result.quality.optimized_pass">
-        <div class="quality-item">
-          <span class="badge badge-success">
-            Quality: PASS
+      <div class="status-row">
+        <div class="quality-status" *ngIf="result.quality.baseline_pass && result.quality.optimized_pass">
+          <div class="quality-item">
+            <span class="badge badge-success">
+              Quality: PASS
+            </span>
+          </div>
+        </div>
+        <div class="savings-type-badge">
+          <span class="badge" [class.badge-verified]="result.savings.savings_type === 'verified'" [class.badge-estimated]="result.savings.savings_type === 'estimated_demo'">
+            {{ result.savings.savings_type === 'estimated_demo' ? 'ESTIMATED' : 'VERIFIED' }}
           </span>
         </div>
       </div>
@@ -64,10 +71,36 @@ import type { ReplayResult } from '../../core/api/models';
     .savings-highlight {
       font-size: 32px;
     }
+    .status-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-top: 20px;
+    }
     .quality-status {
       display: flex;
       gap: 15px;
-      justify-content: center;
+    }
+    .savings-type-badge {
+      margin-left: auto;
+    }
+    .badge {
+      padding: 6px 12px;
+      border-radius: 4px;
+      font-size: 12px;
+      font-weight: 600;
+    }
+    .badge-success {
+      background: rgba(255, 255, 255, 0.2);
+      color: white;
+    }
+    .badge-verified {
+      background: #28a745;
+      color: white;
+    }
+    .badge-estimated {
+      background: #ffc107;
+      color: #000;
     }
   `],
 })

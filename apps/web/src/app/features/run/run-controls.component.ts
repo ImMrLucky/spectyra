@@ -27,6 +27,22 @@ import type { Scenario, Provider } from '../../core/api/models';
         </select>
       </div>
       
+      <div class="form-group">
+        <label class="form-label">Proof Mode</label>
+        <div class="proof-mode-toggle">
+          <label class="toggle-option">
+            <input type="radio" name="proofMode" [(ngModel)]="proofMode" value="live" (change)="onChange()">
+            <span>Live</span>
+            <span class="toggle-description">Calls real LLM APIs</span>
+          </label>
+          <label class="toggle-option">
+            <input type="radio" name="proofMode" [(ngModel)]="proofMode" value="estimator" (change)="onChange()">
+            <span>Estimator</span>
+            <span class="toggle-description">Demo mode - no API calls</span>
+          </label>
+        </div>
+      </div>
+      
       <button 
         class="btn btn-primary" 
         [disabled]="!canRun || loading"
@@ -50,16 +66,46 @@ import type { Scenario, Provider } from '../../core/api/models';
       border: 1px solid #ddd;
       border-radius: 4px;
     }
+    .proof-mode-toggle {
+      display: flex;
+      gap: 16px;
+    }
+    .toggle-option {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+      padding: 12px;
+      border: 2px solid #ddd;
+      border-radius: 4px;
+      cursor: pointer;
+      flex: 1;
+    }
+    .toggle-option input[type="radio"] {
+      margin: 0;
+    }
+    .toggle-option input[type="radio"]:checked + span {
+      font-weight: 600;
+      color: #007bff;
+    }
+    .toggle-option:has(input[type="radio"]:checked) {
+      border-color: #007bff;
+      background: #f0f8ff;
+    }
+    .toggle-description {
+      font-size: 12px;
+      color: #666;
+    }
   `],
 })
 export class RunControlsComponent {
   @Input() scenario: Scenario | null = null;
   @Input() providers: Provider[] = [];
   @Input() loading = false;
-  @Output() runReplay = new EventEmitter<{ provider: string; model: string }>();
+  @Output() runReplay = new EventEmitter<{ provider: string; model: string; proofMode: "live" | "estimator" }>();
   
   selectedProvider = '';
   selectedModel = '';
+  proofMode: "live" | "estimator" = "live";
   
   get availableModels(): string[] {
     const provider = this.providers.find(p => p.name === this.selectedProvider);
@@ -81,6 +127,7 @@ export class RunControlsComponent {
       this.runReplay.emit({
         provider: this.selectedProvider,
         model: this.selectedModel,
+        proofMode: this.proofMode,
       });
     }
   }

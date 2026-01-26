@@ -11,7 +11,8 @@ import type { RunRecord } from '../../core/api/models';
   imports: [CommonModule, RouterModule],
   template: `
     <div class="container">
-      <h1>Runs History</h1>
+      <h1>Gateway Runs</h1>
+      <p class="subtitle">View all optimization runs through the AI Gateway</p>
       
       <table class="table">
         <thead>
@@ -54,6 +55,11 @@ import type { RunRecord } from '../../core/api/models';
     </div>
   `,
   styles: [`
+    .subtitle {
+      color: #666;
+      font-size: 16px;
+      margin-bottom: 20px;
+    }
     code {
       font-family: monospace;
       font-size: 12px;

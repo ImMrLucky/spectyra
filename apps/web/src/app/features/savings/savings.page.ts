@@ -23,7 +23,8 @@ import { SavingsByPathComponent } from './savings-by-path.component';
   ],
   template: `
     <div class="container">
-      <h1>Savings Over Time</h1>
+      <h1>Org Savings</h1>
+      <p class="subtitle">Track inference cost reduction across your organization</p>
       
       <app-savings-filters
         [filters]="filters"
@@ -61,6 +62,11 @@ import { SavingsByPathComponent } from './savings-by-path.component';
     </div>
   `,
   styles: [`
+    .subtitle {
+      color: #666;
+      font-size: 16px;
+      margin-bottom: 20px;
+    }
     .charts-grid {
       display: grid;
       grid-template-columns: 1fr 1fr;

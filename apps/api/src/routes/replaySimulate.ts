@@ -1,5 +1,5 @@
 import { Router } from "express";
-import { authenticate, type AuthenticatedRequest } from "../middleware/auth.js";
+import { requireSpectyraApiKey, optionalProviderKey, type AuthenticatedRequest } from "../middleware/auth.js";
 import { readFileSync } from "fs";
 import { join, dirname } from "path";
 import { fileURLToPath } from "url";
@@ -174,7 +174,8 @@ replaySimulateRouter.post("/", async (req: AuthenticatedRequest, res) => {
       simulated: true,
     });
   } catch (error: any) {
-    console.error("Replay simulate error:", error);
+    const { safeLog } = await import("../utils/redaction.js");
+    safeLog("error", "Replay simulate error", { error: error.message });
     res.status(500).json({ error: error.message || "Internal server error" });
   }
 });

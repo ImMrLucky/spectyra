@@ -8,6 +8,9 @@ export function saveRun(run: RunRecord & {
   promptHash?: string;
   isShadow?: boolean;
   debugInternal?: any;
+  orgId?: string;
+  projectId?: string | null;
+  providerKeyFingerprint?: string | null;
 }) {
   const db = getDb();
   
@@ -24,8 +27,9 @@ export function saveRun(run: RunRecord & {
       debug_spectral_lambda2, debug_spectral_contradiction_energy,
       debug_spectral_stable_unit_ids, debug_spectral_unstable_unit_ids,
       debug_spectral_recommendation, debug_internal_json,
+      org_id, project_id, provider_key_fingerprint,
       created_at
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
   `);
   
   stmt.run(
@@ -67,6 +71,9 @@ export function saveRun(run: RunRecord & {
     run.debug.spectral?.unstableUnitIds ? JSON.stringify(run.debug.spectral.unstableUnitIds) : null,
     run.debug.spectral?.recommendation || null,
     run.debugInternal ? JSON.stringify(run.debugInternal) : null,
+    run.orgId || null,
+    run.projectId || null,
+    run.providerKeyFingerprint || null,
     run.createdAt,
   );
 }
@@ -84,14 +91,33 @@ export function saveReplay(replayId: string, scenarioId: string | undefined, wor
   stmt.run(replayId, scenarioId || null, workloadKey, path, optimizationLevel, provider, model, baselineRunId, optimizedRunId);
 }
 
-export function getRuns(limit: number = 50): RunRecord[] {
+export function getRuns(limit: number = 50, orgId?: string, projectId?: string | null): RunRecord[] {
   const db = getDb();
   
-  const rows = db.prepare(`
-    SELECT * FROM runs
-    ORDER BY created_at DESC
-    LIMIT ?
-  `).all(limit) as any[];
+  let query = `SELECT * FROM runs`;
+  const conditions: string[] = [];
+  const params: any[] = [];
+  
+  if (orgId) {
+    conditions.push(`org_id = ?`);
+    params.push(orgId);
+  }
+  
+  if (projectId !== undefined && projectId !== null) {
+    conditions.push(`project_id = ?`);
+    params.push(projectId);
+  } else if (projectId === null && orgId) {
+    conditions.push(`project_id IS NULL`);
+  }
+  
+  if (conditions.length > 0) {
+    query += ` WHERE ${conditions.join(" AND ")}`;
+  }
+  
+  query += ` ORDER BY created_at DESC LIMIT ?`;
+  params.push(limit);
+  
+  const rows = db.prepare(query).all(...params) as any[];
   
   return rows.map(row => ({
     id: row.id,

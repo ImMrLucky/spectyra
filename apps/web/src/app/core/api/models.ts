@@ -23,6 +23,7 @@ export interface Savings {
   tokensSaved: number;
   pctSaved: number;
   costSavedUsd: number;
+  savings_type?: "verified" | "estimated_demo";
 }
 
 export interface QualityCheck {

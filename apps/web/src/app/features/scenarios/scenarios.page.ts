@@ -10,12 +10,15 @@ import type { Scenario } from '../../core/api/models';
   imports: [CommonModule, RouterModule],
   template: `
     <div class="container">
-      <h1>Scenarios</h1>
+      <div class="hero-section">
+        <h1>AI Gateway - Proof Scenarios</h1>
+        <p class="hero-subtitle">Optimize API-based LLM usage for teams. Reduce inference cost by 40-65%.</p>
+      </div>
       
       <div class="info-banner" *ngIf="showConnectionsBanner">
         <div class="banner-content">
-          <strong>💡 Using Copilot, Cursor, or Claude Code?</strong>
-          <p>Connect your coding tools via the Local Proxy. <a routerLink="/connections">Learn how →</a></p>
+          <strong>💡 Integrating with IDE tools?</strong>
+          <p>Set up integrations via the Local Proxy or Hosted Gateway. <a routerLink="/integrations">View integrations →</a></p>
         </div>
         <button class="banner-close" (click)="dismissBanner()">×</button>
       </div>
@@ -56,6 +59,18 @@ import type { Scenario } from '../../core/api/models';
     </div>
   `,
   styles: [`
+    .hero-section {
+      margin-bottom: 30px;
+    }
+    .hero-section h1 {
+      margin-bottom: 8px;
+      font-size: 32px;
+    }
+    .hero-subtitle {
+      color: #666;
+      font-size: 18px;
+      margin: 0;
+    }
     .filter-tabs {
       display: flex;
       gap: 10px;

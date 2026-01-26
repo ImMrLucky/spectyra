@@ -1,5 +1,5 @@
 import { Router } from "express";
-import { authenticate, type AuthenticatedRequest } from "../middleware/auth.js";
+import { requireSpectyraApiKey, optionalProviderKey, type AuthenticatedRequest } from "../middleware/auth.js";
 import {
   getSavingsSummary,
   getSavingsTimeseries,
@@ -10,6 +10,7 @@ import {
 } from "../services/storage/savingsRepo.js";
 import { redactSavingsData } from "../middleware/redact.js";
 import { getDb } from "../services/storage/db.js";
+import { safeLog } from "../utils/redaction.js";
 
 function buildWhereClause(filters: SavingsFilters, tablePrefix: string = "l"): { sql: string; params: any[] } {
   const conditions: string[] = [];
@@ -43,9 +44,10 @@ function buildWhereClause(filters: SavingsFilters, tablePrefix: string = "l"): {
 export const savingsRouter = Router();
 
 // Apply authentication middleware to all savings routes
-savingsRouter.use(authenticate);
+savingsRouter.use(requireSpectyraApiKey);
+savingsRouter.use(optionalProviderKey);
 
-savingsRouter.get("/summary", (req, res) => {
+savingsRouter.get("/summary", (req: AuthenticatedRequest, res) => {
   try {
     const filters: SavingsFilters = {
       from: req.query.from as string | undefined,
@@ -53,17 +55,19 @@ savingsRouter.get("/summary", (req, res) => {
       path: req.query.path as "talk" | "code" | "both" | undefined,
       provider: req.query.provider as string | undefined,
       model: req.query.model as string | undefined,
+      orgId: req.context?.org.id,
+      projectId: req.context?.project?.id || null,
     };
     
     const summary = getSavingsSummary(filters);
     res.json(redactSavingsData(summary));
   } catch (error: any) {
-    console.error("Savings summary error:", error);
+    safeLog("error", "Savings summary error", { error: error.message });
     res.status(500).json({ error: error.message || "Internal server error" });
   }
 });
 
-savingsRouter.get("/timeseries", (req, res) => {
+savingsRouter.get("/timeseries", (req: AuthenticatedRequest, res) => {
   try {
     const filters: SavingsFilters = {
       from: req.query.from as string | undefined,
@@ -71,18 +75,20 @@ savingsRouter.get("/timeseries", (req, res) => {
       path: req.query.path as "talk" | "code" | "both" | undefined,
       provider: req.query.provider as string | undefined,
       model: req.query.model as string | undefined,
+      orgId: req.context?.org.id,
+      projectId: req.context?.project?.id || null,
     };
     
     const bucket = (req.query.bucket as "day" | "week") || "day";
     const timeseries = getSavingsTimeseries(filters, bucket);
     res.json(timeseries.map(redactSavingsData));
   } catch (error: any) {
-    console.error("Savings timeseries error:", error);
+    safeLog("error", "Savings timeseries error", { error: error.message });
     res.status(500).json({ error: error.message || "Internal server error" });
   }
 });
 
-savingsRouter.get("/by-level", (req, res) => {
+savingsRouter.get("/by-level", (req: AuthenticatedRequest, res) => {
   try {
     const filters: SavingsFilters = {
       from: req.query.from as string | undefined,
@@ -90,17 +96,20 @@ savingsRouter.get("/by-level", (req, res) => {
       path: req.query.path as "talk" | "code" | "both" | undefined,
       provider: req.query.provider as string | undefined,
       model: req.query.model as string | undefined,
+      orgId: req.context?.org.id,
+      projectId: req.context?.project?.id || null,
     };
     
     const breakdown = getSavingsByLevel(filters);
     res.json(breakdown.map(redactSavingsData));
   } catch (error: any) {
-    console.error("Savings by-level error:", error);
+    const { safeLog } = await import("../utils/redaction.js");
+    safeLog("error", "Savings by-level error", { error: error.message });
     res.status(500).json({ error: error.message || "Internal server error" });
   }
 });
 
-savingsRouter.get("/by-path", (req, res) => {
+savingsRouter.get("/by-path", (req: AuthenticatedRequest, res) => {
   try {
     const filters: SavingsFilters = {
       from: req.query.from as string | undefined,
@@ -108,17 +117,19 @@ savingsRouter.get("/by-path", (req, res) => {
       path: req.query.path as "talk" | "code" | "both" | undefined,
       provider: req.query.provider as string | undefined,
       model: req.query.model as string | undefined,
+      orgId: req.context?.org.id,
+      projectId: req.context?.project?.id || null,
     };
     
     const breakdown = getSavingsByPath(filters);
     res.json(breakdown);
   } catch (error: any) {
-    console.error("Savings by-path error:", error);
+    safeLog("error", "Savings by-path error", { error: error.message });
     res.status(500).json({ error: error.message || "Internal server error" });
   }
 });
 
-savingsRouter.get("/level-usage-timeseries", (req, res) => {
+savingsRouter.get("/level-usage-timeseries", (req: AuthenticatedRequest, res) => {
   try {
     const filters: SavingsFilters = {
       from: req.query.from as string | undefined,
@@ -126,18 +137,21 @@ savingsRouter.get("/level-usage-timeseries", (req, res) => {
       path: req.query.path as "talk" | "code" | "both" | undefined,
       provider: req.query.provider as string | undefined,
       model: req.query.model as string | undefined,
+      orgId: req.context?.org.id,
+      projectId: req.context?.project?.id || null,
     };
     
     const bucket = (req.query.bucket as "day" | "week") || "day";
     const timeseries = getLevelUsageTimeseries(filters, bucket);
     res.json(timeseries.map(redactSavingsData));
   } catch (error: any) {
-    console.error("Level usage timeseries error:", error);
+    const { safeLog } = await import("../utils/redaction.js");
+    safeLog("error", "Level usage timeseries error", { error: error.message });
     res.status(500).json({ error: error.message || "Internal server error" });
   }
 });
 
-savingsRouter.get("/export", (req, res) => {
+savingsRouter.get("/export", (req: AuthenticatedRequest, res) => {
   try {
     const type = (req.query.type as "verified" | "all") || "verified";
     const format = (req.query.format as "csv" | "json") || "csv";
@@ -148,6 +162,8 @@ savingsRouter.get("/export", (req, res) => {
       path: req.query.path as "talk" | "code" | "both" | undefined,
       provider: req.query.provider as string | undefined,
       model: req.query.model as string | undefined,
+      orgId: req.context?.org.id,
+      projectId: req.context?.project?.id || null,
     };
     
     const { sql: whereClause, params } = buildWhereClause(filters, "l");
@@ -220,7 +236,7 @@ savingsRouter.get("/export", (req, res) => {
       res.send(csvRows.join("\n"));
     }
   } catch (error: any) {
-    console.error("Export error:", error);
+    safeLog("error", "Export error", { error: error.message });
     res.status(500).json({ error: error.message || "Internal server error" });
   }
 });

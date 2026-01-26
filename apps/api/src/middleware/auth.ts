@@ -1,33 +1,82 @@
 /**
  * Authentication Middleware
  * 
- * Validates X-SPECTYRA-KEY header and checks trial/subscription status.
- * Returns 402 Payment Required if trial expired and no active subscription.
+ * Validates X-SPECTYRA-API-KEY header and extracts org/project context.
+ * Handles ephemeral X-PROVIDER-KEY header (never stored).
  */
 
 import { Request, Response, NextFunction } from "express";
-import { getApiKeyByHash, hashApiKey, updateApiKeyLastUsed } from "../services/billing/usersRepo.js";
-import { getUserById, hasActiveAccess } from "../services/billing/usersRepo.js";
+import { 
+  getApiKeyByHash, 
+  hashApiKey, 
+  updateApiKeyLastUsed,
+  getOrgById,
+  hasActiveAccess,
+  getProjectById,
+} from "../services/storage/orgsRepo.js";
+import { redactHeaders, safeLog } from "../utils/redaction.js";
+import crypto from "node:crypto";
+
+export interface RequestContext {
+  org: {
+    id: string;
+    name: string;
+    subscription_status: string;
+  };
+  project: {
+    id: string;
+    name: string;
+  } | null;
+  apiKeyId: string;
+  providerKeyOverride?: string;
+  providerKeyFingerprint?: string;
+}
 
 export interface AuthenticatedRequest extends Request {
-  userId?: string;
-  apiKeyId?: string;
+  context?: RequestContext;
 }
 
 /**
- * Authentication middleware
- * Validates X-SPECTYRA-KEY and checks access (trial/subscription)
+ * Constant-time string comparison to prevent timing attacks
  */
-export async function authenticate(
+function constantTimeCompare(a: string, b: string): boolean {
+  if (a.length !== b.length) {
+    return false;
+  }
+  
+  let result = 0;
+  for (let i = 0; i < a.length; i++) {
+    result |= a.charCodeAt(i) ^ b.charCodeAt(i);
+  }
+  
+  return result === 0;
+}
+
+/**
+ * Compute provider key fingerprint for audit
+ * Format: SHA256(last6 + org_id + salt)
+ */
+function computeProviderKeyFingerprint(providerKey: string, orgId: string): string {
+  const salt = process.env.PROVIDER_KEY_SALT || "spectyra-audit-salt";
+  const last6 = providerKey.slice(-6);
+  const input = `${last6}:${orgId}:${salt}`;
+  return crypto.createHash("sha256").update(input).digest("hex");
+}
+
+/**
+ * Require Spectyra API Key middleware
+ * Validates X-SPECTYRA-API-KEY header and attaches org/project context
+ */
+export async function requireSpectyraApiKey(
   req: AuthenticatedRequest,
   res: Response,
   next: NextFunction
 ): Promise<void> {
   try {
-    const apiKey = req.headers["x-spectyra-key"] as string | undefined;
+    const apiKey = req.headers["x-spectyra-api-key"] as string | undefined;
     
     if (!apiKey) {
-      res.status(401).json({ error: "Missing X-SPECTYRA-KEY header" });
+      res.status(401).json({ error: "Missing X-SPECTYRA-API-KEY header" });
       return;
     }
     
@@ -36,76 +85,138 @@ export async function authenticate(
     const apiKeyRecord = getApiKeyByHash(keyHash);
     
     if (!apiKeyRecord) {
+      // Use constant-time comparison even for error to prevent timing attacks
+      constantTimeCompare(keyHash, "dummy");
       res.status(401).json({ error: "Invalid API key" });
       return;
     }
     
-    // Get user
-    const user = getUserById(apiKeyRecord.user_id);
-    if (!user) {
-      res.status(401).json({ error: "User not found" });
+    // Get org
+    const org = getOrgById(apiKeyRecord.org_id);
+    if (!org) {
+      res.status(401).json({ error: "Organization not found" });
       return;
     }
     
     // Check access (trial or subscription)
-    if (!hasActiveAccess(user)) {
+    if (!hasActiveAccess(org)) {
       res.status(402).json({
         error: "Payment Required",
         message: "Your trial has expired. Please subscribe to continue using Spectyra.",
-        trial_ended: user.trial_ends_at ? new Date(user.trial_ends_at) < new Date() : false,
-        subscription_active: user.subscription_active,
+        trial_ended: org.trial_ends_at ? new Date(org.trial_ends_at) < new Date() : false,
+        subscription_active: org.subscription_status === "active",
       });
       return;
     }
     
+    // Get project if specified
+    let project = null;
+    if (apiKeyRecord.project_id) {
+      project = getProjectById(apiKeyRecord.project_id);
+    }
+    
     // Update last used timestamp (async, don't block)
-    // Wrap in try-catch since updateApiKeyLastUsed is synchronous
     try {
       updateApiKeyLastUsed(keyHash);
     } catch (error) {
-      // Ignore errors - don't block request if update fails
-      console.warn("Failed to update API key last used:", error);
+      safeLog("warn", "Failed to update API key last used", { error });
     }
     
-    // Attach user info to request
-    req.userId = user.id;
-    req.apiKeyId = apiKeyRecord.id;
+    // Attach context to request
+    req.context = {
+      org: {
+        id: org.id,
+        name: org.name,
+        subscription_status: org.subscription_status,
+      },
+      project: project ? {
+        id: project.id,
+        name: project.name,
+      } : null,
+      apiKeyId: apiKeyRecord.id,
+    };
     
     next();
   } catch (error: any) {
-    console.error("Auth middleware error:", error);
+    safeLog("error", "Auth middleware error", { error: error.message, headers: redactHeaders(req.headers) });
     res.status(500).json({ error: "Internal server error" });
   }
 }
 
 /**
- * Optional authentication (doesn't fail if no key)
- * Used for endpoints that work with or without auth
+ * Optional provider key middleware
+ * Extracts X-PROVIDER-KEY header and stores in request context (never in DB)
  */
-export async function optionalAuthenticate(
+export function optionalProviderKey(
+  req: AuthenticatedRequest,
+  res: Response,
+  next: NextFunction
+): void {
+  try {
+    const providerKey = req.headers["x-provider-key"] as string | undefined;
+    
+    if (providerKey && req.context) {
+      // Store in memory only
+      req.context.providerKeyOverride = providerKey;
+      
+      // Compute fingerprint for audit (never the actual key)
+      if (req.context.org) {
+        req.context.providerKeyFingerprint = computeProviderKeyFingerprint(
+          providerKey,
+          req.context.org.id
+        );
+      }
+    }
+    
+    next();
+  } catch (error: any) {
+    safeLog("error", "Provider key middleware error", { error: error.message });
+    next(); // Don't fail request if fingerprint computation fails
+  }
+}
+
+/**
+ * Admin token middleware
+ * Validates X-ADMIN-TOKEN header for admin-only endpoints
+ */
+export function requireAdminToken(
+  req: Request,
+  res: Response,
+  next: NextFunction
+): void {
+  const adminToken = process.env.ADMIN_TOKEN;
+  const providedToken = req.headers["x-admin-token"] as string | undefined;
+  
+  if (!adminToken) {
+    safeLog("warn", "Admin token not configured");
+    res.status(503).json({ error: "Admin access not configured" });
+    return;
+  }
+  
+  if (!providedToken || !constantTimeCompare(providedToken, adminToken)) {
+    res.status(403).json({ error: "Invalid admin token" });
+    return;
+  }
+  
+  next();
+}
+
+/**
+ * Legacy authenticate function (for backward compatibility)
+ * Maps to requireSpectyraApiKey but maintains old interface
+ * @deprecated Use requireSpectyraApiKey instead
+ */
+export async function authenticate(
   req: AuthenticatedRequest,
   res: Response,
   next: NextFunction
 ): Promise<void> {
-  const apiKey = req.headers["x-spectyra-key"] as string | undefined;
+  // Also check legacy header name for backward compatibility
+  const apiKey = (req.headers["x-spectyra-api-key"] || req.headers["x-spectyra-key"]) as string | undefined;
   
-  if (apiKey) {
-    // Try to authenticate, but don't fail if it doesn't work
-    try {
-      const keyHash = hashApiKey(apiKey);
-      const apiKeyRecord = getApiKeyByHash(keyHash);
-      
-      if (apiKeyRecord) {
-        const user = getUserById(apiKeyRecord.user_id);
-        if (user && hasActiveAccess(user)) {
-          req.userId = user.id;
-          req.apiKeyId = apiKeyRecord.id;
-        }
-      }
-    } catch (error) {
-      // Ignore errors for optional auth
-    }
+  if (apiKey && !req.headers["x-spectyra-api-key"]) {
+    req.headers["x-spectyra-api-key"] = apiKey;
   }
   
-  next();
+  return requireSpectyraApiKey(req, res, next);
 }

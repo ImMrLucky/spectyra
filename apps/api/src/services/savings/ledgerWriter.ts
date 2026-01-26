@@ -43,7 +43,9 @@ export function writeVerifiedSavings(
   baselineTokens: number,
   optimizedTokens: number,
   baselineCost: number,
-  optimizedCost: number
+  optimizedCost: number,
+  orgId?: string,
+  projectId?: string | null
 ): void {
   const tokensSaved = baselineTokens - optimizedTokens;
   const pctSaved = baselineTokens > 0 ? (tokensSaved / baselineTokens) * 100 : 0;
@@ -59,8 +61,9 @@ export function writeVerifiedSavings(
       id, created_at, savings_type, workload_key, path, provider, model,
       optimization_level, baseline_tokens, optimized_tokens, tokens_saved,
       pct_saved, baseline_cost_usd, optimized_cost_usd, cost_saved_usd,
-      confidence, replay_id, optimized_run_id, baseline_run_id
-    ) VALUES (?, datetime('now'), 'verified', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      confidence, replay_id, optimized_run_id, baseline_run_id,
+      org_id, project_id
+    ) VALUES (?, datetime('now'), 'verified', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
   `).run(
     uuidv4(),
     workloadKey,
@@ -78,7 +81,9 @@ export function writeVerifiedSavings(
     1.0, // verified = full confidence
     replayId,
     optimizedRunId,
-    baselineRunId
+    baselineRunId,
+    orgId || null,
+    projectId || null
   );
 }
 
@@ -96,7 +101,9 @@ export function writeShadowVerifiedSavings(
   baselineTokens: number,
   optimizedTokens: number,
   baselineCost: number,
-  optimizedCost: number
+  optimizedCost: number,
+  orgId?: string,
+  projectId?: string | null
 ): void {
   const tokensSaved = baselineTokens - optimizedTokens;
   const pctSaved = baselineTokens > 0 ? (tokensSaved / baselineTokens) * 100 : 0;
@@ -112,8 +119,9 @@ export function writeShadowVerifiedSavings(
       id, created_at, savings_type, workload_key, path, provider, model,
       optimization_level, baseline_tokens, optimized_tokens, tokens_saved,
       pct_saved, baseline_cost_usd, optimized_cost_usd, cost_saved_usd,
-      confidence, baseline_run_id, optimized_run_id
-    ) VALUES (?, datetime('now'), 'shadow_verified', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      confidence, baseline_run_id, optimized_run_id,
+      org_id, project_id
+    ) VALUES (?, datetime('now'), 'shadow_verified', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
   `).run(
     uuidv4(),
     workloadKey,
@@ -130,7 +138,9 @@ export function writeShadowVerifiedSavings(
     costSaved,
     1.0, // shadow_verified = full confidence
     baselineRunId,
-    optimizedRunId
+    optimizedRunId,
+    orgId || null,
+    projectId || null
   );
 }
 
@@ -145,7 +155,9 @@ export function writeEstimatedSavings(
   optimizationLevel: number,
   optimizedRunId: string,
   optimizedTokens: number,
-  optimizedCost: number
+  optimizedCost: number,
+  orgId?: string,
+  projectId?: string | null
 ): void {
   // Estimate baseline
   const estimate = estimateBaseline(workloadKey, path, provider, model);
@@ -164,8 +176,9 @@ export function writeEstimatedSavings(
       id, created_at, savings_type, workload_key, path, provider, model,
       optimization_level, baseline_tokens, optimized_tokens, tokens_saved,
       pct_saved, baseline_cost_usd, optimized_cost_usd, cost_saved_usd,
-      confidence, optimized_run_id
-    ) VALUES (?, datetime('now'), 'estimated', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      confidence, optimized_run_id,
+      org_id, project_id
+    ) VALUES (?, datetime('now'), 'estimated', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
   `).run(
     uuidv4(),
     workloadKey,
@@ -181,6 +194,8 @@ export function writeEstimatedSavings(
     optimizedCost,
     costSaved,
     confidence,
-    optimizedRunId
+    optimizedRunId,
+    orgId || null,
+    projectId || null
   );
 }

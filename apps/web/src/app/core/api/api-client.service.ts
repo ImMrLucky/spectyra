@@ -40,7 +40,7 @@ export class ApiClientService {
     return this.http.get<Scenario>(`${this.baseUrl}/scenarios/${id}`);
   }
 
-  replay(scenarioId: string, provider: string, model: string, optimizationLevel: number = 2): Observable<ReplayResult> {
+  replay(scenarioId: string, provider: string, model: string, optimizationLevel: number = 2, proofMode: "live" | "estimator" = "live"): Observable<ReplayResult> {
     return this.http.post<ReplayResult>(
       `${this.baseUrl}/replay`,
       {
@@ -48,6 +48,7 @@ export class ApiClientService {
         provider,
         model,
         optimization_level: optimizationLevel,
+        proof_mode: proofMode,
       },
       { headers: this.getHeaders() }
     );
@@ -176,5 +177,9 @@ export class ApiClientService {
     return this.http.post<any>(`${this.baseUrl}/replay/simulate`, params, {
       headers: this.getHeaders(),
     });
+  }
+
+  getIntegrationSnippets(): Observable<any> {
+    return this.http.get<any>(`${this.baseUrl}/integrations/snippets`);
   }
 }

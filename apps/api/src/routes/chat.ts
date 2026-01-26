@@ -1,6 +1,6 @@
 import { Router } from "express";
 import { v4 as uuidv4 } from "uuid";
-import { authenticate, type AuthenticatedRequest } from "../middleware/auth.js";
+import { requireSpectyraApiKey, optionalProviderKey, type AuthenticatedRequest } from "../middleware/auth.js";
 import { providerRegistry } from "../services/llm/providerRegistry.js";
 import { createProviderWithKey } from "../services/llm/providerFactory.js";
 import { runOptimizedOrBaseline } from "../services/optimizer/optimizer.js";
@@ -15,6 +15,7 @@ import type { OptimizationLevel } from "../services/optimizer/optimizationLevel.
 import { computeWorkloadKey, computePromptHash } from "../services/savings/workloadKey.js";
 import { writeEstimatedSavings } from "../services/savings/ledgerWriter.js";
 import { redactRun } from "../middleware/redact.js";
+import { safeLog } from "../utils/redaction.js";
 import type { RunRecord, Message, Path, Mode } from "@spectyra/shared";
 import type { ChatMessage } from "../services/optimizer/unitize.js";
 import {
@@ -27,7 +28,8 @@ import { confidenceToBand } from "../services/savings/confidence.js";
 export const chatRouter = Router();
 
 // Apply authentication middleware to all chat routes
-chatRouter.use(authenticate);
+chatRouter.use(requireSpectyraApiKey);
+chatRouter.use(optionalProviderKey);
 
 chatRouter.post("/", async (req: AuthenticatedRequest, res) => {
   try {
@@ -46,14 +48,14 @@ chatRouter.post("/", async (req: AuthenticatedRequest, res) => {
       return res.status(400).json({ error: "Missing required fields" });
     }
     
-    // BYOK (Bring Your Own Key): Check for X-PROVIDER-KEY header
+    // BYOK (Bring Your Own Key): Use provider key from context (ephemeral, never stored)
     // If provided, create provider with user's key; otherwise use default from env
-    const providerKey = req.headers["x-provider-key"] as string | undefined;
+    const providerKeyOverride = req.context?.providerKeyOverride;
     let llmProvider;
     
-    if (providerKey) {
+    if (providerKeyOverride) {
       // Create provider with user's API key (BYOK)
-      llmProvider = createProviderWithKey(provider, providerKey);
+      llmProvider = createProviderWithKey(provider, providerKeyOverride);
       if (!llmProvider) {
         return res.status(400).json({ error: `Provider ${provider} not supported for BYOK` });
       }
@@ -265,13 +267,16 @@ chatRouter.post("/", async (req: AuthenticatedRequest, res) => {
     const runId = run.id;
     const optLevel = (optimizationLevel ?? 2) as OptimizationLevel;
     
-    // Save to database
+    // Save to database with org/project context
     saveRun({ 
       ...run, 
       optimizationLevel: optLevel,
       workloadKey,
       promptHash,
       debugInternal,
+      orgId: req.context?.org.id,
+      projectId: req.context?.project?.id || null,
+      providerKeyFingerprint: req.context?.providerKeyFingerprint || null,
     });
     
     // For optimized runs without baseline, write estimated savings
@@ -284,7 +289,9 @@ chatRouter.post("/", async (req: AuthenticatedRequest, res) => {
         optLevel,
         runId,
         usage.total_tokens,
-        costUsd
+        costUsd,
+        req.context?.org.id,
+        req.context?.project?.id || null
       );
     }
     
@@ -300,7 +307,7 @@ chatRouter.post("/", async (req: AuthenticatedRequest, res) => {
       } : {}),
     });
   } catch (error: any) {
-    console.error("Chat error:", error);
+    safeLog("error", "Chat error", { error: error.message });
     res.status(500).json({ error: error.message || "Internal server error" });
   }
 });
