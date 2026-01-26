@@ -3,13 +3,25 @@
   "version": "1.0.0",
   "type": "module",
   "description": "Local proxy for Spectyra optimization - works with Copilot, Cursor, Claude Code, and other coding assistants",
+  "main": "dist/spectyra-proxy.js",
   "bin": {
-    "spectyra-proxy": "./spectyra-proxy.ts"
+    "spectyra-proxy": "./dist/spectyra-proxy.js"
   },
+  "files": [
+    "dist",
+    "dashboard",
+    "README.md",
+    "SETUP_GUIDE.md",
+    "PROVIDER_SUPPORT.md",
+    "INSTALLATION.md",
+    "package.json"
+  ],
   "scripts": {
     "dev": "tsx watch spectyra-proxy.ts",
     "start": "tsx spectyra-proxy.ts",
-    "build": "tsc"
+    "build": "tsc && node scripts/prepare-dist.js",
+    "prepublishOnly": "npm run build",
+    "postinstall": "node -e \"console.log('Spectyra Proxy installed. Run: spectyra-proxy')\""
   },
   "dependencies": {
     "express": "^4.18.2",
@@ -21,6 +33,9 @@
     "@types/node": "^20.10.0",
     "tsx": "^4.7.1",
     "typescript": "^5.3.3"
+  },
+  "engines": {
+    "node": ">=18.0.0"
   },
   "keywords": [
     "spectyra",

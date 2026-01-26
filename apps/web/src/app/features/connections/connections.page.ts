@@ -22,16 +22,42 @@ import { RouterModule } from '@angular/router';
           <div class="step-number">1</div>
           <div class="step-content">
             <h3>Install and Start Proxy</h3>
+            <p><strong>Option A: Install via npm (Recommended)</strong></p>
+            <p>Open a terminal/command prompt and run:</p>
             <div class="code-block">
-              <code>cd tools/proxy</code><br>
-              <code>pnpm install</code><br>
-              <code>pnpm start</code>
+              <code>npm install -g @spectyra/proxy</code><br>
+              <code>spectyra-proxy</code>
             </div>
-            <p class="step-note">The proxy will start on:</p>
+            <p class="step-note"><strong>What this does:</strong></p>
             <ul>
-              <li><strong>Proxy:</strong> http://localhost:3001</li>
-              <li><strong>Dashboard:</strong> http://localhost:3002</li>
+              <li><code>npm install -g @spectyra/proxy</code> - Installs the proxy globally (first time only)</li>
+              <li><code>spectyra-proxy</code> - Starts the proxy server</li>
             </ul>
+            
+            <p style="margin-top: 20px;"><strong>Option B: Install from GitHub (If npm package not available)</strong></p>
+            <p>If the npm package isn't published yet, you can download from GitHub:</p>
+            <div class="code-block">
+              <code># Download the proxy</code><br>
+              <code>git clone https://github.com/your-repo/spectyra.git</code><br>
+              <code>cd spectyra/tools/proxy</code><br>
+              <code>npm install</code><br>
+              <code>npm start</code>
+            </div>
+            <p class="step-note" style="margin-top: 8px;">
+              <strong>Note:</strong> You'll need Node.js installed. Download from <a href="https://nodejs.org" target="_blank">nodejs.org</a> if needed.
+            </p>
+            <p class="step-note" style="color: #856404; background: #fff3cd; padding: 8px; border-radius: 4px; margin-top: 8px;">
+              <strong>🔒 Privacy:</strong> The published npm package contains only compiled code, not source code. Your code remains private.
+            </p>
+            
+            <p class="step-note"><strong>After starting, the proxy will be available at:</strong></p>
+            <ul>
+              <li><strong>Proxy Server:</strong> <a href="http://localhost:3001" target="_blank">http://localhost:3001</a> (for your coding tools to connect)</li>
+              <li><strong>Dashboard:</strong> <a href="http://localhost:3002" target="_blank">http://localhost:3002</a> (web UI to configure and monitor)</li>
+            </ul>
+            <p class="step-note" style="color: #856404; background: #fff3cd; padding: 8px; border-radius: 4px; margin-top: 12px;">
+              <strong>💡 Tip:</strong> Keep the terminal open while using the proxy. Press Ctrl+C to stop it.
+            </p>
           </div>
         </div>
         
@@ -241,6 +267,10 @@ import { RouterModule } from '@angular/router';
       color: #666;
       font-size: 14px;
       margin-top: 8px;
+    }
+    
+    .step-note strong {
+      color: #333;
     }
     
     .code-block {

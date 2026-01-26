@@ -12,22 +12,45 @@ Local proxy server that provides an OpenAI-compatible endpoint, routing requests
 
 ## Installation
 
-```bash
-# Install dependencies
-pnpm install
+### Option 1: Install via npm (Recommended - When Published)
 
-# Or with npm
+```bash
+npm install -g @spectyra/proxy
+```
+
+Then start with:
+```bash
+spectyra-proxy
+```
+
+### Option 2: Install from Source (Current Method)
+
+```bash
+# Clone the repository
+git clone https://github.com/your-username/spectyra.git
+cd spectyra/tools/proxy
+
+# Install dependencies
 npm install
+# or
+pnpm install
 ```
 
 ## Quick Start
 
 1. **Start the proxy:**
-```bash
-pnpm start
-# or
-npm start
-```
+
+   **If installed via npm:**
+   ```bash
+   spectyra-proxy
+   ```
+
+   **If installed from source:**
+   ```bash
+   npm start
+   # or
+   pnpm start
+   ```
 
 2. **Configure via dashboard:**
    - Open http://localhost:3002 in your browser

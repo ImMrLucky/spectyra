@@ -23,6 +23,11 @@ import { fileURLToPath } from "url";
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
+// For compiled version, adjust paths
+// In development: dashboard is in ./dashboard
+// In compiled dist: dashboard is in ./dashboard (copied during build)
+const DASHBOARD_DIR = path.join(__dirname, 'dashboard');
+
 // Configuration
 const PORT = parseInt(process.env.PROXY_PORT || "3001", 10);
 const DASHBOARD_PORT = parseInt(process.env.DASHBOARD_PORT || "3002", 10);
