@@ -2,6 +2,9 @@ import { Component } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { Router } from '@angular/router';
+import { SupabaseService } from '../../services/supabase.service';
+import { HttpClient, HttpHeaders } from '@angular/common/http';
+import { environment } from '../../../environments/environment';
 import { AuthService } from '../../core/auth/auth.service';
 
 @Component({
@@ -15,6 +18,32 @@ import { AuthService } from '../../core/auth/auth.service';
         <p class="subtitle">Sign up for Spectyra and start saving on LLM costs</p>
         
         <form (ngSubmit)="register()" *ngIf="!success">
+          <div class="form-group">
+            <label for="email">Email</label>
+            <input
+              type="email"
+              id="email"
+              [(ngModel)]="email"
+              [disabled]="loading"
+              required
+              placeholder="you@example.com"
+              class="form-input">
+          </div>
+          
+          <div class="form-group">
+            <label for="password">Password</label>
+            <input
+              type="password"
+              id="password"
+              [(ngModel)]="password"
+              [disabled]="loading"
+              required
+              placeholder="••••••••"
+              minlength="8"
+              class="form-input">
+            <div class="help-text">Password must be at least 8 characters</div>
+          </div>
+          
           <div class="form-group">
             <label for="orgName">Organization Name</label>
             <input
@@ -38,8 +67,8 @@ import { AuthService } from '../../core/auth/auth.service';
               class="form-input">
           </div>
           
-          <button type="submit" class="btn btn-primary" [disabled]="loading || !orgName">
-            {{ loading ? 'Creating Organization...' : 'Create Organization' }}
+          <button type="submit" class="btn btn-primary" [disabled]="loading || !email || !password || !orgName">
+            {{ loading ? 'Creating Account...' : 'Create Account' }}
           </button>
         </form>
         
@@ -65,7 +94,7 @@ import { AuthService } from '../../core/auth/auth.service';
         </div>
         
         <div class="login-link">
-          Already have an account? <a routerLink="/login">Login with API key</a>
+          Already have an account? <a routerLink="/login">Login</a>
         </div>
       </div>
     </div>
@@ -108,6 +137,11 @@ import { AuthService } from '../../core/auth/auth.service';
       font-size: 14px;
       box-sizing: border-box;
     }
+    .help-text {
+      font-size: 12px;
+      color: #666;
+      margin-top: 4px;
+    }
     .btn {
       width: 100%;
       padding: 12px;
@@ -125,6 +159,7 @@ import { AuthService } from '../../core/auth/auth.service';
     .btn-secondary {
       background: #6c757d;
       color: white;
+      width: auto;
       margin-left: 8px;
     }
     .btn:disabled {
@@ -189,6 +224,8 @@ import { AuthService } from '../../core/auth/auth.service';
   `],
 })
 export class RegisterPage {
+  email = '';
+  password = '';
   orgName = '';
   projectName = '';
   loading = false;
@@ -198,31 +235,76 @@ export class RegisterPage {
   trialEndsAt: string | null = null;
 
   constructor(
+    private supabase: SupabaseService,
+    private http: HttpClient,
     private authService: AuthService,
     private router: Router
   ) {}
 
-  register() {
-    if (!this.orgName || this.orgName.trim().length === 0) {
-      this.error = 'Please enter an organization name';
+  async register() {
+    if (!this.email || !this.password || !this.orgName) {
+      this.error = 'Please fill in all required fields';
+      return;
+    }
+
+    if (this.password.length < 8) {
+      this.error = 'Password must be at least 8 characters';
       return;
     }
 
     this.loading = true;
     this.error = null;
 
-    this.authService.register(this.orgName.trim(), this.projectName.trim() || undefined).subscribe({
-      next: (response) => {
-        this.success = true;
-        this.apiKey = response.api_key;
-        this.trialEndsAt = response.org.trial_ends_at || null;
+    try {
+      // 1. Sign up with Supabase
+      const { error: signUpError } = await this.supabase.signUp(this.email, this.password);
+      
+      if (signUpError) {
+        this.error = signUpError.message || 'Failed to create account';
         this.loading = false;
-      },
-      error: (err) => {
-        this.error = err.error?.error || 'Failed to create organization';
+        return;
+      }
+
+      // 2. Wait a moment for Supabase to process
+      await new Promise(resolve => setTimeout(resolve, 500));
+
+      // 3. Get access token
+      const token = await this.supabase.getAccessToken();
+      if (!token) {
+        this.error = 'Failed to get authentication token';
         this.loading = false;
-      },
-    });
+        return;
+      }
+
+      // 4. Bootstrap org/project via API
+      const headers = new HttpHeaders({
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json'
+      });
+
+      const response = await this.http.post<any>(
+        `${environment.apiUrl}/auth/bootstrap`,
+        {
+          org_name: this.orgName.trim(),
+          project_name: this.projectName.trim() || undefined
+        },
+        { headers }
+      ).toPromise();
+
+      this.success = true;
+      this.apiKey = response.api_key;
+      this.trialEndsAt = response.org.trial_ends_at || null;
+      
+      // Store API key for gateway usage
+      if (response.api_key) {
+        this.authService.setApiKey(response.api_key);
+      }
+      
+      this.loading = false;
+    } catch (err: any) {
+      this.error = err.error?.error || 'Failed to create account';
+      this.loading = false;
+    }
   }
 
   copyApiKey() {

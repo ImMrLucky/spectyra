@@ -13,14 +13,16 @@ export interface BaselineEstimate {
  * Estimate baseline tokens and cost for an optimized run.
  * Returns estimate with source information.
  */
-export function estimateBaseline(
+export async function estimateBaseline(
   workloadKey: string,
   path: string,
   provider: string,
-  model: string
-): BaselineEstimate {
+  model: string,
+  orgId?: string,
+  projectId?: string | null
+): Promise<BaselineEstimate> {
   // Try primary workload key
-  const sample = getBaselineSample(workloadKey);
+  const sample = await getBaselineSample(workloadKey);
   
   if (sample && sample.n >= MIN_SAMPLES) {
     return {
@@ -32,7 +34,7 @@ export function estimateBaseline(
   }
   
   // Try nearest workload key (same path/provider/model, different bucket)
-  const nearest = findNearestWorkloadKey(workloadKey, path, provider, model);
+  const nearest = await findNearestWorkloadKey(workloadKey, path, provider, model, orgId, projectId);
   
   if (nearest && nearest.n >= MIN_SAMPLES) {
     return {

@@ -1,111 +1,120 @@
-import Database from "better-sqlite3";
+/**
+ * Postgres Database Connection (via Supabase)
+ * 
+ * Replaces SQLite with Postgres using pg library.
+ * Uses connection pooling for performance.
+ */
+
+import { Pool, PoolClient } from "pg";
 import { config } from "../../config.js";
-import { readFileSync, mkdirSync, readdirSync, existsSync } from "fs";
-import { join, dirname } from "path";
-import { fileURLToPath } from "url";
 
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = dirname(__filename);
+let pool: Pool | null = null;
 
-let db: Database.Database | null = null;
+/**
+ * Initialize database connection pool
+ */
+export function initDb(): void {
+  if (pool) {
+    console.log("Database pool already initialized");
+    return;
+  }
 
-function runMigrations(db: Database.Database) {
-  db.pragma("foreign_keys = ON");
-  
-  // Create migrations tracking table
-  db.exec(`
-    CREATE TABLE IF NOT EXISTS schema_migrations (
-      version TEXT PRIMARY KEY,
-      applied_at TEXT NOT NULL DEFAULT (datetime('now'))
-    )
-  `);
-  
-  // Run initial migration (001) if migrations.sql exists
-  const initialMigrationPath = join(__dirname, "migrations.sql");
-  if (existsSync(initialMigrationPath)) {
-    const applied = db.prepare("SELECT version FROM schema_migrations WHERE version = ?").get("001");
-    if (!applied) {
-      try {
-        const migration = readFileSync(initialMigrationPath, "utf-8");
-        db.exec(migration);
-        db.prepare("INSERT INTO schema_migrations (version) VALUES (?)").run("001");
-        console.log("Applied migration 001");
-      } catch (error: any) {
-        console.error("Error applying initial migration:", error);
-        throw error;
-      }
-    }
+  const databaseUrl = process.env.DATABASE_URL;
+  if (!databaseUrl) {
+    throw new Error("DATABASE_URL environment variable is required");
   }
-  
-  // Get all numbered migration files in order
-  const migrationsDir = join(__dirname, "migrations");
-  if (!existsSync(migrationsDir)) {
-    return; // No migrations directory yet
-  }
-  
-  const files = readdirSync(migrationsDir)
-    .filter(f => f.endsWith(".sql") && /^\d+_/.test(f))
-    .sort();
-  
-  for (const file of files) {
-    const version = file.replace(".sql", "").split("_")[0];
-    
-    // Check if already applied
-    const applied = db.prepare("SELECT version FROM schema_migrations WHERE version = ?").get(version);
-    if (applied) {
-      console.log(`Migration ${version} already applied, skipping`);
-      continue;
-    }
-    
-    try {
-      const migrationPath = join(migrationsDir, file);
-      const migration = readFileSync(migrationPath, "utf-8");
-      
-      // Wrap in transaction
-      const transaction = db.transaction(() => {
-        db.exec(migration);
-        db.prepare("INSERT INTO schema_migrations (version) VALUES (?)").run(version);
-      });
-      
-      transaction();
-      console.log(`Applied migration ${version}`);
-    } catch (error: any) {
-      // Handle "column already exists" errors gracefully
-      if (error.message?.includes("duplicate column") || error.message?.includes("already exists")) {
-        console.log(`Migration ${version} had non-fatal errors (columns may already exist), marking as applied`);
-        db.prepare("INSERT OR IGNORE INTO schema_migrations (version) VALUES (?)").run(version);
-      } else {
-        console.error(`Error applying migration ${version}:`, error);
-        throw error;
-      }
-    }
-  }
+
+  pool = new Pool({
+    connectionString: databaseUrl,
+    max: 20, // Maximum number of clients in the pool
+    idleTimeoutMillis: 30000,
+    connectionTimeoutMillis: 2000,
+  });
+
+  // Test connection
+  pool.query("SELECT NOW()")
+    .then(() => {
+      console.log("Postgres database connected successfully");
+    })
+    .catch((error) => {
+      console.error("Failed to connect to Postgres database:", error);
+      throw error;
+    });
 }
 
-export function initDb() {
-  const dbPath = config.dbPath;
-  
-  // Ensure data directory exists
-  const dbDir = dbPath.split("/").slice(0, -1).join("/");
-  if (dbDir) {
-    try {
-      mkdirSync(dbDir, { recursive: true });
-    } catch (e) {
-      // Directory might already exist
-    }
-  }
-  
-  db = new Database(dbPath);
-  
-  // Run migrations
-  runMigrations(db);
-  
-  console.log(`Database initialized at ${dbPath}`);
-}
-
-export function getDb(): Database.Database {
-  if (!db) {
+/**
+ * Get database connection pool
+ */
+export function getPool(): Pool {
+  if (!pool) {
     throw new Error("Database not initialized. Call initDb() first.");
   }
-  return db;
+  return pool;
+}
+
+/**
+ * Execute a query
+ * @param sql SQL query string
+ * @param params Query parameters
+ * @returns Query result
+ */
+export async function query<T = any>(
+  sql: string,
+  params?: any[]
+): Promise<{ rows: T[]; rowCount: number }> {
+  const pool = getPool();
+  const result = await pool.query(sql, params);
+  return {
+    rows: result.rows as T[],
+    rowCount: result.rowCount || 0,
+  };
+}
+
+/**
+ * Execute a query and return first row
+ * @param sql SQL query string
+ * @param params Query parameters
+ * @returns First row or null
+ */
+export async function queryOne<T = any>(
+  sql: string,
+  params?: any[]
+): Promise<T | null> {
+  const result = await query<T>(sql, params);
+  return result.rows[0] || null;
+}
+
+/**
+ * Execute a transaction
+ * @param fn Function that receives a client and returns a promise
+ * @returns Result of the transaction function
+ */
+export async function tx<T>(
+  fn: (client: PoolClient) => Promise<T>
+): Promise<T> {
+  const pool = getPool();
+  const client = await pool.connect();
+  
+  try {
+    await client.query("BEGIN");
+    const result = await fn(client);
+    await client.query("COMMIT");
+    return result;
+  } catch (error) {
+    await client.query("ROLLBACK");
+    throw error;
+  } finally {
+    client.release();
+  }
+}
+
+/**
+ * Close database connection pool
+ */
+export async function closeDb(): Promise<void> {
+  if (pool) {
+    await pool.end();
+    pool = null;
+    console.log("Database pool closed");
+  }
 }

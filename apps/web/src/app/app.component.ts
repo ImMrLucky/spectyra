@@ -2,12 +2,14 @@ import { Component, OnInit, OnDestroy } from '@angular/core';
 import { RouterOutlet, RouterModule } from '@angular/router';
 import { CommonModule } from '@angular/common';
 import { AuthService } from './core/auth/auth.service';
-import { Subscription } from 'rxjs';
+import { SupabaseService } from './services/supabase.service';
+import { Subscription, combineLatest } from 'rxjs';
+import { map } from 'rxjs/operators';
 
 @Component({
   selector: 'app-root',
   standalone: true,
-  imports: [RouterOutlet, RouterModule, CommonModule],
+  imports: [RouterOutlet, RouterModule, CommonModule, OrgSwitcherComponent],
   template: `
     <div class="app-container">
       <header class="app-header">
@@ -19,8 +21,12 @@ import { Subscription } from 'rxjs';
           <a routerLink="/runs">Gateway Runs</a>
           <a routerLink="/savings">Org Savings</a>
           <a routerLink="/billing">Billing</a>
-          <a routerLink="/settings">Org Settings</a>
+          <a routerLink="/settings">Settings</a>
           <a routerLink="/admin" class="admin-link">Admin</a>
+          
+          <!-- Org/Project Switcher (if authenticated) -->
+          <app-org-switcher *ngIf="isAuthenticated"></app-org-switcher>
+          
           <span *ngIf="!isAuthenticated" class="auth-links">
             <a routerLink="/login">Login</a>
             <a routerLink="/register">Sign Up</a>
@@ -57,6 +63,7 @@ import { Subscription } from 'rxjs';
     .app-header nav {
       display: flex;
       gap: 20px;
+      align-items: center;
     }
     .app-header nav a {
       color: white;
@@ -101,23 +108,51 @@ export class AppComponent implements OnInit, OnDestroy {
   isAuthenticated = false;
   userEmail: string | null = null;
   private authSub?: Subscription;
+  private supabaseSub?: Subscription;
 
-  constructor(private authService: AuthService) {}
+  constructor(
+    private authService: AuthService,
+    private supabase: SupabaseService
+  ) {}
 
   ngOnInit() {
-    this.authSub = this.authService.authState.subscribe(state => {
-      this.isAuthenticated = !!state.user && !!state.apiKey;
-      // Extract org name from email (format: orgName@spectyra.local)
-      const email = state.user?.email || null;
-      this.userEmail = email ? email.split('@')[0] : null;
+    // Check both Supabase session and API key auth
+    this.authSub = combineLatest([
+      this.supabase.getSession(),
+      this.authService.authState
+    ]).pipe(
+      map(([session, authState]) => {
+        // Authenticated if either Supabase session exists OR API key exists
+        const hasSupabase = !!session;
+        const hasApiKey = !!authState.apiKey;
+        return { hasSupabase, hasApiKey, authState };
+      })
+    ).subscribe(({ hasSupabase, hasApiKey, authState }) => {
+      this.isAuthenticated = hasSupabase || hasApiKey;
+      
+      if (hasSupabase) {
+        // Get email from Supabase user
+        this.supabase.getUser().subscribe(user => {
+          this.userEmail = user?.email || null;
+        });
+      } else if (hasApiKey && authState.user) {
+        // Extract org name from email (format: orgName@spectyra.local)
+        const email = authState.user.email || null;
+        this.userEmail = email ? email.split('@')[0] : null;
+      } else {
+        this.userEmail = null;
+      }
     });
   }
 
   ngOnDestroy() {
     this.authSub?.unsubscribe();
+    this.supabaseSub?.unsubscribe();
   }
 
-  logout() {
+  async logout() {
+    // Logout from both Supabase and clear API key
+    await this.supabase.signOut();
     this.authService.logout();
   }
 }

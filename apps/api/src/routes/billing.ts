@@ -12,7 +12,7 @@ import {
   updateOrgSubscription,
   updateOrgStripeCustomerId,
 } from "../services/storage/orgsRepo.js";
-import { requireSpectyraApiKey, optionalProviderKey, type AuthenticatedRequest } from "../middleware/auth.js";
+import { requireSpectyraApiKey, optionalProviderKey, requireUserSession, type AuthenticatedRequest } from "../middleware/auth.js";
 import { hasActiveAccess } from "../services/storage/orgsRepo.js";
 import { safeLog } from "../utils/redaction.js";
 
@@ -27,11 +27,50 @@ const stripe = new Stripe(process.env.STRIPE_SECRET_KEY || "", {
  * POST /v1/billing/checkout
  * 
  * Creates a Stripe checkout session for org subscription
- * Requires authentication (org context)
+ * Requires authentication (Supabase JWT or API key)
  */
-billingRouter.post("/checkout", requireSpectyraApiKey, optionalProviderKey, async (req: AuthenticatedRequest, res) => {
+billingRouter.post("/checkout", async (req: AuthenticatedRequest, res) => {
   try {
-    if (!req.context) {
+    let orgId: string | null = null;
+
+    // Try Supabase JWT first
+    const authHeader = req.headers.authorization;
+    if (authHeader && authHeader.startsWith("Bearer ")) {
+      try {
+        await requireUserSession(req, res, async () => {
+          if (!req.auth?.userId) {
+            return res.status(401).json({ error: "Not authenticated" });
+          }
+
+          const { queryOne } = await import("../services/storage/db.js");
+          const membership = await queryOne<{ org_id: string }>(`
+            SELECT org_id FROM org_memberships WHERE user_id = $1 LIMIT 1
+          `, [req.auth.userId]);
+
+          if (!membership) {
+            return res.status(404).json({ error: "Organization not found" });
+          }
+
+          orgId = membership.org_id;
+        });
+        if (res.headersSent) return;
+      } catch (jwtError) {
+        // Fall through to API key
+      }
+    }
+
+    // Fall back to API key auth
+    if (!orgId) {
+      await requireSpectyraApiKey(req, res, async () => {
+        if (!req.context) {
+          return res.status(401).json({ error: "Not authenticated" });
+        }
+        orgId = req.context.org.id;
+      });
+      if (res.headersSent) return;
+    }
+
+    if (!orgId) {
       return res.status(401).json({ error: "Not authenticated" });
     }
     
@@ -40,7 +79,7 @@ billingRouter.post("/checkout", requireSpectyraApiKey, optionalProviderKey, asyn
       cancel_url?: string;
     };
     
-    const org = getOrgById(req.context.org.id);
+    const org = await getOrgById(orgId);
     if (!org) {
       return res.status(404).json({ error: "Organization not found" });
     }
@@ -56,7 +95,7 @@ billingRouter.post("/checkout", requireSpectyraApiKey, optionalProviderKey, asyn
         },
       });
       customerId = customer.id;
-      updateOrgStripeCustomerId(org.id, customerId);
+      await updateOrgStripeCustomerId(org.id, customerId);
     }
     
     // Create checkout session
@@ -127,10 +166,10 @@ billingRouter.post("/webhook", async (req, res) => {
         const subscription = event.data.object as Stripe.Subscription;
         const customerId = subscription.customer as string;
         
-        const org = getOrgByStripeCustomerId(customerId);
+        const org = await getOrgByStripeCustomerId(customerId);
         if (org) {
           const isActive = subscription.status === "active" || subscription.status === "trialing";
-          updateOrgSubscription(
+          await updateOrgSubscription(
             org.id,
             subscription.id,
             subscription.status,
@@ -149,9 +188,9 @@ billingRouter.post("/webhook", async (req, res) => {
         const subscription = event.data.object as Stripe.Subscription;
         const customerId = subscription.customer as string;
         
-        const org = getOrgByStripeCustomerId(customerId);
+        const org = await getOrgByStripeCustomerId(customerId);
         if (org) {
-          updateOrgSubscription(org.id, null, "canceled", false);
+          await updateOrgSubscription(org.id, null, "canceled", false);
           safeLog("info", "Subscription canceled", { org_id: org.id });
         }
         break;
@@ -180,15 +219,54 @@ billingRouter.post("/webhook", async (req, res) => {
 /**
  * GET /v1/billing/status
  * 
- * Get current org billing status (requires auth)
+ * Get current org billing status (requires auth - Supabase JWT or API key)
  */
-billingRouter.get("/status", requireSpectyraApiKey, optionalProviderKey, async (req: AuthenticatedRequest, res) => {
+billingRouter.get("/status", async (req: AuthenticatedRequest, res) => {
   try {
-    if (!req.context) {
+    let orgId: string | null = null;
+
+    // Try Supabase JWT first
+    const authHeader = req.headers.authorization;
+    if (authHeader && authHeader.startsWith("Bearer ")) {
+      try {
+        await requireUserSession(req, res, async () => {
+          if (!req.auth?.userId) {
+            return res.status(401).json({ error: "Not authenticated" });
+          }
+
+          const { queryOne } = await import("../services/storage/db.js");
+          const membership = await queryOne<{ org_id: string }>(`
+            SELECT org_id FROM org_memberships WHERE user_id = $1 LIMIT 1
+          `, [req.auth.userId]);
+
+          if (!membership) {
+            return res.status(404).json({ error: "Organization not found" });
+          }
+
+          orgId = membership.org_id;
+        });
+        if (res.headersSent) return;
+      } catch (jwtError) {
+        // Fall through to API key
+      }
+    }
+
+    // Fall back to API key auth
+    if (!orgId) {
+      await requireSpectyraApiKey(req, res, async () => {
+        if (!req.context) {
+          return res.status(401).json({ error: "Not authenticated" });
+        }
+        orgId = req.context.org.id;
+      });
+      if (res.headersSent) return;
+    }
+
+    if (!orgId) {
       return res.status(401).json({ error: "Not authenticated" });
     }
     
-    const org = getOrgById(req.context.org.id);
+    const org = await getOrgById(orgId);
     if (!org) {
       return res.status(404).json({ error: "Organization not found" });
     }

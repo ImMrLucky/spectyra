@@ -1,5 +1,11 @@
+/**
+ * Ledger Writer (Postgres)
+ * 
+ * Writes savings ledger entries
+ */
+
 import { v4 as uuidv4 } from "uuid";
-import { getDb } from "../storage/db.js";
+import { query } from "../storage/db.js";
 import { addBaselineSample } from "./baselineSampler.js";
 import { estimateBaseline } from "./estimateBaseline.js";
 import { computeConfidence } from "./confidence.js";
@@ -31,7 +37,7 @@ export interface LedgerRow {
 /**
  * Write a verified savings ledger row from a replay (baseline + optimized pair).
  */
-export function writeVerifiedSavings(
+export async function writeVerifiedSavings(
   replayId: string,
   workloadKey: string,
   path: string,
@@ -46,25 +52,24 @@ export function writeVerifiedSavings(
   optimizedCost: number,
   orgId?: string,
   projectId?: string | null
-): void {
+): Promise<void> {
   const tokensSaved = baselineTokens - optimizedTokens;
   const pctSaved = baselineTokens > 0 ? (tokensSaved / baselineTokens) * 100 : 0;
   const costSaved = baselineCost - optimizedCost;
   
   // Update baseline samples for future estimates
-  addBaselineSample(workloadKey, baselineTokens, baselineCost);
+  await addBaselineSample(workloadKey, baselineTokens, baselineCost, orgId, projectId);
   
   // Write ledger row
-  const db = getDb();
-  db.prepare(`
+  await query(`
     INSERT INTO savings_ledger (
       id, created_at, savings_type, workload_key, path, provider, model,
       optimization_level, baseline_tokens, optimized_tokens, tokens_saved,
       pct_saved, baseline_cost_usd, optimized_cost_usd, cost_saved_usd,
       confidence, replay_id, optimized_run_id, baseline_run_id,
       org_id, project_id
-    ) VALUES (?, datetime('now'), 'verified', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-  `).run(
+    ) VALUES ($1, now(), 'verified', $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19)
+  `, [
     uuidv4(),
     workloadKey,
     path,
@@ -84,13 +89,13 @@ export function writeVerifiedSavings(
     baselineRunId,
     orgId || null,
     projectId || null
-  );
+  ]);
 }
 
 /**
  * Write a shadow_verified savings ledger row (shadow baseline + optimized pair).
  */
-export function writeShadowVerifiedSavings(
+export async function writeShadowVerifiedSavings(
   workloadKey: string,
   path: string,
   provider: string,
@@ -104,25 +109,24 @@ export function writeShadowVerifiedSavings(
   optimizedCost: number,
   orgId?: string,
   projectId?: string | null
-): void {
+): Promise<void> {
   const tokensSaved = baselineTokens - optimizedTokens;
   const pctSaved = baselineTokens > 0 ? (tokensSaved / baselineTokens) * 100 : 0;
   const costSaved = baselineCost - optimizedCost;
   
   // Update baseline samples
-  addBaselineSample(workloadKey, baselineTokens, baselineCost);
+  await addBaselineSample(workloadKey, baselineTokens, baselineCost, orgId, projectId);
   
   // Write ledger row
-  const db = getDb();
-  db.prepare(`
+  await query(`
     INSERT INTO savings_ledger (
       id, created_at, savings_type, workload_key, path, provider, model,
       optimization_level, baseline_tokens, optimized_tokens, tokens_saved,
       pct_saved, baseline_cost_usd, optimized_cost_usd, cost_saved_usd,
       confidence, baseline_run_id, optimized_run_id,
       org_id, project_id
-    ) VALUES (?, datetime('now'), 'shadow_verified', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-  `).run(
+    ) VALUES ($1, now(), 'shadow_verified', $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18)
+  `, [
     uuidv4(),
     workloadKey,
     path,
@@ -141,13 +145,13 @@ export function writeShadowVerifiedSavings(
     optimizedRunId,
     orgId || null,
     projectId || null
-  );
+  ]);
 }
 
 /**
  * Write an estimated savings ledger row for an optimized run without baseline.
  */
-export function writeEstimatedSavings(
+export async function writeEstimatedSavings(
   workloadKey: string,
   path: string,
   provider: string,
@@ -158,28 +162,27 @@ export function writeEstimatedSavings(
   optimizedCost: number,
   orgId?: string,
   projectId?: string | null
-): void {
+): Promise<void> {
   // Estimate baseline
-  const estimate = estimateBaseline(workloadKey, path, provider, model);
+  const estimate = await estimateBaseline(workloadKey, path, provider, model, orgId, projectId);
   
   const tokensSaved = estimate.totalTokens - optimizedTokens;
   const pctSaved = estimate.totalTokens > 0 ? (tokensSaved / estimate.totalTokens) * 100 : 0;
   const costSaved = estimate.costUsd - optimizedCost;
   
   // Compute confidence
-  const confidence = computeConfidence(workloadKey, "estimated");
+  const confidence = await computeConfidence(workloadKey, "estimated", orgId, projectId);
   
   // Write ledger row
-  const db = getDb();
-  db.prepare(`
+  await query(`
     INSERT INTO savings_ledger (
       id, created_at, savings_type, workload_key, path, provider, model,
       optimization_level, baseline_tokens, optimized_tokens, tokens_saved,
       pct_saved, baseline_cost_usd, optimized_cost_usd, cost_saved_usd,
       confidence, optimized_run_id,
       org_id, project_id
-    ) VALUES (?, datetime('now'), 'estimated', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-  `).run(
+    ) VALUES ($1, now(), 'estimated', $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17)
+  `, [
     uuidv4(),
     workloadKey,
     path,
@@ -197,5 +200,5 @@ export function writeEstimatedSavings(
     optimizedRunId,
     orgId || null,
     projectId || null
-  );
+  ]);
 }

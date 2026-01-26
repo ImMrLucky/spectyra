@@ -4,17 +4,19 @@ import { getBaselineSample } from "./baselineSampler.js";
  * Compute confidence score for estimated savings.
  * Returns value 0..1 where 1.0 = verified, lower = less confident.
  */
-export function computeConfidence(
+export async function computeConfidence(
   workloadKey: string,
-  savingsType: "verified" | "shadow_verified" | "estimated"
-): number {
+  savingsType: "verified" | "shadow_verified" | "estimated",
+  orgId?: string,
+  projectId?: string | null
+): Promise<number> {
   // Verified and shadow_verified always have full confidence
   if (savingsType === "verified" || savingsType === "shadow_verified") {
     return 1.0;
   }
   
   // For estimated, compute based on sample quality
-  const sample = getBaselineSample(workloadKey);
+  const sample = await getBaselineSample(workloadKey);
   
   if (!sample || sample.n === 0) {
     return 0.15; // Minimum confidence for fallback estimates

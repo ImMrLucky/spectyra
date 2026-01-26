@@ -192,9 +192,9 @@ export class AuthService {
   }
 
   /**
-   * Set API key
+   * Set API key (public for bootstrap flow)
    */
-  private setApiKey(key: string): void {
+  setApiKey(key: string): void {
     localStorage.setItem(this.apiKeyStorageKey, key);
     this.updateAuthState({ apiKey: key });
   }

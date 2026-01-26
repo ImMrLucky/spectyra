@@ -271,7 +271,7 @@ chatRouter.post("/", async (req: AuthenticatedRequest, res) => {
     const optLevel = (optimizationLevel ?? 2) as OptimizationLevel;
     
     // Save to database with org/project context
-    saveRun({ 
+    await saveRun({ 
       ...run, 
       optimizationLevel: optLevel,
       workloadKey,
@@ -284,7 +284,7 @@ chatRouter.post("/", async (req: AuthenticatedRequest, res) => {
     
     // For optimized runs without baseline, write estimated savings
     if (mode === "optimized") {
-      writeEstimatedSavings(
+      await writeEstimatedSavings(
         workloadKey,
         path,
         provider,

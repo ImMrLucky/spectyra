@@ -4,7 +4,15 @@ dotenv.config();
 
 export const config = {
   port: parseInt(process.env.PORT || "8080", 10),
-  dbPath: process.env.DB_PATH || "./data/app.db",
+  databaseUrl: process.env.DATABASE_URL || "",
+  
+  // Supabase configuration
+  supabase: {
+    url: process.env.SUPABASE_URL || "",
+    anonKey: process.env.SUPABASE_ANON_KEY || "",
+    serviceRoleKey: process.env.SUPABASE_SERVICE_ROLE_KEY || "",
+    jwtSecret: process.env.SUPABASE_JWT_SECRET || "",
+  },
   
   providers: {
     openai: { apiKey: process.env.OPENAI_API_KEY || "" },

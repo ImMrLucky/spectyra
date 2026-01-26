@@ -1,14 +1,18 @@
 /**
- * Authentication Middleware
+ * Authentication Middleware (Postgres + Supabase)
  * 
- * Validates X-SPECTYRA-API-KEY header and extracts org/project context.
+ * Two authentication methods:
+ * 1. Human auth: Supabase JWT (for dashboard)
+ * 2. Machine auth: Project API key with argon2id (for gateway/SDK)
+ * 
  * Handles ephemeral X-PROVIDER-KEY header (never stored).
  */
 
 import { Request, Response, NextFunction } from "express";
 import { 
-  getApiKeyByHash, 
-  hashApiKey, 
+  getApiKeyByPrefix,
+  getApiKeyByHash,
+  verifyApiKey,
   updateApiKeyLastUsed,
   getOrgById,
   hasActiveAccess,
@@ -16,6 +20,7 @@ import {
 } from "../services/storage/orgsRepo.js";
 import { redactHeaders, safeLog } from "../utils/redaction.js";
 import crypto from "node:crypto";
+import { jwtVerify, createRemoteJWKSet } from "jose";
 
 export interface RequestContext {
   org: {
@@ -30,10 +35,23 @@ export interface RequestContext {
   apiKeyId: string;
   providerKeyOverride?: string;
   providerKeyFingerprint?: string;
+  // For Supabase JWT auth
+  userId?: string;
+  userRole?: string;
 }
 
 export interface AuthenticatedRequest extends Request {
   context?: RequestContext;
+  auth?: {
+    userId?: string;
+    orgId?: string;
+    projectId?: string | null;
+    role?: string;
+    scopes?: string[];
+    apiKeyId?: string;
+    providerKeyOverride?: string;
+    providerKeyFingerprint?: string;
+  };
 }
 
 /**
@@ -64,8 +82,8 @@ function computeProviderKeyFingerprint(providerKey: string, orgId: string): stri
 }
 
 /**
- * Require Spectyra API Key middleware
- * Validates X-SPECTYRA-API-KEY header and attaches org/project context
+ * Require Spectyra API Key middleware (Machine Auth)
+ * Validates X-SPECTYRA-API-KEY header using prefix lookup + argon2id verification
  */
 export async function requireSpectyraApiKey(
   req: AuthenticatedRequest,
@@ -80,30 +98,36 @@ export async function requireSpectyraApiKey(
       return;
     }
     
-    // Hash the key and look it up
-    const keyHash = hashApiKey(apiKey);
-    const apiKeyRecord = getApiKeyByHash(keyHash);
+    // Extract prefix (first 12 chars: "sk_spectyra_")
+    const keyPrefix = apiKey.substring(0, 12);
+    
+    // Lookup by prefix for fast retrieval
+    const apiKeyRecord = await getApiKeyByPrefix(keyPrefix);
     
     if (!apiKeyRecord) {
       // Use constant-time comparison even for error to prevent timing attacks
-      constantTimeCompare(keyHash, "dummy");
+      constantTimeCompare(keyPrefix, "dummy");
       safeLog("warn", "Invalid API key attempt", { 
-        key_prefix: apiKey.substring(0, 12) + "...",
-        key_hash_prefix: keyHash.substring(0, 8) + "..."
+        key_prefix: keyPrefix,
       });
       res.status(401).json({ error: "Invalid API key" });
       return;
     }
     
-    // Validate org_id exists
-    if (!apiKeyRecord.org_id) {
-      safeLog("error", "API key missing org_id", { key_id: apiKeyRecord.id });
-      res.status(401).json({ error: "API key is not associated with an organization. Please create a new API key." });
+    // Verify the full key hash with argon2id
+    const isValid = await verifyApiKey(apiKey, apiKeyRecord.key_hash);
+    if (!isValid) {
+      constantTimeCompare(keyPrefix, "dummy");
+      safeLog("warn", "API key verification failed", { 
+        key_id: apiKeyRecord.id,
+        key_prefix: keyPrefix,
+      });
+      res.status(401).json({ error: "Invalid API key" });
       return;
     }
     
     // Get org
-    const org = getOrgById(apiKeyRecord.org_id);
+    const org = await getOrgById(apiKeyRecord.org_id);
     if (!org) {
       safeLog("error", "Org not found for API key", { 
         key_id: apiKeyRecord.id, 
@@ -113,25 +137,18 @@ export async function requireSpectyraApiKey(
       return;
     }
     
-    // Check access (trial or subscription)
-    // Note: Specific routes may allow estimator/demo mode even if trial expired
-    // This is checked per-route, not here
-    // For now, we attach org info and let routes decide
-    
     // Get project if specified
     let project = null;
     if (apiKeyRecord.project_id) {
-      project = getProjectById(apiKeyRecord.project_id);
+      project = await getProjectById(apiKeyRecord.project_id);
     }
     
     // Update last used timestamp (async, don't block)
-    try {
-      updateApiKeyLastUsed(keyHash);
-    } catch (error) {
+    updateApiKeyLastUsed(apiKeyRecord.key_hash).catch((error) => {
       safeLog("warn", "Failed to update API key last used", { error });
-    }
+    });
     
-    // Attach context to request
+    // Attach context to request (legacy format for backward compatibility)
     req.context = {
       org: {
         id: org.id,
@@ -142,6 +159,14 @@ export async function requireSpectyraApiKey(
         id: project.id,
         name: project.name,
       } : null,
+      apiKeyId: apiKeyRecord.id,
+    };
+    
+    // Also attach to req.auth (new format)
+    req.auth = {
+      orgId: org.id,
+      projectId: apiKeyRecord.project_id,
+      scopes: apiKeyRecord.scopes || [],
       apiKeyId: apiKeyRecord.id,
     };
     
@@ -161,26 +186,150 @@ export function optionalProviderKey(
   res: Response,
   next: NextFunction
 ): void {
-  try {
-    const providerKey = req.headers["x-provider-key"] as string | undefined;
-    
-    if (providerKey && req.context) {
-      // Store in memory only
+  const providerKey = req.headers["x-provider-key"] as string | undefined;
+  
+  if (providerKey) {
+    // Store in memory only
+    if (req.context) {
       req.context.providerKeyOverride = providerKey;
+    }
+    if (req.auth) {
+      req.auth.providerKeyOverride = providerKey;
       
-      // Compute fingerprint for audit (never the actual key)
-      if (req.context.org) {
-        req.context.providerKeyFingerprint = computeProviderKeyFingerprint(
+      // Compute fingerprint for audit (if we have org_id)
+      if (req.auth.orgId) {
+        req.auth.providerKeyFingerprint = computeProviderKeyFingerprint(
           providerKey,
-          req.context.org.id
+          req.auth.orgId
         );
+        if (req.context) {
+          req.context.providerKeyFingerprint = req.auth.providerKeyFingerprint;
+        }
       }
     }
+  }
+  
+  next();
+}
+
+/**
+ * Require Supabase JWT (Human Auth)
+ * Validates Authorization: Bearer <jwt> header
+ * Extracts user_id from JWT claims
+ */
+export async function requireUserSession(
+  req: AuthenticatedRequest,
+  res: Response,
+  next: NextFunction
+): Promise<void> {
+  try {
+    const authHeader = req.headers.authorization;
+    if (!authHeader || !authHeader.startsWith("Bearer ")) {
+      res.status(401).json({ error: "Missing or invalid Authorization header" });
+      return;
+    }
+    
+    const token = authHeader.substring(7); // Remove "Bearer " prefix
+    
+    // Verify JWT using Supabase JWKS
+    const supabaseUrl = process.env.SUPABASE_URL;
+    if (!supabaseUrl) {
+      safeLog("error", "SUPABASE_URL not configured");
+      res.status(503).json({ error: "Authentication not configured" });
+      return;
+    }
+    
+    const JWKS = createRemoteJWKSet(new URL(`${supabaseUrl}/.well-known/jwks.json`));
+    
+    try {
+      const { payload } = await jwtVerify(token, JWKS, {
+        issuer: `${supabaseUrl}`,
+        audience: "authenticated",
+      });
+      
+      const userId = payload.sub as string;
+      if (!userId) {
+        res.status(401).json({ error: "Invalid token: missing user ID" });
+        return;
+      }
+      
+      // Attach user info to request
+      req.auth = req.auth || {};
+      req.auth.userId = userId;
+      
+      // Also attach to context for backward compatibility
+      req.context = req.context || {} as RequestContext;
+      req.context.userId = userId;
+      
+      next();
+    } catch (jwtError: any) {
+      safeLog("warn", "JWT verification failed", { error: jwtError.message });
+      res.status(401).json({ error: "Invalid or expired token" });
+      return;
+    }
+  } catch (error: any) {
+    safeLog("error", "User session middleware error", { error: error.message });
+    res.status(500).json({ error: "Internal server error" });
+  }
+}
+
+/**
+ * Require org membership (for dashboard routes)
+ * Must be used after requireUserSession
+ * Checks that user is a member of the specified org
+ */
+export async function requireOrgMembership(
+  req: AuthenticatedRequest,
+  res: Response,
+  next: NextFunction
+): Promise<void> {
+  try {
+    if (!req.auth?.userId) {
+      res.status(401).json({ error: "Not authenticated" });
+      return;
+    }
+    
+    // Get org_id from route param, query param, or header
+    const orgId = req.params.orgId || req.query.org_id as string || req.headers["x-org-id"] as string;
+    
+    if (!orgId) {
+      res.status(400).json({ error: "Organization ID required" });
+      return;
+    }
+    
+    // Check membership
+    const { queryOne } = await import("../services/storage/db.js");
+    const membership = await queryOne<{ role: string }>(`
+      SELECT role 
+      FROM org_memberships 
+      WHERE org_id = $1 AND user_id = $2
+    `, [orgId, req.auth.userId]);
+    
+    if (!membership) {
+      res.status(403).json({ error: "Not a member of this organization" });
+      return;
+    }
+    
+    // Attach org info
+    req.auth.orgId = orgId;
+    req.auth.role = membership.role;
+    
+    // Also attach to context
+    req.context = req.context || {} as RequestContext;
+    const org = await getOrgById(orgId);
+    if (org) {
+      req.context.org = {
+        id: org.id,
+        name: org.name,
+        subscription_status: org.subscription_status,
+      };
+    }
+    req.context.userRole = membership.role;
     
     next();
   } catch (error: any) {
-    safeLog("error", "Provider key middleware error", { error: error.message });
-    next(); // Don't fail request if fingerprint computation fails
+    safeLog("error", "Org membership middleware error", { error: error.message });
+    res.status(500).json({ error: "Internal server error" });
   }
 }
 
@@ -208,24 +357,4 @@ export function requireAdminToken(
   }
   
   next();
-}
-
-/**
- * Legacy authenticate function (for backward compatibility)
- * Maps to requireSpectyraApiKey but maintains old interface
- * @deprecated Use requireSpectyraApiKey instead
- */
-export async function authenticate(
-  req: AuthenticatedRequest,
-  res: Response,
-  next: NextFunction
-): Promise<void> {
-  // Also check legacy header name for backward compatibility
-  const apiKey = (req.headers["x-spectyra-api-key"] || req.headers["x-spectyra-key"]) as string | undefined;
-  
-  if (apiKey && !req.headers["x-spectyra-api-key"]) {
-    req.headers["x-spectyra-api-key"] = apiKey;
-  }
-  
-  return requireSpectyraApiKey(req, res, next);
 }

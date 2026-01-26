@@ -1,4 +1,10 @@
-import { getDb } from "./db.js";
+/**
+ * Savings Repository (Postgres)
+ * 
+ * Manages savings ledger and analytics queries
+ */
+
+import { query, queryOne } from "./db.js";
 
 export interface SavingsSummary {
   range: { from: string; to: string };
@@ -84,43 +90,43 @@ export interface SavingsFilters {
 function buildWhereClause(filters: SavingsFilters, tablePrefix: string = "l"): { sql: string; params: any[] } {
   const conditions: string[] = [];
   const params: any[] = [];
+  let paramIndex = 1;
   const prefix = tablePrefix;
   
   if (filters.from) {
-    conditions.push(`${prefix}.created_at >= ?`);
+    conditions.push(`${prefix}.created_at >= $${paramIndex++}`);
     params.push(filters.from);
   }
   
   if (filters.to) {
-    conditions.push(`${prefix}.created_at <= ?`);
+    conditions.push(`${prefix}.created_at <= $${paramIndex++}`);
     params.push(filters.to + " 23:59:59");
   }
   
   if (filters.path && filters.path !== "both") {
-    conditions.push(`${prefix}.path = ?`);
+    conditions.push(`${prefix}.path = $${paramIndex++}`);
     params.push(filters.path);
   }
   
   if (filters.provider) {
-    conditions.push(`${prefix}.provider = ?`);
+    conditions.push(`${prefix}.provider = $${paramIndex++}`);
     params.push(filters.provider);
   }
   
   if (filters.model) {
-    conditions.push(`${prefix}.model = ?`);
+    conditions.push(`${prefix}.model = $${paramIndex++}`);
     params.push(filters.model);
   }
   
   if (filters.orgId) {
-    conditions.push(`${prefix}.org_id = ?`);
+    conditions.push(`${prefix}.org_id = $${paramIndex++}`);
     params.push(filters.orgId);
   }
   
   if (filters.projectId !== undefined && filters.projectId !== null) {
-    conditions.push(`${prefix}.project_id = ?`);
+    conditions.push(`${prefix}.project_id = $${paramIndex++}`);
     params.push(filters.projectId);
   } else if (filters.projectId === null && filters.orgId) {
-    // If orgId is set and projectId is explicitly null, filter for org-level only
     conditions.push(`${prefix}.project_id IS NULL`);
   }
   
@@ -128,38 +134,37 @@ function buildWhereClause(filters: SavingsFilters, tablePrefix: string = "l"): {
   return { sql: where, params };
 }
 
-export function getSavingsSummary(filters: SavingsFilters): SavingsSummary {
-  const db = getDb();
+export async function getSavingsSummary(filters: SavingsFilters): Promise<SavingsSummary> {
   const { sql: ledgerWhere, params } = buildWhereClause(filters, "l");
   
   // Get date range from ledger
-  const dateRange = db.prepare(`
+  const dateRange = await queryOne<{ from_date: string | null; to_date: string | null }>(`
     SELECT 
       MIN(created_at) as from_date,
       MAX(created_at) as to_date
     FROM savings_ledger l
     ${ledgerWhere}
-  `).get(...params) as { from_date: string | null; to_date: string | null };
+  `, params);
   
   // Count replays (verified only)
-  const replayCount = db.prepare(`
+  const replayCount = await queryOne<{ count: number }>(`
     SELECT COUNT(DISTINCT replay_id) as count
     FROM savings_ledger l
     ${ledgerWhere ? ledgerWhere + " AND" : "WHERE"} l.savings_type IN ('verified', 'shadow_verified')
-  `).get(...params) as { count: number };
+  `, params);
   
   // Aggregate verified savings
-  const verified = db.prepare(`
+  const verified = await queryOne<any>(`
     SELECT 
       SUM(baseline_tokens) as baseline_tokens,
       SUM(tokens_saved) as tokens_saved,
       SUM(cost_saved_usd) as cost_saved
     FROM savings_ledger l
     ${ledgerWhere ? ledgerWhere + " AND" : "WHERE"} l.savings_type IN ('verified', 'shadow_verified')
-  `).get(...params) as any;
+  `, params);
   
   // Aggregate estimated savings
-  const estimated = db.prepare(`
+  const estimated = await queryOne<any>(`
     SELECT 
       COUNT(*) as rows,
       SUM(baseline_tokens) as baseline_tokens,
@@ -168,18 +173,18 @@ export function getSavingsSummary(filters: SavingsFilters): SavingsSummary {
       AVG(confidence) as avg_confidence
     FROM savings_ledger l
     ${ledgerWhere ? ledgerWhere + " AND" : "WHERE"} l.savings_type = 'estimated'
-  `).get(...params) as any;
+  `, params);
   
-  const vSaved = verified.tokens_saved || 0;
-  const vBaseTokens = verified.baseline_tokens || 0;
+  const vSaved = verified?.tokens_saved || 0;
+  const vBaseTokens = verified?.baseline_tokens || 0;
   const vPctSaved = vBaseTokens > 0 ? (vSaved / vBaseTokens) * 100 : 0;
-  const vCostSaved = verified.cost_saved || 0;
+  const vCostSaved = verified?.cost_saved || 0;
   
-  const eSaved = estimated.tokens_saved || 0;
-  const eBaseTokens = estimated.baseline_tokens || 0;
+  const eSaved = estimated?.tokens_saved || 0;
+  const eBaseTokens = estimated?.baseline_tokens || 0;
   const ePctSaved = eBaseTokens > 0 ? (eSaved / eBaseTokens) * 100 : 0;
-  const eCostSaved = estimated.cost_saved || 0;
-  const eAvgConf = estimated.avg_confidence || 0;
+  const eCostSaved = estimated?.cost_saved || 0;
+  const eAvgConf = estimated?.avg_confidence || 0;
   const eConfBand = eAvgConf >= 0.85 ? "high" : eAvgConf >= 0.70 ? "medium" : "low";
   
   const combinedSaved = vSaved + eSaved;
@@ -191,17 +196,17 @@ export function getSavingsSummary(filters: SavingsFilters): SavingsSummary {
   
   return {
     range: {
-      from: dateRange.from_date || today,
-      to: dateRange.to_date || today,
+      from: dateRange?.from_date || today,
+      to: dateRange?.to_date || today,
     },
     verified: {
-      replays: replayCount.count || 0,
+      replays: replayCount?.count || 0,
       tokens_saved: vSaved,
       cost_saved_usd: vCostSaved,
       pct_saved: vPctSaved,
     },
     estimated: {
-      rows: estimated.rows || 0,
+      rows: estimated?.rows || 0,
       tokens_saved: eSaved,
       cost_saved_usd: eCostSaved,
       pct_saved: ePctSaved,
@@ -215,21 +220,20 @@ export function getSavingsSummary(filters: SavingsFilters): SavingsSummary {
   };
 }
 
-export function getSavingsTimeseries(filters: SavingsFilters, bucket: "day" | "week" = "day"): TimeseriesPoint[] {
-  const db = getDb();
-  
+export async function getSavingsTimeseries(filters: SavingsFilters, bucket: "day" | "week" = "day"): Promise<TimeseriesPoint[]> {
   // Build parameters
   const params: any[] = [];
   const conditions: string[] = [];
+  let paramIndex = 1;
   
   if (filters.from) {
-    conditions.push("created_at >= ?");
+    conditions.push(`created_at >= $${paramIndex++}`);
     params.push(filters.from);
   } else {
     // Default to 30 days ago if not specified
     const defaultFrom = new Date();
     defaultFrom.setDate(defaultFrom.getDate() - 30);
-    conditions.push("created_at >= ?");
+    conditions.push(`created_at >= $${paramIndex++}`);
     params.push(defaultFrom.toISOString());
   }
   
@@ -237,30 +241,45 @@ export function getSavingsTimeseries(filters: SavingsFilters, bucket: "day" | "w
     // Use exclusive end for cleaner date boundaries
     const toDate = new Date(filters.to);
     toDate.setHours(23, 59, 59, 999);
-    conditions.push("created_at < ?");
+    conditions.push(`created_at < $${paramIndex++}`);
     params.push(toDate.toISOString());
   }
   
   if (filters.path && filters.path !== "both") {
-    conditions.push("path = ?");
+    conditions.push(`path = $${paramIndex++}`);
     params.push(filters.path);
   }
   
   if (filters.provider) {
-    conditions.push("provider = ?");
+    conditions.push(`provider = $${paramIndex++}`);
     params.push(filters.provider);
   }
   
   if (filters.model) {
-    conditions.push("model = ?");
+    conditions.push(`model = $${paramIndex++}`);
     params.push(filters.model);
   }
   
+  if (filters.orgId) {
+    conditions.push(`org_id = $${paramIndex++}`);
+    params.push(filters.orgId);
+  }
+  
+  if (filters.projectId !== undefined && filters.projectId !== null) {
+    conditions.push(`project_id = $${paramIndex++}`);
+    params.push(filters.projectId);
+  } else if (filters.projectId === null && filters.orgId) {
+    conditions.push(`project_id IS NULL`);
+  }
+  
   const whereClause = conditions.length > 0 ? `WHERE ${conditions.join(" AND ")}` : "";
-  const dateFormat = bucket === "week" ? "strftime('%Y-W%W', created_at)" : "date(created_at)";
+  // Postgres date formatting
+  const dateFormat = bucket === "week" 
+    ? "to_char(created_at, 'IYYY-IW')" 
+    : "date(created_at)";
   
   // Single optimized SQL query with CTEs
-  const rows = db.prepare(`
+  const result = await query<any>(`
     WITH daily AS (
       SELECT
         ${dateFormat} AS day,
@@ -305,9 +324,9 @@ export function getSavingsTimeseries(filters: SavingsFilters, bucket: "day" | "w
       combined_cost_saved_usd
     FROM pivot
     ORDER BY day ASC
-  `).all(...params) as any[];
+  `, params);
   
-  return rows.map(row => {
+  return result.rows.map(row => {
     const conf = row.estimated_avg_confidence || 0;
     const confBand = conf >= 0.85 ? "high" : conf >= 0.70 ? "medium" : "low";
     
@@ -332,11 +351,10 @@ export function getSavingsTimeseries(filters: SavingsFilters, bucket: "day" | "w
   });
 }
 
-export function getSavingsByLevel(filters: SavingsFilters): LevelBreakdown[] {
-  const db = getDb();
+export async function getSavingsByLevel(filters: SavingsFilters): Promise<LevelBreakdown[]> {
   const { sql: ledgerWhere, params } = buildWhereClause(filters, "l");
   
-  const rows = db.prepare(`
+  const result = await query<any>(`
     SELECT 
       l.optimization_level as level,
       l.savings_type,
@@ -349,7 +367,9 @@ export function getSavingsByLevel(filters: SavingsFilters): LevelBreakdown[] {
     ${ledgerWhere}
     GROUP BY l.optimization_level, l.savings_type
     ORDER BY l.optimization_level ASC
-  `).all(...params) as any[];
+  `, params);
+  
+  const rows = result.rows;
   
   // Group by level
   const byLevel = new Map<number, {
@@ -401,18 +421,18 @@ export function getSavingsByLevel(filters: SavingsFilters): LevelBreakdown[] {
   }
   
   // Get replay counts and confidence for each level
-  const replayCounts = db.prepare(`
+  const replayCountsResult = await query<any>(`
     SELECT 
       l.optimization_level as level,
       COUNT(DISTINCT l.replay_id) as replays
     FROM savings_ledger l
     ${ledgerWhere ? ledgerWhere + " AND" : "WHERE"} l.savings_type IN ('verified', 'shadow_verified')
     GROUP BY l.optimization_level
-  `).all(...params) as any[];
+  `, params);
   
-  const replayMap = new Map(replayCounts.map(r => [r.level, r.replays || 0]));
+  const replayMap = new Map(replayCountsResult.rows.map(r => [r.level, r.replays || 0]));
   
-  const estimatedStats = db.prepare(`
+  const estimatedStatsResult = await query<any>(`
     SELECT 
       l.optimization_level as level,
       COUNT(*) as rows,
@@ -420,9 +440,9 @@ export function getSavingsByLevel(filters: SavingsFilters): LevelBreakdown[] {
     FROM savings_ledger l
     ${ledgerWhere ? ledgerWhere + " AND" : "WHERE"} l.savings_type = 'estimated'
     GROUP BY l.optimization_level
-  `).all(...params) as any[];
+  `, params);
   
-  const estimatedMap = new Map(estimatedStats.map(r => [
+  const estimatedMap = new Map(estimatedStatsResult.rows.map(r => [
     r.level,
     {
       rows: r.rows || 0,
@@ -470,57 +490,56 @@ export function getSavingsByLevel(filters: SavingsFilters): LevelBreakdown[] {
   });
 }
 
-export function getSavingsByPath(filters: SavingsFilters): PathBreakdown[] {
-  const db = getDb();
-  
+export async function getSavingsByPath(filters: SavingsFilters): Promise<PathBreakdown[]> {
   // Build where clause for runs table (which has org_id)
   const conditions: string[] = [];
   const params: any[] = [];
+  let paramIndex = 1;
   
   // Filter by org_id from runs table
   if (filters.orgId) {
-    conditions.push("r.org_id = ?");
+    conditions.push(`r.org_id = $${paramIndex++}`);
     params.push(filters.orgId);
   }
   
   if (filters.projectId !== undefined && filters.projectId !== null) {
-    conditions.push("r.project_id = ?");
+    conditions.push(`r.project_id = $${paramIndex++}`);
     params.push(filters.projectId);
   } else if (filters.projectId === null && filters.orgId) {
-    conditions.push("r.project_id IS NULL");
+    conditions.push(`r.project_id IS NULL`);
   }
   
   // Filter by path from replays table
   if (filters.path && filters.path !== "both") {
-    conditions.push("p.path = ?");
+    conditions.push(`p.path = $${paramIndex++}`);
     params.push(filters.path);
   }
   
   // Filter by provider/model from runs table
   if (filters.provider) {
-    conditions.push("r.provider = ?");
+    conditions.push(`r.provider = $${paramIndex++}`);
     params.push(filters.provider);
   }
   
   if (filters.model) {
-    conditions.push("r.model = ?");
+    conditions.push(`r.model = $${paramIndex++}`);
     params.push(filters.model);
   }
   
   // Date filters from runs table
   if (filters.from) {
-    conditions.push("r.created_at >= ?");
+    conditions.push(`r.created_at >= $${paramIndex++}`);
     params.push(filters.from);
   }
   
   if (filters.to) {
-    conditions.push("r.created_at <= ?");
+    conditions.push(`r.created_at <= $${paramIndex++}`);
     params.push(filters.to + " 23:59:59");
   }
   
   const whereClause = conditions.length > 0 ? `WHERE ${conditions.join(" AND ")}` : "";
   
-  const rows = db.prepare(`
+  const result = await query<any>(`
     SELECT 
       p.path,
       COUNT(DISTINCT p.replay_id) as replays,
@@ -533,9 +552,9 @@ export function getSavingsByPath(filters: SavingsFilters): PathBreakdown[] {
     ${whereClause}
     GROUP BY p.path
     ORDER BY p.path ASC
-  `).all(...params) as any[];
+  `, params);
   
-  return rows.map(row => {
+  return result.rows.map(row => {
     const baselineTokens = row.baseline_tokens || 0;
     const optimizedTokens = row.optimized_tokens || 0;
     const tokensSaved = baselineTokens - optimizedTokens;
@@ -555,58 +574,60 @@ export function getSavingsByPath(filters: SavingsFilters): PathBreakdown[] {
   });
 }
 
-export function getLevelUsageTimeseries(filters: SavingsFilters, bucket: "day" | "week" = "day"): Array<{ date: string; levels: Record<number, number> }> {
-  const db = getDb();
-  
+export async function getLevelUsageTimeseries(filters: SavingsFilters, bucket: "day" | "week" = "day"): Promise<Array<{ date: string; levels: Record<number, number> }>> {
   // Build where clause for runs table (which has org_id)
   const conditions: string[] = [];
   const params: any[] = [];
+  let paramIndex = 1;
   
   // Filter by org_id from runs table
   if (filters.orgId) {
-    conditions.push("r.org_id = ?");
+    conditions.push(`r.org_id = $${paramIndex++}`);
     params.push(filters.orgId);
   }
   
   if (filters.projectId !== undefined && filters.projectId !== null) {
-    conditions.push("r.project_id = ?");
+    conditions.push(`r.project_id = $${paramIndex++}`);
     params.push(filters.projectId);
   } else if (filters.projectId === null && filters.orgId) {
-    conditions.push("r.project_id IS NULL");
+    conditions.push(`r.project_id IS NULL`);
   }
   
   // Filter by path from replays table
   if (filters.path && filters.path !== "both") {
-    conditions.push("p.path = ?");
+    conditions.push(`p.path = $${paramIndex++}`);
     params.push(filters.path);
   }
   
   // Filter by provider/model from runs table
   if (filters.provider) {
-    conditions.push("r.provider = ?");
+    conditions.push(`r.provider = $${paramIndex++}`);
     params.push(filters.provider);
   }
   
   if (filters.model) {
-    conditions.push("r.model = ?");
+    conditions.push(`r.model = $${paramIndex++}`);
     params.push(filters.model);
   }
   
   // Date filters from runs table
   if (filters.from) {
-    conditions.push("r.created_at >= ?");
+    conditions.push(`r.created_at >= $${paramIndex++}`);
     params.push(filters.from);
   }
   
   if (filters.to) {
-    conditions.push("r.created_at <= ?");
+    conditions.push(`r.created_at <= $${paramIndex++}`);
     params.push(filters.to + " 23:59:59");
   }
   
   const whereClause = conditions.length > 0 ? `WHERE ${conditions.join(" AND ")}` : "";
-  const dateFormat = bucket === "week" ? "strftime('%Y-W%W', r.created_at)" : "date(r.created_at)";
+  // Postgres date formatting
+  const dateFormat = bucket === "week" 
+    ? "to_char(r.created_at, 'IYYY-IW')" 
+    : "date(r.created_at)";
   
-  const rows = db.prepare(`
+  const result = await query<any>(`
     SELECT 
       ${dateFormat} as date,
       p.optimization_level as level,
@@ -616,12 +637,12 @@ export function getLevelUsageTimeseries(filters: SavingsFilters, bucket: "day" |
     ${whereClause}
     GROUP BY ${dateFormat}, p.optimization_level
     ORDER BY date ASC, level ASC
-  `).all(...params) as any[];
+  `, params);
   
   // Group by date
   const byDate = new Map<string, Record<number, number>>();
   
-  for (const row of rows) {
+  for (const row of result.rows) {
     if (!byDate.has(row.date)) {
       byDate.set(row.date, { 0: 0, 1: 0, 2: 0, 3: 0, 4: 0 });
     }

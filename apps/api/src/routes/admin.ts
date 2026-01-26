@@ -1,5 +1,5 @@
 import { Router } from "express";
-import { getDb } from "../services/storage/db.js";
+import { query, queryOne } from "../services/storage/db.js";
 import { requireAdminToken } from "../middleware/auth.js";
 import { safeLog, redactSecrets } from "../utils/redaction.js";
 import {
@@ -21,17 +21,15 @@ export const adminRouter = Router();
  * NEVER used by public UI.
  * NEVER leaks provider keys.
  */
-adminRouter.get("/runs/:id/debug", requireAdminToken, (req, res) => {
+adminRouter.get("/runs/:id/debug", requireAdminToken, async (req, res) => {
   try {
-    
     const runId = req.params.id;
-    const db = getDb();
     
-    const row = db.prepare(`
+    const row = await queryOne<any>(`
       SELECT id, debug_internal_json
       FROM runs
-      WHERE id = ?
-    `).get(runId) as any;
+      WHERE id = $1
+    `, [runId]);
     
     if (!row) {
       return res.status(404).json({ error: "Run not found" });
@@ -59,34 +57,33 @@ adminRouter.get("/runs/:id/debug", requireAdminToken, (req, res) => {
  * 
  * List all organizations (admin only)
  */
-adminRouter.get("/orgs", requireAdminToken, (req, res) => {
+adminRouter.get("/orgs", requireAdminToken, async (req, res) => {
   try {
-    const orgs = getAllOrgs();
+    const orgs = await getAllOrgs();
     
     // Get stats for each org
-    const db = getDb();
-    const orgsWithStats = orgs.map(org => {
-      const projectCount = db.prepare(`
-        SELECT COUNT(*) as count FROM projects WHERE org_id = ?
-      `).get(org.id) as { count: number };
+    const orgsWithStats = await Promise.all(orgs.map(async (org) => {
+      const projectCount = await queryOne<{ count: number }>(`
+        SELECT COUNT(*) as count FROM projects WHERE org_id = $1
+      `, [org.id]);
       
-      const apiKeyCount = db.prepare(`
-        SELECT COUNT(*) as count FROM api_keys WHERE org_id = ? AND revoked_at IS NULL
-      `).get(org.id) as { count: number };
+      const apiKeyCount = await queryOne<{ count: number }>(`
+        SELECT COUNT(*) as count FROM api_keys WHERE org_id = $1 AND revoked_at IS NULL
+      `, [org.id]);
       
-      const runCount = db.prepare(`
-        SELECT COUNT(*) as count FROM runs WHERE org_id = ?
-      `).get(org.id) as { count: number };
+      const runCount = await queryOne<{ count: number }>(`
+        SELECT COUNT(*) as count FROM runs WHERE org_id = $1
+      `, [org.id]);
       
       return {
         ...org,
         stats: {
-          projects: projectCount.count || 0,
-          api_keys: apiKeyCount.count || 0,
-          runs: runCount.count || 0,
+          projects: projectCount?.count || 0,
+          api_keys: apiKeyCount?.count || 0,
+          runs: runCount?.count || 0,
         },
       };
-    });
+    }));
     
     res.json({ orgs: orgsWithStats });
   } catch (error: any) {
@@ -100,22 +97,21 @@ adminRouter.get("/orgs", requireAdminToken, (req, res) => {
  * 
  * Get organization details (admin only)
  */
-adminRouter.get("/orgs/:id", requireAdminToken, (req, res) => {
+adminRouter.get("/orgs/:id", requireAdminToken, async (req, res) => {
   try {
     const orgId = req.params.id;
-    const org = getOrgById(orgId);
+    const org = await getOrgById(orgId);
     
     if (!org) {
       return res.status(404).json({ error: "Organization not found" });
     }
     
-    const projects = getOrgProjects(orgId);
-    const apiKeys = getOrgApiKeys(orgId, false);
+    const projects = await getOrgProjects(orgId);
+    const apiKeys = await getOrgApiKeys(orgId, false);
     
-    const db = getDb();
-    const runCount = db.prepare(`
-      SELECT COUNT(*) as count FROM runs WHERE org_id = ?
-    `).get(orgId) as { count: number };
+    const runCount = await queryOne<{ count: number }>(`
+      SELECT COUNT(*) as count FROM runs WHERE org_id = $1
+    `, [orgId]);
     
     res.json({
       org,
@@ -131,7 +127,7 @@ adminRouter.get("/orgs/:id", requireAdminToken, (req, res) => {
       stats: {
         projects: projects.length,
         api_keys: apiKeys.length,
-        runs: runCount.count || 0,
+        runs: runCount?.count || 0,
       },
     });
   } catch (error: any) {
@@ -145,7 +141,7 @@ adminRouter.get("/orgs/:id", requireAdminToken, (req, res) => {
  * 
  * Update organization (admin only)
  */
-adminRouter.patch("/orgs/:id", requireAdminToken, (req, res) => {
+adminRouter.patch("/orgs/:id", requireAdminToken, async (req, res) => {
   try {
     const orgId = req.params.id;
     const { name } = req.body as { name?: string };
@@ -155,7 +151,7 @@ adminRouter.patch("/orgs/:id", requireAdminToken, (req, res) => {
         return res.status(400).json({ error: "Organization name cannot be empty" });
       }
       
-      const updatedOrg = updateOrgName(orgId, name);
+      const updatedOrg = await updateOrgName(orgId, name);
       res.json({ org: updatedOrg });
     } else {
       return res.status(400).json({ error: "No fields to update" });
@@ -174,17 +170,17 @@ adminRouter.patch("/orgs/:id", requireAdminToken, (req, res) => {
  * 
  * Delete organization (admin only)
  */
-adminRouter.delete("/orgs/:id", requireAdminToken, (req, res) => {
+adminRouter.delete("/orgs/:id", requireAdminToken, async (req, res) => {
   try {
     const orgId = req.params.id;
-    const org = getOrgById(orgId);
+    const org = await getOrgById(orgId);
     
     if (!org) {
       return res.status(404).json({ error: "Organization not found" });
     }
     
     try {
-      deleteOrg(orgId);
+      await deleteOrg(orgId);
       safeLog("info", "Admin deleted organization", { orgId, orgName: org.name });
       res.json({
         success: true,
@@ -209,7 +205,7 @@ adminRouter.delete("/orgs/:id", requireAdminToken, (req, res) => {
  * Diagnose an API key (admin only)
  * Helps debug why a key might not be working
  */
-adminRouter.post("/diagnose-key", requireAdminToken, (req, res) => {
+adminRouter.post("/diagnose-key", requireAdminToken, async (req, res) => {
   try {
     const { api_key } = req.body as { api_key?: string };
     
@@ -217,20 +213,21 @@ adminRouter.post("/diagnose-key", requireAdminToken, (req, res) => {
       return res.status(400).json({ error: "api_key is required" });
     }
     
-    const db = getDb();
-    const keyHash = hashApiKey(api_key);
+    const keyPrefix = api_key.substring(0, 12);
+    const keyHash = await hashApiKey(api_key);
     
-    // Check if key exists
-    const keyRow = db.prepare(`
-      SELECT id, org_id, project_id, user_id, name, created_at, last_used_at, revoked_at
+    // Check if key exists by prefix
+    const keyRow = await queryOne<any>(`
+      SELECT id, org_id, project_id, user_id, name, key_prefix, created_at, last_used_at, revoked_at
       FROM api_keys
-      WHERE key_hash = ?
-    `).get(keyHash) as any;
+      WHERE key_prefix = $1
+    `, [keyPrefix]);
     
     if (!keyRow) {
       return res.json({
         found: false,
-        message: "API key not found in database",
+        message: "API key not found in database (prefix lookup failed)",
+        key_prefix: keyPrefix,
         key_hash_prefix: keyHash.substring(0, 16) + "...",
       });
     }
@@ -238,7 +235,7 @@ adminRouter.post("/diagnose-key", requireAdminToken, (req, res) => {
     // Check org
     let org = null;
     if (keyRow.org_id) {
-      org = getOrgById(keyRow.org_id);
+      org = await getOrgById(keyRow.org_id);
     }
     
     // Check if revoked
@@ -254,6 +251,7 @@ adminRouter.post("/diagnose-key", requireAdminToken, (req, res) => {
       has_user_id: !!keyRow.user_id,
       user_id: keyRow.user_id,
       name: keyRow.name,
+      key_prefix: keyRow.key_prefix,
       created_at: keyRow.created_at,
       last_used_at: keyRow.last_used_at,
       revoked_at: keyRow.revoked_at,

@@ -1,9 +1,11 @@
 import { Injectable } from '@angular/core';
 import { HttpClient, HttpHeaders } from '@angular/common/http';
-import { Observable } from 'rxjs';
+import { Observable, from } from 'rxjs';
+import { switchMap } from 'rxjs/operators';
 import { environment } from '../../../environments/environment';
 import type { Scenario, RunRecord, ReplayResult, Provider } from './models';
 import { AuthService } from '../auth/auth.service';
+import { SupabaseService } from '../../services/supabase.service';
 
 @Injectable({
   providedIn: 'root',
@@ -13,19 +15,52 @@ export class ApiClientService {
 
   constructor(
     private http: HttpClient,
-    private authService: AuthService
+    private authService: AuthService,
+    private supabase: SupabaseService
   ) {}
 
   /**
-   * Get headers with API key if available
+   * Get headers for dashboard calls (uses Supabase JWT)
    */
-  private getHeaders(): HttpHeaders {
+  private async getDashboardHeaders(): Promise<HttpHeaders> {
+    const token = await this.supabase.getAccessToken();
+    const headers: { [key: string]: string } = {
+      'Content-Type': 'application/json',
+    };
+    if (token) {
+      headers['Authorization'] = `Bearer ${token}`;
+    }
+    return new HttpHeaders(headers);
+  }
+
+  /**
+   * Get headers for gateway calls (uses API key)
+   */
+  private getGatewayHeaders(): HttpHeaders {
     const apiKey = this.authService.currentApiKey;
-    const headers: { [key: string]: string } = {};
+    const headers: { [key: string]: string } = {
+      'Content-Type': 'application/json',
+    };
     if (apiKey) {
       headers['X-SPECTYRA-API-KEY'] = apiKey;
     }
     return new HttpHeaders(headers);
+  }
+
+  /**
+   * Helper to make dashboard API calls (with JWT)
+   */
+  private dashboardCall<T>(method: 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE', url: string, body?: any): Observable<T> {
+    return from(this.getDashboardHeaders()).pipe(
+      switchMap(headers => {
+        const options = { headers };
+        if (method === 'GET' || method === 'DELETE') {
+          return this.http.request<T>(method, url, options);
+        } else {
+          return this.http.request<T>(method, url, { ...options, body });
+        }
+      })
+    );
   }
 
   getProviders(): Observable<Provider[]> {
@@ -54,16 +89,13 @@ export class ApiClientService {
     );
   }
 
+  // Dashboard calls (use Supabase JWT)
   getRuns(limit: number = 50): Observable<RunRecord[]> {
-    return this.http.get<RunRecord[]>(`${this.baseUrl}/runs?limit=${limit}`, {
-      headers: this.getHeaders(),
-    });
+    return this.dashboardCall<RunRecord[]>('GET', `${this.baseUrl}/runs?limit=${limit}`);
   }
 
   getRun(id: string): Observable<RunRecord> {
-    return this.http.get<RunRecord>(`${this.baseUrl}/runs/${id}`, {
-      headers: this.getHeaders(),
-    });
+    return this.dashboardCall<RunRecord>('GET', `${this.baseUrl}/runs/${id}`);
   }
 
   getSavingsSummary(params: {
@@ -79,9 +111,7 @@ export class ApiClientService {
     if (params.path) queryParams.set('path', params.path);
     if (params.provider) queryParams.set('provider', params.provider);
     if (params.model) queryParams.set('model', params.model);
-    return this.http.get<any>(`${this.baseUrl}/savings/summary?${queryParams}`, {
-      headers: this.getHeaders(),
-    });
+    return this.dashboardCall<any>('GET', `${this.baseUrl}/savings/summary?${queryParams}`);
   }
 
   getSavingsTimeseries(params: {
@@ -99,9 +129,7 @@ export class ApiClientService {
     if (params.provider) queryParams.set('provider', params.provider);
     if (params.model) queryParams.set('model', params.model);
     if (params.bucket) queryParams.set('bucket', params.bucket);
-    return this.http.get<any[]>(`${this.baseUrl}/savings/timeseries?${queryParams}`, {
-      headers: this.getHeaders(),
-    });
+    return this.dashboardCall<any[]>('GET', `${this.baseUrl}/savings/timeseries?${queryParams}`);
   }
 
   getSavingsByLevel(params: {
@@ -117,9 +145,7 @@ export class ApiClientService {
     if (params.path) queryParams.set('path', params.path);
     if (params.provider) queryParams.set('provider', params.provider);
     if (params.model) queryParams.set('model', params.model);
-    return this.http.get<any[]>(`${this.baseUrl}/savings/by-level?${queryParams}`, {
-      headers: this.getHeaders(),
-    });
+    return this.dashboardCall<any[]>('GET', `${this.baseUrl}/savings/by-level?${queryParams}`);
   }
 
   getSavingsByPath(params: {
@@ -135,9 +161,7 @@ export class ApiClientService {
     if (params.path) queryParams.set('path', params.path);
     if (params.provider) queryParams.set('provider', params.provider);
     if (params.model) queryParams.set('model', params.model);
-    return this.http.get<any[]>(`${this.baseUrl}/savings/by-path?${queryParams}`, {
-      headers: this.getHeaders(),
-    });
+    return this.dashboardCall<any[]>('GET', `${this.baseUrl}/savings/by-path?${queryParams}`);
   }
 
   getLevelUsageTimeseries(params: {
@@ -155,9 +179,7 @@ export class ApiClientService {
     if (params.provider) queryParams.set('provider', params.provider);
     if (params.model) queryParams.set('model', params.model);
     if (params.bucket) queryParams.set('bucket', params.bucket);
-    return this.http.get<any[]>(`${this.baseUrl}/savings/level-usage-timeseries?${queryParams}`, {
-      headers: this.getHeaders(),
-    });
+    return this.dashboardCall<any[]>('GET', `${this.baseUrl}/savings/level-usage-timeseries?${queryParams}`);
   }
 
   proofEstimate(params: {
@@ -190,22 +212,19 @@ export class ApiClientService {
   }
 
   /**
-   * Get billing status
+   * Get billing status (dashboard call - uses JWT)
    */
   getBillingStatus(): Observable<any> {
-    return this.http.get<any>(`${this.baseUrl}/billing/status`, {
-      headers: this.getHeaders(),
-    });
+    return this.dashboardCall<any>('GET', `${this.baseUrl}/billing/status`);
   }
 
   /**
-   * Create Stripe checkout session
+   * Create Stripe checkout session (dashboard call - uses JWT)
    */
   createCheckout(successUrl?: string, cancelUrl?: string): Observable<any> {
-    return this.http.post<any>(
-      `${this.baseUrl}/billing/checkout`,
-      { success_url: successUrl, cancel_url: cancelUrl },
-      { headers: this.getHeaders() }
-    );
+    return this.dashboardCall<any>('POST', `${this.baseUrl}/billing/checkout`, {
+      success_url: successUrl,
+      cancel_url: cancelUrl,
+    });
   }
 }

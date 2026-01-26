@@ -19,15 +19,87 @@ import {
   deleteOrg,
   updateOrgName,
 } from "../services/storage/orgsRepo.js";
-import { requireSpectyraApiKey, optionalProviderKey, type AuthenticatedRequest } from "../middleware/auth.js";
+import { requireSpectyraApiKey, optionalProviderKey, requireUserSession, requireOrgMembership, type AuthenticatedRequest } from "../middleware/auth.js";
+import { query, queryOne } from "../services/storage/db.js";
 import { safeLog } from "../utils/redaction.js";
 
 export const authRouter = Router();
 
 /**
+ * POST /v1/auth/bootstrap
+ * 
+ * Bootstrap org/project for a Supabase user (called after first Supabase login)
+ * Requires Supabase JWT authentication
+ * Creates org, default project, and first API key
+ */
+authRouter.post("/bootstrap", requireUserSession, async (req: AuthenticatedRequest, res) => {
+  try {
+    if (!req.auth?.userId) {
+      return res.status(401).json({ error: "Not authenticated" });
+    }
+
+    const { org_name, project_name } = req.body as { org_name?: string; project_name?: string };
+    
+    if (!org_name || org_name.trim().length === 0) {
+      return res.status(400).json({ error: "Organization name is required" });
+    }
+
+    const userId = req.auth.userId;
+
+    // Check if user already has an org
+    const { queryOne } = await import("../services/storage/db.js");
+    const existingMembership = await queryOne<{ org_id: string }>(`
+      SELECT org_id FROM org_memberships WHERE user_id = $1 LIMIT 1
+    `, [userId]);
+
+    if (existingMembership) {
+      return res.status(400).json({ 
+        error: "Organization already exists for this user",
+        org_id: existingMembership.org_id
+      });
+    }
+
+    // Create org with 7-day trial
+    const org = await createOrg(org_name.trim(), 7);
+    
+    // Create default project
+    const project = await createProject(org.id, project_name || "Default Project");
+    
+    // Add user as OWNER of the org
+    await query(`
+      INSERT INTO org_memberships (org_id, user_id, role)
+      VALUES ($1, $2, 'OWNER')
+    `, [org.id, userId]);
+    
+    // Create first API key (org-level, not project-scoped)
+    const { key, apiKey } = await createApiKey(org.id, null, "Default Key");
+    
+    res.status(201).json({
+      org: {
+        id: org.id,
+        name: org.name,
+        trial_ends_at: org.trial_ends_at,
+        subscription_status: org.subscription_status,
+      },
+      project: {
+        id: project.id,
+        name: project.name,
+      },
+      api_key: key, // Only returned once
+      api_key_id: apiKey.id,
+      message: "Organization created successfully. Save your API key - it won't be shown again!",
+    });
+  } catch (error: any) {
+    safeLog("error", "Bootstrap error", { error: error.message });
+    res.status(500).json({ error: error.message || "Internal server error" });
+  }
+});
+
+/**
  * POST /v1/auth/register
  * 
  * Register a new organization and create default project + API key
+ * (Legacy endpoint - for API key-based registration)
  */
 authRouter.post("/register", async (req, res) => {
   try {
@@ -38,13 +110,13 @@ authRouter.post("/register", async (req, res) => {
     }
     
     // Create org with 7-day trial
-    const org = createOrg(org_name.trim(), 7);
+    const org = await createOrg(org_name.trim(), 7);
     
     // Create default project
-    const project = createProject(org.id, project_name || "Default Project");
+    const project = await createProject(org.id, project_name || "Default Project");
     
     // Create first API key (org-level, not project-scoped)
-    const { key, apiKey } = createApiKey(org.id, null, "Default Key");
+    const { key, apiKey } = await createApiKey(org.id, null, "Default Key");
     
     res.status(201).json({
       org: {
@@ -79,7 +151,7 @@ authRouter.post("/login", requireSpectyraApiKey, optionalProviderKey, async (req
       return res.status(401).json({ error: "Not authenticated" });
     }
     
-    const org = getOrgById(req.context.org.id);
+    const org = await getOrgById(req.context.org.id);
     if (!org) {
       return res.status(404).json({ error: "Organization not found" });
     }
@@ -105,33 +177,92 @@ authRouter.post("/login", requireSpectyraApiKey, optionalProviderKey, async (req
 /**
  * GET /v1/auth/me
  * 
- * Get current org/project info (requires auth)
+ * Get current org/project info
+ * Supports both Supabase JWT and API key auth
  */
-authRouter.get("/me", requireSpectyraApiKey, optionalProviderKey, async (req: AuthenticatedRequest, res) => {
+authRouter.get("/me", async (req: AuthenticatedRequest, res) => {
   try {
-    if (!req.context) {
-      return res.status(401).json({ error: "Not authenticated" });
+    // Try Supabase JWT first
+    const authHeader = req.headers.authorization;
+    if (authHeader && authHeader.startsWith("Bearer ")) {
+      try {
+        await requireUserSession(req, res, async () => {
+          if (!req.auth?.userId) {
+            return res.status(401).json({ error: "Not authenticated" });
+          }
+
+          // Get user's org membership
+          const { queryOne } = await import("../services/storage/db.js");
+          const membership = await queryOne<{ org_id: string; role: string }>(`
+            SELECT org_id, role 
+            FROM org_memberships 
+            WHERE user_id = $1
+            LIMIT 1
+          `, [req.auth.userId]);
+
+          if (!membership) {
+            return res.status(404).json({ 
+              error: "Organization not found",
+              needs_bootstrap: true 
+            });
+          }
+
+          const org = await getOrgById(membership.org_id);
+          if (!org) {
+            return res.status(404).json({ error: "Organization not found" });
+          }
+
+          // Get projects for this org
+          const projects = await getOrgProjects(org.id);
+
+          const hasAccess = hasActiveAccess(org);
+          const trialEnd = org.trial_ends_at ? new Date(org.trial_ends_at) : null;
+          const isTrialActive = trialEnd ? trialEnd > new Date() : false;
+
+          res.json({
+            org: {
+              id: org.id,
+              name: org.name,
+              trial_ends_at: org.trial_ends_at,
+              subscription_status: org.subscription_status,
+            },
+            projects: projects,
+            has_access: hasAccess,
+            trial_active: isTrialActive,
+          });
+        });
+        return;
+      } catch (jwtError) {
+        // JWT auth failed, fall through to API key
+      }
     }
-    
-    const org = getOrgById(req.context.org.id);
-    if (!org) {
-      return res.status(404).json({ error: "Organization not found" });
-    }
-    
-    const hasAccess = hasActiveAccess(org);
-    const trialEnd = org.trial_ends_at ? new Date(org.trial_ends_at) : null;
-    const isTrialActive = trialEnd ? trialEnd > new Date() : false;
-    
-    res.json({
-      org: {
-        id: org.id,
-        name: org.name,
-        trial_ends_at: org.trial_ends_at,
-        subscription_status: org.subscription_status,
-      },
-      project: req.context.project,
-      has_access: hasAccess,
-      trial_active: isTrialActive,
+
+    // Fall back to API key auth
+    await requireSpectyraApiKey(req, res, async () => {
+      if (!req.context) {
+        return res.status(401).json({ error: "Not authenticated" });
+      }
+      
+      const org = await getOrgById(req.context.org.id);
+      if (!org) {
+        return res.status(404).json({ error: "Organization not found" });
+      }
+      
+      const hasAccess = hasActiveAccess(org);
+      const trialEnd = org.trial_ends_at ? new Date(org.trial_ends_at) : null;
+      const isTrialActive = trialEnd ? trialEnd > new Date() : false;
+      
+      res.json({
+        org: {
+          id: org.id,
+          name: org.name,
+          trial_ends_at: org.trial_ends_at,
+          subscription_status: org.subscription_status,
+        },
+        project: req.context.project,
+        has_access: hasAccess,
+        trial_active: isTrialActive,
+      });
     });
   } catch (error: any) {
     safeLog("error", "Get org error", { error: error.message });
@@ -142,18 +273,57 @@ authRouter.get("/me", requireSpectyraApiKey, optionalProviderKey, async (req: Au
 /**
  * POST /v1/auth/api-keys
  * 
- * Create a new API key (requires auth)
+ * Create a new API key (requires auth - Supabase JWT or API key)
  */
-authRouter.post("/api-keys", requireSpectyraApiKey, optionalProviderKey, async (req: AuthenticatedRequest, res) => {
+authRouter.post("/api-keys", async (req: AuthenticatedRequest, res) => {
   try {
-    if (!req.context) {
+    let orgId: string | null = null;
+
+    // Try Supabase JWT first
+    const authHeader = req.headers.authorization;
+    if (authHeader && authHeader.startsWith("Bearer ")) {
+      try {
+        await requireUserSession(req, res, async () => {
+          if (!req.auth?.userId) {
+            return res.status(401).json({ error: "Not authenticated" });
+          }
+
+          const { queryOne } = await import("../services/storage/db.js");
+          const membership = await queryOne<{ org_id: string }>(`
+            SELECT org_id FROM org_memberships WHERE user_id = $1 LIMIT 1
+          `, [req.auth.userId]);
+
+          if (!membership) {
+            return res.status(404).json({ error: "Organization not found" });
+          }
+
+          orgId = membership.org_id;
+        });
+        if (res.headersSent) return; // Response already sent
+      } catch (jwtError) {
+        // Fall through to API key
+      }
+    }
+
+    // Fall back to API key auth
+    if (!orgId) {
+      await requireSpectyraApiKey(req, res, async () => {
+        if (!req.context) {
+          return res.status(401).json({ error: "Not authenticated" });
+        }
+        orgId = req.context.org.id;
+      });
+      if (res.headersSent) return;
+    }
+
+    if (!orgId) {
       return res.status(401).json({ error: "Not authenticated" });
     }
-    
+
     const { name, project_id } = req.body as { name?: string; project_id?: string };
-    const { key, apiKey } = createApiKey(
-      req.context.org.id,
-      project_id || req.context.project?.id || null,
+    const { key, apiKey } = await createApiKey(
+      orgId,
+      project_id || null,
       name || null
     );
     
@@ -181,7 +351,7 @@ authRouter.get("/api-keys", requireSpectyraApiKey, optionalProviderKey, async (r
       return res.status(401).json({ error: "Not authenticated" });
     }
     
-    const keys = getOrgApiKeys(req.context.org.id, false);
+    const keys = await getOrgApiKeys(req.context.org.id, false);
     
     // Don't return key hashes, just metadata
     res.json(keys.map(k => ({
@@ -201,24 +371,63 @@ authRouter.get("/api-keys", requireSpectyraApiKey, optionalProviderKey, async (r
 /**
  * DELETE /v1/auth/api-keys/:id
  * 
- * Revoke an API key (requires auth)
+ * Revoke an API key (requires auth - Supabase JWT or API key)
  */
-authRouter.delete("/api-keys/:id", requireSpectyraApiKey, optionalProviderKey, async (req: AuthenticatedRequest, res) => {
+authRouter.delete("/api-keys/:id", async (req: AuthenticatedRequest, res) => {
   try {
-    if (!req.context) {
+    let orgId: string | null = null;
+
+    // Try Supabase JWT first
+    const authHeader = req.headers.authorization;
+    if (authHeader && authHeader.startsWith("Bearer ")) {
+      try {
+        await requireUserSession(req, res, async () => {
+          if (!req.auth?.userId) {
+            return res.status(401).json({ error: "Not authenticated" });
+          }
+
+          const { queryOne } = await import("../services/storage/db.js");
+          const membership = await queryOne<{ org_id: string }>(`
+            SELECT org_id FROM org_memberships WHERE user_id = $1 LIMIT 1
+          `, [req.auth.userId]);
+
+          if (!membership) {
+            return res.status(404).json({ error: "Organization not found" });
+          }
+
+          orgId = membership.org_id;
+        });
+        if (res.headersSent) return;
+      } catch (jwtError) {
+        // Fall through to API key
+      }
+    }
+
+    // Fall back to API key auth
+    if (!orgId) {
+      await requireSpectyraApiKey(req, res, async () => {
+        if (!req.context) {
+          return res.status(401).json({ error: "Not authenticated" });
+        }
+        orgId = req.context.org.id;
+      });
+      if (res.headersSent) return;
+    }
+
+    if (!orgId) {
       return res.status(401).json({ error: "Not authenticated" });
     }
     
     // Get the key to verify it belongs to this org
-    const keyHash = req.params.id; // In this case, id is the key hash
-    const apiKey = getApiKeyByHash(keyHash);
+    const keyId = req.params.id;
+    const apiKey = await getApiKeyByHash(keyId);
     
-    if (!apiKey || apiKey.org_id !== req.context.org.id) {
+    if (!apiKey || apiKey.org_id !== orgId) {
       return res.status(404).json({ error: "API key not found" });
     }
     
     // Revoke the key
-    revokeApiKey(keyHash);
+    await revokeApiKey(keyId);
     
     res.json({ success: true });
   } catch (error: any) {
@@ -246,7 +455,7 @@ authRouter.patch("/org", requireSpectyraApiKey, optionalProviderKey, async (req:
     }
     
     try {
-      const updatedOrg = updateOrgName(orgId, name);
+      const updatedOrg = await updateOrgName(orgId, name);
       res.json({
         success: true,
         org: {
@@ -285,7 +494,7 @@ authRouter.delete("/org", requireSpectyraApiKey, optionalProviderKey, async (req
     const orgName = req.context.org.name;
     
     // Verify org exists
-    const org = getOrgById(orgId);
+    const org = await getOrgById(orgId);
     if (!org) {
       return res.status(404).json({ 
         error: "Organization not found",
@@ -295,8 +504,8 @@ authRouter.delete("/org", requireSpectyraApiKey, optionalProviderKey, async (req
     
     // Delete the org and all associated data
     try {
-      safeLog("info", "Deleting organization", { orgId, orgName });
-      deleteOrg(orgId);
+      safeLog("info", "Deleting organization", { orgId, orgName: org.name });
+      await deleteOrg(orgId);
       safeLog("info", "Organization deleted successfully", { orgId, orgName });
     } catch (deleteError: any) {
       const errorMessage = deleteError.message || "Unknown error";

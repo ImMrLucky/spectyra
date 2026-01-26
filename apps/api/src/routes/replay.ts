@@ -208,7 +208,7 @@ replayRouter.post("/", async (req: AuthenticatedRequest, res) => {
       createdAt: new Date().toISOString(),
     };
     
-    saveRun({ 
+    await saveRun({ 
       ...baseline, 
       replayId, 
       optimizationLevel,
@@ -333,7 +333,7 @@ replayRouter.post("/", async (req: AuthenticatedRequest, res) => {
     };
     
     const optimizedId = optimized.id;
-    saveRun({ 
+    await saveRun({ 
       ...optimized, 
       replayId, 
       optimizationLevel,
@@ -346,11 +346,11 @@ replayRouter.post("/", async (req: AuthenticatedRequest, res) => {
     });
     
     // Create replay record
-    saveReplay(replayId, scenario_id, workloadKey, scenario.path, optimizationLevel, provider, model, baselineId, optimizedId);
+    await saveReplay(replayId, scenario_id, workloadKey, scenario.path, optimizationLevel, provider, model, baselineId, optimizedId);
     
     // Write verified savings to ledger (only for live mode)
     if (!isEstimatorMode) {
-      writeVerifiedSavings(
+      await writeVerifiedSavings(
         replayId,
         workloadKey,
         scenario.path,
