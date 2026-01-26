@@ -181,8 +181,17 @@ export class AuthService {
    * Logout (clear storage)
    */
   logout(): void {
+    // Clear API key and user data
     localStorage.removeItem(this.apiKeyStorageKey);
     localStorage.removeItem(this.userStorageKey);
+    
+    // Clear any other auth-related items
+    const authKeys = Object.keys(localStorage).filter(key => 
+      key.startsWith('spectyra_') || key.includes('auth')
+    );
+    authKeys.forEach(key => localStorage.removeItem(key));
+    
+    // Update auth state
     this.updateAuthState({
       user: null,
       apiKey: null,

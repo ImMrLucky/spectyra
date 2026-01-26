@@ -1,5 +1,5 @@
 import { Component, OnInit, OnDestroy } from '@angular/core';
-import { RouterOutlet, RouterModule } from '@angular/router';
+import { RouterOutlet, RouterModule, Router } from '@angular/router';
 import { CommonModule } from '@angular/common';
 import { AuthService } from './core/auth/auth.service';
 import { SupabaseService } from './services/supabase.service';
@@ -155,5 +155,15 @@ export class AppComponent implements OnInit, OnDestroy {
     // Logout from both Supabase and clear API key
     await this.supabase.signOut();
     this.authService.logout();
+    
+    // Clear all Supabase-related localStorage items
+    // Supabase stores tokens with keys like: sb-<project-ref>-auth-token
+    const supabaseKeys = Object.keys(localStorage).filter(key => 
+      key.startsWith('sb-') || key.includes('supabase')
+    );
+    supabaseKeys.forEach(key => localStorage.removeItem(key));
+    
+    // Redirect to login page
+    this.router.navigate(['/login']);
   }
 }
