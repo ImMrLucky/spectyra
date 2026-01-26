@@ -101,6 +101,25 @@ a1b2c3d4e5f6g7h8i9j0k1l2m3n4o5p6q7r8s9t0u1v2w3x4y5z6
 
 Store this securely and use it for the `X-ADMIN-TOKEN` header in admin API calls.
 
+### Site URL & Redirect URLs (For Email Links)
+
+**Location:** Project Settings → Authentication → URL Configuration
+
+**Important:** This controls where Supabase email confirmation links redirect to.
+
+1. Go to **Settings** → **Authentication**
+2. Scroll to **URL Configuration** section
+3. Update **Site URL** to your production website URL (not localhost)
+4. Add your website URL to **Redirect URLs** list
+
+**Example:**
+- Site URL: `https://yourdomain.com` or `https://your-app.vercel.app`
+- Redirect URLs: `https://yourdomain.com/**` (use `/**` wildcard for all paths)
+
+**⚠️ Common Issue:** If email links redirect to `localhost:3000`, update these settings!
+
+See `HOW_TO_FIX_SUPABASE_REDIRECT_URLS.md` for detailed instructions.
+
 ## Step 3: Set Environment Variables
 
 ### For API (Backend)

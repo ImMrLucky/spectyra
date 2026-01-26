@@ -1,7 +1,7 @@
 import { Injectable } from '@angular/core';
-import { HttpClient, HttpHeaders } from '@angular/common/http';
-import { Observable, from } from 'rxjs';
-import { switchMap } from 'rxjs/operators';
+import { HttpClient, HttpHeaders, HttpErrorResponse } from '@angular/common/http';
+import { Observable, from, throwError } from 'rxjs';
+import { switchMap, catchError } from 'rxjs/operators';
 import { environment } from '../../../environments/environment';
 import type { Scenario, RunRecord, ReplayResult, Provider } from './models';
 import { AuthService } from '../auth/auth.service';
@@ -29,6 +29,8 @@ export class ApiClientService {
     };
     if (token) {
       headers['Authorization'] = `Bearer ${token}`;
+    } else {
+      console.warn('No Supabase token available for dashboard call. User may need to log in.');
     }
     return new HttpHeaders(headers);
   }
@@ -59,6 +61,16 @@ export class ApiClientService {
         } else {
           return this.http.request<T>(method, url, { ...options, body });
         }
+      }),
+      catchError((error: HttpErrorResponse) => {
+        if (error.status === 401) {
+          const errorMessage = error.error?.error || 'Unauthorized';
+          console.error('Authentication error (401):', errorMessage);
+          if (errorMessage.includes('token') || errorMessage.includes('expired')) {
+            console.error('Token may be expired. User should log out and log back in to refresh token.');
+          }
+        }
+        return throwError(() => error);
       })
     );
   }

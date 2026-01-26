@@ -9,7 +9,7 @@ import {
   type SavingsFilters,
 } from "../services/storage/savingsRepo.js";
 import { redactSavingsData } from "../middleware/redact.js";
-import { query } from "../services/storage/db.js";
+import { query, queryOne } from "../services/storage/db.js";
 import { safeLog } from "../utils/redaction.js";
 
 function buildWhereClause(filters: SavingsFilters, tablePrefix: string = "l"): { sql: string; params: any[] } {

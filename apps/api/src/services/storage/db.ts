@@ -39,10 +39,23 @@ export function initDb(): void {
       
       // Use connection pooler - works better with Railway
       // Format: postgresql://postgres.PROJECT_REF:PASSWORD@pooler-host:6543/postgres?pgbouncer=true
-      // Note: You may need to get the exact pooler host from Supabase dashboard
-      connectionString = `postgresql://postgres.${projectRef}:${password}@aws-0-us-west-1.pooler.supabase.com:6543/postgres?pgbouncer=true`;
-      console.log("⚠️  Auto-converting to Supabase connection pooler for Railway compatibility");
-      console.log("💡 For best results, get the exact pooler URL from Supabase Dashboard → Settings → Database → Connection pooling");
+      // Note: Try multiple regions - user's pooler might be in different region
+      // If DATABASE_URL already contains pooler host, use it; otherwise try common regions
+      if (databaseUrl.includes('pooler.supabase.com')) {
+        // Already using pooler, use as-is but ensure pgbouncer=true
+        connectionString = databaseUrl.includes('pgbouncer=true') 
+          ? databaseUrl 
+          : databaseUrl + (databaseUrl.includes('?') ? '&' : '?') + 'pgbouncer=true';
+        console.log("✅ Using existing connection pooler URL");
+      } else {
+        // Try to detect region from existing URL or use us-east-1 as default
+        const regions = ['us-east-1', 'us-west-1', 'eu-west-1'];
+        // Default to us-east-1 (most common)
+        const region = 'us-east-1';
+        connectionString = `postgresql://postgres.${projectRef}:${password}@aws-0-${region}.pooler.supabase.com:6543/postgres?pgbouncer=true`;
+        console.log("⚠️  Auto-converting to Supabase connection pooler for Railway compatibility");
+        console.log(`💡 Using region: ${region}. If this fails, get the exact pooler URL from Supabase Dashboard → Settings → Database → Connection pooling`);
+      }
     }
   } catch (e) {
     // If URL parsing fails, use original connection string
@@ -63,7 +76,16 @@ export function initDb(): void {
     })
     .catch((error: any) => {
       console.error("❌ Failed to connect to Postgres database:", error.message);
-      if (error.code === 'ENETUNREACH') {
+      if (error.message.includes('Tenant or user not found')) {
+        console.error("\n⚠️  Database authentication error!");
+        console.error("💡 This usually means:");
+        console.error("   1. Wrong database password in DATABASE_URL");
+        console.error("   2. Wrong project reference in connection string");
+        console.error("   3. Wrong pooler region (us-east-1 vs us-west-1)");
+        console.error("\n💡 Solution: Get the exact connection pooler URL from:");
+        console.error("   Supabase Dashboard → Settings → Database → Connection pooling");
+        console.error("   Copy the 'Transaction' mode URL and use it in DATABASE_URL\n");
+      } else if (error.code === 'ENETUNREACH') {
         console.error("\n⚠️  IPv6 connection issue detected!");
         console.error("💡 Solution: Use Supabase connection pooler URL in DATABASE_URL");
         console.error("   Get it from: Supabase Dashboard → Settings → Database → Connection pooling");

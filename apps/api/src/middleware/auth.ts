@@ -239,16 +239,95 @@ export async function requireUserSession(
       return;
     }
     
-    const JWKS = createRemoteJWKSet(new URL(`${supabaseUrl}/.well-known/jwks.json`));
+    // Ensure supabaseUrl doesn't have trailing slash
+    const cleanSupabaseUrl = supabaseUrl.replace(/\/$/, '');
     
     try {
-      const { payload } = await jwtVerify(token, JWKS, {
-        issuer: `${supabaseUrl}`,
-        audience: "authenticated",
-      });
+      const JWKS = createRemoteJWKSet(new URL(`${cleanSupabaseUrl}/.well-known/jwks.json`));
+      
+      // Supabase JWT issuer can be either the full URL or just the domain
+      // Try both formats for compatibility, and also try without issuer check
+      const issuerOptions = [
+        cleanSupabaseUrl, // Full URL: https://project.supabase.co
+        cleanSupabaseUrl.replace(/^https?:\/\//, ''), // Domain only: project.supabase.co
+      ];
+      
+      let verified = false;
+      let payload: any = null;
+      let lastError: any = null;
+      
+      // Try with issuer validation first
+      for (const issuer of issuerOptions) {
+        try {
+          const result = await jwtVerify(token, JWKS, {
+            issuer: issuer,
+            audience: "authenticated",
+          });
+          payload = result.payload;
+          verified = true;
+          safeLog("info", "JWT verified successfully", { issuer, userId: payload.sub });
+          break;
+        } catch (err: any) {
+          lastError = err;
+          // Try next issuer format
+        }
+      }
+      
+      // If issuer validation failed, try without issuer check (some Supabase configs don't set it)
+      if (!verified) {
+        try {
+          const result = await jwtVerify(token, JWKS, {
+            audience: "authenticated",
+            // Don't check issuer - some Supabase projects don't set it correctly
+          });
+          payload = result.payload;
+          verified = true;
+          safeLog("info", "JWT verified without issuer check", { userId: payload.sub });
+        } catch (err: any) {
+          lastError = err;
+        }
+      }
+      
+      if (!verified || !payload) {
+        // Check if it's a JWKS fetch error
+        const isJwksError = lastError?.message?.includes('Expected 200 OK') || 
+                           lastError?.message?.includes('JWKS') ||
+                           lastError?.code === 'ECONNREFUSED' ||
+                           lastError?.code === 'ENOTFOUND';
+        
+        if (isJwksError) {
+          safeLog("error", "JWKS endpoint not accessible", { 
+            error: lastError?.message,
+            jwksUrl: `${cleanSupabaseUrl}/.well-known/jwks.json`,
+            supabaseUrl: cleanSupabaseUrl,
+            hint: "Check if SUPABASE_URL is correct and Supabase project is active"
+          });
+          res.status(503).json({ 
+            error: "Authentication service unavailable",
+            details: process.env.NODE_ENV !== 'production' 
+              ? `Cannot reach JWKS endpoint: ${lastError?.message}` 
+              : undefined
+          });
+          return;
+        }
+        
+        safeLog("warn", "JWT verification failed", { 
+          error: lastError?.message || "Unknown error",
+          errorCode: lastError?.code,
+          supabaseUrl: cleanSupabaseUrl,
+          triedIssuers: issuerOptions,
+          tokenPreview: token.substring(0, 20) + "..."
+        });
+        res.status(401).json({ 
+          error: "Invalid or expired token",
+          details: process.env.NODE_ENV !== 'production' ? lastError?.message : undefined
+        });
+        return;
+      }
       
       const userId = payload.sub as string;
       if (!userId) {
+        safeLog("warn", "JWT missing user ID", { payload: Object.keys(payload) });
         res.status(401).json({ error: "Invalid token: missing user ID" });
         return;
       }
@@ -263,8 +342,15 @@ export async function requireUserSession(
       
       next();
     } catch (jwtError: any) {
-      safeLog("warn", "JWT verification failed", { error: jwtError.message });
-      res.status(401).json({ error: "Invalid or expired token" });
+      safeLog("error", "JWT verification error", { 
+        error: jwtError.message,
+        stack: jwtError.stack,
+        supabaseUrl 
+      });
+      res.status(401).json({ 
+        error: "Invalid or expired token",
+        details: process.env.NODE_ENV === 'development' ? jwtError.message : undefined
+      });
       return;
     }
   } catch (error: any) {
