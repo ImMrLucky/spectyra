@@ -16,19 +16,30 @@ import { AuthService } from '../../core/auth/auth.service';
         
         <form (ngSubmit)="register()" *ngIf="!success">
           <div class="form-group">
-            <label for="email">Email</label>
+            <label for="orgName">Organization Name</label>
             <input
-              type="email"
-              id="email"
-              [(ngModel)]="email"
+              type="text"
+              id="orgName"
+              [(ngModel)]="orgName"
               [disabled]="loading"
               required
-              placeholder="your@email.com"
+              placeholder="My Company"
               class="form-input">
           </div>
           
-          <button type="submit" class="btn btn-primary" [disabled]="loading || !email">
-            {{ loading ? 'Creating Account...' : 'Create Account' }}
+          <div class="form-group">
+            <label for="projectName">Project Name (Optional)</label>
+            <input
+              type="text"
+              id="projectName"
+              [(ngModel)]="projectName"
+              [disabled]="loading"
+              placeholder="Default Project"
+              class="form-input">
+          </div>
+          
+          <button type="submit" class="btn btn-primary" [disabled]="loading || !orgName">
+            {{ loading ? 'Creating Organization...' : 'Create Organization' }}
           </button>
         </form>
         
@@ -178,7 +189,8 @@ import { AuthService } from '../../core/auth/auth.service';
   `],
 })
 export class RegisterPage {
-  email = '';
+  orgName = '';
+  projectName = '';
   loading = false;
   success = false;
   error: string | null = null;
@@ -191,23 +203,23 @@ export class RegisterPage {
   ) {}
 
   register() {
-    if (!this.email || !this.email.includes('@')) {
-      this.error = 'Please enter a valid email address';
+    if (!this.orgName || this.orgName.trim().length === 0) {
+      this.error = 'Please enter an organization name';
       return;
     }
 
     this.loading = true;
     this.error = null;
 
-    this.authService.register(this.email).subscribe({
+    this.authService.register(this.orgName.trim(), this.projectName.trim() || undefined).subscribe({
       next: (response) => {
         this.success = true;
         this.apiKey = response.api_key;
-        this.trialEndsAt = response.user.trial_ends_at || null;
+        this.trialEndsAt = response.org.trial_ends_at || null;
         this.loading = false;
       },
       error: (err) => {
-        this.error = err.error?.error || 'Failed to create account';
+        this.error = err.error?.error || 'Failed to create organization';
         this.loading = false;
       },
     });

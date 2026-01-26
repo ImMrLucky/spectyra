@@ -183,15 +183,16 @@ export class LoginPage {
     this.authService.login(this.apiKey).subscribe({
       next: (response) => {
         this.success = true;
-        this.userEmail = response.user.email;
+        this.userEmail = response.org.name; // Show org name instead of email
         this.hasAccess = response.has_access;
         this.loading = false;
         
-        // Get full user info
+        // Get full org info
         this.authService.getMe().subscribe({
           next: (me) => {
             this.trialActive = me.trial_active;
-            this.trialEndsAt = me.user.trial_ends_at || null;
+            this.trialEndsAt = me.org?.trial_ends_at || null;
+            this.userEmail = me.org?.name || this.userEmail;
           },
           error: () => {
             // Ignore errors

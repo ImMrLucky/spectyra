@@ -54,17 +54,24 @@ export class AuthService {
   }
 
   /**
-   * Register a new user
+   * Register a new organization
    */
-  register(email: string): Observable<{ user: User; api_key: string; api_key_id: string }> {
-    return this.http.post<{ user: User; api_key: string; api_key_id: string }>(
+  register(orgName: string, projectName?: string): Observable<{ org: any; project: any; api_key: string; api_key_id: string }> {
+    return this.http.post<{ org: any; project: any; api_key: string; api_key_id: string }>(
       `${this.baseUrl}/auth/register`,
-      { email }
+      { org_name: orgName, project_name: projectName }
     ).pipe(
       tap(response => {
-        // Store API key and user
+        // Store API key
         this.setApiKey(response.api_key);
-        this.setUser(response.user);
+        // Map org to user for backward compatibility
+        const user: User = {
+          id: response.org.id,
+          email: `${response.org.name}@spectyra.local`, // Use org name as email placeholder
+          trial_ends_at: response.org.trial_ends_at,
+          subscription_active: response.org.subscription_status === 'active',
+        };
+        this.setUser(user);
         this.checkAccess();
       })
     );
@@ -73,15 +80,22 @@ export class AuthService {
   /**
    * Login with API key
    */
-  login(apiKey: string): Observable<{ user: User; has_access: boolean }> {
-    return this.http.post<{ user: User; has_access: boolean }>(
+  login(apiKey: string): Observable<{ org: any; project: any; has_access: boolean }> {
+    return this.http.post<{ org: any; project: any; has_access: boolean }>(
       `${this.baseUrl}/auth/login`,
       {},
-      { headers: { 'X-SPECTYRA-KEY': apiKey } }
+      { headers: { 'X-SPECTYRA-API-KEY': apiKey } }
     ).pipe(
       tap(response => {
         this.setApiKey(apiKey);
-        this.setUser(response.user);
+        // Map org to user for backward compatibility
+        const user: User = {
+          id: response.org.id,
+          email: `${response.org.id}@spectyra.local`, // Placeholder
+          trial_ends_at: response.org.trial_ends_at,
+          subscription_active: response.org.subscription_status === 'active',
+        };
+        this.setUser(user);
         this.updateAuthState({ hasAccess: response.has_access });
       })
     );
@@ -90,18 +104,25 @@ export class AuthService {
   /**
    * Get current user info
    */
-  getMe(): Observable<{ user: User; has_access: boolean; trial_active: boolean }> {
+  getMe(): Observable<{ org: any; project: any; has_access: boolean; trial_active: boolean }> {
     const apiKey = this.currentApiKey;
     if (!apiKey) {
       throw new Error('No API key found');
     }
 
-    return this.http.get<{ user: User; has_access: boolean; trial_active: boolean }>(
+    return this.http.get<{ org: any; project: any; has_access: boolean; trial_active: boolean }>(
       `${this.baseUrl}/auth/me`,
-      { headers: { 'X-SPECTYRA-KEY': apiKey } }
+      { headers: { 'X-SPECTYRA-API-KEY': apiKey } }
     ).pipe(
       tap(response => {
-        this.setUser(response.user);
+        // Map org to user for backward compatibility
+        const user: User = {
+          id: response.org.id,
+          email: `${response.org.name}@spectyra.local`, // Use org name as email placeholder
+          trial_ends_at: response.org.trial_ends_at,
+          subscription_active: response.org.subscription_status === 'active',
+        };
+        this.setUser(user);
         this.updateAuthState({
           hasAccess: response.has_access,
           trialActive: response.trial_active,
@@ -113,31 +134,31 @@ export class AuthService {
   /**
    * Create a new API key
    */
-  createApiKey(name?: string): Observable<{ id: string; key: string; name: string | null; created_at: string }> {
+  createApiKey(name?: string, projectId?: string): Observable<{ id: string; key: string; name: string | null; project_id: string | null; created_at: string }> {
     const apiKey = this.currentApiKey;
     if (!apiKey) {
       throw new Error('No API key found');
     }
 
-    return this.http.post<{ id: string; key: string; name: string | null; created_at: string }>(
+    return this.http.post<{ id: string; key: string; name: string | null; project_id: string | null; created_at: string }>(
       `${this.baseUrl}/auth/api-keys`,
-      { name },
-      { headers: { 'X-SPECTYRA-KEY': apiKey } }
+      { name, project_id: projectId },
+      { headers: { 'X-SPECTYRA-API-KEY': apiKey } }
     );
   }
 
   /**
    * List API keys
    */
-  listApiKeys(): Observable<Array<{ id: string; name: string | null; created_at: string; last_used_at: string | null }>> {
+  listApiKeys(): Observable<Array<{ id: string; name: string | null; project_id: string | null; created_at: string; last_used_at: string | null; revoked_at: string | null }>> {
     const apiKey = this.currentApiKey;
     if (!apiKey) {
       throw new Error('No API key found');
     }
 
-    return this.http.get<Array<{ id: string; name: string | null; created_at: string; last_used_at: string | null }>>(
+    return this.http.get<Array<{ id: string; name: string | null; project_id: string | null; created_at: string; last_used_at: string | null; revoked_at: string | null }>>(
       `${this.baseUrl}/auth/api-keys`,
-      { headers: { 'X-SPECTYRA-KEY': apiKey } }
+      { headers: { 'X-SPECTYRA-API-KEY': apiKey } }
     );
   }
 
@@ -152,7 +173,7 @@ export class AuthService {
 
     return this.http.delete<{ success: boolean }>(
       `${this.baseUrl}/auth/api-keys/${keyId}`,
-      { headers: { 'X-SPECTYRA-KEY': apiKey } }
+      { headers: { 'X-SPECTYRA-API-KEY': apiKey } }
     );
   }
 

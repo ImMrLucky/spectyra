@@ -102,7 +102,9 @@ export class AppComponent implements OnInit, OnDestroy {
   ngOnInit() {
     this.authSub = this.authService.authState.subscribe(state => {
       this.isAuthenticated = !!state.user && !!state.apiKey;
-      this.userEmail = state.user?.email || null;
+      // Extract org name from email (format: orgName@spectyra.local)
+      const email = state.user?.email || null;
+      this.userEmail = email ? email.split('@')[0] : null;
     });
   }
 
