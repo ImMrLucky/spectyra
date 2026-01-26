@@ -3,6 +3,7 @@ import { RouterOutlet, RouterModule } from '@angular/router';
 import { CommonModule } from '@angular/common';
 import { AuthService } from './core/auth/auth.service';
 import { SupabaseService } from './services/supabase.service';
+import { OrgSwitcherComponent } from './components/org-switcher.component';
 import { Subscription, combineLatest } from 'rxjs';
 import { map } from 'rxjs/operators';
 

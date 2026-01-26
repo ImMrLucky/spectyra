@@ -85,7 +85,7 @@ export class ApiClientService {
         optimization_level: optimizationLevel,
         proof_mode: proofMode,
       },
-      { headers: this.getHeaders() }
+      { headers: this.getGatewayHeaders() }
     );
   }
 
@@ -190,7 +190,7 @@ export class ApiClientService {
     messages: any[];
   }): Observable<any> {
     return this.http.post<any>(`${this.baseUrl}/proof/estimate`, params, {
-      headers: this.getHeaders(),
+      headers: this.getGatewayHeaders(),
     });
   }
 
@@ -201,13 +201,13 @@ export class ApiClientService {
     optimization_level?: number;
   }): Observable<any> {
     return this.http.post<any>(`${this.baseUrl}/replay/simulate`, params, {
-      headers: this.getHeaders(),
+      headers: this.getGatewayHeaders(),
     });
   }
 
   getIntegrationSnippets(): Observable<any> {
     return this.http.get<any>(`${this.baseUrl}/integrations/snippets`, {
-      headers: this.getHeaders(),
+      headers: this.getGatewayHeaders(),
     });
   }
 
