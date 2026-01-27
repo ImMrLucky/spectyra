@@ -1,0 +1,68 @@
+<div class="card" *ngIf="timeseries.length > 0 && !loading">
+  <h3>Savings Over Time</h3>
+  <div class="chart-container">
+    <svg class="chart" [attr.viewBox]="'0 0 ' + chartWidth + ' ' + chartHeight">
+      <!-- Grid lines -->
+      <g class="grid">
+        <line *ngFor="let y of yTicks" 
+          [attr.x1]="padding" 
+          [attr.x2]="chartWidth - padding"
+          [attr.y1]="y" 
+          [attr.y2]="y"
+          stroke="#eee" />
+      </g>
+      
+      <!-- Tokens saved line -->
+      <polyline
+        [attr.points]="tokensPoints"
+        fill="none"
+        stroke="#007bff"
+        stroke-width="2"
+      />
+      
+      <!-- Cost saved line -->
+      <polyline
+        [attr.points]="costPoints"
+        fill="none"
+        stroke="#28a745"
+        stroke-width="2"
+      />
+      
+      <!-- X axis labels -->
+      <g class="x-labels">
+        <text *ngFor="let tick of xTicks; let i = index"
+          [attr.x]="tick.x"
+          [attr.y]="chartHeight - padding + 20"
+          text-anchor="middle"
+          font-size="10"
+          fill="#666">
+          {{ tick.label }}
+        </text>
+      </g>
+      
+      <!-- Y axis labels (tokens) -->
+      <g class="y-labels">
+        <text *ngFor="let tick of yTicks"
+          [attr.x]="padding - 10"
+          [attr.y]="tick"
+          text-anchor="end"
+          font-size="10"
+          fill="#666">
+          {{ formatNumber(tickValue(tick)) }}
+        </text>
+      </g>
+      
+      <!-- Legend -->
+      <g class="legend">
+        <line x1="padding" y1="20" x2="padding + 30" y2="20" stroke="#007bff" stroke-width="2" />
+        <text [attr.x]="padding + 35" y="25" font-size="12" fill="#333">Tokens Saved</text>
+        <line [attr.x1]="padding + 150" y1="20" [attr.x2]="padding + 180" y2="20" stroke="#28a745" stroke-width="2" />
+        <text [attr.x]="padding + 185" y="25" font-size="12" fill="#333">Cost Saved</text>
+      </g>
+    </svg>
+  </div>
+</div>
+
+<div *ngIf="loading" class="card">
+  <div class="loading">Loading chart data...</div>
+</div>

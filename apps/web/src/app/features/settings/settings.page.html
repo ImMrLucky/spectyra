@@ -1,0 +1,115 @@
+<div class="container">
+  <h1>Settings</h1>
+  
+  <!-- API Keys Section -->
+  <div class="card">
+    <h2>API Keys</h2>
+    <p class="subtitle">Manage your API keys for gateway access</p>
+    
+    <div *ngIf="loading" class="loading">Loading...</div>
+    
+    <div *ngIf="error" class="error-box">
+      <p>{{ error }}</p>
+    </div>
+    
+    <!-- Create New API Key -->
+    <div class="form-section">
+      <h3>Create New API Key</h3>
+      <div class="form-group">
+        <label for="newKeyName">Key Name</label>
+        <input
+          type="text"
+          id="newKeyName"
+          [(ngModel)]="newKeyName"
+          placeholder="My API Key"
+          class="form-input">
+      </div>
+      <div class="form-group">
+        <label for="newKeyProject">Project (Optional)</label>
+        <select id="newKeyProject" [(ngModel)]="newKeyProjectId" class="form-input">
+          <option [value]="null">Org-level (all projects)</option>
+          <option *ngFor="let project of projects" [value]="project.id">{{ project.name }}</option>
+        </select>
+      </div>
+      <button class="btn btn-primary" (click)="createApiKey()" [disabled]="creating">
+        {{ creating ? 'Creating...' : 'Create API Key' }}
+      </button>
+    </div>
+    
+    <!-- Display Newly Created Key -->
+    <div *ngIf="newlyCreatedKey" class="api-key-box">
+      <h3>🎉 API Key Created!</h3>
+      <p><strong>Save this key now</strong> - you won't be able to see it again!</p>
+      <div class="api-key-display">
+        <code>{{ newlyCreatedKey }}</code>
+        <button class="btn btn-secondary" (click)="copyNewKey()">Copy</button>
+      </div>
+      <button class="btn btn-primary" (click)="dismissNewKey()">Done</button>
+    </div>
+    
+    <!-- List of API Keys -->
+    <div class="api-keys-list" *ngIf="apiKeys.length > 0">
+      <h3>Your API Keys</h3>
+      <table class="keys-table">
+        <thead>
+          <tr>
+            <th>Name</th>
+            <th>Project</th>
+            <th>Created</th>
+            <th>Last Used</th>
+            <th>Status</th>
+            <th>Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr *ngFor="let key of apiKeys">
+            <td>{{ key.name || 'Unnamed' }}</td>
+            <td>{{ getProjectName(key.project_id) || 'Org-level' }}</td>
+            <td>{{ key.created_at | date:'short' }}</td>
+            <td>{{ key.last_used_at ? (key.last_used_at | date:'short') : 'Never' }}</td>
+            <td>
+              <span [class]="key.revoked_at ? 'status-revoked' : 'status-active'">
+                {{ key.revoked_at ? 'Revoked' : 'Active' }}
+              </span>
+            </td>
+            <td>
+              <button 
+                class="btn btn-danger btn-sm" 
+                (click)="revokeKey(key.id)"
+                [disabled]="!!key.revoked_at || revoking === key.id">
+                {{ key.revoked_at ? 'Revoked' : 'Revoke' }}
+              </button>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+    
+    <div *ngIf="apiKeys.length === 0 && !loading" class="empty-state">
+      <p>No API keys yet. Create one above to get started.</p>
+    </div>
+  </div>
+  
+  <!-- Organization Info -->
+  <div class="card" *ngIf="org">
+    <h2>Organization</h2>
+    <div class="org-info">
+      <p><strong>Name:</strong> {{ org.name }}</p>
+      <p><strong>Status:</strong> {{ org.subscription_status }}</p>
+      <p *ngIf="org.trial_ends_at">
+        <strong>Trial ends:</strong> {{ org.trial_ends_at | date:'medium' }}
+      </p>
+    </div>
+  </div>
+  
+  <!-- Projects Section -->
+  <div class="card" *ngIf="projects.length > 0">
+    <h2>Projects</h2>
+    <ul class="projects-list">
+      <li *ngFor="let project of projects">
+        <strong>{{ project.name }}</strong>
+        <span class="project-id">ID: {{ project.id }}</span>
+      </li>
+    </ul>
+  </div>
+</div>

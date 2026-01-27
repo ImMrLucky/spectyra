@@ -1,0 +1,195 @@
+.container {
+  max-width: 900px;
+  margin: 40px auto;
+  padding: 20px;
+}
+
+h1 {
+  font-size: 32px;
+  margin-bottom: 8px;
+}
+
+.subtitle {
+  color: #666;
+  margin-bottom: 24px;
+}
+
+.card {
+  background: white;
+  border-radius: 8px;
+  padding: 32px;
+  margin-bottom: 24px;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+}
+
+.card h2 {
+  margin: 0 0 16px;
+  font-size: 24px;
+}
+
+.card h3 {
+  margin: 24px 0 16px;
+  font-size: 18px;
+}
+
+.form-section {
+  margin-bottom: 32px;
+  padding-bottom: 24px;
+  border-bottom: 1px solid #e0e0e0;
+}
+
+.form-group {
+  margin-bottom: 16px;
+}
+
+label {
+  display: block;
+  margin-bottom: 6px;
+  font-weight: 500;
+  color: #333;
+}
+
+.form-input {
+  width: 100%;
+  padding: 10px 12px;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  font-size: 14px;
+  box-sizing: border-box;
+}
+
+.btn {
+  padding: 10px 20px;
+  border: none;
+  border-radius: 4px;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+}
+
+.btn-primary {
+  background: #007bff;
+  color: white;
+}
+
+.btn-secondary {
+  background: #6c757d;
+  color: white;
+}
+
+.btn-danger {
+  background: #dc3545;
+  color: white;
+}
+
+.btn-sm {
+  padding: 6px 12px;
+  font-size: 12px;
+}
+
+.btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.api-key-box {
+  background: #f8f9fa;
+  border: 2px solid #007bff;
+  border-radius: 8px;
+  padding: 24px;
+  margin: 24px 0;
+  text-align: center;
+}
+
+.api-key-display {
+  background: white;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  padding: 16px;
+  margin: 16px 0;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.api-key-display code {
+  flex: 1;
+  font-family: monospace;
+  font-size: 14px;
+  word-break: break-word;
+  overflow-wrap: break-word;
+  white-space: pre-wrap;
+  color: #333;
+}
+
+.keys-table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-top: 16px;
+}
+
+.keys-table th,
+.keys-table td {
+  padding: 12px;
+  text-align: left;
+  border-bottom: 1px solid #e0e0e0;
+}
+
+.keys-table th {
+  font-weight: 600;
+  background: #f8f9fa;
+}
+
+.status-active {
+  color: #28a745;
+  font-weight: 500;
+}
+
+.status-revoked {
+  color: #dc3545;
+  font-weight: 500;
+}
+
+.error-box {
+  background: #f8d7da;
+  border: 1px solid #f5c6cb;
+  border-radius: 4px;
+  padding: 12px;
+  margin: 16px 0;
+  color: #721c24;
+}
+
+.loading {
+  text-align: center;
+  padding: 24px;
+  color: #666;
+}
+
+.empty-state {
+  text-align: center;
+  padding: 24px;
+  color: #666;
+}
+
+.org-info p {
+  margin: 8px 0;
+}
+
+.projects-list {
+  list-style: none;
+  padding: 0;
+}
+
+.projects-list li {
+  padding: 12px;
+  border-bottom: 1px solid #e0e0e0;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.project-id {
+  color: #666;
+  font-size: 12px;
+  font-family: monospace;
+}

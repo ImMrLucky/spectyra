@@ -7,64 +7,8 @@ import { getStoredSavingsFilters, setStoredSavingsFilters } from '../../core/uti
   selector: 'app-savings-filters',
   standalone: true,
   imports: [CommonModule, FormsModule],
-  template: `
-    <div class="card">
-      <h3>Filters</h3>
-      <div class="filters-grid">
-        <div class="form-group">
-          <label class="form-label">Date Range</label>
-          <select class="form-select" [(ngModel)]="dateRangePreset" (change)="onDateRangeChange()">
-            <option value="7">Last 7 days</option>
-            <option value="30">Last 30 days</option>
-            <option value="90">Last 90 days</option>
-            <option value="custom">Custom</option>
-          </select>
-        </div>
-        
-        <div class="form-group" *ngIf="dateRangePreset === 'custom'">
-          <label class="form-label">From</label>
-          <input type="date" class="form-input" [(ngModel)]="filters.from" (change)="onFilterChange()">
-        </div>
-        
-        <div class="form-group" *ngIf="dateRangePreset === 'custom'">
-          <label class="form-label">To</label>
-          <input type="date" class="form-input" [(ngModel)]="filters.to" (change)="onFilterChange()">
-        </div>
-        
-        <div class="form-group">
-          <label class="form-label">Path</label>
-          <select class="form-select" [(ngModel)]="filters.path" (change)="onFilterChange()">
-            <option value="both">Both</option>
-            <option value="talk">Talk</option>
-            <option value="code">Code</option>
-          </select>
-        </div>
-        
-        <div class="form-group">
-          <label class="form-label">Provider</label>
-          <select class="form-select" [(ngModel)]="filters.provider" (change)="onFilterChange()">
-            <option value="">All Providers</option>
-            <option *ngFor="let p of providers" [value]="p.name">{{ p.name }}</option>
-          </select>
-        </div>
-        
-        <div class="form-group">
-          <label class="form-label">Model</label>
-          <select class="form-select" [(ngModel)]="filters.model" (change)="onFilterChange()">
-            <option value="">All Models</option>
-            <option *ngFor="let m of availableModels" [value]="m">{{ m }}</option>
-          </select>
-        </div>
-      </div>
-    </div>
-  `,
-  styles: [`
-    .filters-grid {
-      display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-      gap: 15px;
-    }
-  `],
+  templateUrl: './savings-filters.component.html',
+  styleUrls: ['./savings-filters.component.css'],
 })
 export class SavingsFiltersComponent implements OnInit {
   @Input() filters!: any;

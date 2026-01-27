@@ -1,0 +1,38 @@
+<div class="container">
+  <h1>Org Savings</h1>
+  <p class="subtitle">Track inference cost reduction across your organization</p>
+  
+  <app-savings-filters
+    [filters]="filters"
+    [providers]="providers"
+    (filtersChange)="onFiltersChange($event)">
+  </app-savings-filters>
+  
+  <app-savings-kpis [summary]="summary" [loading]="loading"></app-savings-kpis>
+  
+  <app-savings-timeseries-chart
+    [timeseries]="timeseries"
+    [loading]="loading">
+  </app-savings-timeseries-chart>
+  
+  <div class="charts-grid">
+    <app-savings-by-level
+      [breakdown]="byLevel"
+      [loading]="loading">
+    </app-savings-by-level>
+    
+    <app-savings-by-path
+      [breakdown]="byPath"
+      [loading]="loading">
+    </app-savings-by-path>
+  </div>
+  
+  <div class="export-section">
+    <button class="btn btn-primary" (click)="exportSavings('verified')">
+      Export Verified Savings (CSV)
+    </button>
+    <button class="btn btn-secondary" (click)="exportSavings('all')">
+      Export All Savings (CSV)
+    </button>
+  </div>
+</div>

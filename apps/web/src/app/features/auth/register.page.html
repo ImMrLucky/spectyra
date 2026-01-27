@@ -1,0 +1,86 @@
+<div class="container">
+  <div class="card">
+    <h1>Create Account</h1>
+    <p class="subtitle">Sign up for Spectyra and start saving on LLM costs</p>
+    
+    <form (ngSubmit)="register()" *ngIf="!success">
+      <div class="form-group">
+        <label for="email">Email</label>
+        <input
+          type="email"
+          id="email"
+          [(ngModel)]="email"
+          [disabled]="loading"
+          required
+          placeholder="you@example.com"
+          class="form-input">
+      </div>
+      
+      <div class="form-group">
+        <label for="password">Password</label>
+        <input
+          type="password"
+          id="password"
+          [(ngModel)]="password"
+          [disabled]="loading"
+          required
+          placeholder="••••••••"
+          minlength="8"
+          class="form-input">
+        <div class="help-text">Password must be at least 8 characters</div>
+      </div>
+      
+      <div class="form-group">
+        <label for="orgName">Organization Name</label>
+        <input
+          type="text"
+          id="orgName"
+          [(ngModel)]="orgName"
+          [disabled]="loading"
+          required
+          placeholder="My Company"
+          class="form-input">
+      </div>
+      
+      <div class="form-group">
+        <label for="projectName">Project Name (Optional)</label>
+        <input
+          type="text"
+          id="projectName"
+          [(ngModel)]="projectName"
+          [disabled]="loading"
+          placeholder="Default Project"
+          class="form-input">
+      </div>
+      
+      <button type="submit" class="btn btn-primary" [disabled]="loading || !email || !password || !orgName">
+        {{ loading ? 'Creating Account...' : 'Create Account' }}
+      </button>
+    </form>
+    
+    <div *ngIf="success && apiKey" class="success-box">
+      <h2>🎉 Account Created!</h2>
+      <p>Your API key has been generated. <strong>Save it now</strong> - you won't be able to see it again!</p>
+      
+      <div class="api-key-box">
+        <code>{{ apiKey }}</code>
+        <button class="btn btn-secondary" (click)="copyApiKey()">Copy</button>
+      </div>
+      
+      <div class="trial-info">
+        <p>✅ <strong>7-day free trial</strong> - Start optimizing immediately!</p>
+        <p>Trial ends: {{ trialEndsAt | date:'medium' }}</p>
+      </div>
+      
+      <button class="btn btn-primary" (click)="goToApp()">Continue to App</button>
+    </div>
+    
+    <div *ngIf="error" class="error-box">
+      <p>{{ error }}</p>
+    </div>
+    
+    <div class="login-link">
+      Already have an account? <a routerLink="/login">Login</a>
+    </div>
+  </div>
+</div>

@@ -1,0 +1,118 @@
+.container {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 20px;
+}
+
+.subtitle {
+  color: #666;
+  font-size: 16px;
+  margin-bottom: 30px;
+}
+
+.loading {
+  text-align: center;
+  padding: 40px;
+  color: #666;
+}
+
+.billing-content {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.card {
+  background: white;
+  border: 1px solid #e0e0e0;
+  border-radius: 8px;
+  padding: 24px;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+.card h2 {
+  margin: 0 0 16px 0;
+  font-size: 24px;
+  color: #333;
+}
+
+.card h3 {
+  margin: 0 0 12px 0;
+  font-size: 18px;
+  color: #333;
+}
+
+.card.expired {
+  border-left: 4px solid #f44336;
+}
+
+.card.active {
+  border-left: 4px solid #4caf50;
+}
+
+.trial-info {
+  color: #666;
+  margin-bottom: 12px;
+}
+
+.trial-days {
+  margin: 16px 0;
+}
+
+.days-badge {
+  display: inline-block;
+  background: #2196f3;
+  color: white;
+  padding: 4px 12px;
+  border-radius: 12px;
+  font-weight: bold;
+  font-size: 18px;
+}
+
+.error-message {
+  color: #f44336;
+  margin-bottom: 16px;
+}
+
+.success-message {
+  color: #4caf50;
+  margin-bottom: 16px;
+}
+
+.subscription-status {
+  color: #666;
+}
+
+.btn-primary {
+  background: #2196f3;
+  color: white;
+  border: none;
+  padding: 12px 24px;
+  border-radius: 6px;
+  font-size: 16px;
+  cursor: pointer;
+  margin-top: 16px;
+}
+
+.btn-primary:hover:not(:disabled) {
+  background: #1976d2;
+}
+
+.btn-primary:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.info p {
+  margin: 8px 0;
+  color: #666;
+}
+
+.error {
+  background: #ffebee;
+  border: 1px solid #f44336;
+  border-radius: 8px;
+  padding: 16px;
+  color: #f44336;
+  margin-top: 20px;
+}

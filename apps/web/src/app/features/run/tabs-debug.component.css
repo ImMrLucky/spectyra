@@ -1,0 +1,41 @@
+.debug-content {
+  font-size: 14px;
+}
+
+.debug-flags {
+  margin: 15px 0;
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.spectral-info {
+  margin-top: 20px;
+  padding-top: 20px;
+  border-top: 1px solid #ddd;
+}
+
+.spectral-info h4,
+.quality-info h4 {
+  margin-bottom: 10px;
+}
+
+.quality-info {
+  margin-top: 20px;
+  padding-top: 20px;
+  border-top: 1px solid #ddd;
+}
+
+.table {
+  width: 100%;
+}
+
+.table td {
+  padding: 6px;
+  border-bottom: 1px solid #eee;
+}
+
+.badge-warning {
+  background: #fff3cd;
+  color: #856404;
+}

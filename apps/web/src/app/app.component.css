@@ -1,0 +1,70 @@
+.app-container {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+.app-header {
+  background: #007bff;
+  color: white;
+  padding: 20px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.app-header h1 {
+  margin: 0;
+  font-size: 24px;
+}
+
+.app-header nav {
+  display: flex;
+  gap: 20px;
+  align-items: center;
+}
+
+.app-header nav a {
+  color: white;
+  text-decoration: none;
+  font-weight: 500;
+}
+
+.app-header nav a:hover {
+  text-decoration: underline;
+}
+
+.admin-link {
+  color: #ffc107 !important;
+  font-weight: 600;
+}
+
+.auth-links {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+}
+
+.user-email {
+  font-size: 14px;
+  opacity: 0.9;
+}
+
+.btn-logout {
+  background: rgba(255,255,255,0.2);
+  border: 1px solid rgba(255,255,255,0.3);
+  color: white;
+  padding: 6px 12px;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 14px;
+}
+
+.btn-logout:hover {
+  background: rgba(255,255,255,0.3);
+}
+
+.app-main {
+  flex: 1;
+  padding: 20px;
+}

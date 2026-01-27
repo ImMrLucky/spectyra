@@ -23,163 +23,8 @@ interface Project {
   selector: 'app-org-switcher',
   standalone: true,
   imports: [CommonModule, RouterModule],
-  template: `
-    <div class="org-switcher" *ngIf="org">
-      <div class="current-org" (click)="showDropdown = !showDropdown">
-        <span class="org-name">{{ org.name }}</span>
-        <span class="org-status" [class.active]="org.subscription_status === 'active'"
-              [class.trial]="org.subscription_status === 'trial'">
-          {{ org.subscription_status }}
-        </span>
-        <span class="dropdown-arrow">▼</span>
-      </div>
-      
-      <div class="dropdown" *ngIf="showDropdown">
-        <div class="org-info">
-          <h4>{{ org.name }}</h4>
-          <p class="org-id">ID: {{ org.id }}</p>
-          <p class="org-status-text">Status: {{ org.subscription_status }}</p>
-        </div>
-        
-        <div class="projects-section" *ngIf="projects.length > 0">
-          <h5>Projects</h5>
-          <ul class="projects-list">
-            <li *ngFor="let project of projects" 
-                [class.active]="currentProjectId === project.id"
-                (click)="selectProject(project)">
-              {{ project.name }}
-            </li>
-          </ul>
-        </div>
-        
-        <div class="actions">
-          <a routerLink="/settings" class="action-link">Settings</a>
-          <a routerLink="/billing" class="action-link">Billing</a>
-        </div>
-      </div>
-    </div>
-  `,
-  styles: [`
-    .org-switcher {
-      position: relative;
-    }
-    .current-org {
-      display: flex;
-      align-items: center;
-      gap: 8px;
-      padding: 6px 12px;
-      background: rgba(255,255,255,0.2);
-      border-radius: 4px;
-      cursor: pointer;
-      transition: background 0.2s;
-    }
-    .current-org:hover {
-      background: rgba(255,255,255,0.3);
-    }
-    .org-name {
-      font-weight: 500;
-      font-size: 14px;
-    }
-    .org-status {
-      padding: 2px 8px;
-      border-radius: 12px;
-      font-size: 11px;
-      font-weight: 600;
-      text-transform: uppercase;
-    }
-    .org-status.active {
-      background: #4caf50;
-      color: white;
-    }
-    .org-status.trial {
-      background: #2196f3;
-      color: white;
-    }
-    .dropdown-arrow {
-      font-size: 10px;
-      opacity: 0.8;
-    }
-    .dropdown {
-      position: absolute;
-      top: 100%;
-      right: 0;
-      margin-top: 8px;
-      background: white;
-      border: 1px solid #ddd;
-      border-radius: 8px;
-      box-shadow: 0 4px 12px rgba(0,0,0,0.15);
-      min-width: 250px;
-      z-index: 1000;
-      padding: 16px;
-    }
-    .org-info {
-      margin-bottom: 16px;
-      padding-bottom: 16px;
-      border-bottom: 1px solid #e0e0e0;
-    }
-    .org-info h4 {
-      margin: 0 0 4px 0;
-      font-size: 16px;
-      color: #333;
-    }
-    .org-id {
-      font-family: monospace;
-      font-size: 11px;
-      color: #666;
-      margin: 4px 0;
-    }
-    .org-status-text {
-      font-size: 12px;
-      color: #666;
-      margin: 4px 0 0 0;
-    }
-    .projects-section {
-      margin-bottom: 16px;
-    }
-    .projects-section h5 {
-      margin: 0 0 8px 0;
-      font-size: 12px;
-      font-weight: 600;
-      color: #666;
-      text-transform: uppercase;
-    }
-    .projects-list {
-      list-style: none;
-      padding: 0;
-      margin: 0;
-    }
-    .projects-list li {
-      padding: 8px 12px;
-      border-radius: 4px;
-      cursor: pointer;
-      font-size: 14px;
-      transition: background 0.2s;
-    }
-    .projects-list li:hover {
-      background: #f0f0f0;
-    }
-    .projects-list li.active {
-      background: #e3f2fd;
-      color: #1976d2;
-      font-weight: 500;
-    }
-    .actions {
-      display: flex;
-      flex-direction: column;
-      gap: 8px;
-      padding-top: 16px;
-      border-top: 1px solid #e0e0e0;
-    }
-    .action-link {
-      color: #007bff;
-      text-decoration: none;
-      font-size: 14px;
-      padding: 8px 0;
-    }
-    .action-link:hover {
-      text-decoration: underline;
-    }
-  `],
+  templateUrl: './org-switcher.component.html',
+  styleUrls: ['./org-switcher.component.css'],
 })
 export class OrgSwitcherComponent implements OnInit, OnDestroy {
   org: Org | null = null;
@@ -197,14 +42,19 @@ export class OrgSwitcherComponent implements OnInit, OnDestroy {
 
   ngOnInit() {
     // Debounce session changes to prevent multiple rapid calls
+    // Also add distinctUntilChanged to prevent duplicate calls
     this.sessionSub = this.supabase.getSession().pipe(
-      debounceTime(300), // Wait 300ms after last emission
+      debounceTime(500), // Wait 500ms after last emission
       distinctUntilChanged((prev, curr) => {
         // Only reload if session actually changed (was null, now exists, or vice versa)
-        return (!!prev) === (!!curr);
+        // Also check if access_token changed
+        const prevToken = prev?.access_token || null;
+        const currToken = curr?.access_token || null;
+        return prevToken === currToken;
       })
     ).subscribe(session => {
-      if (session) {
+      if (session?.access_token) {
+        // Only load if we have a valid token
         this.loadOrgInfo();
       } else {
         // Clear org info when session is lost
@@ -223,6 +73,7 @@ export class OrgSwitcherComponent implements OnInit, OnDestroy {
   async loadOrgInfo() {
     // Prevent concurrent calls
     if (this.loadInProgress) {
+      console.log('[OrgSwitcher] loadOrgInfo already in progress, skipping');
       return;
     }
     
@@ -230,6 +81,16 @@ export class OrgSwitcherComponent implements OnInit, OnDestroy {
     this.loading = true;
     
     try {
+      // Verify we have a token before making the call
+      const token = await this.supabase.getAccessToken();
+      if (!token) {
+        console.log('[OrgSwitcher] No access token available, skipping /auth/me call');
+        this.loading = false;
+        this.loadInProgress = false;
+        return;
+      }
+
+      console.log('[OrgSwitcher] Calling /auth/me');
       // Interceptor will automatically add auth headers
       const me = await this.http.get<any>(`${environment.apiUrl}/auth/me`).toPromise();
       if (me && me.org) {
@@ -241,7 +102,7 @@ export class OrgSwitcherComponent implements OnInit, OnDestroy {
         this.projects = me.projects;
       }
     } catch (err: any) {
-      console.error('Failed to load org info:', err);
+      console.error('[OrgSwitcher] Failed to load org info:', err);
       // Don't clear org info on error - keep last known state
     } finally {
       this.loading = false;

@@ -1,0 +1,57 @@
+<div class="container">
+  <h1>Billing</h1>
+  <p class="subtitle">Manage your organization's subscription and billing</p>
+  
+  <div *ngIf="loading" class="loading">
+    <p>Loading billing information...</p>
+  </div>
+  
+  <div *ngIf="!loading && status" class="billing-content">
+    <!-- Trial Status -->
+    <div class="card" *ngIf="status.trial_active">
+      <h2>Trial Active</h2>
+      <p class="trial-info">
+        Your 7-day trial ends on <strong>{{ formatDate(status.trial_ends_at) }}</strong>
+      </p>
+      <p class="trial-days" *ngIf="daysRemaining >= 0">
+        <span class="days-badge">{{ daysRemaining }}</span> day{{ daysRemaining !== 1 ? 's' : '' }} remaining
+      </p>
+      <button class="btn-primary" (click)="upgrade()" [disabled]="upgrading">
+        {{ upgrading ? 'Processing...' : 'Upgrade to Subscription' }}
+      </button>
+    </div>
+    
+    <!-- Trial Expired -->
+    <div class="card expired" *ngIf="!status.trial_active && !status.subscription_active">
+      <h2>Trial Expired</h2>
+      <p class="error-message">
+        Your trial has ended. Subscribe to continue using Spectyra's AI Gateway.
+      </p>
+      <button class="btn-primary" (click)="upgrade()" [disabled]="upgrading">
+        {{ upgrading ? 'Processing...' : 'Subscribe Now' }}
+      </button>
+    </div>
+    
+    <!-- Active Subscription -->
+    <div class="card active" *ngIf="status.subscription_active">
+      <h2>Active Subscription</h2>
+      <p class="success-message">
+        Your organization has an active subscription.
+      </p>
+      <p class="subscription-status">
+        Status: <strong>{{ status.subscription_status }}</strong>
+      </p>
+    </div>
+    
+    <!-- Organization Info -->
+    <div class="card info">
+      <h3>Organization</h3>
+      <p><strong>Name:</strong> {{ status.org.name }}</p>
+      <p><strong>ID:</strong> {{ status.org.id }}</p>
+    </div>
+  </div>
+  
+  <div *ngIf="error" class="error">
+    <p>{{ error }}</p>
+  </div>
+</div>

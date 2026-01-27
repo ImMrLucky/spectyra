@@ -1,0 +1,158 @@
+<div class="container">
+  <h1>Connect Your Coding Tools</h1>
+  <p class="subtitle">Set up Spectyra Proxy to optimize Claude Code, Cursor, Copilot, and other coding assistants</p>
+  
+  <div class="info-box">
+    <h3>📋 How It Works</h3>
+    <p>Desktop coding tools (Copilot, Cursor, Claude Code) connect via the <strong>Local Proxy</strong>, not the web UI.</p>
+    <p>The web UI is for managing scenarios and viewing savings. The proxy runs separately on your machine.</p>
+  </div>
+  
+  <div class="steps">
+    <div class="step-card">
+      <div class="step-number">1</div>
+      <div class="step-content">
+        <h3>Install and Start Proxy</h3>
+        <p><strong>Option A: Install via npm (Recommended)</strong></p>
+        <p>Open a terminal/command prompt and run:</p>
+        <div class="code-block">
+          <code>npm install -g spectyra-proxy</code><br>
+          <code>spectyra-proxy</code>
+        </div>
+        <p class="step-note"><strong>What this does:</strong></p>
+        <ul>
+          <li><code>npm install -g spectyra-proxy</code> - Installs the proxy globally (first time only)</li>
+          <li><code>spectyra-proxy</code> - Starts the proxy server</li>
+        </ul>
+        
+        <p style="margin-top: 20px;"><strong>Option B: Install from GitHub (If npm package not available)</strong></p>
+        <p>If the npm package isn't published yet, you can download from GitHub:</p>
+        <div class="code-block">
+          <code># Download the proxy</code><br>
+          <code>git clone https://github.com/your-repo/spectyra.git</code><br>
+          <code>cd spectyra/tools/proxy</code><br>
+          <code>npm install</code><br>
+          <code>npm start</code>
+        </div>
+        <p class="step-note" style="margin-top: 8px;">
+          <strong>Note:</strong> You'll need Node.js installed. Download from <a href="https://nodejs.org" target="_blank">nodejs.org</a> if needed.
+        </p>
+        
+        <p class="step-note"><strong>After starting, the proxy will be available at:</strong></p>
+        <ul>
+          <li><strong>Proxy Server:</strong> <a href="http://localhost:3001" target="_blank">http://localhost:3001</a> (for your coding tools to connect)</li>
+          <li><strong>Dashboard:</strong> <a href="http://localhost:3002" target="_blank">http://localhost:3002</a> (web UI to configure and monitor)</li>
+        </ul>
+        <p class="step-note" style="color: #856404; background: #fff3cd; padding: 8px; border-radius: 4px; margin-top: 12px;">
+          <strong>💡 Tip:</strong> Keep the terminal open while using the proxy. Press Ctrl+C to stop it.
+        </p>
+      </div>
+    </div>
+    
+    <div class="step-card">
+      <div class="step-number">2</div>
+      <div class="step-content">
+        <h3>Configure Proxy</h3>
+        <ol>
+          <li>Open <a href="http://localhost:3002" target="_blank">http://localhost:3002</a> in your browser</li>
+          <li>Go to "Configuration" tab</li>
+          <li>Enter your <strong>Spectyra API Key</strong> (from registration)</li>
+          <li>Enter your <strong>Provider API Key</strong> (OpenAI, Anthropic, etc.)</li>
+          <li>Select provider and optimization settings</li>
+          <li>Click "Save Configuration"</li>
+        </ol>
+      </div>
+    </div>
+    
+    <div class="step-card">
+      <div class="step-number">3</div>
+      <div class="step-content">
+        <h3>Configure Your Coding Tool</h3>
+        
+        <div class="tool-config">
+          <h4>GitHub Copilot</h4>
+          <p>Set environment variable:</p>
+          <div class="code-block">
+            <code>export OPENAI_API_BASE=http://localhost:3001/v1</code>
+          </div>
+          <p>Or in VS Code settings.json:</p>
+          <div class="code-block">
+            <code>{{ '{' }}</code><br>
+            <code>  "github.copilot.advanced": {{ '{' }}</code><br>
+            <code>    "api.baseUrl": "http://localhost:3001/v1"</code><br>
+            <code>  {{ '}' }}</code><br>
+            <code>{{ '}' }}</code>
+          </div>
+        </div>
+        
+        <div class="tool-config">
+          <h4>Cursor</h4>
+          <ol>
+            <li>Open Cursor Settings</li>
+            <li>Search for "API"</li>
+            <li>Set "OpenAI API Base URL" to: <code>http://localhost:3001/v1</code></li>
+            <li>Restart Cursor</li>
+          </ol>
+        </div>
+        
+        <div class="tool-config">
+          <h4>Claude Code</h4>
+          <ol>
+            <li>Open Claude Code settings</li>
+            <li>Set custom API endpoint: <code>http://localhost:3001/v1</code></li>
+            <li>Restart Claude Code</li>
+          </ol>
+        </div>
+        
+        <div class="tool-config">
+          <h4>Codeium / Tabnine</h4>
+          <ol>
+            <li>Open tool settings</li>
+            <li>Set API endpoint: <code>http://localhost:3001/v1</code></li>
+            <li>Restart editor</li>
+          </ol>
+        </div>
+      </div>
+    </div>
+    
+    <div class="step-card">
+      <div class="step-number">4</div>
+      <div class="step-content">
+        <h3>Monitor Savings</h3>
+        <p>Open the proxy dashboard: <a href="http://localhost:3002" target="_blank">http://localhost:3002</a></p>
+        <p>You'll see:</p>
+        <ul>
+          <li>Total requests processed</li>
+          <li>Total tokens saved</li>
+          <li>Total cost saved</li>
+          <li>Recent request history</li>
+        </ul>
+        <p class="step-note">Dashboard updates in real-time as you use your coding tool!</p>
+      </div>
+    </div>
+  </div>
+  
+  <div class="info-box warning">
+    <h3>⚠️ Important Notes</h3>
+    <ul>
+      <li>The proxy must be running for tools to connect</li>
+      <li>Keep the proxy dashboard open to monitor savings</li>
+      <li>Proxy runs locally on your machine (not in the cloud)</li>
+      <li>Each tool needs to be configured separately</li>
+    </ul>
+  </div>
+  
+  <div class="info-box">
+    <h3>📚 Documentation</h3>
+    <ul>
+      <li><a href="https://github.com/your-repo/tools/proxy/README.md" target="_blank">Proxy README</a></li>
+      <li><a href="https://github.com/your-repo/tools/proxy/SETUP_GUIDE.md" target="_blank">Detailed Setup Guide</a></li>
+      <li><a href="https://github.com/your-repo/tools/proxy/PROVIDER_SUPPORT.md" target="_blank">Provider Support Guide</a></li>
+    </ul>
+  </div>
+  
+  <div class="quick-links">
+    <a routerLink="/savings" class="btn btn-secondary">View Savings Dashboard</a>
+    <a routerLink="/scenarios" class="btn btn-secondary">Back to Scenarios</a>
+  </div>
+</div>

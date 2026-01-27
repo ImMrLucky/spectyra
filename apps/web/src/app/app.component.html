@@ -1,0 +1,34 @@
+<div class="app-container">
+  <header class="app-header">
+    <h1 routerLink="/" style="cursor: pointer;">Spectyra</h1>
+    <nav>
+      <!-- Navigation links (only show when authenticated) -->
+      <ng-container *ngIf="isAuthenticated">
+        <a routerLink="/scenarios">Proof Scenarios</a>
+        <a routerLink="/integrations">Integrations</a>
+        <a routerLink="/projects">Projects</a>
+        <a routerLink="/runs">Gateway Runs</a>
+        <a routerLink="/savings">Org Savings</a>
+        <a routerLink="/billing">Billing</a>
+        <a routerLink="/settings">Settings</a>
+        <a routerLink="/admin" class="admin-link">Admin</a>
+        
+        <!-- Org/Project Switcher -->
+        <app-org-switcher></app-org-switcher>
+      </ng-container>
+      
+      <!-- Auth links -->
+      <span *ngIf="!isAuthenticated" class="auth-links">
+        <a routerLink="/login">Login</a>
+        <a routerLink="/register">Sign Up</a>
+      </span>
+      <span *ngIf="isAuthenticated" class="auth-links">
+        <span class="user-email">{{ userEmail }}</span>
+        <button (click)="logout()" class="btn-logout">Logout</button>
+      </span>
+    </nav>
+  </header>
+  <main class="app-main">
+    <router-outlet></router-outlet>
+  </main>
+</div>

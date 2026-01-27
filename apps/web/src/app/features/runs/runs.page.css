@@ -1,0 +1,23 @@
+.subtitle {
+  color: #666;
+  font-size: 16px;
+  margin-bottom: 20px;
+}
+
+code {
+  font-family: monospace;
+  font-size: 12px;
+  background: #f5f5f5;
+  padding: 2px 6px;
+  border-radius: 3px;
+}
+
+.badge-baseline {
+  background: #e3f2fd;
+  color: #1976d2;
+}
+
+.badge-optimized {
+  background: #f3e5f5;
+  color: #7b1fa2;
+}

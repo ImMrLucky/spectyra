@@ -1,0 +1,53 @@
+<div class="container">
+  <h1>Integrations</h1>
+  <p class="subtitle">Connect your applications to the Spectyra AI Gateway</p>
+  
+  <div class="integration-cards">
+    <!-- Card A: Hosted Gateway -->
+    <div class="integration-card">
+      <h2>Hosted Gateway (Recommended)</h2>
+      <p>Send your requests to Spectyra instead of OpenAI/Anthropic directly.</p>
+      <div class="code-block" *ngIf="snippets?.hosted_gateway">
+        <pre><code>{{ snippets.hosted_gateway.curl }}</code></pre>
+      </div>
+      <div class="code-block" *ngIf="snippets?.hosted_gateway">
+        <pre><code>{{ snippets.hosted_gateway.node }}</code></pre>
+      </div>
+      <div class="info-box">
+        <strong>Key Points:</strong>
+        <ul>
+          <li>Uses <code>X-SPECTYRA-API-KEY</code> (your Spectyra key)</li>
+          <li>Uses <code>X-PROVIDER-KEY</code> ephemerally (provider key never stored)</li>
+          <li>Works with any OpenAI/Anthropic-compatible client</li>
+        </ul>
+      </div>
+    </div>
+
+    <!-- Card B: Local Proxy -->
+    <div class="integration-card">
+      <h2>Local Proxy (IDE Tools / Dev Workflows)</h2>
+      <p>Use spectyra-proxy to route IDE tools via localhost.</p>
+      <div class="code-block" *ngIf="snippets?.proxy">
+        <pre><code>{{ snippets.proxy.env }}</code></pre>
+      </div>
+      <div class="code-block" *ngIf="snippets?.proxy">
+        <pre><code>{{ snippets.proxy.command }}</code></pre>
+      </div>
+      <div class="code-block" *ngIf="snippets?.proxy">
+        <pre><code>{{ snippets.proxy.ide }}</code></pre>
+      </div>
+    </div>
+
+    <!-- Card C: Server SDK -->
+    <div class="integration-card">
+      <h2>Server SDK / Middleware Wrapper</h2>
+      <p>Use a server-side wrapper to route calls via Spectyra.</p>
+      <div class="warning-box">
+        <strong>⚠️ Important:</strong> Do not use in browser; keys will leak.
+      </div>
+      <div class="code-block" *ngIf="snippets?.sdk">
+        <pre><code>{{ snippets.sdk.usage }}</code></pre>
+      </div>
+    </div>
+  </div>
+</div>

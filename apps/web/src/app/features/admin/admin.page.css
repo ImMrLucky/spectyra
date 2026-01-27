@@ -1,0 +1,306 @@
+.container {
+  max-width: 1400px;
+  margin: 0 auto;
+  padding: 20px;
+}
+
+.header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 30px;
+  padding-bottom: 20px;
+  border-bottom: 2px solid #e0e0e0;
+}
+
+.header h1 {
+  margin: 0;
+  font-size: 32px;
+  color: #333;
+}
+
+.auth-section {
+  display: flex;
+  align-items: center;
+  gap: 15px;
+}
+
+.auth-form {
+  display: flex;
+  gap: 10px;
+}
+
+.token-input {
+  padding: 8px 12px;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  font-size: 14px;
+  min-width: 300px;
+}
+
+.section {
+  background: white;
+  border: 1px solid #e0e0e0;
+  border-radius: 8px;
+  padding: 24px;
+  margin-bottom: 20px;
+}
+
+.section h2 {
+  margin: 0 0 20px 0;
+  font-size: 24px;
+  color: #333;
+}
+
+.org-list {
+  display: grid;
+  gap: 16px;
+}
+
+.org-card {
+  border: 2px solid #e0e0e0;
+  border-radius: 8px;
+  padding: 20px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.org-card:hover {
+  border-color: #007bff;
+  box-shadow: 0 2px 8px rgba(0,123,255,0.1);
+}
+
+.org-card.selected {
+  border-color: #007bff;
+  background: #f0f7ff;
+}
+
+.org-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: start;
+}
+
+.org-info h3 {
+  margin: 0 0 8px 0;
+  font-size: 20px;
+  color: #333;
+}
+
+.org-id {
+  font-family: monospace;
+  font-size: 12px;
+  color: #666;
+  margin: 4px 0;
+}
+
+.org-meta {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  margin-top: 8px;
+}
+
+.badge {
+  padding: 4px 12px;
+  border-radius: 12px;
+  font-size: 12px;
+  font-weight: 600;
+  text-transform: uppercase;
+}
+
+.badge.active {
+  background: #4caf50;
+  color: white;
+}
+
+.badge.trial {
+  background: #2196f3;
+  color: white;
+}
+
+.created {
+  font-size: 12px;
+  color: #666;
+}
+
+.org-stats {
+  display: flex;
+  gap: 20px;
+}
+
+.stat {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.stat-label {
+  font-size: 12px;
+  color: #666;
+  margin-bottom: 4px;
+}
+
+.stat-value {
+  font-size: 20px;
+  font-weight: 600;
+  color: #333;
+}
+
+.org-details {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.detail-group {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.detail-group label {
+  font-weight: 600;
+  color: #333;
+}
+
+.edit-name {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.name-input {
+  padding: 6px 10px;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  font-size: 14px;
+  flex: 1;
+  max-width: 400px;
+}
+
+.edit-actions {
+  display: flex;
+  gap: 8px;
+}
+
+.stats-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 16px;
+}
+
+.stat-item {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.project-list, .api-key-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.project-list li, .api-key-list li {
+  padding: 8px 0;
+  border-bottom: 1px solid #eee;
+}
+
+.project-id, .key-meta {
+  font-size: 12px;
+  color: #666;
+  margin-left: 8px;
+}
+
+.revoked {
+  color: #f44336;
+}
+
+.danger-zone {
+  margin-top: 30px;
+  padding: 20px;
+  background: #fff3cd;
+  border: 2px solid #ffc107;
+  border-radius: 8px;
+}
+
+.danger-zone h3 {
+  margin: 0 0 12px 0;
+  color: #856404;
+}
+
+.warning {
+  color: #856404;
+  margin-bottom: 16px;
+}
+
+.delete-confirm {
+  margin-top: 16px;
+  padding: 16px;
+  background: white;
+  border-radius: 4px;
+}
+
+.confirm-actions {
+  display: flex;
+  gap: 10px;
+  margin-top: 12px;
+}
+
+.btn {
+  padding: 10px 20px;
+  border: none;
+  border-radius: 4px;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.btn-primary {
+  background: #007bff;
+  color: white;
+}
+
+.btn-primary:hover:not(:disabled) {
+  background: #0056b3;
+}
+
+.btn-secondary {
+  background: #6c757d;
+  color: white;
+}
+
+.btn-secondary:hover:not(:disabled) {
+  background: #545b62;
+}
+
+.btn-danger {
+  background: #dc3545;
+  color: white;
+}
+
+.btn-danger:hover:not(:disabled) {
+  background: #c82333;
+}
+
+.btn-sm {
+  padding: 6px 12px;
+  font-size: 12px;
+}
+
+.loading, .error, .empty {
+  text-align: center;
+  padding: 40px;
+  color: #666;
+}
+
+.error {
+  color: #dc3545;
+}

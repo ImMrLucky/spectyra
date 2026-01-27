@@ -1,0 +1,33 @@
+<div class="kpis-grid" *ngIf="summary && !loading">
+  <div class="kpi-card kpi-verified">
+    <div class="kpi-label">Verified Savings</div>
+    <div class="kpi-value">{{ formatCurrency(summary.verified.cost.saved_usd) }}</div>
+    <div class="kpi-subtext">{{ formatPercent(summary.verified.cost.pct_saved) }} saved</div>
+    <div class="kpi-badge verified">Verified</div>
+  </div>
+  
+  <div class="kpi-card kpi-total">
+    <div class="kpi-label">Total Savings</div>
+    <div class="kpi-value">{{ formatCurrency(summary.combined.cost.saved_usd) }}</div>
+    <div class="kpi-subtext">{{ formatPercent(summary.combined.cost.pct_saved) }} saved</div>
+    <div class="kpi-badge" [class.confidence-high]="getConfidenceBand() === 'High'" 
+         [class.confidence-medium]="getConfidenceBand() === 'Medium'"
+         [class.confidence-low]="getConfidenceBand() === 'Low'">
+      {{ getConfidenceBand() }} Confidence
+    </div>
+  </div>
+  
+  <div class="kpi-card">
+    <div class="kpi-label">Tokens Saved</div>
+    <div class="kpi-value">{{ formatNumber(summary.combined.tokens.saved) }}</div>
+    <div class="kpi-subtext">Verified: {{ formatNumber(summary.verified.tokens.saved) }}</div>
+  </div>
+  
+  <div class="kpi-card">
+    <div class="kpi-label">Replays</div>
+    <div class="kpi-value">{{ formatNumber(summary.runs.replays) }}</div>
+    <div class="kpi-subtext">Verified runs</div>
+  </div>
+</div>
+
+<div *ngIf="loading" class="loading">Loading...</div>

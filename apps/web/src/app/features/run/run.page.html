@@ -1,0 +1,21 @@
+<div class="container">
+  <h1>{{ scenario?.title || 'Run Scenario' }}</h1>
+  
+  <app-optimization-slider
+    *ngIf="scenario"
+    [path]="scenario.path"
+    [level]="optimizationLevel"
+    (levelChange)="onLevelChange($event)">
+  </app-optimization-slider>
+  
+  <app-run-controls
+    [scenario]="scenario"
+    [providers]="providers"
+    [loading]="loading"
+    (runReplay)="onRunReplay($event)">
+  </app-run-controls>
+  
+  <app-savings-card *ngIf="replayResult" [result]="replayResult"></app-savings-card>
+  
+  <app-compare-view *ngIf="replayResult" [result]="replayResult" [showDebug]="showDebug"></app-compare-view>
+</div>

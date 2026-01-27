@@ -1,0 +1,22 @@
+.table {
+  width: 100%;
+  margin-bottom: 15px;
+}
+
+.table td {
+  padding: 8px;
+  border-bottom: 1px solid #eee;
+}
+
+.text-muted {
+  color: #666;
+}
+
+.quality-badge {
+  margin-top: 15px;
+}
+
+.failures {
+  margin-top: 5px;
+  color: #721c24;
+}

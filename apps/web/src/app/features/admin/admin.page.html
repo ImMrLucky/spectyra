@@ -1,0 +1,187 @@
+<div class="container">
+  <div class="header">
+    <h1>Admin Panel</h1>
+    <div class="auth-section" *ngIf="!isAuthenticated">
+      <p>Enter admin token to access:</p>
+      <div class="auth-form">
+        <input
+          type="password"
+          [(ngModel)]="adminToken"
+          placeholder="Admin Token"
+          class="token-input"
+          (keyup.enter)="login()"
+        />
+        <button (click)="login()" [disabled]="!adminToken || loggingIn" class="btn btn-primary">
+          {{ loggingIn ? 'Logging in...' : 'Login' }}
+        </button>
+      </div>
+      <p class="error" *ngIf="authError">{{ authError }}</p>
+    </div>
+    <div class="auth-section" *ngIf="isAuthenticated">
+      <button (click)="logout()" class="btn btn-secondary">Logout</button>
+    </div>
+  </div>
+
+  <div *ngIf="isAuthenticated" class="admin-content">
+    <!-- Org List -->
+    <div class="section">
+      <h2>Organizations</h2>
+      <div class="loading" *ngIf="loading">
+        <p>Loading organizations...</p>
+      </div>
+      <div class="error" *ngIf="error">{{ error }}</div>
+      
+      <div class="org-list" *ngIf="!loading && !error && orgs.length > 0">
+        <div class="org-card" *ngFor="let org of orgs" [class.selected]="selectedOrg?.id === org.id">
+          <div class="org-header" (click)="selectOrg(org.id)">
+            <div class="org-info">
+              <h3>{{ org.name }}</h3>
+              <p class="org-id">ID: {{ org.id }}</p>
+              <div class="org-meta">
+                <span class="badge" [class.active]="org.subscription_status === 'active'"
+                      [class.trial]="org.subscription_status === 'trial'">
+                  {{ org.subscription_status }}
+                </span>
+                <span class="created">Created: {{ formatDate(org.created_at) }}</span>
+              </div>
+            </div>
+            <div class="org-stats" *ngIf="org.stats">
+              <div class="stat">
+                <span class="stat-label">Projects:</span>
+                <span class="stat-value">{{ org.stats.projects }}</span>
+              </div>
+              <div class="stat">
+                <span class="stat-label">API Keys:</span>
+                <span class="stat-value">{{ org.stats.api_keys }}</span>
+              </div>
+              <div class="stat">
+                <span class="stat-label">Runs:</span>
+                <span class="stat-value">{{ org.stats.runs }}</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      
+      <div class="empty" *ngIf="!loading && !error && orgs.length === 0">
+        <p>No organizations found</p>
+      </div>
+    </div>
+
+    <!-- Org Details -->
+    <div class="section" *ngIf="selectedOrg">
+      <h2>Organization Details</h2>
+      <div class="loading" *ngIf="loadingDetails">
+        <p>Loading details...</p>
+      </div>
+      
+      <div class="org-details" *ngIf="!loadingDetails && orgDetails">
+        <div class="detail-group">
+          <label>Name:</label>
+          <div class="edit-name">
+            <input
+              type="text"
+              [(ngModel)]="editName"
+              class="name-input"
+              *ngIf="editingName"
+            />
+            <span *ngIf="!editingName">{{ orgDetails.name }}</span>
+            <div class="edit-actions" *ngIf="editingName">
+              <button (click)="saveName()" [disabled]="saving" class="btn btn-sm btn-primary">
+                {{ saving ? 'Saving...' : 'Save' }}
+              </button>
+              <button (click)="cancelEdit()" [disabled]="saving" class="btn btn-sm btn-secondary">
+                Cancel
+              </button>
+            </div>
+            <button (click)="startEdit()" *ngIf="!editingName" class="btn btn-sm btn-secondary">
+              Edit
+            </button>
+          </div>
+        </div>
+        
+        <div class="detail-group">
+          <label>ID:</label>
+          <span>{{ orgDetails.id }}</span>
+        </div>
+        
+        <div class="detail-group">
+          <label>Status:</label>
+          <span class="badge" [class.active]="orgDetails.subscription_status === 'active'"
+                [class.trial]="orgDetails.subscription_status === 'trial'">
+            {{ orgDetails.subscription_status }}
+          </span>
+        </div>
+        
+        <div class="detail-group">
+          <label>Trial Ends:</label>
+          <span>{{ orgDetails.trial_ends_at ? formatDate(orgDetails.trial_ends_at) : 'N/A' }}</span>
+        </div>
+        
+        <div class="detail-group">
+          <label>Created:</label>
+          <span>{{ formatDate(orgDetails.created_at) }}</span>
+        </div>
+
+        <div class="detail-group" *ngIf="orgDetails.stats">
+          <label>Statistics:</label>
+          <div class="stats-grid">
+            <div class="stat-item">
+              <span class="stat-label">Projects:</span>
+              <span class="stat-value">{{ orgDetails.stats.projects }}</span>
+            </div>
+            <div class="stat-item">
+              <span class="stat-label">API Keys:</span>
+              <span class="stat-value">{{ orgDetails.stats.api_keys }}</span>
+            </div>
+            <div class="stat-item">
+              <span class="stat-label">Runs:</span>
+              <span class="stat-value">{{ orgDetails.stats.runs }}</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="detail-group" *ngIf="orgDetails.projects && orgDetails.projects.length > 0">
+          <label>Projects:</label>
+          <ul class="project-list">
+            <li *ngFor="let project of orgDetails.projects">
+              {{ project.name }} <span class="project-id">({{ project.id }})</span>
+            </li>
+          </ul>
+        </div>
+
+        <div class="detail-group" *ngIf="orgDetails.api_keys && orgDetails.api_keys.length > 0">
+          <label>API Keys:</label>
+          <ul class="api-key-list">
+            <li *ngFor="let key of orgDetails.api_keys">
+              <span>{{ key.name || 'Unnamed' }}</span>
+              <span class="key-meta">
+                Created: {{ formatDate(key.created_at) }}
+                <span *ngIf="key.revoked_at" class="revoked">(Revoked)</span>
+              </span>
+            </li>
+          </ul>
+        </div>
+
+        <div class="danger-zone">
+          <h3>Danger Zone</h3>
+          <p class="warning">Deleting an organization will permanently remove all associated data including projects, API keys, runs, and savings data. This action cannot be undone.</p>
+          <button (click)="confirmDelete()" [disabled]="deleting" class="btn btn-danger">
+            {{ deleting ? 'Deleting...' : 'Delete Organization' }}
+          </button>
+          <div class="delete-confirm" *ngIf="showDeleteConfirm">
+            <p>Are you sure you want to delete "{{ orgDetails.name }}"?</p>
+            <div class="confirm-actions">
+              <button (click)="deleteOrg()" [disabled]="deleting" class="btn btn-danger">
+                {{ deleting ? 'Deleting...' : 'Yes, Delete' }}
+              </button>
+              <button (click)="cancelDelete()" [disabled]="deleting" class="btn btn-secondary">
+                Cancel
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>

@@ -1,0 +1,25 @@
+.prompt-content {
+  max-height: 400px;
+  overflow-y: auto;
+}
+
+.message {
+  margin-bottom: 15px;
+  padding: 10px;
+  background: #f8f9fa;
+  border-radius: 4px;
+}
+
+.message strong {
+  display: block;
+  margin-bottom: 5px;
+  color: #007bff;
+}
+
+pre {
+  margin: 0;
+  white-space: pre-wrap;
+  word-wrap: break-word;
+  font-family: 'Courier New', monospace;
+  font-size: 12px;
+}

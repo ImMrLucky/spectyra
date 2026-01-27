@@ -1,0 +1,48 @@
+<div class="container">
+  <div class="hero-section">
+    <h1>AI Gateway - Proof Scenarios</h1>
+    <p class="hero-subtitle">Optimize API-based LLM usage for teams. Reduce inference cost by 40-65%.</p>
+  </div>
+  
+  <div class="info-banner" *ngIf="showConnectionsBanner">
+    <div class="banner-content">
+      <strong>💡 Integrating with IDE tools?</strong>
+      <p>Set up integrations via the Local Proxy or Hosted Gateway. <a routerLink="/integrations">View integrations →</a></p>
+    </div>
+    <button class="banner-close" (click)="dismissBanner()">×</button>
+  </div>
+  
+  <div class="filter-tabs">
+    <button 
+      class="tab-btn" 
+      [class.active]="selectedPath === 'talk'"
+      (click)="selectedPath = 'talk'">
+      Talk
+    </button>
+    <button 
+      class="tab-btn" 
+      [class.active]="selectedPath === 'code'"
+      (click)="selectedPath = 'code'">
+      Code
+    </button>
+    <button 
+      class="tab-btn" 
+      [class.active]="selectedPath === null"
+      (click)="selectedPath = null">
+      All
+    </button>
+  </div>
+  
+  <div class="scenarios-grid">
+    <div 
+      *ngFor="let scenario of filteredScenarios" 
+      class="scenario-card card"
+      (click)="openScenario(scenario.id)">
+      <h3>{{ scenario.title }}</h3>
+      <p class="scenario-id">{{ scenario.id }}</p>
+      <span class="badge" [class.badge-talk]="scenario.path === 'talk'" [class.badge-code]="scenario.path === 'code'">
+        {{ scenario.path }}
+      </span>
+    </div>
+  </div>
+</div>

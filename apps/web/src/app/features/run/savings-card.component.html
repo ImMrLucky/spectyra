@@ -1,0 +1,32 @@
+<div class="card savings-card">
+  <h2>Savings Summary</h2>
+  <div class="savings-grid">
+    <div class="savings-item">
+      <div class="savings-label">Tokens Saved</div>
+      <div class="savings-value">{{ formatNumber(result.savings.tokensSaved) }}</div>
+    </div>
+    <div class="savings-item">
+      <div class="savings-label">Percentage Saved</div>
+      <div class="savings-value savings-highlight">{{ formatPercent(result.savings.pctSaved) }}</div>
+    </div>
+    <div class="savings-item">
+      <div class="savings-label">Cost Saved</div>
+      <div class="savings-value savings-highlight">{{ formatCurrency(result.savings.costSavedUsd) }}</div>
+    </div>
+  </div>
+  
+  <div class="status-row">
+    <div class="quality-status" *ngIf="result.quality.baseline_pass && result.quality.optimized_pass">
+      <div class="quality-item">
+        <span class="badge badge-success">
+          Quality: PASS
+        </span>
+      </div>
+    </div>
+    <div class="savings-type-badge">
+      <span class="badge" [class.badge-verified]="result.savings.savings_type === 'verified'" [class.badge-estimated]="result.savings.savings_type === 'estimated_demo'">
+        {{ result.savings.savings_type === 'estimated_demo' ? 'ESTIMATED' : 'VERIFIED' }}
+      </span>
+    </div>
+  </div>
+</div>

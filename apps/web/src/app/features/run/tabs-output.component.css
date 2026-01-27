@@ -1,0 +1,16 @@
+.output-content {
+  max-height: 400px;
+  overflow-y: auto;
+  background: #f8f9fa;
+  padding: 15px;
+  border-radius: 4px;
+}
+
+pre {
+  margin: 0;
+  white-space: pre-wrap;
+  word-wrap: break-word;
+  font-family: 'Courier New', monospace;
+  font-size: 13px;
+  line-height: 1.5;
+}

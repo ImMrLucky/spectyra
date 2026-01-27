@@ -1,0 +1,140 @@
+.org-switcher {
+  position: relative;
+}
+
+.current-org {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 12px;
+  background: rgba(255,255,255,0.2);
+  border-radius: 4px;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+.current-org:hover {
+  background: rgba(255,255,255,0.3);
+}
+
+.org-name {
+  font-weight: 500;
+  font-size: 14px;
+}
+
+.org-status {
+  padding: 2px 8px;
+  border-radius: 12px;
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+}
+
+.org-status.active {
+  background: #4caf50;
+  color: white;
+}
+
+.org-status.trial {
+  background: #2196f3;
+  color: white;
+}
+
+.dropdown-arrow {
+  font-size: 10px;
+  opacity: 0.8;
+}
+
+.dropdown {
+  position: absolute;
+  top: 100%;
+  right: 0;
+  margin-top: 8px;
+  background: white;
+  border: 1px solid #ddd;
+  border-radius: 8px;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+  min-width: 250px;
+  z-index: 1000;
+  padding: 16px;
+}
+
+.org-info {
+  margin-bottom: 16px;
+  padding-bottom: 16px;
+  border-bottom: 1px solid #e0e0e0;
+}
+
+.org-info h4 {
+  margin: 0 0 4px 0;
+  font-size: 16px;
+  color: #333;
+}
+
+.org-id {
+  font-family: monospace;
+  font-size: 11px;
+  color: #666;
+  margin: 4px 0;
+}
+
+.org-status-text {
+  font-size: 12px;
+  color: #666;
+  margin: 4px 0 0 0;
+}
+
+.projects-section {
+  margin-bottom: 16px;
+}
+
+.projects-section h5 {
+  margin: 0 0 8px 0;
+  font-size: 12px;
+  font-weight: 600;
+  color: #666;
+  text-transform: uppercase;
+}
+
+.projects-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.projects-list li {
+  padding: 8px 12px;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 14px;
+  transition: background 0.2s;
+}
+
+.projects-list li:hover {
+  background: #f0f0f0;
+}
+
+.projects-list li.active {
+  background: #e3f2fd;
+  color: #1976d2;
+  font-weight: 500;
+}
+
+.actions {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding-top: 16px;
+  border-top: 1px solid #e0e0e0;
+}
+
+.action-link {
+  color: #007bff;
+  text-decoration: none;
+  font-size: 14px;
+  padding: 8px 0;
+}
+
+.action-link:hover {
+  text-decoration: underline;
+}

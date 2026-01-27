@@ -1,0 +1,19 @@
+<div class="slider-container card">
+  <h3>{{ config.title }}</h3>
+  <div class="slider-wrapper">
+    <label class="slider-label-left">{{ config.leftLabel }}</label>
+    <input
+      type="range"
+      min="0"
+      max="4"
+      step="1"
+      [value]="level"
+      (input)="onChange($event)"
+      class="slider"
+    />
+    <label class="slider-label-right">{{ config.rightLabel }}</label>
+  </div>
+  <div class="slider-value">
+    <span class="level-badge">Level {{ level }}: {{ config.levelNames[level] }}</span>
+  </div>
+</div>

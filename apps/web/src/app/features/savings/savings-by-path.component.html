@@ -1,0 +1,31 @@
+<div class="card" *ngIf="breakdown.length > 0 && !loading">
+  <h3>Savings by Path</h3>
+  <div class="path-breakdown">
+    <div *ngFor="let item of breakdown" class="path-item">
+      <div class="path-header">
+        <span class="badge" [class.badge-talk]="item.path === 'talk'" [class.badge-code]="item.path === 'code'">
+          {{ item.path }}
+        </span>
+        <span class="path-replays">{{ formatNumber(item.replays) }} replays</span>
+      </div>
+      <div class="path-stats">
+        <div class="stat">
+          <div class="stat-label">Tokens Saved</div>
+          <div class="stat-value">{{ formatNumber(item.tokens_saved) }}</div>
+        </div>
+        <div class="stat">
+          <div class="stat-label">% Saved</div>
+          <div class="stat-value">{{ formatPercent(item.pct_saved) }}</div>
+        </div>
+        <div class="stat">
+          <div class="stat-label">Cost Saved</div>
+          <div class="stat-value">{{ formatCurrency(item.cost_saved_usd) }}</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div *ngIf="loading" class="card">
+  <div class="loading">Loading...</div>
+</div>

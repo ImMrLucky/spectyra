@@ -13,29 +13,8 @@ import type { Scenario, ReplayResult, Provider } from '../../core/api/models';
   selector: 'app-run',
   standalone: true,
   imports: [CommonModule, RunControlsComponent, CompareViewComponent, SavingsCardComponent, OptimizationSliderComponent],
-  template: `
-    <div class="container">
-      <h1>{{ scenario?.title || 'Run Scenario' }}</h1>
-      
-      <app-optimization-slider
-        *ngIf="scenario"
-        [path]="scenario.path"
-        [level]="optimizationLevel"
-        (levelChange)="onLevelChange($event)">
-      </app-optimization-slider>
-      
-      <app-run-controls
-        [scenario]="scenario"
-        [providers]="providers"
-        [loading]="loading"
-        (runReplay)="onRunReplay($event)">
-      </app-run-controls>
-      
-      <app-savings-card *ngIf="replayResult" [result]="replayResult"></app-savings-card>
-      
-      <app-compare-view *ngIf="replayResult" [result]="replayResult" [showDebug]="showDebug"></app-compare-view>
-    </div>
-  `,
+  templateUrl: './run.page.html',
+  styleUrls: ['./run.page.css'],
 })
 export class RunPage implements OnInit {
   scenario: Scenario | null = null;

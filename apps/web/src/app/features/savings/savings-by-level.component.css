@@ -1,0 +1,15 @@
+.table {
+  width: 100%;
+  margin-top: 15px;
+}
+
+.badge-warning {
+  background: #fff3cd;
+  color: #856404;
+}
+
+.loading {
+  text-align: center;
+  padding: 40px;
+  color: #666;
+}

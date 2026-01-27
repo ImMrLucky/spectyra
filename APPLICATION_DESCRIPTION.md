@@ -11,8 +11,36 @@ The system uses a proprietary "Spectral Core v1" decision engine based on graph 
 Spectyra is an enterprise-grade AI inference cost-control gateway that reduces LLM token usage and costs by 40-65% for teams and organizations. The platform is optimized for developers using coding assistants (GitHub Copilot, Cursor, Claude Code, etc.) and supports multiple integration methods:
 - **Hosted Gateway**: Direct API integration (recommended for production)
 - **Local Proxy**: For desktop coding tools and IDE integrations
-- **Server SDK**: For custom applications and programmatic integrations
+- **SDK (Agent Control Plane)**: For agent frameworks (Claude Agent SDK, LangChain, etc.)
+- **SDK (Legacy Chat)**: For custom applications and programmatic integrations
 - **Browser Extension**: For web-based LLM tools (optional)
+
+### Current Architecture (2026)
+
+**Database**: PostgreSQL (via Supabase) with Row Level Security (RLS)
+- Migrated from SQLite for better multi-tenant support
+- Connection pooling for performance
+- RLS policies for data isolation
+
+**Authentication**: Dual system
+- **Supabase JWT**: For dashboard users (human auth)
+- **API Keys**: For machine auth (gateway/SDK)
+- HTTP interceptor automatically adds auth headers
+- Route guards protect authenticated pages
+
+**Frontend**: Angular 17 with standalone components
+- All components use separate `.ts`, `.html`, `.css` files
+- Professional SVG icons
+- Homepage for unauthenticated users
+- Organization/project switcher component
+
+**Backend**: Node.js + Express + TypeScript
+- Postgres database with connection pooling
+- Dual authentication middleware
+- Agent control plane endpoints
+- Proof mode endpoints
+
+**Deployment**: Railway (API), Netlify/Vercel (Frontend)
 
 ---
 
@@ -76,6 +104,89 @@ For coding assistant workflows:
 - AST-aware code extraction (function signatures, relevant blocks)
 
 **Default Path**: Code path is the default for developer-focused tools
+
+---
+
+## Agent Control Plane (SDK-First Integration)
+
+### Overview
+
+Spectyra provides an **agent control plane** for runtime control of AI agents (Claude Agent SDK, LangChain, etc.). This enables centralized policy management, budget control, tool gating, and telemetry without requiring a proxy.
+
+### Two Integration Modes
+
+#### A. Local SDK Mode (Default)
+
+**No API calls required.** SDK makes local decisions about agent options.
+
+**How it works:**
+1. Import `createSpectyra` from `@spectyra/sdk`
+2. Create instance with `mode: "local"`
+3. Call `agentOptions(ctx, prompt)` to get agent configuration
+4. Use options with Claude Agent SDK or other agent frameworks
+
+**Decision Logic:**
+- Prompt length → Model selection (haiku/sonnet/opus)
+- Context → Budget allocation
+- Path (code/talk) → Tool permissions
+- Default tool gate denies dangerous Bash commands
+
+**Benefits:**
+- Works offline
+- No network latency
+- Simple integration
+- Good for development and testing
+
+#### B. API Control Plane Mode (Enterprise)
+
+**Centralized policy management.** SDK calls Spectyra API for agent options and streams events.
+
+**How it works:**
+1. Create instance with `mode: "api"`, `endpoint`, and `apiKey`
+2. Call `agentOptionsRemote(ctx, promptMeta)` to fetch options from API
+3. Use options with agent framework
+4. Stream events via `sendAgentEvent()` or `observeAgentStream()`
+
+**API Endpoints:**
+- `POST /v1/agent/options` - Get agent options based on prompt metadata
+- `POST /v1/agent/events` - Send agent event for telemetry
+
+**Benefits:**
+- Centralized policy management
+- Org/project-scoped decisions
+- Telemetry and analytics
+- Enterprise control and compliance
+
+### Agent Options
+
+The SDK returns `ClaudeAgentOptions` compatible with Claude Agent SDK:
+
+```typescript
+interface ClaudeAgentOptions {
+  model?: string;                    // e.g., "claude-3-5-sonnet-latest"
+  maxBudgetUsd?: number;             // Budget limit (default: 2.5)
+  cwd?: string;                      // Working directory
+  allowedTools?: string[];           // Allowed tool names
+  permissionMode?: "default" | "acceptEdits" | "bypassPermissions";
+  canUseTool?: (toolName: string, toolInput: any) => boolean | Promise<boolean>;
+}
+```
+
+### Tool Gating
+
+Default `canUseTool` gate:
+- **Allows**: Read, Edit, Glob (safe operations)
+- **Denies**: Dangerous Bash commands (curl, ssh, rm -rf, etc.)
+- Customizable per organization
+
+### Telemetry
+
+Agent events are stored in `agent_events` table:
+- Run ID linking
+- Event JSONB data
+- Timestamp
+- Org/project context
+- Used for analytics and debugging
 
 ---
 
@@ -210,17 +321,20 @@ For coding assistant workflows:
      - **No moat internals exposed** (spectral numbers, optimizer steps, REFs)
 
 5. **Storage:**
-   - Run record saved to SQLite with:
+   - Run record saved to PostgreSQL with:
      - `workload_key`: Deterministic hash grouping comparable runs
      - `prompt_hash`: SHA256 of normalized prompt (server-only)
      - `optimization_level`: Slider level (0-4)
      - Usage tokens, cost, quality results
      - `debug_internal_json`: Moat internals (never exposed to client)
+     - `org_id`, `project_id`: Organization/project context
+     - `provider_key_fingerprint`: Audit trail (never the actual key)
 
 6. **Savings Ledger:**
    - For optimized runs: Writes "estimated" savings row
    - Includes confidence score and band
    - Links to run ID for audit trail
+   - Filtered by org/project for multi-tenant isolation
 
 **Real-Time Flow Example:**
 ```
@@ -259,8 +373,9 @@ User → POST /v1/chat { path: "talk", mode: "optimized", optimization_level: 3,
    - `provider`: LLM provider
    - `model`: Specific model
    - `optimization_level`: 0-4 slider setting
+   - `proof_mode`: "live" (default) or "estimator"
 
-4. **System executes both modes:**
+4. **If proof_mode = "live", system executes both modes:**
 
    **A. Baseline Run:**
    - Creates `replay_id` (UUID) to group baseline + optimized
@@ -294,7 +409,7 @@ User → POST /v1/chat { path: "talk", mode: "optimized", optimization_level: 3,
      - `verified_savings`: { tokens_saved, pct_saved, cost_saved_usd }
      - `quality`: { baseline_pass, optimized_pass }
 
-#### B2. Estimator Mode (Proof without Real LLM Calls)
+#### B2. Estimator Mode (Scenario Replay without Real LLM Calls)
 
 **How it works:**
 1. User selects a scenario or provides messages
@@ -312,6 +427,25 @@ User → POST /v1/chat { path: "talk", mode: "optimized", optimization_level: 3,
    - "ESTIMATED" badge (vs "VERIFIED" for live mode)
    - **No internal breakdown** (no spectral numbers, no optimizer steps, no REFs)
 6. **Key benefit**: Works even if trial expired (no real LLM calls = no provider costs)
+
+#### B3. Conversation Paste Mode (Proof Page)
+
+**How it works:**
+1. User navigates to `/proof` page
+2. User pastes conversation from ChatGPT, Claude, or any chat interface
+3. System supports both plain text and JSON formats
+4. System parses conversation into message format
+5. User configures: path, provider, model, optimization level
+6. System calls `/v1/proof/estimate` endpoint
+7. System estimates savings without making real LLM calls
+8. **Response shows:**
+   - Conversation preview (parsed messages)
+   - Savings summary (tokens saved, cost saved, % saved)
+   - Confidence band
+   - Baseline and optimized estimates
+   - Optimization explanation
+   - "ESTIMATED" badge
+9. **Key benefit**: Test optimization on real conversations without costs
 
 **Proof Mode Flow Examples:**
 
@@ -344,6 +478,20 @@ User → /scenarios/:id/run
   → Estimate optimized tokens/cost
   → Calculate savings
   → Return savings summary with "ESTIMATED" badge (no moat internals)
+  → Works even if trial expired (no provider costs)
+```
+
+**Conversation Paste Mode:**
+```
+User → /proof page
+  → Paste conversation (plain text or JSON)
+  → Configure: path, provider, model, optimization level
+  → POST /v1/proof/estimate { path, provider, model, optimization_level, messages }
+  → System parses conversation into message format
+  → Runs optimizer pipeline in dry-run mode (no LLM call)
+  → Estimates baseline and optimized tokens/cost
+  → Calculates savings and confidence
+  → Returns savings summary with "ESTIMATED" badge
   → Works even if trial expired (no provider costs)
 ```
 
@@ -478,39 +626,48 @@ Storage:
 Response (Redacted - No Moat Internals)
 ```
 
-### Database Schema
+### Database Schema (PostgreSQL via Supabase)
 
 **`orgs` table:**
 - Organization entities
-- Fields: id, name, created_at, trial_ends_at, stripe_customer_id, subscription_status
+- Fields: id (UUID), name, created_at, trial_ends_at, stripe_customer_id, subscription_status
 - Trial defaults to 7 days
+- Row Level Security (RLS) enabled
+
+**`org_memberships` table:**
+- Links Supabase auth users to organizations
+- Fields: id (UUID), org_id, user_id (Supabase auth.users.id), role (OWNER/ADMIN/DEV/VIEWER/BILLING)
+- Enables multi-user organizations with role-based access
 
 **`projects` table:**
 - Project entities (optional grouping within orgs)
-- Fields: id, org_id, name, created_at
-- Foreign key to orgs
+- Fields: id (UUID), org_id, name, created_at
+- Foreign key to orgs with CASCADE delete
 
 **`api_keys` table:**
-- API key authentication
-- Fields: id, org_id, project_id (nullable), name, key_hash, created_at, last_used_at, revoked_at
-- Keys stored as SHA256 hash (never plaintext)
+- API key authentication (machine auth)
+- Fields: id (UUID), org_id, project_id (nullable), name, key_prefix (first 8 chars), key_hash (argon2id), scopes, created_at, last_used_at, revoked_at
+- Keys stored as argon2id hash (never plaintext)
+- Prefix lookup (first 8 chars) for fast authentication
+- Constant-time comparison to prevent timing attacks
 - Can be org-level or project-scoped
+- Tracked with last_used_at for usage analytics
 
 **`runs` table:**
 - Stores individual LLM calls
 - Includes: tokens, cost, quality, optimization_level
-- **New fields**: org_id, project_id, provider_key_fingerprint (audit only, never the actual key)
+- Fields: org_id, project_id, provider_key_fingerprint (audit only, never the actual key)
 - `workload_key`: Groups comparable runs
-- `debug_internal_json`: Moat internals (server-only)
+- `debug_internal_json`: Moat internals (server-only, never exposed)
 
 **`replays` table:**
 - Groups baseline + optimized runs
 - Links via `replay_id`
-- Stores scenario_id, workload_key
+- Stores scenario_id, workload_key, path, optimization_level
 
 **`savings_ledger` table:**
 - Customer-facing accounting rows
-- **New fields**: org_id, project_id (for org/project filtering)
+- Fields: org_id, project_id (for org/project filtering)
 - Separates verified vs estimated
 - Includes confidence scores
 - Used for dashboard and exports
@@ -519,6 +676,16 @@ Response (Redacted - No Moat Internals)
 - Welford aggregates per workload_key
 - Mean/variance for tokens and cost
 - Used for baseline estimation
+
+**`agent_runs` table:**
+- Agent control plane runs (SDK-first integration)
+- Fields: id (TEXT, run_id from SDK), org_id, project_id, model, max_budget_usd, allowed_tools, permission_mode, prompt_meta (JSONB), reasons
+- Tracks agent runtime decisions and telemetry
+
+**`agent_events` table:**
+- Agent event telemetry
+- Fields: id (UUID), run_id, created_at, event (JSONB)
+- Stores agent stream events for analytics
 
 ---
 
@@ -797,12 +964,13 @@ confidence = 0.15 + 0.55*sample_conf + 0.20*stability_conf + 0.10*recency_conf
 
 ### Public Endpoints
 
-**Authentication Required** (X-SPECTYRA-API-KEY header):
+**Authentication Required** (X-SPECTYRA-API-KEY header or Supabase JWT):
 - `GET /v1/providers` - List available LLM providers
 - `GET /v1/scenarios` - List test scenarios
 - `GET /v1/scenarios/:id` - Get scenario details
 - `POST /v1/chat` - Real-time chat (baseline or optimized) - **Requires active trial or subscription**
 - `POST /v1/replay` - Run scenario in proof mode (estimator mode allowed even if trial expired)
+- `POST /v1/proof/estimate` - Estimate savings from pasted conversation (no real LLM calls, works without subscription)
 - `GET /v1/runs` - List run history (filtered by org/project)
 - `GET /v1/runs/:id` - Get run details
 - `GET /v1/savings/summary` - Overall savings summary (filtered by org/project)
@@ -813,99 +981,238 @@ confidence = 0.15 + 0.55*sample_conf + 0.20*stability_conf + 0.10*recency_conf
 - `GET /v1/integrations/snippets` - Get integration code snippets
 - `GET /v1/billing/status` - Get org billing status and trial info
 - `POST /v1/billing/checkout` - Create Stripe checkout session
+- `GET /v1/auth/me` - Get current org/project info (requires Supabase JWT or API key)
+- `GET /v1/auth/api-keys` - List API keys (requires Supabase JWT)
+- `POST /v1/auth/api-keys` - Create new API key (requires Supabase JWT)
+- `DELETE /v1/auth/api-keys/:id` - Revoke API key (requires Supabase JWT)
+
+**Agent Control Plane** (X-SPECTYRA-API-KEY header required):
+- `POST /v1/agent/options` - Get agent options for prompt context (SDK-first integration)
+- `POST /v1/agent/events` - Send agent event for telemetry
 
 **No Authentication Required**:
 - `POST /v1/billing/webhook` - Stripe webhook handler (uses signature verification)
-- `POST /v1/auth/register` - Register new organization
+- `POST /v1/auth/register` - Register new organization with Supabase
+- `POST /v1/auth/bootstrap` - Bootstrap org/project after first Supabase login (requires Supabase JWT)
 
 ### Admin Endpoints
 
 - `GET /v1/admin/runs/:id/debug` - Get moat internals (requires X-ADMIN-TOKEN header)
+- `GET /v1/admin/orgs` - List all organizations (requires X-ADMIN-TOKEN header)
+- `GET /v1/admin/orgs/:id` - Get organization details (requires X-ADMIN-TOKEN header)
+- `PATCH /v1/admin/orgs/:id` - Update organization (requires X-ADMIN-TOKEN header)
+- `DELETE /v1/admin/orgs/:id` - Delete organization (requires X-ADMIN-TOKEN header)
 
 ---
 
-## Frontend (Angular)
+## Frontend (Angular 17)
 
-### Authentication
+### Architecture
 
-- **Registration** (`/register`): Create organization, receive API key (shown once)
-- **Login** (`/login`): Enter API key to authenticate
-- API key stored in localStorage, automatically included in all API requests
-- Organization name displayed in navigation when logged in
-- Trial status and subscription info available via `/v1/billing/status`
+- **Standalone Components**: All components use Angular standalone architecture
+- **Separate Files**: All components have separate `.ts`, `.html`, and `.css` files
+- **HTTP Interceptor**: Automatic authentication header injection for all API requests
+- **Route Guards**: Auth guard protects authenticated routes, redirects to login if needed
+- **Reactive State**: RxJS observables for session management and state updates
+
+### Authentication System
+
+**Dual Authentication Methods:**
+
+1. **Supabase JWT (Human Auth - Dashboard)**
+   - Email/password registration and login
+   - JWT tokens stored in Supabase client
+   - Automatic token refresh
+   - Session persistence across page reloads
+   - Used for dashboard access and API key management
+
+2. **API Keys (Machine Auth - Gateway/SDK)**
+   - Legacy support for API key login
+   - Stored in localStorage
+   - Used for programmatic access and SDK integrations
+
+**HTTP Interceptor:**
+- Automatically adds `Authorization: Bearer <token>` header for Supabase JWT
+- Falls back to `X-SPECTYRA-API-KEY` if no JWT available
+- Skips public endpoints (`/auth/register`, `/auth/login`, `/health`)
+- Prevents duplicate headers if already set
+
+**Registration Flow:**
+1. User provides email, password, organization name, optional project name
+2. System creates Supabase user account
+3. System creates org with 7-day free trial
+4. System creates default project (if provided)
+5. System generates first API key (shown once, must be saved)
+6. User automatically logged in with Supabase session
+7. API key stored in localStorage for gateway/SDK usage
+
+**Bootstrap Flow (First-Time Users):**
+- After first Supabase login, if user doesn't have an org yet:
+- Shows bootstrap form to create organization
+- Calls `/v1/auth/bootstrap` endpoint with org/project name
+- Creates org, project, and first API key
+- User must save API key (shown once)
+
+**Login Flow:**
+- **Supabase Login**: Email/password → Supabase session → Check for org → Bootstrap if needed
+- **API Key Login**: Enter API key → Validate → Store in localStorage → Access dashboard
 
 ### Pages
 
-1. **Proof Scenarios Page** (`/scenarios`)
+1. **Home Page** (`/`)
+   - Public landing page for unauthenticated users
+   - Hero section with tagline and CTA buttons
+   - Key features showcase with professional SVG icons
+   - "How It Works" section
+   - Call-to-action to sign up or log in
+   - Navigation shows Login/Sign Up links when not authenticated
+
+2. **Registration Page** (`/register`)
+   - Supabase email/password registration
+   - Organization name and optional project name
+   - Creates account, org, project, and first API key
+   - Shows API key once (must be saved)
+   - Displays trial information
+   - Link to login page
+
+3. **Login Page** (`/login`)
+   - **Dual Auth Tabs**: Email/Password (Supabase) or API Key (legacy)
+   - **Supabase Login**: Email/password → checks for org → shows bootstrap if needed
+   - **API Key Login**: Enter API key → validate → access dashboard
+   - **Bootstrap Flow**: If logged in but no org, shows org creation form
+   - **Success State**: Shows trial info, access status, continue button
+   - Link to registration page
+
+4. **Proof Scenarios Page** (`/scenarios`)
    - Lists available test scenarios
-   - Filter by path (talk/code)
+   - Filter by path (talk/code/all)
    - Click to run scenario
    - Hero subtitle: "Optimize API-based LLM usage for teams. Reduce inference cost by 40-65%."
-   - Banner directing users to Integrations page
+   - Dismissible banner directing users to Integrations page
+   - Protected route (requires authentication)
 
-2. **Integrations Page** (`/integrations`)
+5. **Integrations Page** (`/integrations`)
    - Three integration methods:
      - **Hosted Gateway**: Direct API integration (code snippets)
      - **Local Proxy**: Desktop coding tools setup
-     - **Server SDK**: Programmatic integration
+     - **Server SDK**: Programmatic integration (with browser warning)
    - Dynamic code snippets from `/v1/integrations/snippets` API
    - Enterprise-focused messaging
+   - Protected route
 
-3. **Projects Page** (`/projects`)
+6. **Connections Page** (`/connections`)
+   - Step-by-step guide for connecting coding tools
+   - Instructions for installing and configuring proxy
+   - Tool-specific configuration (Copilot, Cursor, Claude Code, etc.)
+   - Links to documentation
+   - Protected route
+
+7. **Projects Page** (`/projects`)
    - Project management (placeholder for future)
    - Enterprise organization structure
+   - Protected route
 
-4. **Run Page** (`/scenarios/:id/run`)
+8. **Run Page** (`/scenarios/:id/run`)
    - Shows scenario details
-   - Optimization level slider (0-4)
+   - Optimization level slider (0-4) with path-specific labels
    - Provider/model selector
    - **Proof Mode Toggle**: "Live" vs "Estimator" (estimator mode works without subscription)
-   - "Replay Both" button
+   - "Run Replay" button
    - Displays:
      - Savings card with "VERIFIED" or "ESTIMATED" badge
      - Side-by-side comparison (baseline vs optimized)
-     - Token/cost table
-     - Quality status
-     - Advanced debug panel (hidden by default)
+     - Token/cost table for each run
+     - Output comparison
+     - Advanced debug panel (hidden by default, toggleable)
+   - Protected route
 
-5. **Gateway Runs Page** (`/runs`)
-   - Table of all runs (filtered by org/project)
-   - Filter and sort
-   - Link to run details
-   - Enterprise-focused labeling
+9. **Proof Mode Page** (`/proof`)
+   - Paste conversation from ChatGPT, Claude, or any chat interface
+   - Supports plain text or JSON format
+   - Configuration: path, provider, model, optimization level
+   - Conversation preview after parsing
+   - Savings estimates without real LLM calls
+   - Shows baseline and optimized estimates
+   - Confidence band display
+   - Protected route
 
-6. **Org Savings Page** (`/savings`)
-   - KPI cards (verified, total, tokens, replays)
-   - Time series chart (verified vs estimated)
-   - Breakdown by level and path
-   - Filters (date range, path, provider, model)
-   - Export buttons
-   - All data filtered by authenticated org/project
+10. **Gateway Runs Page** (`/runs`)
+    - Table of all runs (filtered by org/project)
+    - Columns: ID, Scenario, Mode, Provider, Tokens, Cost, Quality, Created, Actions
+    - Link to run details
+    - Enterprise-focused labeling
+    - Protected route
 
-7. **Billing Page** (`/billing`)
-   - Trial countdown display
-   - Subscription status
-   - "Upgrade" button (calls Stripe checkout)
-   - Organization information
-   - Trial expired messaging with upgrade CTA
+11. **Org Savings Page** (`/savings`)
+    - **KPI Cards**: Verified Savings, Total Savings, Tokens Saved, Replays Count
+    - **Time Series Chart**: Daily/weekly trends (verified vs estimated)
+    - **Breakdowns**: By optimization level and by path (talk/code)
+    - **Filters**: Date range (7/30/90 days or custom), path, provider, model
+    - **Export Buttons**: Verified savings CSV, All savings CSV
+    - All data filtered by authenticated org/project
+    - Protected route
 
-8. **Org Settings Page** (`/settings`)
-   - Organization-wide settings
-   - Default provider/model per path
-   - Pricing configuration
-   - Threshold adjustments
+12. **Billing Page** (`/billing`)
+    - Trial countdown display with days remaining
+    - Subscription status (trial/active/canceled/past_due)
+    - "Upgrade" button (calls Stripe checkout)
+    - Organization information
+    - Trial expired messaging with upgrade CTA
+    - Protected route
+
+13. **Settings Page** (`/settings`)
+    - **API Key Management**:
+      - Create new API keys (named, org-level or project-scoped)
+      - List all API keys with metadata (name, project, created, last used, status)
+      - Revoke API keys (soft delete)
+      - Copy newly created keys (shown once)
+    - **Organization Info**: Name, status, trial end date
+    - **Projects List**: All projects in organization
+    - Protected route
+
+14. **Admin Page** (`/admin`)
+    - Admin panel for system administrators
+    - Admin token authentication
+    - List all organizations with stats
+    - View organization details (projects, API keys, runs)
+    - Edit organization name
+    - Delete organizations (danger zone)
+    - Protected route (requires admin token)
 
 ---
 
 ## Environment Configuration
 
+### Backend (API)
+
+**Required Environment Variables:**
+- `DATABASE_URL`: PostgreSQL connection string (Supabase pooler recommended)
+- `SUPABASE_URL`: Supabase project URL
+- `SUPABASE_JWT_SECRET`: Supabase JWT secret for token verification
+- `STRIPE_SECRET_KEY`: Stripe secret key for billing
+- `STRIPE_WEBHOOK_SECRET`: Stripe webhook signature verification
+- `ADMIN_TOKEN`: Admin panel access token
+
+**Optional Environment Variables:**
+- `PORT`: API server port (default: 8080)
+- `NODE_ENV`: Environment (development/production)
+
+### Frontend (Web)
+
+**Required Environment Variables:**
+- `apiUrl`: API base URL (e.g., `https://spectyra.up.railway.app/v1`)
+- `supabaseUrl`: Supabase project URL
+- `supabaseAnonKey`: Supabase anonymous key for client-side auth
+
 ### Development
 - API URL: `http://localhost:8080/v1`
-- Debug mode: Enabled (shows moat internals)
+- Frontend: `http://localhost:4200`
+- Debug mode: Enabled (shows moat internals in admin panel)
 
 ### Production
 - API URL: `https://spectyra.up.railway.app/v1`
-- Debug mode: Disabled (strips all internals)
+- Frontend: Deployed to Netlify/Vercel
+- Debug mode: Disabled (strips all internals from public API)
 - Build: `ng build --configuration production`
 
 ---
@@ -963,24 +1270,54 @@ confidence = 0.15 + 0.55*sample_conf + 0.20*stability_conf + 0.10*recency_conf
 ## Technical Stack
 
 - **Backend**: Node.js + Express + TypeScript
-- **Database**: SQLite (better-sqlite3)
-- **Frontend**: Angular 17 (standalone components)
+- **Database**: PostgreSQL (via Supabase) with Row Level Security (RLS)
+- **Frontend**: Angular 17 (standalone components with separate HTML/CSS files)
+- **Authentication**: Supabase Auth (JWT) + API Keys (argon2id hashing)
 - **LLM SDKs**: OpenAI, Anthropic, Google Generative AI, Grok
 - **Embeddings**: OpenAI text-embedding-3-small
 - **Math**: Custom spectral analysis (no external math libs for MVP)
-- **Deployment**: Railway (API), Netlify (Frontend)
+- **Deployment**: Railway (API), Netlify/Vercel (Frontend)
 - **Proxy**: Express server with multi-provider format conversion
 - **Dashboard**: Real-time web UI for savings tracking
 
 ## Additional Components
 
-### SDK Package (`packages/sdk`)
-- NPM package for integrating Spectyra into applications
-- `SpectyraClient` interface with `chat()` method
-- Supports Spectyra API key and BYOK (provider keys)
-- TypeScript types and examples
-- Best for: Custom applications, scripts, programmatic integrations
-- Usage: `npm install @spectyra/sdk`
+### SDK Package (`packages/sdk`) - **v2.0.0 (SDK-First Agent Control Plane)**
+
+**New SDK Architecture:**
+- **Primary API**: `createSpectyra()` factory function
+- **Two Integration Modes**:
+  - **Local Mode** (default): Works offline, makes local decisions about agent options
+  - **API Mode**: Calls Spectyra API for centralized control plane
+
+**Agent Control Plane Features:**
+- **Agent Options**: Determine model, budget, tools, permissions based on prompt context
+- **Event Streaming**: Send agent events for telemetry and analytics
+- **Claude Agent SDK Integration**: Adapter converts Spectyra decisions to Claude Agent format
+- **Tool Gating**: Default `canUseTool` gate denies dangerous Bash commands
+
+**API Endpoints:**
+- `POST /v1/agent/options` - Get agent options for prompt context
+- `POST /v1/agent/events` - Send agent event for telemetry
+
+**Usage Examples:**
+- Local mode: `createSpectyra({ mode: "local" })` - No API calls, works offline
+- API mode: `createSpectyra({ mode: "api", endpoint, apiKey })` - Centralized control
+
+**Legacy Support:**
+- `SpectyraClient` class (deprecated) - Still available for backward compatibility
+- Chat optimization via `/v1/chat` endpoint
+
+**Installation:**
+```bash
+npm install @spectyra/sdk
+```
+
+**Best for**: 
+- Agent frameworks (Claude Agent SDK, LangChain, etc.)
+- Custom applications requiring runtime control
+- Enterprise deployments needing centralized policy
+- See: `packages/sdk/README.md` for full documentation
 
 ### Browser Extension (`extensions/browser-extension`)
 - **Target Audience**: Web-based LLM tools (ChatGPT, Claude Web, Gemini Web)
@@ -1152,11 +1489,22 @@ Spectyra uses an enterprise organization/project model:
 - Optional pass-through fallback mode
 - See: `tools/proxy/README.md` for enterprise usage guide
 
-### For Custom Applications
-👉 **Use SDK**
+### For Agent Frameworks (Claude Agent SDK, LangChain, etc.)
+👉 **Use SDK (Agent Control Plane)**
+- **Local Mode**: Works offline, makes local decisions (default)
+- **API Mode**: Centralized control plane with telemetry
+- Agent options: model selection, budget, tool permissions
+- Event streaming for analytics
+- One-line integration with Claude Agent SDK
+- See: `packages/sdk/README.md`
+
+### For Custom Applications (Chat Optimization)
+👉 **Use SDK (Legacy Chat Client)**
 - Full programmatic control
+- Chat optimization via `/v1/chat` endpoint
 - Integrate into your codebase
 - Custom workflows
+- **Note**: Legacy API, agent control plane is recommended for new integrations
 - See: `packages/sdk/README.md`
 
 ### For Direct API Integration
@@ -1290,6 +1638,46 @@ await client.getGenerativeModel({ ... });
 
 ---
 
+## Recent Updates & Current Features
+
+### ✅ Completed Features
+
+1. **Database Migration**: SQLite → PostgreSQL (Supabase)
+   - Full Postgres schema with RLS policies
+   - Connection pooling for performance
+   - Multi-tenant data isolation
+
+2. **Dual Authentication System**:
+   - Supabase JWT for dashboard users
+   - API keys for machine auth (gateway/SDK)
+   - HTTP interceptor for automatic header injection
+   - Route guards for protected pages
+
+3. **Agent Control Plane**:
+   - SDK-first integration with `createSpectyra()`
+   - Local and API modes
+   - Agent options and event streaming endpoints
+   - Claude Agent SDK adapter
+
+4. **Frontend Refactoring**:
+   - All components separated into `.ts`, `.html`, `.css` files
+   - Professional SVG icons replacing emojis
+   - Homepage for unauthenticated users
+   - Organization/project switcher component
+   - Bootstrap flow for first-time users
+
+5. **Enhanced Pages**:
+   - Proof Mode page for conversation paste
+   - Connections page for coding tools setup
+   - Settings page for API key management
+   - Admin panel for system administration
+
+6. **Security Improvements**:
+   - Centralized logging with redaction utilities
+   - Constant-time key comparison
+   - Provider key fingerprinting for audit
+   - No secrets in logs or error messages
+
 ## Future Enhancements (Not in MVP)
 
 - Shadow baseline sampling (automatic baseline measurement in production)
@@ -1302,3 +1690,5 @@ await client.getGenerativeModel({ ... });
 - Markov drift detection (semantic state changes)
 - Usage limits and tiered pricing for Spectyra service (future)
 - Project-level billing and quotas
+- Multi-user organization management UI
+- Role-based access control (RBAC) UI

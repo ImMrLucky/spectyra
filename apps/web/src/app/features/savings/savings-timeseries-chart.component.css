@@ -1,0 +1,16 @@
+.chart-container {
+  overflow-x: auto;
+  margin-top: 20px;
+}
+
+.chart {
+  width: 100%;
+  height: 300px;
+  min-width: 600px;
+}
+
+.loading {
+  text-align: center;
+  padding: 40px;
+  color: #666;
+}

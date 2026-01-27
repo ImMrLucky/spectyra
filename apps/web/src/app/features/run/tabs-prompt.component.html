@@ -1,0 +1,9 @@
+<div class="card">
+  <h3>Final Prompt</h3>
+  <div class="prompt-content">
+    <div *ngFor="let msg of messages" class="message">
+      <strong>{{ msg.role }}:</strong>
+      <pre>{{ msg.content }}</pre>
+    </div>
+  </div>
+</div>

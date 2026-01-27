@@ -1,0 +1,34 @@
+<div class="org-switcher" *ngIf="org">
+  <div class="current-org" (click)="showDropdown = !showDropdown">
+    <span class="org-name">{{ org.name }}</span>
+    <span class="org-status" [class.active]="org.subscription_status === 'active'"
+          [class.trial]="org.subscription_status === 'trial'">
+      {{ org.subscription_status }}
+    </span>
+    <span class="dropdown-arrow">▼</span>
+  </div>
+  
+  <div class="dropdown" *ngIf="showDropdown">
+    <div class="org-info">
+      <h4>{{ org.name }}</h4>
+      <p class="org-id">ID: {{ org.id }}</p>
+      <p class="org-status-text">Status: {{ org.subscription_status }}</p>
+    </div>
+    
+    <div class="projects-section" *ngIf="projects.length > 0">
+      <h5>Projects</h5>
+      <ul class="projects-list">
+        <li *ngFor="let project of projects" 
+            [class.active]="currentProjectId === project.id"
+            (click)="selectProject(project)">
+          {{ project.name }}
+        </li>
+      </ul>
+    </div>
+    
+    <div class="actions">
+      <a routerLink="/settings" class="action-link">Settings</a>
+      <a routerLink="/billing" class="action-link">Billing</a>
+    </div>
+  </div>
+</div>

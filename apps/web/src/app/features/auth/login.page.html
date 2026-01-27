@@ -1,0 +1,142 @@
+<div class="container">
+  <div class="card">
+    <h1>Login</h1>
+    
+    <!-- Tabs for auth method -->
+    <div class="tabs">
+      <button 
+        class="tab" 
+        [class.active]="authMethod === 'supabase'"
+        (click)="authMethod = 'supabase'">
+        Email & Password
+      </button>
+      <button 
+        class="tab" 
+        [class.active]="authMethod === 'apikey'"
+        (click)="authMethod = 'apikey'">
+        API Key
+      </button>
+    </div>
+
+    <!-- Supabase Email/Password Form -->
+    <form (ngSubmit)="loginSupabase()" *ngIf="authMethod === 'supabase' && !success">
+      <div class="form-group">
+        <label for="email">Email</label>
+        <input
+          type="email"
+          id="email"
+          [(ngModel)]="email"
+          [disabled]="loading"
+          required
+          placeholder="you@example.com"
+          class="form-input">
+      </div>
+      
+      <div class="form-group">
+        <label for="password">Password</label>
+        <input
+          type="password"
+          id="password"
+          [(ngModel)]="password"
+          [disabled]="loading"
+          required
+          placeholder="••••••••"
+          class="form-input">
+      </div>
+      
+      <button type="submit" class="btn btn-primary" [disabled]="loading || !email || !password">
+        {{ loading ? 'Logging in...' : 'Login' }}
+      </button>
+      
+      <div class="help-text">
+        Don't have an account? <a routerLink="/register">Sign up</a>
+      </div>
+    </form>
+
+    <!-- API Key Form (Legacy) -->
+    <form (ngSubmit)="loginApiKey()" *ngIf="authMethod === 'apikey' && !success">
+      <div class="form-group">
+        <label for="apiKey">API Key</label>
+        <input
+          type="password"
+          id="apiKey"
+          [(ngModel)]="apiKey"
+          [disabled]="loading"
+          required
+          placeholder="sk_spectyra_..."
+          class="form-input">
+        <div class="help-text">
+          Don't have an API key? <a routerLink="/register">Create an account</a>
+        </div>
+      </div>
+      
+      <button type="submit" class="btn btn-primary" [disabled]="loading || !apiKey">
+        {{ loading ? 'Logging in...' : 'Login' }}
+      </button>
+    </form>
+
+    <!-- Bootstrap Flow (First-time Supabase user) -->
+    <!-- Only show if user is logged in (has session) but doesn't have an org yet -->
+    <div *ngIf="needsBootstrap && authMethod === 'supabase' && hasSession" class="bootstrap-box">
+      <h2>Welcome to Spectyra!</h2>
+      <p>Let's set up your organization to get started.</p>
+      
+      <form (ngSubmit)="bootstrap()" *ngIf="!bootstrapSuccess">
+        <div class="form-group">
+          <label for="orgName">Organization Name</label>
+          <input
+            type="text"
+            id="orgName"
+            [(ngModel)]="orgName"
+            [disabled]="bootstrapLoading"
+            required
+            placeholder="My Company"
+            class="form-input">
+        </div>
+        
+        <div class="form-group">
+          <label for="projectName">Project Name (Optional)</label>
+          <input
+            type="text"
+            id="projectName"
+            [(ngModel)]="projectName"
+            [disabled]="bootstrapLoading"
+            placeholder="Default Project"
+            class="form-input">
+        </div>
+        
+        <button type="submit" class="btn btn-primary" [disabled]="bootstrapLoading || !orgName">
+          {{ bootstrapLoading ? 'Setting up...' : 'Create Organization' }}
+        </button>
+      </form>
+      
+      <div *ngIf="bootstrapSuccess && bootstrapApiKey" class="api-key-box">
+        <h3>🎉 Organization Created!</h3>
+        <p><strong>Save your API key now</strong> - you won't be able to see it again!</p>
+        <div class="api-key-display">
+          <code>{{ bootstrapApiKey }}</code>
+          <button class="btn btn-secondary" (click)="copyApiKey()">Copy</button>
+        </div>
+        <button class="btn btn-primary" (click)="goToApp()">Continue to App</button>
+      </div>
+    </div>
+    
+    <!-- Success State -->
+    <div *ngIf="success && !needsBootstrap" class="success-box">
+      <h2>✅ Logged In</h2>
+      <p>Welcome back, {{ userEmail }}!</p>
+      <div class="trial-info" *ngIf="trialActive">
+        <p>✅ <strong>Free trial active</strong></p>
+        <p>Trial ends: {{ trialEndsAt | date:'medium' }}</p>
+      </div>
+      <div class="warning-box" *ngIf="!hasAccess">
+        <p>⚠️ Your trial has expired. Please subscribe to continue.</p>
+      </div>
+      <button class="btn btn-primary" (click)="goToApp()">Continue to App</button>
+    </div>
+    
+    <div *ngIf="error" class="error-box">
+      <p>{{ error }}</p>
+    </div>
+  </div>
+</div>

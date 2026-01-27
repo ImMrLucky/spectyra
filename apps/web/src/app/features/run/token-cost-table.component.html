@@ -1,0 +1,30 @@
+<div class="card">
+  <h3>Token Usage & Cost</h3>
+  <table class="table">
+    <tr>
+      <td>Input Tokens</td>
+      <td>{{ formatNumber(run.usage.input_tokens) }}</td>
+    </tr>
+    <tr>
+      <td>Output Tokens</td>
+      <td>{{ formatNumber(run.usage.output_tokens) }}</td>
+    </tr>
+    <tr>
+      <td>Total Tokens</td>
+      <td><strong>{{ formatNumber(run.usage.total_tokens) }}</strong></td>
+    </tr>
+    <tr>
+      <td>Cost</td>
+      <td><strong>{{ formatCurrency(run.costUsd) }}</strong></td>
+    </tr>
+    <tr *ngIf="run.usage.estimated">
+      <td colspan="2" class="text-muted"><small>* Estimated tokens</small></td>
+    </tr>
+  </table>
+  
+  <div class="quality-badge" *ngIf="run.quality && run.quality.pass">
+    <span class="badge badge-success">
+      Quality: PASS
+    </span>
+  </div>
+</div>

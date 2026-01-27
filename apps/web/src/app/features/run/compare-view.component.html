@@ -1,0 +1,26 @@
+<div class="compare-view">
+  <div class="debug-toggle">
+    <label>
+      <input type="checkbox" [(ngModel)]="showDebug" />
+      Show advanced debug
+    </label>
+  </div>
+  
+  <div class="compare-columns">
+    <div class="compare-column">
+      <h2>Baseline</h2>
+      <app-token-cost-table [run]="result.baseline"></app-token-cost-table>
+      <app-tabs-output [run]="result.baseline"></app-tabs-output>
+      <app-tabs-prompt [run]="result.baseline" *ngIf="showDebug"></app-tabs-prompt>
+      <app-tabs-debug [run]="result.baseline" *ngIf="showDebug"></app-tabs-debug>
+    </div>
+    
+    <div class="compare-column">
+      <h2>Optimized</h2>
+      <app-token-cost-table [run]="result.optimized"></app-token-cost-table>
+      <app-tabs-output [run]="result.optimized"></app-tabs-output>
+      <app-tabs-prompt [run]="result.optimized" *ngIf="showDebug"></app-tabs-prompt>
+      <app-tabs-debug [run]="result.optimized" *ngIf="showDebug"></app-tabs-debug>
+    </div>
+  </div>
+</div>

@@ -21,87 +21,8 @@ import { SavingsByPathComponent } from './savings-by-path.component';
     SavingsByLevelComponent,
     SavingsByPathComponent,
   ],
-  template: `
-    <div class="container">
-      <h1>Org Savings</h1>
-      <p class="subtitle">Track inference cost reduction across your organization</p>
-      
-      <app-savings-filters
-        [filters]="filters"
-        [providers]="providers"
-        (filtersChange)="onFiltersChange($event)">
-      </app-savings-filters>
-      
-      <app-savings-kpis [summary]="summary" [loading]="loading"></app-savings-kpis>
-      
-      <app-savings-timeseries-chart
-        [timeseries]="timeseries"
-        [loading]="loading">
-      </app-savings-timeseries-chart>
-      
-      <div class="charts-grid">
-        <app-savings-by-level
-          [breakdown]="byLevel"
-          [loading]="loading">
-        </app-savings-by-level>
-        
-        <app-savings-by-path
-          [breakdown]="byPath"
-          [loading]="loading">
-        </app-savings-by-path>
-      </div>
-      
-      <div class="export-section">
-        <button class="btn btn-primary" (click)="exportSavings('verified')">
-          Export Verified Savings (CSV)
-        </button>
-        <button class="btn btn-secondary" (click)="exportSavings('all')">
-          Export All Savings (CSV)
-        </button>
-      </div>
-    </div>
-  `,
-  styles: [`
-    .subtitle {
-      color: #666;
-      font-size: 16px;
-      margin-bottom: 20px;
-    }
-    .charts-grid {
-      display: grid;
-      grid-template-columns: 1fr 1fr;
-      gap: 20px;
-      margin-top: 20px;
-    }
-    .export-section {
-      margin-top: 30px;
-      padding: 20px;
-      background: white;
-      border-radius: 8px;
-      box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-    }
-    .btn {
-      padding: 10px 20px;
-      margin-right: 10px;
-      border: none;
-      border-radius: 4px;
-      cursor: pointer;
-      font-weight: 600;
-    }
-    .btn-primary {
-      background: #007bff;
-      color: white;
-    }
-    .btn-secondary {
-      background: #6c757d;
-      color: white;
-    }
-    @media (max-width: 768px) {
-      .charts-grid {
-        grid-template-columns: 1fr;
-      }
-    }
-  `],
+  templateUrl: './savings.page.html',
+  styleUrls: ['./savings.page.css'],
 })
 export class SavingsPage implements OnInit {
   filters = {

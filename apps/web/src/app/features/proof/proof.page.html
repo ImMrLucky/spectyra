@@ -1,0 +1,133 @@
+<div class="container">
+  <h1>Proof Mode - Estimate Savings</h1>
+  <p class="subtitle">Paste a conversation to see estimated token and cost savings without making real LLM calls.</p>
+  
+  <div class="card">
+    <h3>Configuration</h3>
+    <div class="form-grid">
+      <div class="form-group">
+        <label class="form-label">Path</label>
+        <select class="form-select" [(ngModel)]="path">
+          <option value="talk">Talk</option>
+          <option value="code">Code</option>
+        </select>
+      </div>
+      
+      <div class="form-group">
+        <label class="form-label">Provider</label>
+        <select class="form-select" [(ngModel)]="provider">
+          <option *ngFor="let p of providers" [value]="p.name">{{ p.name }}</option>
+        </select>
+      </div>
+      
+      <div class="form-group">
+        <label class="form-label">Model</label>
+        <select class="form-select" [(ngModel)]="model">
+          <option *ngFor="let m of availableModels" [value]="m">{{ m }}</option>
+        </select>
+      </div>
+      
+      <div class="form-group">
+        <label class="form-label">Optimization Level: {{ optimizationLevel }}</label>
+        <input 
+          type="range" 
+          min="0" 
+          max="4" 
+          [(ngModel)]="optimizationLevel"
+          class="slider">
+        <div class="slider-labels">
+          <span>Minimal</span>
+          <span>Conservative</span>
+          <span>Balanced</span>
+          <span>Aggressive</span>
+          <span>Maximum</span>
+        </div>
+      </div>
+    </div>
+  </div>
+  
+  <div class="card">
+    <h3>Paste Conversation</h3>
+    <p class="help-text">Paste a conversation from ChatGPT, Claude, or any chat interface. You can paste the raw text or JSON format.</p>
+    <textarea 
+      class="textarea"
+      [(ngModel)]="conversationInput"
+      placeholder="Paste your conversation here... (supports plain text or JSON format)"
+      rows="12">
+    </textarea>
+    <button 
+      class="btn btn-primary"
+      (click)="estimateSavings()"
+      [disabled]="loading || !conversationInput.trim()">
+      {{ loading ? 'Estimating...' : 'Estimate Savings' }}
+    </button>
+  </div>
+  
+  <div *ngIf="parsedMessages && parsedMessages.length > 0" class="card conversation-preview">
+    <h3>Conversation Preview</h3>
+    <div class="conversation-messages">
+      <div *ngFor="let msg of parsedMessages; let i = index" class="message" [class.user]="msg.role === 'user'" [class.assistant]="msg.role === 'assistant'">
+        <div class="message-role">{{ msg.role === 'user' ? 'You' : 'Assistant' }}</div>
+        <div class="message-content">{{ msg.content }}</div>
+      </div>
+    </div>
+  </div>
+  
+  <div *ngIf="estimate && !loading" class="results">
+    <div class="card savings-card">
+      <h3>Savings Summary</h3>
+      <div class="savings-grid">
+        <div class="savings-item">
+          <div class="savings-label">Tokens Saved</div>
+          <div class="savings-value">{{ formatNumber(estimate.savings.tokens_saved) }}</div>
+          <div class="savings-pct">{{ formatPercent(estimate.savings.pct_saved) }} saved</div>
+        </div>
+        
+        <div class="savings-item">
+          <div class="savings-label">Cost Saved</div>
+          <div class="savings-value">{{ formatCurrency(estimate.savings.cost_saved_usd) }}</div>
+          <div class="savings-pct">{{ formatPercent(estimate.savings.pct_saved) }} saved</div>
+        </div>
+        
+        <div class="savings-item">
+          <div class="savings-label">Confidence</div>
+          <div class="savings-value confidence" [class.confidence-high]="estimate.confidence_band === 'high'"
+               [class.confidence-medium]="estimate.confidence_band === 'medium'"
+               [class.confidence-low]="estimate.confidence_band === 'low'">
+            {{ estimate.confidence_band }}
+          </div>
+        </div>
+      </div>
+    </div>
+    
+    <div class="card">
+      <h3>Baseline Estimate</h3>
+      <div class="estimate-details">
+        <div>Input: {{ formatNumber(estimate.baseline_estimate.input_tokens) }} tokens</div>
+        <div>Output: {{ formatNumber(estimate.baseline_estimate.output_tokens) }} tokens</div>
+        <div>Total: {{ formatNumber(estimate.baseline_estimate.total_tokens) }} tokens</div>
+        <div>Cost: {{ formatCurrency(estimate.baseline_estimate.cost_usd) }}</div>
+      </div>
+    </div>
+    
+    <div class="card">
+      <h3>Optimized Estimate</h3>
+      <div class="estimate-details">
+        <div>Input: {{ formatNumber(estimate.optimized_estimate.input_tokens) }} tokens</div>
+        <div>Output: {{ formatNumber(estimate.optimized_estimate.output_tokens) }} tokens</div>
+        <div>Total: {{ formatNumber(estimate.optimized_estimate.total_tokens) }} tokens</div>
+        <div>Cost: {{ formatCurrency(estimate.optimized_estimate.cost_usd) }}</div>
+      </div>
+    </div>
+    
+    <div class="card">
+      <h3>Optimization Applied</h3>
+      <p>{{ estimate.explanation_summary }}</p>
+    </div>
+  </div>
+  
+  <div *ngIf="error" class="card error">
+    <h3>Error</h3>
+    <p>{{ error }}</p>
+  </div>
+</div>

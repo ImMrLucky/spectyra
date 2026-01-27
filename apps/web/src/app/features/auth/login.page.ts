@@ -7,315 +7,14 @@ import { SupabaseService } from '../../services/supabase.service';
 import { HttpClient, HttpHeaders } from '@angular/common/http';
 import { environment } from '../../../environments/environment';
 import { Subscription } from 'rxjs';
+import { debounceTime, distinctUntilChanged } from 'rxjs/operators';
 
 @Component({
   selector: 'app-login',
   standalone: true,
   imports: [CommonModule, FormsModule, RouterModule],
-  template: `
-    <div class="container">
-      <div class="card">
-        <h1>Login</h1>
-        
-        <!-- Tabs for auth method -->
-        <div class="tabs">
-          <button 
-            class="tab" 
-            [class.active]="authMethod === 'supabase'"
-            (click)="authMethod = 'supabase'">
-            Email & Password
-          </button>
-          <button 
-            class="tab" 
-            [class.active]="authMethod === 'apikey'"
-            (click)="authMethod = 'apikey'">
-            API Key
-          </button>
-        </div>
-
-        <!-- Supabase Email/Password Form -->
-        <form (ngSubmit)="loginSupabase()" *ngIf="authMethod === 'supabase' && !success">
-          <div class="form-group">
-            <label for="email">Email</label>
-            <input
-              type="email"
-              id="email"
-              [(ngModel)]="email"
-              [disabled]="loading"
-              required
-              placeholder="you@example.com"
-              class="form-input">
-          </div>
-          
-          <div class="form-group">
-            <label for="password">Password</label>
-            <input
-              type="password"
-              id="password"
-              [(ngModel)]="password"
-              [disabled]="loading"
-              required
-              placeholder="••••••••"
-              class="form-input">
-          </div>
-          
-          <button type="submit" class="btn btn-primary" [disabled]="loading || !email || !password">
-            {{ loading ? 'Logging in...' : 'Login' }}
-          </button>
-          
-          <div class="help-text">
-            Don't have an account? <a routerLink="/register">Sign up</a>
-          </div>
-        </form>
-
-        <!-- API Key Form (Legacy) -->
-        <form (ngSubmit)="loginApiKey()" *ngIf="authMethod === 'apikey' && !success">
-          <div class="form-group">
-            <label for="apiKey">API Key</label>
-            <input
-              type="password"
-              id="apiKey"
-              [(ngModel)]="apiKey"
-              [disabled]="loading"
-              required
-              placeholder="sk_spectyra_..."
-              class="form-input">
-            <div class="help-text">
-              Don't have an API key? <a routerLink="/register">Create an account</a>
-            </div>
-          </div>
-          
-          <button type="submit" class="btn btn-primary" [disabled]="loading || !apiKey">
-            {{ loading ? 'Logging in...' : 'Login' }}
-          </button>
-        </form>
-
-        <!-- Bootstrap Flow (First-time Supabase user) -->
-        <div *ngIf="needsBootstrap && authMethod === 'supabase'" class="bootstrap-box">
-          <h2>Welcome to Spectyra!</h2>
-          <p>Let's set up your organization to get started.</p>
-          
-          <form (ngSubmit)="bootstrap()" *ngIf="!bootstrapSuccess">
-            <div class="form-group">
-              <label for="orgName">Organization Name</label>
-              <input
-                type="text"
-                id="orgName"
-                [(ngModel)]="orgName"
-                [disabled]="bootstrapLoading"
-                required
-                placeholder="My Company"
-                class="form-input">
-            </div>
-            
-            <div class="form-group">
-              <label for="projectName">Project Name (Optional)</label>
-              <input
-                type="text"
-                id="projectName"
-                [(ngModel)]="projectName"
-                [disabled]="bootstrapLoading"
-                placeholder="Default Project"
-                class="form-input">
-            </div>
-            
-            <button type="submit" class="btn btn-primary" [disabled]="bootstrapLoading || !orgName">
-              {{ bootstrapLoading ? 'Setting up...' : 'Create Organization' }}
-            </button>
-          </form>
-          
-          <div *ngIf="bootstrapSuccess && bootstrapApiKey" class="api-key-box">
-            <h3>🎉 Organization Created!</h3>
-            <p><strong>Save your API key now</strong> - you won't be able to see it again!</p>
-            <div class="api-key-display">
-              <code>{{ bootstrapApiKey }}</code>
-              <button class="btn btn-secondary" (click)="copyApiKey()">Copy</button>
-            </div>
-            <button class="btn btn-primary" (click)="goToApp()">Continue to App</button>
-          </div>
-        </div>
-        
-        <!-- Success State -->
-        <div *ngIf="success && !needsBootstrap" class="success-box">
-          <h2>✅ Logged In</h2>
-          <p>Welcome back, {{ userEmail }}!</p>
-          <div class="trial-info" *ngIf="trialActive">
-            <p>✅ <strong>Free trial active</strong></p>
-            <p>Trial ends: {{ trialEndsAt | date:'medium' }}</p>
-          </div>
-          <div class="warning-box" *ngIf="!hasAccess">
-            <p>⚠️ Your trial has expired. Please subscribe to continue.</p>
-          </div>
-          <button class="btn btn-primary" (click)="goToApp()">Continue to App</button>
-        </div>
-        
-        <div *ngIf="error" class="error-box">
-          <p>{{ error }}</p>
-        </div>
-      </div>
-    </div>
-  `,
-  styles: [`
-    .container {
-      max-width: 500px;
-      margin: 40px auto;
-      padding: 20px;
-    }
-    .card {
-      background: white;
-      border-radius: 8px;
-      padding: 32px;
-      box-shadow: 0 2px 8px rgba(0,0,0,0.1);
-    }
-    h1 {
-      margin: 0 0 8px;
-      font-size: 28px;
-      font-weight: 600;
-    }
-    .tabs {
-      display: flex;
-      gap: 8px;
-      margin-bottom: 24px;
-      border-bottom: 2px solid #e0e0e0;
-    }
-    .tab {
-      flex: 1;
-      padding: 12px;
-      border: none;
-      background: none;
-      cursor: pointer;
-      font-size: 14px;
-      font-weight: 500;
-      color: #666;
-      border-bottom: 2px solid transparent;
-      margin-bottom: -2px;
-    }
-    .tab.active {
-      color: #007bff;
-      border-bottom-color: #007bff;
-    }
-    .tab:hover {
-      color: #007bff;
-    }
-    .form-group {
-      margin-bottom: 20px;
-    }
-    label {
-      display: block;
-      margin-bottom: 6px;
-      font-weight: 500;
-      color: #333;
-    }
-    .form-input {
-      width: 100%;
-      padding: 10px 12px;
-      border: 1px solid #ddd;
-      border-radius: 4px;
-      font-size: 14px;
-      box-sizing: border-box;
-    }
-    .help-text {
-      font-size: 12px;
-      color: #666;
-      margin-top: 4px;
-      text-align: center;
-    }
-    .help-text a {
-      color: #007bff;
-      text-decoration: none;
-    }
-    .btn {
-      width: 100%;
-      padding: 12px;
-      border: none;
-      border-radius: 4px;
-      font-size: 16px;
-      font-weight: 500;
-      cursor: pointer;
-      margin-top: 8px;
-    }
-    .btn-primary {
-      background: #007bff;
-      color: white;
-    }
-    .btn-secondary {
-      background: #6c757d;
-      color: white;
-      width: auto;
-      margin-left: 8px;
-    }
-    .btn:disabled {
-      opacity: 0.5;
-      cursor: not-allowed;
-    }
-    .bootstrap-box {
-      margin-top: 24px;
-      padding: 24px;
-      background: #f8f9fa;
-      border-radius: 8px;
-    }
-    .bootstrap-box h2 {
-      margin: 0 0 8px;
-      font-size: 20px;
-    }
-    .api-key-box {
-      text-align: center;
-    }
-    .api-key-display {
-      background: white;
-      border: 2px solid #007bff;
-      border-radius: 4px;
-      padding: 16px;
-      margin: 20px 0;
-      display: flex;
-      align-items: center;
-      gap: 12px;
-    }
-    .api-key-display code {
-      flex: 1;
-      font-family: monospace;
-      font-size: 14px;
-      word-break: break-word;
-      overflow-wrap: break-word;
-      white-space: pre-wrap;
-      color: #333;
-    }
-    .success-box {
-      text-align: center;
-    }
-    .success-box h2 {
-      margin: 0 0 16px;
-      color: #28a745;
-    }
-    .trial-info {
-      background: #d4edda;
-      border: 1px solid #c3e6cb;
-      border-radius: 4px;
-      padding: 16px;
-      margin: 20px 0;
-      text-align: left;
-    }
-    .trial-info p {
-      margin: 8px 0;
-      color: #155724;
-    }
-    .warning-box {
-      background: #fff3cd;
-      border: 1px solid #ffeaa7;
-      border-radius: 4px;
-      padding: 16px;
-      margin: 20px 0;
-      color: #856404;
-    }
-    .error-box {
-      background: #f8d7da;
-      border: 1px solid #f5c6cb;
-      border-radius: 4px;
-      padding: 12px;
-      margin: 16px 0;
-      color: #721c24;
-    }
-  `],
+  templateUrl: './login.page.html',
+  styleUrls: ['./login.page.css'],
 })
 export class LoginPage implements OnInit, OnDestroy {
   authMethod: 'supabase' | 'apikey' = 'supabase';
@@ -337,6 +36,7 @@ export class LoginPage implements OnInit, OnDestroy {
   orgName = '';
   projectName = '';
   bootstrapApiKey: string | null = null;
+  hasSession = false; // Track if user has active Supabase session
   
   private sessionSub?: Subscription;
 
@@ -349,9 +49,23 @@ export class LoginPage implements OnInit, OnDestroy {
 
   ngOnInit() {
     // Check if user is already logged in
-    this.sessionSub = this.supabase.getSession().subscribe(session => {
-      if (session) {
+    // Use debounce to prevent multiple rapid calls
+    this.sessionSub = this.supabase.getSession().pipe(
+      debounceTime(300),
+      distinctUntilChanged((prev, curr) => {
+        const prevToken = prev?.access_token || null;
+        const currToken = curr?.access_token || null;
+        return prevToken === currToken;
+      })
+    ).subscribe(session => {
+      this.hasSession = !!session?.access_token;
+      if (session?.access_token) {
+        // Only check bootstrap if we have a valid token
         this.checkBootstrap();
+      } else {
+        // Clear bootstrap state when session is lost
+        this.needsBootstrap = false;
+        this.success = false;
       }
     });
   }
@@ -391,9 +105,11 @@ export class LoginPage implements OnInit, OnDestroy {
     try {
       const token = await this.supabase.getAccessToken();
       if (!token) {
+        console.log('[LoginPage] No access token available, skipping checkBootstrap');
         return;
       }
 
+      console.log('[LoginPage] Calling /auth/me for checkBootstrap');
       // Interceptor will automatically add Authorization header
       try {
         // Try to get user's org info
