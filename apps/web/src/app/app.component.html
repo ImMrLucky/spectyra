@@ -1,20 +1,22 @@
 <div class="app-container">
-  <header class="app-header">
-    <h1 routerLink="/" style="cursor: pointer;">Spectyra</h1>
-    <nav>
-      <!-- Navigation links (only show when authenticated) -->
+  <!-- Header -->
+  <mat-toolbar class="app-header" color="primary">
+    <div class="header-left">
+      <button
+        *ngIf="isAuthenticated"
+        mat-icon-button
+        (click)="toggleSidebar()"
+        class="sidebar-toggle"
+        aria-label="Toggle sidebar"
+      >
+        <mat-icon>menu</mat-icon>
+      </button>
+      <h1 routerLink="/" class="logo">Spectyra</h1>
+    </div>
+    
+    <div class="header-right">
+      <!-- Org/Project Switcher -->
       <ng-container *ngIf="isAuthenticated">
-        <a routerLink="/overview">Overview</a>
-        <a routerLink="/runs">Runs</a>
-        <a routerLink="/policies">Policies</a>
-        <a routerLink="/integrations">Integrations</a>
-        <a routerLink="/projects">Projects</a>
-        <a routerLink="/usage">Usage & Billing</a>
-        <a routerLink="/audit">Audit Logs</a>
-        <a routerLink="/settings">Settings</a>
-        <a routerLink="/admin" class="admin-link">Admin</a>
-        
-        <!-- Org/Project Switcher -->
         <app-org-switcher></app-org-switcher>
       </ng-container>
       
@@ -27,9 +29,40 @@
         <span class="user-email">{{ userEmail }}</span>
         <button (click)="logout()" class="btn-logout">Logout</button>
       </span>
-    </nav>
-  </header>
-  <main class="app-main">
-    <router-outlet></router-outlet>
-  </main>
+    </div>
+  </mat-toolbar>
+
+  <!-- Sidebar and Main Content -->
+  <div class="app-body">
+    <mat-sidenav-container class="sidenav-container">
+      <!-- Sidebar Navigation -->
+      <mat-sidenav
+        *ngIf="isAuthenticated"
+        [(opened)]="sidebarOpen"
+        mode="side"
+        class="app-sidenav"
+        [style.width.px]="sidebarOpen ? 240 : 64"
+      >
+        <mat-nav-list>
+          <a
+            mat-list-item
+            *ngFor="let item of navItems"
+            [routerLink]="item.route"
+            routerLinkActive="active"
+            [routerLinkActiveOptions]="{ exact: item.route === '/overview' }"
+            class="nav-item"
+            [class.collapsed]="!sidebarOpen"
+          >
+            <mat-icon class="nav-icon">{{ item.icon }}</mat-icon>
+            <span class="nav-label" *ngIf="sidebarOpen">{{ item.label }}</span>
+          </a>
+        </mat-nav-list>
+      </mat-sidenav>
+
+      <!-- Main Content -->
+      <mat-sidenav-content class="app-main">
+        <router-outlet></router-outlet>
+      </mat-sidenav-content>
+    </mat-sidenav-container>
+  </div>
 </div>

@@ -8,19 +8,56 @@ import { Subscription, combineLatest } from 'rxjs';
 import { map } from 'rxjs/operators';
 import { MatSnackBarModule } from '@angular/material/snack-bar';
 import { MatDialogModule } from '@angular/material/dialog';
+import { MatSidenavModule } from '@angular/material/sidenav';
+import { MatButtonModule } from '@angular/material/button';
+import { MatIconModule } from '@angular/material/icon';
+import { MatListModule } from '@angular/material/list';
+import { MatToolbarModule } from '@angular/material/toolbar';
+
+interface NavItem {
+  label: string;
+  route: string;
+  icon: string;
+  adminOnly?: boolean;
+}
 
 @Component({
   selector: 'app-root',
   standalone: true,
-  imports: [RouterOutlet, RouterModule, CommonModule, OrgSwitcherComponent, MatSnackBarModule, MatDialogModule],
+  imports: [
+    RouterOutlet,
+    RouterModule,
+    CommonModule,
+    OrgSwitcherComponent,
+    MatSnackBarModule,
+    MatDialogModule,
+    MatSidenavModule,
+    MatButtonModule,
+    MatIconModule,
+    MatListModule,
+    MatToolbarModule,
+  ],
   templateUrl: './app.component.html',
   styleUrls: ['./app.component.scss'],
 })
 export class AppComponent implements OnInit, OnDestroy {
   isAuthenticated = false;
   userEmail: string | null = null;
+  sidebarOpen = true;
   private authSub?: Subscription;
   private supabaseSub?: Subscription;
+
+  navItems: NavItem[] = [
+    { label: 'Overview', route: '/overview', icon: 'dashboard' },
+    { label: 'Runs', route: '/runs', icon: 'play_circle' },
+    { label: 'Policies', route: '/policies', icon: 'security' },
+    { label: 'Integrations', route: '/integrations', icon: 'extension' },
+    { label: 'Projects', route: '/projects', icon: 'folder' },
+    { label: 'Usage & Billing', route: '/usage', icon: 'account_balance' },
+    { label: 'Audit Logs', route: '/audit', icon: 'history' },
+    { label: 'Settings', route: '/settings', icon: 'settings' },
+    { label: 'Admin', route: '/admin', icon: 'admin_panel_settings', adminOnly: true },
+  ];
 
   constructor(
     private authService: AuthService,
@@ -61,6 +98,10 @@ export class AppComponent implements OnInit, OnDestroy {
   ngOnDestroy() {
     this.authSub?.unsubscribe();
     this.supabaseSub?.unsubscribe();
+  }
+
+  toggleSidebar() {
+    this.sidebarOpen = !this.sidebarOpen;
   }
 
   async logout() {
