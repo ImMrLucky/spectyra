@@ -136,15 +136,35 @@ export class AppComponent implements OnInit, OnDestroy, AfterViewInit {
   }
 
   private updateSidenavLayout() {
-    this.cdr.detectChanges();
-    
-    // Force Material to recalculate layout after change detection
-    setTimeout(() => {
-      if (this.sidenavContainer) {
-        // This method recalculates the content margins based on drawer width
-        this.sidenavContainer.updateContentMargins();
+    // Use requestAnimationFrame to ensure DOM is ready
+    requestAnimationFrame(() => {
+      // First, ensure the drawer width is set
+      if (this.sidenav) {
+        const targetWidth = this.sidebarCollapsed ? 64 : 240;
+        const drawerElement = this.sidenav._elementRef.nativeElement;
+        if (drawerElement) {
+          drawerElement.style.width = `${targetWidth}px`;
+        }
       }
-    }, 10);
+      
+      // Force change detection
+      this.cdr.detectChanges();
+      
+      // Then update content margins - use multiple attempts to ensure it works
+      requestAnimationFrame(() => {
+        if (this.sidenavContainer) {
+          // This method recalculates the content margins based on drawer width
+          this.sidenavContainer.updateContentMargins();
+          
+          // Also manually ensure margin is correct as fallback
+          const contentElement = this.sidenavContainer._content?.nativeElement;
+          if (contentElement && this.sidenav?.opened) {
+            const drawerWidth = this.sidebarCollapsed ? 64 : 240;
+            contentElement.style.marginLeft = `${drawerWidth}px`;
+          }
+        }
+      });
+    });
   }
 
   ngOnDestroy() {
@@ -154,6 +174,7 @@ export class AppComponent implements OnInit, OnDestroy, AfterViewInit {
   }
 
   toggleSidebar() {
+    const previousCollapsed = this.sidebarCollapsed;
     this.sidebarCollapsed = !this.sidebarCollapsed;
     // Clear auto-collapse flag when user manually toggles
     this.wasAutoCollapsed = false;
@@ -161,8 +182,14 @@ export class AppComponent implements OnInit, OnDestroy, AfterViewInit {
     if (!this.sidebarOpen) {
       this.sidebarOpen = true;
     }
-    // Force layout update
-    this.updateSidenavLayout();
+    
+    // Force change detection first
+    this.cdr.detectChanges();
+    
+    // Force layout update with proper timing
+    if (previousCollapsed !== this.sidebarCollapsed) {
+      this.updateSidenavLayout();
+    }
   }
 
   async logout() {

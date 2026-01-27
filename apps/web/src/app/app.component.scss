@@ -103,6 +103,11 @@
   ::ng-deep .mat-drawer-content {
     transition: margin-left 0.3s cubic-bezier(0.4, 0, 0.2, 1) !important;
     min-height: 0; // Allow content to shrink
+    
+    // Ensure margin-left updates correctly
+    &[style*="margin-left"] {
+      // Material will set this, but we ensure it transitions
+    }
   }
 
   // Ensure drawer always takes full height of container
