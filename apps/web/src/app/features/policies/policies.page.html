@@ -1,0 +1,93 @@
+<div class="container">
+  <div class="page-header">
+    <h1>Policies</h1>
+    <p class="subtitle">Governance rules for runtime control</p>
+  </div>
+
+  <div *ngIf="loading" class="loading">
+    <p>Loading policies...</p>
+  </div>
+
+  <div *ngIf="error" class="error-box">
+    <p>{{ error }}</p>
+  </div>
+
+  <div *ngIf="!loading && !error">
+    <!-- Policy Types -->
+    <div class="policy-types">
+      <div class="policy-type-card" (click)="openCreateForm('budget')">
+        <div class="type-icon">💰</div>
+        <h3>Budget Policy</h3>
+        <p>Set spending limits per org/project/run</p>
+      </div>
+      <div class="policy-type-card" (click)="openCreateForm('model_routing')">
+        <div class="type-icon">🔄</div>
+        <h3>Model Routing</h3>
+        <p>Allowlist/denylist models and providers</p>
+      </div>
+      <div class="policy-type-card" (click)="openCreateForm('tool')">
+        <div class="type-icon">🛠️</div>
+        <h3>Tool Policy</h3>
+        <p>Control agent tool permissions</p>
+      </div>
+      <div class="policy-type-card" (click)="openCreateForm('data_handling')">
+        <div class="type-icon">🔒</div>
+        <h3>Data Handling</h3>
+        <p>Control prompt/event data transmission</p>
+      </div>
+    </div>
+
+    <!-- Policies List -->
+    <div class="card">
+      <div class="card-header">
+        <h2>Active Policies</h2>
+      </div>
+
+      <div *ngIf="policies.length === 0" class="empty-state">
+        <h3>No policies configured</h3>
+        <p>Create a policy to start enforcing governance rules.</p>
+      </div>
+
+      <div *ngIf="policies.length > 0" class="policies-list">
+        <div *ngFor="let policy of policies" class="policy-item">
+          <div class="policy-info">
+            <h3>{{ policy.name }}</h3>
+            <span class="policy-type-badge">{{ policy.type }}</span>
+            <span class="policy-status" [class.enabled]="policy.enabled">
+              {{ policy.enabled ? 'Enabled' : 'Disabled' }}
+            </span>
+          </div>
+          <div class="policy-meta">
+            <span>Updated: {{ formatDate(policy.updated_at) }}</span>
+          </div>
+          <div class="policy-actions">
+            <button class="btn btn-sm btn-secondary">Edit</button>
+            <button class="btn btn-sm btn-secondary">Simulate</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Simulate Decision Tool -->
+    <div class="card">
+      <div class="card-header">
+        <h2>Simulate Policy Decision</h2>
+      </div>
+      <div class="simulate-form">
+        <p>Test how policies would apply to a given prompt context.</p>
+        <div class="form-group">
+          <label>Prompt Length (chars)</label>
+          <input type="number" class="form-input" value="1000">
+        </div>
+        <div class="form-group">
+          <label>Path</label>
+          <select class="form-select">
+            <option value="code">Code</option>
+            <option value="talk">Talk</option>
+          </select>
+        </div>
+        <button class="btn btn-primary">Simulate</button>
+      </div>
+    </div>
+  </div>
+</div>

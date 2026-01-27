@@ -5,6 +5,12 @@ import { spectralAnalyze } from "./spectral/spectralCore";
 import { applyTalkPolicy, postProcessTalkOutput } from "./policies/talkPolicy";
 import { applyCodePolicy, postProcessCodeOutput } from "./policies/codePolicy";
 import { runQualityGuard, RequiredCheck } from "./quality/qualityGuard";
+// Core Moat v1 transforms
+import { buildRefPack, applyInlineRefs } from "./transforms/refPack";
+import { buildLocalPhraseBook } from "./transforms/phraseBook";
+import { buildCodeMap } from "./transforms/codeMap";
+import { computeBudgetsFromSpectral } from "./budgeting/budgetsFromSpectral";
+import { semanticCacheKey } from "./cache/semanticHash";
 
 // Provider + embedding interfaces
 export interface ChatProvider {
@@ -75,6 +81,13 @@ export interface OptimizeOutput {
   spectral?: any;
   quality?: { pass: boolean; failures: string[]; retried?: boolean };
   debugInternal?: any; // Internal operator signals for debug_internal_json storage
+  // Core Moat v1: Optimization metrics for API response
+  optimizationsApplied?: string[];
+  tokenBreakdown?: {
+    refpack?: { before: number; after: number; saved: number };
+    phrasebook?: { before: number; after: number; saved: number };
+    codemap?: { before: number; after: number; saved: number };
+  };
 }
 
 function makeClarifyQuestion(path: PathKind): string {
@@ -192,13 +205,105 @@ export async function runOptimizedOrBaseline(
       unitize: cfg.unitize
     };
 
-    // Apply policy transforms (pre-LLM)
-    let messagesFinal: ChatMessage[] = messages;
+    // ===== Core Moat v1: Spectral-Driven Budgets =====
+    const budgets = computeBudgetsFromSpectral({
+      spectral,
+      baseKeepLastTurns: path === "code" ? localCfg.codePolicy.keepLastTurns : localCfg.talkPolicy.keepLastTurns,
+      baseMaxRefs: path === "code" ? localCfg.codePolicy.maxRefs : localCfg.talkPolicy.maxRefs,
+    });
+
+    // Update config with dynamic budgets
+    if (path === "code") {
+      localCfg.codePolicy.keepLastTurns = budgets.keepLastTurns;
+      localCfg.codePolicy.maxRefs = budgets.maxRefpackEntries;
+    } else {
+      localCfg.talkPolicy.keepLastTurns = budgets.keepLastTurns;
+      localCfg.talkPolicy.maxRefs = budgets.maxRefpackEntries;
+    }
+
+    // ===== Core Moat v1: RefPack + Inline Replacement =====
+    let messagesAfterRefPack = messages;
+    let refPackMetrics = { tokensBefore: 0, tokensAfter: 0, entriesCount: 0, replacementsMade: 0 };
+    
+    if (budgets.compressionAggressiveness > 0.3) {
+      const refPackResult = buildRefPack({
+        units,
+        spectral,
+        path,
+        maxEntries: budgets.maxRefpackEntries,
+      });
+      
+      const inlineResult = applyInlineRefs({
+        messages,
+        refPack: refPackResult.refPack,
+        spectral,
+        units, // Pass units for finding original text
+      });
+      
+      messagesAfterRefPack = inlineResult.messages;
+      refPackMetrics = {
+        tokensBefore: refPackResult.tokensBefore,
+        tokensAfter: refPackResult.tokensAfter,
+        entriesCount: refPackResult.refPack.entries.length,
+        replacementsMade: inlineResult.replacementsMade,
+      };
+    }
+
+    // ===== Core Moat v1: PhraseBook Encoding =====
+    let messagesAfterPhraseBook = messagesAfterRefPack;
+    let phraseBookMetrics = { tokensBefore: 0, tokensAfter: 0, entriesCount: 0, changed: false };
+    
+    if (budgets.phrasebookAggressiveness > 0.3) {
+      const phraseBookResult = buildLocalPhraseBook({
+        messages: messagesAfterRefPack,
+        aggressiveness: budgets.phrasebookAggressiveness,
+      });
+      
+      messagesAfterPhraseBook = phraseBookResult.messages;
+      phraseBookMetrics = {
+        tokensBefore: phraseBookResult.tokensBefore,
+        tokensAfter: phraseBookResult.tokensAfter,
+        entriesCount: phraseBookResult.phraseBook.entries.length,
+        changed: phraseBookResult.changed,
+      };
+    }
+
+    // ===== Core Moat v1: CodeMap Compression (code path only) =====
+    let messagesAfterCodeMap = messagesAfterPhraseBook;
+    let codeMapMetrics = { tokensBefore: 0, tokensAfter: 0, symbolsCount: 0, changed: false };
+    
+    if (path === "code" && budgets.codemapDetailLevel < 1.0) {
+      const codeMapResult = buildCodeMap({
+        messages: messagesAfterPhraseBook,
+        spectral,
+        detailLevel: budgets.codemapDetailLevel,
+      });
+      
+      if (codeMapResult.changed) {
+        messagesAfterCodeMap = codeMapResult.messages;
+        codeMapMetrics = {
+          tokensBefore: codeMapResult.tokensBefore,
+          tokensAfter: codeMapResult.tokensAfter,
+          symbolsCount: codeMapResult.codeMap?.symbols.length || 0,
+          changed: codeMapResult.changed,
+        };
+      }
+    }
+
+    // ===== Core Moat v1: Semantic Hash Caching =====
+    const cacheKey = semanticCacheKey({
+      units,
+      spectral,
+      routeMeta: { model, path },
+    });
+
+    // Apply policy transforms (pre-LLM) - now using messages after Core Moat transforms
+    let messagesFinal: ChatMessage[] = messagesAfterCodeMap;
     let policyDebug: any = {};
 
     if (path === "talk") {
       const p = applyTalkPolicy({
-        messages,
+        messages: messagesAfterCodeMap,
         units,
         spectral,
         opts: localCfg.talkPolicy
@@ -207,7 +312,7 @@ export async function runOptimizedOrBaseline(
       policyDebug = p.debug;
     } else {
       const p = applyCodePolicy({
-        messages,
+        messages: messagesAfterCodeMap,
         units,
         spectral,
         opts: localCfg.codePolicy
@@ -238,7 +343,7 @@ export async function runOptimizedOrBaseline(
 
     const quality = runQualityGuard({ text: responseText, requiredChecks });
 
-    // Build comprehensive debug internal data
+    // Build comprehensive debug internal data with Core Moat v1 metrics
     const debugInternal = {
       mode: "optimized",
       ...policyDebug,
@@ -255,9 +360,77 @@ export async function runOptimizedOrBaseline(
         // Internal operator signals (from _internal)
         ...(spectral._internal || {}),
       },
-      cacheHit: false, // Phase 3: will be set when cache is implemented
+      // Core Moat v1: Budgets
+      budgets: {
+        keepLastTurns: budgets.keepLastTurns,
+        maxRefpackEntries: budgets.maxRefpackEntries,
+        compressionAggressiveness: budgets.compressionAggressiveness,
+        phrasebookAggressiveness: budgets.phrasebookAggressiveness,
+        codemapDetailLevel: budgets.codemapDetailLevel,
+      },
+      // Core Moat v1: RefPack metrics
+      refpack: {
+        tokensBefore: refPackMetrics.tokensBefore,
+        tokensAfter: refPackMetrics.tokensAfter,
+        tokensSaved: refPackMetrics.tokensBefore - refPackMetrics.tokensAfter,
+        entriesCount: refPackMetrics.entriesCount,
+        replacementsMade: refPackMetrics.replacementsMade,
+      },
+      // Core Moat v1: PhraseBook metrics
+      phrasebook: {
+        tokensBefore: phraseBookMetrics.tokensBefore,
+        tokensAfter: phraseBookMetrics.tokensAfter,
+        tokensSaved: phraseBookMetrics.tokensBefore - phraseBookMetrics.tokensAfter,
+        entriesCount: phraseBookMetrics.entriesCount,
+        applied: phraseBookMetrics.changed,
+      },
+      // Core Moat v1: CodeMap metrics
+      codemap: {
+        tokensBefore: codeMapMetrics.tokensBefore,
+        tokensAfter: codeMapMetrics.tokensAfter,
+        tokensSaved: codeMapMetrics.tokensBefore - codeMapMetrics.tokensAfter,
+        symbolsCount: codeMapMetrics.symbolsCount,
+        applied: codeMapMetrics.changed,
+      },
+      // Core Moat v1: Semantic cache
+      cache: {
+        key: cacheKey,
+        keyType: "semantic",
+        hit: false, // TODO: Implement cache lookup
+      },
       driftScore: undefined, // Phase 2: will be set when drift is implemented
     };
+
+    // Build optimizations_applied array for API response
+    const optimizationsApplied: string[] = [];
+    if (refPackMetrics.entriesCount > 0) optimizationsApplied.push("refpack");
+    if (phraseBookMetrics.changed) optimizationsApplied.push("phrasebook");
+    if (codeMapMetrics.changed) optimizationsApplied.push("codemap");
+    if (cacheKey) optimizationsApplied.push("semantic_cache");
+
+    // Build token breakdown for API response
+    const tokenBreakdown: OptimizeOutput["tokenBreakdown"] = {};
+    if (refPackMetrics.entriesCount > 0) {
+      tokenBreakdown.refpack = {
+        before: refPackMetrics.tokensBefore,
+        after: refPackMetrics.tokensAfter,
+        saved: refPackMetrics.tokensBefore - refPackMetrics.tokensAfter,
+      };
+    }
+    if (phraseBookMetrics.changed) {
+      tokenBreakdown.phrasebook = {
+        before: phraseBookMetrics.tokensBefore,
+        after: phraseBookMetrics.tokensAfter,
+        saved: phraseBookMetrics.tokensBefore - phraseBookMetrics.tokensAfter,
+      };
+    }
+    if (codeMapMetrics.changed) {
+      tokenBreakdown.codemap = {
+        before: codeMapMetrics.tokensBefore,
+        after: codeMapMetrics.tokensAfter,
+        saved: codeMapMetrics.tokensBefore - codeMapMetrics.tokensAfter,
+      };
+    }
 
     return {
       promptFinal: { messages: messagesFinal },
@@ -267,6 +440,8 @@ export async function runOptimizedOrBaseline(
       quality: { ...quality, retried: false },
       debug: { mode: "optimized", ...policyDebug },
       debugInternal, // Include for storage
+      optimizationsApplied,
+      tokenBreakdown,
     };
   };
 
@@ -321,7 +496,7 @@ export async function runOptimizedOrBaseline(
 
     if (path === "talk") {
       const p = applyTalkPolicy({
-        messages,
+        messages: messagesAfterCodeMap,
         units,
         spectral,
         opts: localCfg.talkPolicy
@@ -330,7 +505,7 @@ export async function runOptimizedOrBaseline(
       policyDebug = p.debug;
     } else {
       const p = applyCodePolicy({
-        messages,
+        messages: messagesAfterCodeMap,
         units,
         spectral,
         opts: localCfg.codePolicy

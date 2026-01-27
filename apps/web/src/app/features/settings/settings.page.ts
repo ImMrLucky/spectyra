@@ -93,8 +93,15 @@ export class SettingsPage implements OnInit {
         }
       }
 
-      // Load projects (if endpoint exists)
-      // TODO: Add projects endpoint or get from org info
+      // Load projects from org info
+      try {
+        const me = await this.http.get<any>(`${environment.apiUrl}/auth/me`).toPromise();
+        if (me && me.projects) {
+          this.projects = me.projects;
+        }
+      } catch (err: any) {
+        console.error('Failed to load projects:', err);
+      }
 
       this.loading = false;
     } catch (err: any) {

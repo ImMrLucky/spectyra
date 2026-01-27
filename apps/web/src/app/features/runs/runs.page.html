@@ -1,43 +1,274 @@
 <div class="container">
-  <h1>Gateway Runs</h1>
-  <p class="subtitle">View all optimization runs through the AI Gateway</p>
-  
-  <table class="table">
-    <thead>
-      <tr>
-        <th>ID</th>
-        <th>Scenario</th>
-        <th>Mode</th>
-        <th>Provider</th>
-        <th>Tokens</th>
-        <th>Cost</th>
-        <th>Quality</th>
-        <th>Created</th>
-        <th>Actions</th>
-      </tr>
-    </thead>
-    <tbody>
-      <tr *ngFor="let run of runs">
-        <td><code>{{ run.id.substring(0, 8) }}...</code></td>
-        <td>{{ run.scenarioId || '-' }}</td>
-        <td>
-          <span class="badge" [class.badge-baseline]="run.mode === 'baseline'" [class.badge-optimized]="run.mode === 'optimized'">
-            {{ run.mode }}
+  <!-- Run Detail View -->
+  <div *ngIf="selectedRun" class="run-detail">
+    <div class="detail-header">
+      <button (click)="backToList()" class="btn btn-sm btn-secondary">← Back to Runs</button>
+      <h1>Run Details</h1>
+    </div>
+
+    <div class="card">
+      <div class="card-header">
+        <h2>Summary</h2>
+      </div>
+      <div class="summary-grid">
+        <div class="summary-item">
+          <span class="summary-label">Run ID</span>
+          <span class="summary-value"><code>{{ selectedRun.id }}</code></span>
+        </div>
+        <div class="summary-item">
+          <span class="summary-label">Type</span>
+          <span class="summary-value">
+            <span class="badge" [class.badge-agent]="selectedRun.type === 'agent'" [class.badge-chat]="selectedRun.type === 'chat'">
+              {{ selectedRun.type }}
+            </span>
           </span>
-        </td>
-        <td>{{ run.provider }}/{{ run.model }}</td>
-        <td>{{ formatNumber(run.usage.total_tokens) }}</td>
-        <td>{{ formatCurrency(run.costUsd) }}</td>
-        <td>
-          <span class="badge" [class.badge-success]="run.quality.pass" [class.badge-danger]="!run.quality.pass">
-            {{ run.quality.pass ? 'PASS' : 'FAIL' }}
+        </div>
+        <div class="summary-item">
+          <span class="summary-label">Source</span>
+          <span class="summary-value">{{ selectedRun.source }}</span>
+        </div>
+        <div class="summary-item">
+          <span class="summary-label">Model</span>
+          <span class="summary-value">{{ selectedRun.model }}</span>
+        </div>
+        <div class="summary-item" *ngIf="selectedRun.budget">
+          <span class="summary-label">Budget</span>
+          <span class="summary-value">{{ formatCurrency(selectedRun.budget) }}</span>
+        </div>
+        <div class="summary-item">
+          <span class="summary-label">Status</span>
+          <span class="summary-value">{{ selectedRun.status }}</span>
+        </div>
+        <div class="summary-item">
+          <span class="summary-label">Start Time</span>
+          <span class="summary-value">{{ formatDate(selectedRun.start_time) }}</span>
+        </div>
+        <div class="summary-item">
+          <span class="summary-label">End Time</span>
+          <span class="summary-value">{{ formatDate(selectedRun.end_time) }}</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Agent-specific details -->
+    <div class="card" *ngIf="selectedRun.type === 'agent'">
+      <div class="card-header">
+        <h2>Agent Configuration</h2>
+      </div>
+      <div class="config-grid">
+        <div class="config-item" *ngIf="selectedRun.allowed_tools">
+          <span class="config-label">Allowed Tools</span>
+          <div class="config-value">
+            <span *ngFor="let tool of selectedRun.allowed_tools" class="badge badge-tool">{{ tool }}</span>
+            <span *ngIf="selectedRun.allowed_tools.length === 0">None</span>
+          </div>
+        </div>
+        <div class="config-item" *ngIf="selectedRun.permission_mode">
+          <span class="config-label">Permission Mode</span>
+          <span class="config-value">{{ selectedRun.permission_mode }}</span>
+        </div>
+        <div class="config-item" *ngIf="selectedRun.reasons && selectedRun.reasons.length > 0">
+          <span class="config-label">Policy Decisions</span>
+          <div class="config-value">
+            <ul>
+              <li *ngFor="let reason of selectedRun.reasons">{{ reason }}</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Timeline (Agent Events) -->
+    <div class="card" *ngIf="selectedRun.type === 'agent' && selectedRun.events_count">
+      <div class="card-header">
+        <h2>Timeline</h2>
+        <span class="badge">{{ selectedRun.events_count }} events</span>
+      </div>
+      <div class="timeline">
+        <p class="empty-state-small">Event timeline coming soon. Events are being collected.</p>
+      </div>
+    </div>
+
+    <!-- Chat-specific details -->
+    <div class="card" *ngIf="selectedRun.type === 'chat'">
+      <div class="card-header">
+        <h2>Usage</h2>
+      </div>
+      <div class="usage-grid">
+        <div class="usage-item" *ngIf="selectedRun.tokens">
+          <span class="usage-label">Tokens</span>
+          <span class="usage-value">{{ formatNumber(selectedRun.tokens) }}</span>
+        </div>
+        <div class="usage-item" *ngIf="selectedRun.cost">
+          <span class="usage-label">Cost</span>
+          <span class="usage-value">{{ formatCurrency(selectedRun.cost) }}</span>
+        </div>
+        <div class="usage-item" *ngIf="selectedRun.savings?.costSavedUsd">
+          <span class="usage-label">Cost Saved</span>
+          <span class="usage-value savings-value">{{ formatCurrency(selectedRun.savings.costSavedUsd) }}</span>
+        </div>
+        <div class="usage-item" *ngIf="selectedRun.quality !== undefined">
+          <span class="usage-label">Quality</span>
+          <span class="usage-value">
+            <span class="badge" [class.badge-success]="selectedRun.quality" [class.badge-danger]="!selectedRun.quality">
+              {{ selectedRun.quality ? 'PASS' : 'FAIL' }}
+            </span>
           </span>
-        </td>
-        <td>{{ formatDate(run.createdAt) }}</td>
-        <td>
-          <a [routerLink]="['/runs', run.id]">View</a>
-        </td>
-      </tr>
-    </tbody>
-  </table>
+        </div>
+        <div class="usage-item" *ngIf="selectedRun.mode">
+          <span class="usage-label">Mode</span>
+          <span class="usage-value">{{ selectedRun.mode }}</span>
+        </div>
+        <div class="usage-item" *ngIf="selectedRun.path">
+          <span class="usage-label">Path</span>
+          <span class="usage-value">{{ selectedRun.path }}</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Core Moat v1: Optimizations Applied -->
+    <div class="card" *ngIf="selectedRun.optimizations_applied && selectedRun.optimizations_applied.length > 0">
+      <div class="card-header">
+        <h2>Optimizations Applied</h2>
+      </div>
+      <div class="optimizations-list">
+        <div *ngFor="let opt of selectedRun.optimizations_applied" class="optimization-item">
+          <div class="optimization-header">
+            <span class="badge badge-optimization">{{ getOptimizationLabel(opt) }}</span>
+          </div>
+          <div *ngIf="selectedRun.token_breakdown && selectedRun.token_breakdown[opt]" class="optimization-metrics">
+            <div class="metric">
+              <span class="metric-label">Tokens Before:</span>
+              <span class="metric-value">{{ formatNumber(selectedRun.token_breakdown[opt]!.before) }}</span>
+            </div>
+            <div class="metric">
+              <span class="metric-label">Tokens After:</span>
+              <span class="metric-value">{{ formatNumber(selectedRun.token_breakdown[opt]!.after) }}</span>
+            </div>
+            <div class="metric">
+              <span class="metric-label">Tokens Saved:</span>
+              <span class="metric-value savings-value">{{ formatNumber(selectedRun.token_breakdown[opt]!.saved) }}</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Runs List View -->
+  <div *ngIf="!selectedRun">
+    <div class="page-header">
+      <h1>Runs</h1>
+      <p class="subtitle">Agent and chat runtime activity</p>
+    </div>
+
+    <div *ngIf="loading" class="loading">
+      <p>Loading runs...</p>
+    </div>
+
+    <div *ngIf="error" class="error-box">
+      <p>{{ error }}</p>
+    </div>
+
+    <div *ngIf="!loading && !error">
+      <!-- Filters -->
+      <div class="card">
+        <div class="filters">
+          <div class="filter-group">
+            <label>Type</label>
+            <select [(ngModel)]="filterType" class="form-select">
+              <option value="all">All Types</option>
+              <option value="agent">Agent</option>
+              <option value="chat">Chat</option>
+            </select>
+          </div>
+          <div class="filter-group">
+            <label>Source</label>
+            <select [(ngModel)]="filterSource" class="form-select">
+              <option value="all">All Sources</option>
+              <option value="sdk-local">SDK (Local)</option>
+              <option value="sdk-remote">SDK (API)</option>
+              <option value="api">API Gateway</option>
+            </select>
+          </div>
+          <div class="filter-group">
+            <label>Status</label>
+            <select [(ngModel)]="filterStatus" class="form-select">
+              <option value="all">All Statuses</option>
+              <option value="completed">Completed</option>
+              <option value="failed">Failed</option>
+              <option value="running">Running</option>
+            </select>
+          </div>
+        </div>
+      </div>
+
+      <!-- Runs Table -->
+      <div class="card">
+        <div class="card-header">
+          <h2>All Runs</h2>
+          <span class="badge">{{ filteredRuns.length }} runs</span>
+        </div>
+
+        <div *ngIf="filteredRuns.length === 0" class="empty-state">
+          <p>No runs found matching the filters</p>
+        </div>
+
+        <div *ngIf="filteredRuns.length > 0" class="runs-table">
+          <table>
+            <thead>
+              <tr>
+                <th>Run ID</th>
+                <th>Type</th>
+                <th>Source</th>
+                <th>Model</th>
+                <th>Status</th>
+                <th>Optimizations</th>
+                <th>Tokens Saved</th>
+                <th>Time</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr *ngFor="let run of filteredRuns">
+                <td><code>{{ run.id.substring(0, 8) }}...</code></td>
+                <td>
+                  <span class="badge" [class.badge-agent]="run.type === 'agent'" [class.badge-chat]="run.type === 'chat'">
+                    {{ run.type }}
+                  </span>
+                </td>
+                <td>
+                  <span class="badge badge-source">{{ run.source }}</span>
+                </td>
+                <td>{{ run.model }}</td>
+                <td>
+                  <span class="badge" [class.badge-success]="run.status === 'completed'" [class.badge-danger]="run.status === 'failed'">
+                    {{ run.status }}
+                  </span>
+                </td>
+                <td>
+                  <div *ngIf="run.optimizations_applied && run.optimizations_applied.length > 0" class="optimizations-badges">
+                    <span *ngFor="let opt of run.optimizations_applied" class="badge badge-optimization" [title]="getOptimizationLabel(opt)">
+                      {{ getOptimizationLabel(opt) }}
+                    </span>
+                  </div>
+                  <span *ngIf="!run.optimizations_applied || run.optimizations_applied.length === 0" class="text-muted">-</span>
+                </td>
+                <td>
+                  <span *ngIf="getTotalTokensSaved(run) > 0" class="savings-text">
+                    {{ formatNumber(getTotalTokensSaved(run)) }}
+                  </span>
+                  <span *ngIf="getTotalTokensSaved(run) === 0" class="text-muted">-</span>
+                </td>
+                <td>{{ formatDate(run.start_time) }}</td>
+                <td>
+                  <button (click)="viewRun(run)" class="btn-link">View</button>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
 </div>

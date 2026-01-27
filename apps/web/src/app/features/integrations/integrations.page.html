@@ -1,53 +1,105 @@
 <div class="container">
-  <h1>Integrations</h1>
-  <p class="subtitle">Connect your applications to the Spectyra AI Gateway</p>
-  
-  <div class="integration-cards">
-    <!-- Card A: Hosted Gateway -->
-    <div class="integration-card">
-      <h2>Hosted Gateway (Recommended)</h2>
-      <p>Send your requests to Spectyra instead of OpenAI/Anthropic directly.</p>
-      <div class="code-block" *ngIf="snippets?.hosted_gateway">
-        <pre><code>{{ snippets.hosted_gateway.curl }}</code></pre>
+  <div class="page-header">
+    <h1>Integrations</h1>
+    <p class="subtitle">Choose your architecture and get started in minutes</p>
+  </div>
+
+  <!-- Scenario Cards -->
+  <div class="scenarios-section">
+    <h2>Pick Your Architecture</h2>
+    <div class="scenarios-grid">
+      <div
+        *ngFor="let scenario of scenarios"
+        class="scenario-card"
+        [class.selected]="selectedScenario?.id === scenario.id"
+        (click)="selectScenario(scenario)"
+      >
+        <div class="scenario-header">
+          <h3>{{ scenario.name }}</h3>
+          <span class="scenario-badge" *ngIf="scenario.id === 'claude-agent-sdk-vm'">Recommended</span>
+        </div>
+        <p class="scenario-description">{{ scenario.description }}</p>
+        <div class="scenario-meta">
+          <div class="meta-item">
+            <strong>When to use:</strong>
+            <p>{{ scenario.when_to_use }}</p>
+          </div>
+        </div>
       </div>
-      <div class="code-block" *ngIf="snippets?.hosted_gateway">
-        <pre><code>{{ snippets.hosted_gateway.node }}</code></pre>
+    </div>
+  </div>
+
+  <!-- Selected Scenario Details -->
+  <div *ngIf="selectedScenario" class="scenario-details">
+    <div class="card">
+      <div class="card-header">
+        <h2>{{ selectedScenario.name }}</h2>
+        <div class="card-actions">
+          <button class="btn btn-sm btn-secondary" (click)="toggleDetailed()">
+            {{ showDetailed ? 'Hide' : 'Show' }} Detailed Guide
+          </button>
+          <button class="btn btn-sm btn-primary" (click)="verifyIntegration(selectedScenario)">
+            Verify Integration
+          </button>
+        </div>
       </div>
-      <div class="info-box">
-        <strong>Key Points:</strong>
-        <ul>
-          <li>Uses <code>X-SPECTYRA-API-KEY</code> (your Spectyra key)</li>
-          <li>Uses <code>X-PROVIDER-KEY</code> ephemerally (provider key never stored)</li>
-          <li>Works with any OpenAI/Anthropic-compatible client</li>
+
+      <!-- What Spectyra Controls -->
+      <div class="section">
+        <h3>What Spectyra Controls</h3>
+        <ul class="controls-list">
+          <li *ngFor="let control of selectedScenario.what_spectyra_controls">{{ control }}</li>
         </ul>
       </div>
-    </div>
 
-    <!-- Card B: Local Proxy -->
-    <div class="integration-card">
-      <h2>Local Proxy (IDE Tools / Dev Workflows)</h2>
-      <p>Use spectyra-proxy to route IDE tools via localhost.</p>
-      <div class="code-block" *ngIf="snippets?.proxy">
-        <pre><code>{{ snippets.proxy.env }}</code></pre>
+      <!-- Quickstart -->
+      <div class="section">
+        <div class="section-header">
+          <h3>{{ selectedScenario.quickstart.title }}</h3>
+          <button
+            class="btn btn-sm btn-secondary"
+            (click)="copyCode(selectedScenario.quickstart.code, selectedScenario.id + '-quickstart')"
+          >
+            {{ copiedCode === selectedScenario.id + '-quickstart' ? '✓ Copied' : 'Copy' }}
+          </button>
+        </div>
+        <div class="code-block">
+          <pre><code [class]="'language-' + selectedScenario.quickstart.language">{{ selectedScenario.quickstart.code }}</code></pre>
+        </div>
       </div>
-      <div class="code-block" *ngIf="snippets?.proxy">
-        <pre><code>{{ snippets.proxy.command }}</code></pre>
-      </div>
-      <div class="code-block" *ngIf="snippets?.proxy">
-        <pre><code>{{ snippets.proxy.ide }}</code></pre>
-      </div>
-    </div>
 
-    <!-- Card C: Server SDK -->
-    <div class="integration-card">
-      <h2>Server SDK / Middleware Wrapper</h2>
-      <p>Use a server-side wrapper to route calls via Spectyra.</p>
-      <div class="warning-box">
-        <strong>⚠️ Important:</strong> Do not use in browser; keys will leak.
-      </div>
-      <div class="code-block" *ngIf="snippets?.sdk">
-        <pre><code>{{ snippets.sdk.usage }}</code></pre>
+      <!-- Detailed Guide (Expandable) -->
+      <div class="section" *ngIf="showDetailed && selectedScenario.detailed_guide">
+        <h3>Detailed Guide</h3>
+        <div class="guide-content">
+          <div class="guide-item">
+            <strong>Where does Spectyra run?</strong>
+            <p>{{ selectedScenario.detailed_guide.where_runs }}</p>
+          </div>
+          <div class="guide-item">
+            <strong>What changes in code?</strong>
+            <p>{{ selectedScenario.detailed_guide.code_changes }}</p>
+          </div>
+          <div class="guide-item">
+            <strong>What data is sent to Spectyra?</strong>
+            <p>{{ selectedScenario.detailed_guide.data_sent }}</p>
+          </div>
+          <div class="guide-item">
+            <strong>How does auth work?</strong>
+            <p>{{ selectedScenario.detailed_guide.auth_works }}</p>
+          </div>
+          <div class="guide-item">
+            <strong>How to verify it works?</strong>
+            <p>{{ selectedScenario.detailed_guide.verify_works }}</p>
+          </div>
+        </div>
       </div>
     </div>
+  </div>
+
+  <!-- Empty State -->
+  <div *ngIf="!selectedScenario" class="empty-state">
+    <h3>Select an integration scenario to get started</h3>
+    <p>Choose from the cards above to see quickstart code and detailed guides.</p>
   </div>
 </div>

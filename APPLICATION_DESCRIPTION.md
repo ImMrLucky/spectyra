@@ -2,7 +2,7 @@
 
 ## Overview
 
-**Spectyra** is an **Enterprise AI Inference Cost-Control Gateway** that reduces LLM token usage and costs by 40-65% for teams and organizations. It works as secure middleware between users and LLM providers (OpenAI, Anthropic, Gemini, Grok), intelligently optimizing prompts before sending them to the LLM while maintaining output quality.
+**Spectyra** is an **Enterprise AI Inference Cost-Control Gateway** that reduces LLM token usage and costs by 40-65% for teams and organizations. It works as secure middleware between users and LLM providers (OpenAI, Anthropic, Gemini, Grok), intelligently optimizing prompts before sending them to the LLM while maintaining output quality. Spectyra is the smartest possible SDK/API for minimizing LLM and agent execution cost without sacrificing output quality. Spectyra is a drop-in SDK/API that dramatically reduces LLM and agent costs by optimizing prompt, context, and execution paths.
 
 The system uses a proprietary "Spectral Core v1" decision engine based on graph theory and spectral analysis to determine when content is semantically stable and can be reused, versus when it needs to be expanded or clarified. The core combines multiple spectral operators (signed Laplacian, random walk gap, heat-trace complexity, curvature analysis) for robust stability assessment.
 

@@ -301,14 +301,20 @@ chatRouter.post("/", async (req: AuthenticatedRequest, res) => {
     // Redact internal data before sending to client
     const safeRun = redactRun(run);
     
-    res.json({
+    // Core Moat v1: Include optimizations_applied and token breakdown in response
+    const response: any = {
       ...safeRun,
+      // Core Moat v1 fields (always included for transparency)
+      optimizations_applied: result.optimizationsApplied || [],
+      token_breakdown: result.tokenBreakdown || {},
       // Only include debug if explicitly enabled
       ...(process.env.EXPOSE_INTERNAL_DEBUG === "true" ? {
         optimizer_debug: result.debug,
         spectral_debug: spectralDebug,
       } : {}),
-    });
+    };
+    
+    res.json(response);
   } catch (error: any) {
     safeLog("error", "Chat error", { error: error.message });
     res.status(500).json({ error: error.message || "Internal server error" });

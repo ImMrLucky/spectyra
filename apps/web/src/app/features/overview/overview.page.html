@@ -1,0 +1,228 @@
+<div class="container">
+  <div class="page-header">
+    <h1>Overview</h1>
+    <p class="subtitle">Enterprise AI Runtime Control Plane</p>
+  </div>
+
+  <div *ngIf="loading" class="loading">
+    <p>Loading dashboard...</p>
+  </div>
+
+  <div *ngIf="error" class="error-box">
+    <p>{{ error }}</p>
+  </div>
+
+  <div *ngIf="!loading && !error">
+    <!-- Integration Status Card -->
+    <div class="card">
+      <div class="card-header">
+        <h2>Integration Status</h2>
+        <a routerLink="/integrations" class="btn btn-sm btn-secondary">Manage</a>
+      </div>
+      
+      <div *ngIf="!hasIntegrations" class="empty-state">
+        <h3>No integrations configured</h3>
+        <p>Get started by adding an integration to begin using Spectyra.</p>
+        <div class="integration-tiles">
+          <div class="integration-tile" routerLink="/integrations">
+            <div class="tile-icon">🤖</div>
+            <h4>Claude Agent SDK</h4>
+            <p>Runtime control for agentic workflows</p>
+          </div>
+          <div class="integration-tile" routerLink="/integrations">
+            <div class="tile-icon">💬</div>
+            <h4>Chat APIs</h4>
+            <p>Direct API integration</p>
+          </div>
+          <div class="integration-tile" routerLink="/integrations">
+            <div class="tile-icon">🔗</div>
+            <h4>LangGraph / LangChain</h4>
+            <p>Framework integrations</p>
+          </div>
+        </div>
+        <a routerLink="/integrations" class="btn btn-primary">View All Integrations</a>
+      </div>
+
+      <div *ngIf="hasIntegrations && integrationStatus" class="integration-status">
+        <div class="status-grid">
+          <div class="status-item">
+            <span class="status-label">SDK (Local)</span>
+            <span class="status-badge" [class.active]="integrationStatus.sdk_local">
+              {{ integrationStatus.sdk_local ? 'Connected' : 'Not Connected' }}
+            </span>
+          </div>
+          <div class="status-item">
+            <span class="status-label">SDK (API)</span>
+            <span class="status-badge" [class.active]="integrationStatus.sdk_remote">
+              {{ integrationStatus.sdk_remote ? 'Connected' : 'Not Connected' }}
+            </span>
+          </div>
+          <div class="status-item">
+            <span class="status-label">API Gateway</span>
+            <span class="status-badge" [class.active]="integrationStatus.api">
+              {{ integrationStatus.api ? 'Connected' : 'Not Connected' }}
+            </span>
+          </div>
+        </div>
+        <div class="status-meta">
+          <p *ngIf="integrationStatus.last_event_at">
+            Last event: {{ formatDate(integrationStatus.last_event_at) }}
+          </p>
+          <p *ngIf="integrationStatus.last_run_at">
+            Last run: {{ formatDate(integrationStatus.last_run_at) }}
+          </p>
+        </div>
+      </div>
+    </div>
+
+    <!-- Last 24h Usage -->
+    <div class="card" *ngIf="usage24h">
+      <div class="card-header">
+        <h2>Last 24 Hours</h2>
+        <a routerLink="/usage" class="btn btn-sm btn-secondary">View Details</a>
+      </div>
+      <div class="usage-grid">
+        <div class="usage-item">
+          <span class="usage-label">Calls</span>
+          <span class="usage-value">{{ formatNumber(usage24h.calls) }}</span>
+        </div>
+        <div class="usage-item">
+          <span class="usage-label">Tokens</span>
+          <span class="usage-value">{{ formatNumber(usage24h.tokens) }}</span>
+        </div>
+        <div class="usage-item">
+          <span class="usage-label">Cost Estimate</span>
+          <span class="usage-value">{{ formatCurrency(usage24h.cost_estimate_usd) }}</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Core Moat v1: Optimization Savings (Last 24h) -->
+    <div class="card" *ngIf="optimizationSavings.length > 0">
+      <div class="card-header">
+        <h2>Optimization Savings (Last 24h)</h2>
+        <a routerLink="/usage" class="btn btn-sm btn-secondary">View Details</a>
+      </div>
+      <div class="optimization-savings-grid">
+        <div *ngFor="let opt of optimizationSavings" class="optimization-savings-card">
+          <div class="savings-card-header">
+            <h3>{{ opt.name }}</h3>
+            <span class="runs-badge">{{ formatNumber(opt.runs_count) }} runs</span>
+          </div>
+          <div class="savings-amount">
+            <span class="savings-label">Tokens Saved</span>
+            <span class="savings-value">{{ formatNumber(opt.tokens_saved) }}</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Top Models & Policies -->
+    <div class="grid-2">
+      <div class="card">
+        <div class="card-header">
+          <h2>Top Models Used</h2>
+        </div>
+        <div *ngIf="topModels.length === 0" class="empty-state-small">
+          <p>No model usage data yet</p>
+        </div>
+        <div *ngIf="topModels.length > 0" class="list">
+          <div *ngFor="let model of topModels" class="list-item">
+            <span class="list-label">{{ model.model }}</span>
+            <span class="list-value">{{ formatNumber(model.count) }} calls</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-header">
+          <h2>Top Policies Triggered</h2>
+          <a routerLink="/policies" class="btn btn-sm btn-secondary">Manage</a>
+        </div>
+        <div *ngIf="topPolicies.length === 0" class="empty-state-small">
+          <p>No policies configured yet</p>
+          <a routerLink="/policies" class="btn btn-sm btn-primary">Create Policy</a>
+        </div>
+        <div *ngIf="topPolicies.length > 0" class="list">
+          <div *ngFor="let policy of topPolicies" class="list-item">
+            <span class="list-label">{{ policy.name }}</span>
+            <span class="list-value">{{ formatNumber(policy.trigger_count) }} triggers</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Recent Runs -->
+    <div class="card">
+      <div class="card-header">
+        <h2>Recent Runs</h2>
+        <a routerLink="/runs" class="btn btn-sm btn-secondary">View All</a>
+      </div>
+      
+      <div *ngIf="!hasRuns" class="empty-state">
+        <h3>No runs yet</h3>
+        <p>Send your first run to see it appear here.</p>
+        <a routerLink="/integrations" class="btn btn-primary">Get Integration Code</a>
+      </div>
+
+      <div *ngIf="hasRuns" class="runs-table">
+        <table>
+          <thead>
+            <tr>
+              <th>Run ID</th>
+              <th>Type</th>
+              <th>Source</th>
+              <th>Model</th>
+              <th>Status</th>
+              <th>Time</th>
+              <th>Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr *ngFor="let run of recentRuns">
+              <td><code>{{ run.id.substring(0, 8) }}...</code></td>
+              <td>
+                <span class="badge" [class.badge-agent]="run.type === 'agent'" [class.badge-chat]="run.type === 'chat'">
+                  {{ run.type }}
+                </span>
+              </td>
+              <td>
+                <span class="badge badge-source">{{ run.source }}</span>
+              </td>
+              <td>{{ run.model }}</td>
+              <td>{{ run.status }}</td>
+              <td>{{ formatDate(run.created_at) }}</td>
+              <td>
+                <a [routerLink]="['/runs', run.id]" class="btn-link">View</a>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- Quick Actions -->
+    <div class="card">
+      <div class="card-header">
+        <h2>Quick Actions</h2>
+      </div>
+      <div class="actions-grid">
+        <a routerLink="/integrations" class="action-card">
+          <div class="action-icon">➕</div>
+          <h3>Add Integration</h3>
+          <p>Connect your application</p>
+        </a>
+        <a routerLink="/policies" class="action-card">
+          <div class="action-icon">⚙️</div>
+          <h3>Create Policy</h3>
+          <p>Define governance rules</p>
+        </a>
+        <a routerLink="/runs" class="action-card">
+          <div class="action-icon">📊</div>
+          <h3>View Runs</h3>
+          <p>See all activity</p>
+        </a>
+      </div>
+    </div>
+  </div>
+</div>

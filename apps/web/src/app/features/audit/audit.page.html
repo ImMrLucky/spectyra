@@ -1,0 +1,85 @@
+<div class="container">
+  <div class="page-header">
+    <h1>Audit Logs</h1>
+    <p class="subtitle">Compliance and security event history</p>
+  </div>
+
+  <div *ngIf="loading" class="loading">
+    <p>Loading audit logs...</p>
+  </div>
+
+  <div *ngIf="error" class="error-box">
+    <p>{{ error }}</p>
+  </div>
+
+  <div *ngIf="!loading && !error">
+    <!-- Filters -->
+    <div class="card">
+      <div class="filters">
+        <div class="filter-group">
+          <label>Time Range</label>
+          <select [(ngModel)]="selectedRange" (change)="onFilterChange()" class="form-select">
+            <option value="24h">Last 24 Hours</option>
+            <option value="7d">Last 7 Days</option>
+            <option value="30d">Last 30 Days</option>
+            <option value="90d">Last 90 Days</option>
+          </select>
+        </div>
+        <div class="filter-group">
+          <label>Event Type</label>
+          <select [(ngModel)]="selectedEventType" (change)="onFilterChange()" class="form-select">
+            <option [value]="null">All Events</option>
+            <option value="key_created">Key Created</option>
+            <option value="key_rotated">Key Rotated</option>
+            <option value="key_revoked">Key Revoked</option>
+            <option value="policy_created">Policy Created</option>
+            <option value="policy_updated">Policy Updated</option>
+            <option value="member_added">Member Added</option>
+            <option value="member_removed">Member Removed</option>
+            <option value="security_event">Security Event</option>
+          </select>
+        </div>
+      </div>
+    </div>
+
+    <!-- Audit Logs Table -->
+    <div class="card">
+      <div class="card-header">
+        <h2>Audit Events</h2>
+      </div>
+
+      <div *ngIf="logs.length === 0" class="empty-state">
+        <p>No audit logs found for the selected filters</p>
+      </div>
+
+      <div *ngIf="logs.length > 0" class="audit-table">
+        <table>
+          <thead>
+            <tr>
+              <th>Time</th>
+              <th>Event Type</th>
+              <th>Actor</th>
+              <th>Target</th>
+              <th>Details</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr *ngFor="let log of logs">
+              <td>{{ formatDate(log.created_at) }}</td>
+              <td>
+                <span class="event-badge" [class]="'event-' + log.event_type">
+                  {{ getEventTypeLabel(log.event_type) }}
+                </span>
+              </td>
+              <td><code>{{ log.actor.substring(0, 8) }}...</code></td>
+              <td><code>{{ log.target.substring(0, 8) }}...</code></td>
+              <td>
+                <button class="btn-link" (click)="showDetails(log)">View</button>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>

@@ -25,7 +25,7 @@
     <div class="card expired" *ngIf="!status.trial_active && !status.subscription_active">
       <h2>Trial Expired</h2>
       <p class="error-message">
-        Your trial has ended. Subscribe to continue using Spectyra's AI Gateway.
+        Your trial has ended. Subscribe to continue using Spectyra's runtime control plane.
       </p>
       <button class="btn-primary" (click)="upgrade()" [disabled]="upgrading">
         {{ upgrading ? 'Processing...' : 'Subscribe Now' }}

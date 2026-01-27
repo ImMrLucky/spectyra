@@ -1,0 +1,146 @@
+<div class="container">
+  <div class="page-header">
+    <h1>Usage & Billing</h1>
+    <p class="subtitle">Track usage, budgets, and manage subscription</p>
+  </div>
+
+  <div *ngIf="loading" class="loading">
+    <p>Loading usage data...</p>
+  </div>
+
+  <div *ngIf="error" class="error-box">
+    <p>{{ error }}</p>
+  </div>
+
+  <div *ngIf="!loading && !error">
+    <!-- Billing Status -->
+    <div class="card" *ngIf="billingStatus">
+      <div class="card-header">
+        <h2>Subscription Status</h2>
+        <a routerLink="/usage" class="btn btn-sm btn-primary" *ngIf="!billingStatus.subscription_active">Upgrade</a>
+      </div>
+      <div class="billing-info">
+        <div class="billing-item">
+          <span class="billing-label">Status</span>
+          <span class="billing-value" [class.active]="billingStatus.subscription_active">
+            {{ billingStatus.subscription_status || 'trial' }}
+          </span>
+        </div>
+        <div class="billing-item" *ngIf="billingStatus.trial_ends_at">
+          <span class="billing-label">Trial Ends</span>
+          <span class="billing-value">{{ billingStatus.trial_ends_at | date:'medium' }}</span>
+        </div>
+        <div class="billing-item" *ngIf="billingStatus.has_access">
+          <span class="billing-label">Access</span>
+          <span class="billing-value active">Active</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Usage Filters -->
+    <div class="card">
+      <div class="card-header">
+        <h2>Usage Overview</h2>
+        <div class="filters">
+          <select [(ngModel)]="selectedRange" (change)="onRangeChange()" class="form-select">
+            <option value="24h">Last 24 Hours</option>
+            <option value="7d">Last 7 Days</option>
+            <option value="30d">Last 30 Days</option>
+            <option value="90d">Last 90 Days</option>
+          </select>
+          <button class="btn btn-sm btn-secondary" (click)="exportCSV()">Export CSV</button>
+        </div>
+      </div>
+
+      <div *ngIf="usageData.length === 0" class="empty-state">
+        <p>No usage data available for this period</p>
+      </div>
+
+      <div *ngIf="usageData.length > 0" class="usage-summary">
+        <div class="summary-item">
+          <span class="summary-label">Total Calls</span>
+          <span class="summary-value">{{ formatNumber(usageData.reduce((sum, d) => sum + d.calls, 0)) }}</span>
+        </div>
+        <div class="summary-item">
+          <span class="summary-label">Total Tokens</span>
+          <span class="summary-value">{{ formatNumber(usageData.reduce((sum, d) => sum + d.tokens, 0)) }}</span>
+        </div>
+        <div class="summary-item">
+          <span class="summary-label">Cost Estimate</span>
+          <span class="summary-value">{{ formatCurrency(usageData.reduce((sum, d) => sum + d.cost_estimate_usd, 0)) }}</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Budget Progress -->
+    <div class="card" *ngIf="budgetProgress.length > 0">
+      <div class="card-header">
+        <h2>Budget Progress</h2>
+        <a routerLink="/policies" class="btn btn-sm btn-secondary">Manage Budgets</a>
+      </div>
+      <div class="budgets-list">
+        <div *ngFor="let budget of budgetProgress" class="budget-item">
+          <div class="budget-header">
+            <span class="budget-name">{{ budget.budget_type }}</span>
+            <span class="budget-period">{{ budget.period }}</span>
+          </div>
+          <div class="budget-bar">
+            <div class="budget-bar-fill" [style.width.%]="(budget.used / budget.limit) * 100"></div>
+          </div>
+          <div class="budget-meta">
+            <span>{{ formatCurrency(budget.used) }} / {{ formatCurrency(budget.limit) }}</span>
+            <span>{{ formatCurrency(budget.remaining) }} remaining</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Core Moat v1: Savings by Optimization Type -->
+    <div class="card" *ngIf="optimizationSavings.length > 0">
+      <div class="card-header">
+        <h2>Savings by Optimization Type</h2>
+        <p class="subtitle-small">Core Moat v1 token savings breakdown</p>
+      </div>
+      <div class="optimization-savings">
+        <div *ngFor="let opt of optimizationSavings" class="optimization-savings-item">
+          <div class="savings-header">
+            <h3>{{ opt.name }}</h3>
+            <span class="runs-count">{{ formatNumber(opt.runs_count) }} runs</span>
+          </div>
+          <div class="savings-value-large">
+            <span class="savings-label">Tokens Saved</span>
+            <span class="savings-amount">{{ formatNumber(opt.tokens_saved) }}</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Usage by Project -->
+    <div class="card" *ngIf="usageData.length > 0 && usageData[0].by_project">
+      <div class="card-header">
+        <h2>Usage by Project</h2>
+      </div>
+      <div class="project-usage">
+        <div *ngFor="let project of getProjectList()" class="project-item">
+          <div class="project-header">
+            <span class="project-name">{{ project.name || project.id }}</span>
+          </div>
+          <div class="project-stats">
+            <div class="stat">
+              <span class="stat-label">Calls</span>
+              <span class="stat-value">{{ formatNumber(project.calls) }}</span>
+            </div>
+            <div class="stat">
+              <span class="stat-label">Tokens</span>
+              <span class="stat-value">{{ formatNumber(project.tokens) }}</span>
+            </div>
+            <div class="stat">
+              <span class="stat-label">Cost</span>
+              <span class="stat-value">{{ formatCurrency(project.cost) }}</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>

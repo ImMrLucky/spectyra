@@ -4,12 +4,13 @@
     <nav>
       <!-- Navigation links (only show when authenticated) -->
       <ng-container *ngIf="isAuthenticated">
-        <a routerLink="/scenarios">Proof Scenarios</a>
+        <a routerLink="/overview">Overview</a>
+        <a routerLink="/runs">Runs</a>
+        <a routerLink="/policies">Policies</a>
         <a routerLink="/integrations">Integrations</a>
         <a routerLink="/projects">Projects</a>
-        <a routerLink="/runs">Gateway Runs</a>
-        <a routerLink="/savings">Org Savings</a>
-        <a routerLink="/billing">Billing</a>
+        <a routerLink="/usage">Usage & Billing</a>
+        <a routerLink="/audit">Audit Logs</a>
         <a routerLink="/settings">Settings</a>
         <a routerLink="/admin" class="admin-link">Admin</a>
         
