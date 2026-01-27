@@ -23,22 +23,68 @@ export class SupabaseService {
   private user$ = new BehaviorSubject<SupabaseUser | null>(null);
 
   constructor() {
+    // Create Supabase client
+    // Note: Navigator LockManager errors are usually harmless and can be ignored
+    // They occur when multiple tabs try to access the same auth lock simultaneously
     this.supabase = createClient(
       environment.supabaseUrl,
-      environment.supabaseAnonKey
+      environment.supabaseAnonKey,
+      {
+        auth: {
+          autoRefreshToken: true,
+          persistSession: true,
+          detectSessionInUrl: true,
+        },
+      }
     );
 
-    // Initialize session
-    this.supabase.auth.getSession().then(({ data: { session } }) => {
-      this.session$.next(session);
-      this.user$.next(session?.user ? { id: session.user.id, email: session.user.email } : null);
-    });
+    // Initialize session with error handling for LockManager issues
+    this.supabase.auth.getSession()
+      .then(({ data: { session } }) => {
+        this.session$.next(session);
+        this.user$.next(session?.user ? { id: session.user.id, email: session.user.email } : null);
+      })
+      .catch((error) => {
+        // LockManager errors are non-critical - log but don't break the app
+        if (error?.message?.includes('LockManager') || error?.message?.includes('lock')) {
+          console.warn('Supabase LockManager warning (non-critical, can be ignored):', error.message);
+          // Try to get session from localStorage as fallback
+          this.tryGetSessionFromStorage();
+        } else {
+          // Other errors should be logged
+          console.error('Supabase session initialization error:', error);
+        }
+      });
 
     // Listen for auth changes
     this.supabase.auth.onAuthStateChange((_event, session) => {
       this.session$.next(session);
       this.user$.next(session?.user ? { id: session.user.id, email: session.user.email } : null);
     });
+  }
+
+  /**
+   * Fallback: Try to get session from localStorage if LockManager fails
+   */
+  private tryGetSessionFromStorage() {
+    try {
+      // Supabase stores session with key pattern: sb-{project-ref}-auth-token
+      const projectRef = environment.supabaseUrl.split('//')[1]?.split('.')[0];
+      const storageKey = `sb-${projectRef}-auth-token`;
+      const stored = localStorage.getItem(storageKey);
+      if (stored) {
+        const parsed = JSON.parse(stored);
+        if (parsed?.currentSession) {
+          this.session$.next(parsed.currentSession);
+          this.user$.next(parsed.currentSession.user ? { 
+            id: parsed.currentSession.user.id, 
+            email: parsed.currentSession.user.email 
+          } : null);
+        }
+      }
+    } catch (e) {
+      // Ignore parse errors
+    }
   }
 
   /**
