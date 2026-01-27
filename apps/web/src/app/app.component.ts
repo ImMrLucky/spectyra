@@ -113,7 +113,8 @@ export class AppComponent implements OnInit, OnDestroy {
 
   constructor(
     private authService: AuthService,
-    private supabase: SupabaseService
+    private supabase: SupabaseService,
+    private router: Router
   ) {}
 
   ngOnInit() {
