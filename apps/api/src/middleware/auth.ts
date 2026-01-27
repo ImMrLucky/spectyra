@@ -242,8 +242,11 @@ export async function requireUserSession(
     // Ensure supabaseUrl doesn't have trailing slash
     const cleanSupabaseUrl = supabaseUrl.replace(/\/$/, '');
     
+    // Supabase JWKS endpoint is at /auth/v1/.well-known/jwks.json
+    const jwksUrl = `${cleanSupabaseUrl}/auth/v1/.well-known/jwks.json`;
+    
     try {
-      const JWKS = createRemoteJWKSet(new URL(`${cleanSupabaseUrl}/.well-known/jwks.json`));
+      const JWKS = createRemoteJWKSet(new URL(jwksUrl));
       
       // Supabase JWT issuer can be either the full URL or just the domain
       // Try both formats for compatibility, and also try without issuer check
@@ -298,9 +301,9 @@ export async function requireUserSession(
         if (isJwksError) {
           safeLog("error", "JWKS endpoint not accessible", { 
             error: lastError?.message,
-            jwksUrl: `${cleanSupabaseUrl}/.well-known/jwks.json`,
+            jwksUrl: jwksUrl,
             supabaseUrl: cleanSupabaseUrl,
-            hint: "Check if SUPABASE_URL is correct and Supabase project is active"
+            hint: "Check if SUPABASE_URL is correct and Supabase project is active. JWKS should be at /auth/v1/.well-known/jwks.json"
           });
           res.status(503).json({ 
             error: "Authentication service unavailable",
