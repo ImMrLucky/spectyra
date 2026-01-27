@@ -26,7 +26,11 @@ export class AuthSessionService implements OnDestroy {
   private initialized = false;
 
   constructor() {
-    this.initOnce();
+    // Delay initialization slightly to avoid LockManager contention during app bootstrap
+    // This gives Angular time to fully initialize before Supabase tries to acquire locks
+    setTimeout(() => {
+      this.initOnce();
+    }, 0);
   }
 
   /**
