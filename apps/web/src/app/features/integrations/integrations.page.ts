@@ -4,6 +4,7 @@ import { FormsModule } from '@angular/forms';
 import { RouterModule } from '@angular/router';
 import { HttpClient } from '@angular/common/http';
 import { environment } from '../../../environments/environment';
+import { ModalService } from '../../core/services/modal.service';
 
 interface IntegrationScenario {
   id: string;
@@ -38,7 +39,10 @@ export class IntegrationsPage implements OnInit {
   showDetailed = false;
   copiedCode: string | null = null;
 
-  constructor(private http: HttpClient) {}
+  constructor(
+    private http: HttpClient,
+    private modalService: ModalService
+  ) {}
 
   ngOnInit() {
     this.loadScenarios();
@@ -278,6 +282,9 @@ export OPENAI_API_KEY=your-openai-key
   async verifyIntegration(scenario: IntegrationScenario) {
     // Generate test run_id
     const testRunId = crypto.randomUUID();
-    alert(`Test Run ID: ${testRunId}\n\nRun your integration code, then check the Runs page to see if the run appears.`);
+    this.modalService.showInfo(
+      'Test Run ID',
+      `Test Run ID: ${testRunId}\n\nRun your integration code, then check the Runs page to see if the run appears.`
+    );
   }
 }

@@ -31,6 +31,7 @@ export interface CodeMapOutput {
   tokensBefore: number;
   tokensAfter: number;
   changed: boolean;
+  omittedBlocks?: Array<{ lang: string; lines: number; reason: string }>;
 }
 
 /**
@@ -85,15 +86,22 @@ export function buildCodeMap(input: CodeMapInput): CodeMapOutput {
   // Select snippets based on detail level
   // High detail (1.0) = keep all, low detail (0.0) = keep minimal
   const keepSnippets = Math.max(1, Math.ceil(codeBlocks.length * detailLevel));
-  const selectedSnippets = codeBlocks
-    .sort((a, b) => b.content.length - a.content.length) // Prefer larger blocks
-    .slice(0, keepSnippets)
-    .map((block, idx) => ({
-      id: `snippet_${idx + 1}`,
-      lang: block.lang,
-      content: block.content,
-      lines: block.content.split("\n").length,
-    }));
+  const sortedBlocks = codeBlocks.sort((a, b) => b.content.length - a.content.length);
+  const selectedBlocks = sortedBlocks.slice(0, keepSnippets);
+  const omittedBlocks = sortedBlocks.slice(keepSnippets);
+
+  const selectedSnippets = selectedBlocks.map((block, idx) => ({
+    id: `snippet_${idx + 1}`,
+    lang: block.lang,
+    content: block.content,
+    lines: block.content.split("\n").length,
+  }));
+
+  const omittedBlocksMeta = omittedBlocks.map(block => ({
+    lang: block.lang,
+    lines: block.content.split("\n").length,
+    reason: "detailLevel",
+  }));
 
   const codeMap: CodeMap = {
     symbols: uniqueSymbols,
@@ -105,11 +113,11 @@ export function buildCodeMap(input: CodeMapInput): CodeMapOutput {
 
   // Estimate tokens
   const tokensBefore = estimateTokens(codeBlocks.map(b => b.content).join("\n"));
-  const codeMapText = buildCodeMapText(codeMap);
+  const codeMapText = buildCodeMapText(codeMap, omittedBlocksMeta);
   const tokensAfter = estimateTokens(codeMapText);
 
   // Replace code blocks in messages with CodeMap
-  const newMessages = replaceCodeBlocksWithCodeMap(messages, codeMap, codeBlocks);
+  const newMessages = replaceCodeBlocksWithCodeMap(messages, codeMap, codeBlocks, omittedBlocksMeta);
 
   return {
     messages: newMessages,
@@ -117,6 +125,7 @@ export function buildCodeMap(input: CodeMapInput): CodeMapOutput {
     tokensBefore,
     tokensAfter,
     changed: true,
+    omittedBlocks: omittedBlocksMeta,
   };
 }
 
@@ -246,24 +255,53 @@ function deduplicateSymbols(symbols: Array<{ name: string; type: string }>): Arr
 }
 
 /**
- * Build CodeMap text for system message
+ * Build CodeMap text for system message (v1.1 format with SNIPPETS)
  */
-function buildCodeMapText(codeMap: CodeMap): string {
+function buildCodeMapText(codeMap: CodeMap, omittedBlocks: Array<{ lang: string; lines: number; reason: string }> = []): string {
   const lines: string[] = [
+    "CODEMAP v1.1",
+    "MODE: code",
+    "",
     "CODEMAP {",
     `  symbols: [${codeMap.symbols.map(s => `{name: "${s.name}", type: "${s.type}"}`).join(", ")}]`,
     `  exports: [${codeMap.exports.map(e => `"${e}"`).join(", ")}]`,
     `  imports: [${codeMap.imports.map(i => `"${i}"`).join(", ")}]`,
     `  dependencies: [${codeMap.dependencies.map(d => `"${d}"`).join(", ")}]`,
-    `  snippets: [`,
+    `  snippets_meta: [`,
   ];
 
   for (const snippet of codeMap.snippets) {
     lines.push(`    {id: "${snippet.id}", lang: "${snippet.lang}", lines: ${snippet.lines}}`);
   }
-
   lines.push("  ]");
+
+  if (omittedBlocks.length > 0) {
+    lines.push(`  omitted_blocks: [`);
+    for (const omitted of omittedBlocks) {
+      lines.push(`    {lang: "${omitted.lang}", lines: ${omitted.lines}, reason: "${omitted.reason}"}`);
+    }
+    lines.push("  ]");
+  }
+
   lines.push("}");
+  lines.push("");
+  lines.push("SNIPPETS {");
+
+  // Include actual snippet content
+  for (const snippet of codeMap.snippets) {
+    lines.push(`  ${snippet.id}:`);
+    lines.push(`  \`\`\`${snippet.lang}`);
+    lines.push(snippet.content);
+    lines.push("```");
+    lines.push("");
+  }
+
+  lines.push("}");
+  lines.push("");
+  lines.push("RULES:");
+  lines.push("  - Treat [[CODEMAP:snippet_id]] as dereferenceable aliases to SNIPPETS.");
+  lines.push("  - Do NOT invent code not present.");
+  lines.push("  - If required code is missing, request it.");
 
   return lines.join("\n");
 }
@@ -274,15 +312,22 @@ function buildCodeMapText(codeMap: CodeMap): string {
 function replaceCodeBlocksWithCodeMap(
   messages: ChatMessage[],
   codeMap: CodeMap,
-  originalBlocks: Array<{ lang: string; content: string }>
+  originalBlocks: Array<{ lang: string; content: string }>,
+  omittedBlocks: Array<{ lang: string; lines: number; reason: string }> = []
 ): ChatMessage[] {
   const newMessages: ChatMessage[] = [];
 
-  // Add CodeMap as system message
+  // Add CodeMap as system message (includes SNIPPETS)
   const codeMapMsg: ChatMessage = {
     role: "system",
-    content: buildCodeMapText(codeMap),
+    content: buildCodeMapText(codeMap, omittedBlocks),
   };
+
+  // Create a map of content -> snippet ID for fast lookup
+  const contentToSnippetId = new Map<string, string>();
+  for (const snippet of codeMap.snippets) {
+    contentToSnippetId.set(snippet.content.trim(), snippet.id);
+  }
 
   // Process each message
   for (const msg of messages) {
@@ -292,13 +337,17 @@ function replaceCodeBlocksWithCodeMap(
     // Replace code blocks with CodeMap references
     const regex = /```(\w+)?\n([\s\S]*?)```/g;
     content = content.replace(regex, (match, lang, code) => {
+      const trimmedCode = code.trim();
       // Check if this block is in our snippets
-      const snippet = codeMap.snippets.find(s => s.content === code.trim());
-      if (snippet) {
+      const snippetId = contentToSnippetId.get(trimmedCode);
+      if (snippetId) {
         changed = true;
-        return `[[CODEMAP:${snippet.id}]]`; // Reference to snippet
+        return `[[CODEMAP:${snippetId}]]`; // Reference to snippet
+      } else {
+        // This block was omitted - replace with omitted marker
+        changed = true;
+        return `[[CODEMAP:OMITTED]]`; // Omitted block marker
       }
-      return match; // Keep original if not in snippets
     });
 
     newMessages.push({

@@ -6,6 +6,7 @@ import { SupabaseService } from '../../services/supabase.service';
 import { HttpClient, HttpHeaders } from '@angular/common/http';
 import { environment } from '../../../environments/environment';
 import { AuthService } from '../../core/auth/auth.service';
+import { SnackbarService } from '../../core/services/snackbar.service';
 
 @Component({
   selector: 'app-register',
@@ -29,7 +30,8 @@ export class RegisterPage {
     private supabase: SupabaseService,
     private http: HttpClient,
     private authService: AuthService,
-    private router: Router
+    private router: Router,
+    private snackbarService: SnackbarService
   ) {}
 
   async register() {
@@ -138,7 +140,7 @@ export class RegisterPage {
   copyApiKey() {
     if (this.apiKey) {
       navigator.clipboard.writeText(this.apiKey).then(() => {
-        alert('API key copied to clipboard!');
+        this.snackbarService.showSuccess('API key copied to clipboard!');
       });
     }
   }

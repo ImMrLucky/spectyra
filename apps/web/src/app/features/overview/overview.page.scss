@@ -101,6 +101,14 @@
   .tile-icon {
     font-size: 32px;
     margin-bottom: 12px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    color: #007bff;
+
+    .material-icons {
+      font-size: 48px;
+    }
   }
 
   h4 {
@@ -364,6 +372,14 @@
   .action-icon {
     font-size: 32px;
     margin-bottom: 12px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    color: #007bff;
+
+    .material-icons {
+      font-size: 48px;
+    }
   }
 
   h3 {

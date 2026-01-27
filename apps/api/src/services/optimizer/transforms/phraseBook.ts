@@ -7,6 +7,7 @@
  */
 
 import { ChatMessage } from "../unitize";
+import { replaceOnlyOutsideCodeFences } from "./textGuards";
 
 export interface PhraseBook {
   entries: Array<{ id: number; phrase: string; count: number }>;
@@ -133,10 +134,20 @@ function applyPhraseBookEncoding(messages: ChatMessage[], phraseBook: PhraseBook
     let content = msg.content;
 
     // Replace phrases with ⟦P#⟧ references
+    // IMPORTANT: Skip replacements inside code fences
     for (const entry of phraseBook.entries) {
       const regex = new RegExp(escapeRegex(entry.phrase), "gi");
-      if (regex.test(content)) {
-        content = content.replace(regex, `⟦P${entry.id}⟧`);
+      
+      // Apply replacement only outside code fences
+      const newContent = replaceOnlyOutsideCodeFences(content, (text) => {
+        if (regex.test(text)) {
+          return text.replace(regex, `⟦P${entry.id}⟧`);
+        }
+        return text;
+      });
+
+      if (newContent !== content) {
+        content = newContent;
         replacementsMade++;
       }
     }

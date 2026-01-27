@@ -11,6 +11,7 @@ import { buildLocalPhraseBook } from "./transforms/phraseBook";
 import { buildCodeMap } from "./transforms/codeMap";
 import { computeBudgetsFromSpectral } from "./budgeting/budgetsFromSpectral";
 import { semanticCacheKey } from "./cache/semanticHash";
+import { getCacheStore } from "./cache/createCacheStore";
 
 // Provider + embedding interfaces
 export interface ChatProvider {
@@ -87,6 +88,29 @@ export interface OptimizeOutput {
     refpack?: { before: number; after: number; saved: number };
     phrasebook?: { before: number; after: number; saved: number };
     codemap?: { before: number; after: number; saved: number };
+  };
+  // Customer-safe optimization report
+  optimizationReport?: {
+    layers: {
+      refpack: boolean;
+      phrasebook: boolean;
+      codemap: boolean;
+      semantic_cache: boolean;
+      cache_hit: boolean;
+    };
+    tokens: {
+      estimated: boolean;
+      input_before?: number;
+      input_after?: number;
+      saved?: number;
+      pct_saved?: number;
+    };
+    spectral?: {
+      nNodes: number;
+      nEdges: number;
+      stabilityIndex: number;
+      lambda2: number;
+    };
   };
 }
 
@@ -190,36 +214,44 @@ export async function runOptimizedOrBaseline(
       quality: { ...q, retried: false },
       debug: { mode: "optimized", shortCircuit: "ASK_CLARIFY" },
       debugInternal,
+      optimizationReport: {
+        layers: {
+          refpack: false,
+          phrasebook: false,
+          codemap: false,
+          semantic_cache: false,
+          cache_hit: false,
+        },
+        tokens: {
+          estimated: true,
+        },
+        spectral: {
+          nNodes: spectral.nNodes,
+          nEdges: spectral.nEdges,
+          stabilityIndex: spectral.stabilityIndex,
+          lambda2: spectral.lambda2,
+        },
+      },
     };
   }
 
-    // Helper to run once with given policy overrides
-  const runOnce = async (policyOverride?: Partial<OptimizerConfig>): Promise<OptimizeOutput> => {
-    const localCfg: OptimizerConfig = {
-      ...cfg,
-      talkPolicy: { ...cfg.talkPolicy, ...(policyOverride?.talkPolicy ?? {}) },
-      codePolicy: { ...cfg.codePolicy, ...(policyOverride?.codePolicy ?? {}) },
-      maxOutputTokensOptimized: policyOverride?.maxOutputTokensOptimized ?? cfg.maxOutputTokensOptimized,
-      maxOutputTokensOptimizedRetry: policyOverride?.maxOutputTokensOptimizedRetry ?? cfg.maxOutputTokensOptimizedRetry,
-      spectral: cfg.spectral,
-      unitize: cfg.unitize
-    };
+    // ===== Core Moat v1: Apply Moat Transforms (extracted for reuse) =====
+  interface MoatTransformResult {
+    messagesAfterCodeMap: ChatMessage[];
+    refPackMetrics: { tokensBefore: number; tokensAfter: number; entriesCount: number; replacementsMade: number };
+    phraseBookMetrics: { tokensBefore: number; tokensAfter: number; entriesCount: number; changed: boolean };
+    codeMapMetrics: { tokensBefore: number; tokensAfter: number; symbolsCount: number; changed: boolean };
+    cacheKey: string;
+    budgets: ReturnType<typeof computeBudgetsFromSpectral>;
+  }
 
-    // ===== Core Moat v1: Spectral-Driven Budgets =====
+  const applyMoatTransforms = (): MoatTransformResult => {
+    // Compute budgets from spectral
     const budgets = computeBudgetsFromSpectral({
       spectral,
-      baseKeepLastTurns: path === "code" ? localCfg.codePolicy.keepLastTurns : localCfg.talkPolicy.keepLastTurns,
-      baseMaxRefs: path === "code" ? localCfg.codePolicy.maxRefs : localCfg.talkPolicy.maxRefs,
+      baseKeepLastTurns: path === "code" ? cfg.codePolicy.keepLastTurns : cfg.talkPolicy.keepLastTurns,
+      baseMaxRefs: path === "code" ? cfg.codePolicy.maxRefs : cfg.talkPolicy.maxRefs,
     });
-
-    // Update config with dynamic budgets
-    if (path === "code") {
-      localCfg.codePolicy.keepLastTurns = budgets.keepLastTurns;
-      localCfg.codePolicy.maxRefs = budgets.maxRefpackEntries;
-    } else {
-      localCfg.talkPolicy.keepLastTurns = budgets.keepLastTurns;
-      localCfg.talkPolicy.maxRefs = budgets.maxRefpackEntries;
-    }
 
     // ===== Core Moat v1: RefPack + Inline Replacement =====
     let messagesAfterRefPack = messages;
@@ -237,7 +269,7 @@ export async function runOptimizedOrBaseline(
         messages,
         refPack: refPackResult.refPack,
         spectral,
-        units, // Pass units for finding original text
+        units,
       });
       
       messagesAfterRefPack = inlineResult.messages;
@@ -297,6 +329,57 @@ export async function runOptimizedOrBaseline(
       routeMeta: { model, path },
     });
 
+    return {
+      messagesAfterCodeMap,
+      refPackMetrics,
+      phraseBookMetrics,
+      codeMapMetrics,
+      cacheKey,
+      budgets,
+    };
+  };
+
+  // Compute moat transforms once (reused in retry)
+  const moatResult = applyMoatTransforms();
+
+  // Helper to run once with given policy overrides
+  const runOnce = async (policyOverride?: Partial<OptimizerConfig>): Promise<OptimizeOutput> => {
+    const localCfg: OptimizerConfig = {
+      ...cfg,
+      talkPolicy: { ...cfg.talkPolicy, ...(policyOverride?.talkPolicy ?? {}) },
+      codePolicy: { ...cfg.codePolicy, ...(policyOverride?.codePolicy ?? {}) },
+      maxOutputTokensOptimized: policyOverride?.maxOutputTokensOptimized ?? cfg.maxOutputTokensOptimized,
+      maxOutputTokensOptimizedRetry: policyOverride?.maxOutputTokensOptimizedRetry ?? cfg.maxOutputTokensOptimizedRetry,
+      spectral: cfg.spectral,
+      unitize: cfg.unitize
+    };
+
+    // ===== Core Moat v1: Spectral-Driven Budgets =====
+    const budgets = computeBudgetsFromSpectral({
+      spectral,
+      baseKeepLastTurns: path === "code" ? localCfg.codePolicy.keepLastTurns : localCfg.talkPolicy.keepLastTurns,
+      baseMaxRefs: path === "code" ? localCfg.codePolicy.maxRefs : localCfg.talkPolicy.maxRefs,
+    });
+
+    // Use pre-computed moat transforms
+    const {
+      messagesAfterCodeMap,
+      refPackMetrics,
+      phraseBookMetrics,
+      codeMapMetrics,
+      cacheKey,
+      budgets: moatBudgets,
+    } = moatResult;
+
+    // Update config with dynamic budgets
+    if (path === "code") {
+      localCfg.codePolicy.keepLastTurns = moatBudgets.keepLastTurns;
+      localCfg.codePolicy.maxRefs = moatBudgets.maxRefpackEntries;
+    } else {
+      localCfg.talkPolicy.keepLastTurns = moatBudgets.keepLastTurns;
+      localCfg.talkPolicy.maxRefs = moatBudgets.maxRefpackEntries;
+    }
+
     // Apply policy transforms (pre-LLM) - now using messages after Core Moat transforms
     let messagesFinal: ChatMessage[] = messagesAfterCodeMap;
     let policyDebug: any = {};
@@ -333,6 +416,64 @@ export async function runOptimizedOrBaseline(
       };
     }
 
+    // ===== Core Moat v1: Semantic Cache Lookup =====
+    let cacheHit = false;
+    let cachedResponse: string | null = null;
+    const cacheStore = getCacheStore();
+    
+    if (cacheStore && cacheKey) {
+      try {
+        cachedResponse = await cacheStore.get(cacheKey);
+        if (cachedResponse) {
+          cacheHit = true;
+        }
+      } catch (error) {
+        console.error("Cache lookup error:", error);
+        // Continue without cache on error
+      }
+    }
+
+    // If cache hit, return cached response
+    if (cacheHit && cachedResponse) {
+      const quality = runQualityGuard({ text: cachedResponse, requiredChecks });
+      
+      // Build customer-safe optimization report for cache hit
+      const optimizationReport = {
+        layers: {
+          refpack: false,
+          phrasebook: false,
+          codemap: false,
+          semantic_cache: true,
+          cache_hit: true,
+        },
+        tokens: {
+          estimated: true,
+        },
+        spectral: {
+          nNodes: spectral.nNodes,
+          nEdges: spectral.nEdges,
+          stabilityIndex: spectral.stabilityIndex,
+          lambda2: spectral.lambda2,
+        },
+      };
+
+      return {
+        promptFinal: { messages: messagesFinal },
+        responseText: cachedResponse,
+        usage: { input_tokens: 0, output_tokens: 0, total_tokens: 0, estimated: true },
+        spectral,
+        quality,
+        debug: { mode: "optimized", cacheHit: true, ...policyDebug },
+        debugInternal: {
+          mode: "optimized",
+          cache: { key: cacheKey, hit: true },
+          ...policyDebug,
+        },
+        optimizationsApplied: ["semantic_cache_hit"],
+        optimizationReport,
+      };
+    }
+
     const out = await callWithPolicy(path, provider, model, messagesFinal, localCfg, false);
 
     // Post-process output
@@ -362,11 +503,11 @@ export async function runOptimizedOrBaseline(
       },
       // Core Moat v1: Budgets
       budgets: {
-        keepLastTurns: budgets.keepLastTurns,
-        maxRefpackEntries: budgets.maxRefpackEntries,
-        compressionAggressiveness: budgets.compressionAggressiveness,
-        phrasebookAggressiveness: budgets.phrasebookAggressiveness,
-        codemapDetailLevel: budgets.codemapDetailLevel,
+        keepLastTurns: moatBudgets.keepLastTurns,
+        maxRefpackEntries: moatBudgets.maxRefpackEntries,
+        compressionAggressiveness: moatBudgets.compressionAggressiveness,
+        phrasebookAggressiveness: moatBudgets.phrasebookAggressiveness,
+        codemapDetailLevel: moatBudgets.codemapDetailLevel,
       },
       // Core Moat v1: RefPack metrics
       refpack: {
@@ -396,7 +537,7 @@ export async function runOptimizedOrBaseline(
       cache: {
         key: cacheKey,
         keyType: "semantic",
-        hit: false, // TODO: Implement cache lookup
+        hit: cacheHit,
       },
       driftScore: undefined, // Phase 2: will be set when drift is implemented
     };
@@ -406,7 +547,11 @@ export async function runOptimizedOrBaseline(
     if (refPackMetrics.entriesCount > 0) optimizationsApplied.push("refpack");
     if (phraseBookMetrics.changed) optimizationsApplied.push("phrasebook");
     if (codeMapMetrics.changed) optimizationsApplied.push("codemap");
-    if (cacheKey) optimizationsApplied.push("semantic_cache");
+    if (cacheHit) {
+      optimizationsApplied.push("semantic_cache_hit");
+    } else if (cacheKey) {
+      optimizationsApplied.push("semantic_cache");
+    }
 
     // Build token breakdown for API response
     const tokenBreakdown: OptimizeOutput["tokenBreakdown"] = {};
@@ -432,6 +577,50 @@ export async function runOptimizedOrBaseline(
       };
     }
 
+    // Store response in cache if quality passes and cache is enabled
+    if (cacheStore && cacheKey && quality.pass && !cacheHit) {
+      try {
+        const ttlSeconds = parseInt(process.env.SPECTYRA_CACHE_TTL_SECONDS || "86400", 10);
+        await cacheStore.set(cacheKey, responseText, ttlSeconds);
+      } catch (error) {
+        console.error("Cache store error:", error);
+        // Fail silently - cache is optional
+      }
+    }
+
+    // Build customer-safe optimization report
+    const totalInputBefore = refPackMetrics.tokensBefore || 
+      (phraseBookMetrics.tokensBefore || 0) + 
+      (codeMapMetrics.tokensBefore || 0);
+    const totalInputAfter = (refPackMetrics.tokensAfter || 0) + 
+      (phraseBookMetrics.tokensAfter || 0) + 
+      (codeMapMetrics.tokensAfter || 0);
+    const totalSaved = totalInputBefore - totalInputAfter;
+    const pctSaved = totalInputBefore > 0 ? (totalSaved / totalInputBefore) * 100 : 0;
+
+    const optimizationReport = {
+      layers: {
+        refpack: refPackMetrics.entriesCount > 0,
+        phrasebook: phraseBookMetrics.changed,
+        codemap: codeMapMetrics.changed,
+        semantic_cache: !!cacheKey,
+        cache_hit: cacheHit,
+      },
+      tokens: {
+        estimated: cacheHit || false,
+        input_before: totalInputBefore > 0 ? totalInputBefore : undefined,
+        input_after: totalInputAfter > 0 ? totalInputAfter : undefined,
+        saved: totalSaved > 0 ? totalSaved : undefined,
+        pct_saved: pctSaved > 0 ? Math.round(pctSaved * 100) / 100 : undefined,
+      },
+      spectral: {
+        nNodes: spectral.nNodes,
+        nEdges: spectral.nEdges,
+        stabilityIndex: spectral.stabilityIndex,
+        lambda2: spectral.lambda2,
+      },
+    };
+
     return {
       promptFinal: { messages: messagesFinal },
       responseText,
@@ -442,6 +631,7 @@ export async function runOptimizedOrBaseline(
       debugInternal, // Include for storage
       optimizationsApplied,
       tokenBreakdown,
+      optimizationReport,
     };
   };
 
@@ -491,12 +681,13 @@ export async function runOptimizedOrBaseline(
     };
 
     // Apply policy transforms again (with relaxed settings)
-    let messagesFinal: ChatMessage[] = messages;
+    // Use the same moat-transformed messages from first attempt
+    let messagesFinal: ChatMessage[] = moatResult.messagesAfterCodeMap;
     let policyDebug: any = {};
 
     if (path === "talk") {
       const p = applyTalkPolicy({
-        messages: messagesAfterCodeMap,
+        messages: moatResult.messagesAfterCodeMap,
         units,
         spectral,
         opts: localCfg.talkPolicy
@@ -505,7 +696,7 @@ export async function runOptimizedOrBaseline(
       policyDebug = p.debug;
     } else {
       const p = applyCodePolicy({
-        messages: messagesAfterCodeMap,
+        messages: moatResult.messagesAfterCodeMap,
         units,
         spectral,
         opts: localCfg.codePolicy
@@ -549,6 +740,26 @@ export async function runOptimizedOrBaseline(
       driftScore: undefined,
     };
 
+    // Build optimization report for retry (reuse moat metrics from first attempt)
+    const retryOptimizationReport = {
+      layers: {
+        refpack: moatResult.refPackMetrics.entriesCount > 0,
+        phrasebook: moatResult.phraseBookMetrics.changed,
+        codemap: moatResult.codeMapMetrics.changed,
+        semantic_cache: !!moatResult.cacheKey,
+        cache_hit: false, // Retry doesn't use cache
+      },
+      tokens: {
+        estimated: false,
+      },
+      spectral: {
+        nNodes: spectral.nNodes,
+        nEdges: spectral.nEdges,
+        stabilityIndex: spectral.stabilityIndex,
+        lambda2: spectral.lambda2,
+      },
+    };
+
     return {
       promptFinal: { messages: messagesFinal },
       responseText,
@@ -563,6 +774,7 @@ export async function runOptimizedOrBaseline(
         ...policyDebug
       },
       debugInternal,
+      optimizationReport: retryOptimizationReport,
     } as OptimizeOutput;
   })();
 

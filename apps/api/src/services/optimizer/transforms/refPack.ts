@@ -9,6 +9,7 @@
 import { PathKind, SemanticUnit } from "../spectral/types";
 import { ChatMessage } from "../unitize";
 import { SpectralResult } from "../spectral/types";
+import { replaceOnlyOutsideCodeFences, isInsideCodeFence } from "./textGuards";
 
 export interface RefPack {
   entries: Array<{ id: number; summary: string; originalId: string }>;
@@ -115,6 +116,7 @@ export function applyInlineRefs(input: ApplyInlineRefsInput): ApplyInlineRefsOut
 
     // For each ref entry, try to find and replace matching text
     // We look for exact matches or very similar substrings
+    // IMPORTANT: Skip replacements inside code fences
     for (const entry of refPack.entries) {
       // Find the unit by ID to get original text
       const unit = units.find(u => u.id === entry.originalId);
@@ -123,12 +125,22 @@ export function applyInlineRefs(input: ApplyInlineRefsInput): ApplyInlineRefsOut
       const originalText = unit.text;
       if (!originalText || originalText.length < 20) continue; // Skip very short units
 
-      // Try to find this text in the current message content
-      // Use a simple substring match (can be enhanced with fuzzy matching)
-      if (content.includes(originalText)) {
-        // Replace with [[R#]] reference
-        const ref = `[[R${entry.id}]]`;
-        content = content.replace(originalText, ref);
+      // Safety check: skip if originalText appears inside a code fence
+      if (isInsideCodeFence(content, originalText)) {
+        continue;
+      }
+
+      // Apply replacement only outside code fences
+      const ref = `[[R${entry.id}]]`;
+      const newContent = replaceOnlyOutsideCodeFences(content, (text) => {
+        if (text.includes(originalText)) {
+          return text.replace(originalText, ref);
+        }
+        return text;
+      });
+
+      if (newContent !== content) {
+        content = newContent;
         changed = true;
         replacementsMade++;
       }

@@ -4,6 +4,7 @@ import { FormsModule } from '@angular/forms';
 import { RouterModule } from '@angular/router';
 import { HttpClient } from '@angular/common/http';
 import { environment } from '../../../environments/environment';
+import { SnackbarService } from '../../core/services/snackbar.service';
 
 interface UsageData {
   period: string;
@@ -61,7 +62,10 @@ export class UsagePage implements OnInit {
   optimizationSavings: OptimizationSavings[] = [];
   projectList: ProjectUsage[] = [];
 
-  constructor(private http: HttpClient) {}
+  constructor(
+    private http: HttpClient,
+    private snackbarService: SnackbarService
+  ) {}
 
   async ngOnInit() {
     await this.loadData();
@@ -139,7 +143,7 @@ export class UsagePage implements OnInit {
 
   exportCSV() {
     // TODO: Implement CSV export
-    alert('CSV export coming soon');
+    this.snackbarService.showInfo('CSV export coming soon');
   }
 
   // Computed properties for usage summary

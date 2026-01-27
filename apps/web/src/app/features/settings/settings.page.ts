@@ -5,6 +5,7 @@ import { SupabaseService } from '../../services/supabase.service';
 import { HttpClient, HttpHeaders } from '@angular/common/http';
 import { environment } from '../../../environments/environment';
 import { AuthService } from '../../core/auth/auth.service';
+import { SnackbarService } from '../../core/services/snackbar.service';
 
 interface ApiKey {
   id: string;
@@ -51,7 +52,8 @@ export class SettingsPage implements OnInit {
   constructor(
     private supabase: SupabaseService,
     private http: HttpClient,
-    private authService: AuthService
+    private authService: AuthService,
+    private snackbarService: SnackbarService
   ) {}
 
   async ngOnInit() {
@@ -195,7 +197,7 @@ export class SettingsPage implements OnInit {
   copyNewKey() {
     if (this.newlyCreatedKey) {
       navigator.clipboard.writeText(this.newlyCreatedKey).then(() => {
-        alert('API key copied to clipboard!');
+        this.snackbarService.showSuccess('API key copied to clipboard!');
       });
     }
   }

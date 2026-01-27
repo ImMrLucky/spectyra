@@ -231,3 +231,41 @@ body {
     grid-template-columns: 1fr;
   }
 }
+
+// Angular Material Snackbar Styles
+.success-snackbar {
+  background-color: $success-color !important;
+  color: white !important;
+}
+
+.error-snackbar {
+  background-color: $danger-color !important;
+  color: white !important;
+}
+
+.info-snackbar {
+  background-color: #17a2b8 !important;
+  color: white !important;
+}
+
+.warning-snackbar {
+  background-color: #ffc107 !important;
+  color: #333 !important;
+}
+
+// Material Icons
+.material-icons {
+  font-family: 'Material Icons';
+  font-weight: normal;
+  font-style: normal;
+  font-size: 24px;
+  line-height: 1;
+  letter-spacing: normal;
+  text-transform: none;
+  display: inline-block;
+  white-space: nowrap;
+  word-wrap: normal;
+  direction: ltr;
+  -webkit-font-feature-settings: 'liga';
+  -webkit-font-smoothing: antialiased;
+}

@@ -3,6 +3,7 @@ import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { HttpClient } from '@angular/common/http';
 import { environment } from '../../../environments/environment';
+import { ModalService } from '../../core/services/modal.service';
 
 interface AuditLog {
   id: string;
@@ -27,7 +28,10 @@ export class AuditPage implements OnInit {
   selectedRange: '24h' | '7d' | '30d' | '90d' = '30d';
   selectedEventType: string | null = null;
 
-  constructor(private http: HttpClient) {}
+  constructor(
+    private http: HttpClient,
+    private modalService: ModalService
+  ) {}
 
   async ngOnInit() {
     await this.loadLogs();
@@ -85,6 +89,9 @@ export class AuditPage implements OnInit {
   }
 
   showDetails(log: AuditLog) {
-    alert(JSON.stringify(log.details, null, 2));
+    this.modalService.showDetails(
+      'Audit Log Details',
+      JSON.stringify(log.details, null, 2)
+    );
   }
 }

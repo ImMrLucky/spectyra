@@ -8,6 +8,7 @@ import { HttpClient, HttpHeaders } from '@angular/common/http';
 import { environment } from '../../../environments/environment';
 import { Subscription } from 'rxjs';
 import { debounceTime, distinctUntilChanged } from 'rxjs/operators';
+import { SnackbarService } from '../../core/services/snackbar.service';
 
 @Component({
   selector: 'app-login',
@@ -44,7 +45,8 @@ export class LoginPage implements OnInit, OnDestroy {
     private authService: AuthService,
     private supabase: SupabaseService,
     private http: HttpClient,
-    private router: Router
+    private router: Router,
+    private snackbarService: SnackbarService
   ) {}
 
   ngOnInit() {
@@ -218,7 +220,7 @@ export class LoginPage implements OnInit, OnDestroy {
   copyApiKey() {
     if (this.bootstrapApiKey) {
       navigator.clipboard.writeText(this.bootstrapApiKey).then(() => {
-        alert('API key copied to clipboard!');
+        this.snackbarService.showSuccess('API key copied to clipboard!');
       });
     }
   }

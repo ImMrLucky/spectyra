@@ -6,11 +6,13 @@ import { SupabaseService } from './services/supabase.service';
 import { OrgSwitcherComponent } from './components/org-switcher.component';
 import { Subscription, combineLatest } from 'rxjs';
 import { map } from 'rxjs/operators';
+import { MatSnackBarModule } from '@angular/material/snack-bar';
+import { MatDialogModule } from '@angular/material/dialog';
 
 @Component({
   selector: 'app-root',
   standalone: true,
-  imports: [RouterOutlet, RouterModule, CommonModule, OrgSwitcherComponent],
+  imports: [RouterOutlet, RouterModule, CommonModule, OrgSwitcherComponent, MatSnackBarModule, MatDialogModule],
   templateUrl: './app.component.html',
   styleUrls: ['./app.component.scss'],
 })
