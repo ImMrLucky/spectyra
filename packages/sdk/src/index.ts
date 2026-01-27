@@ -1,34 +1,50 @@
 /**
  * Spectyra SDK
  * 
- * Real-time LLM optimization middleware that reduces token usage and cost
- * by preventing semantic recomputation.
+ * SDK-first agent runtime control: routing, budgets, tool gating, telemetry
  * 
  * @example
  * ```ts
- * import { SpectyraClient } from '@spectyra/sdk';
+ * // Local mode (default, no API required)
+ * import { createSpectyra } from '@spectyra/sdk';
  * 
- * const client = new SpectyraClient({
- *   apiUrl: 'https://spectyra.up.railway.app/v1',
- *   spectyraKey: process.env.SPECTYRA_API_KEY,
- *   provider: 'openai',
- *   providerKey: process.env.OPENAI_API_KEY, // BYOK
+ * const spectyra = createSpectyra({ mode: "local" });
+ * 
+ * // Use with Claude Agent SDK
+ * const options = spectyra.agentOptions(ctx, prompt);
+ * const result = await agent.query({ prompt, options });
+ * ```
+ * 
+ * @example
+ * ```ts
+ * // API mode (enterprise control plane)
+ * const spectyra = createSpectyra({
+ *   mode: "api",
+ *   endpoint: "https://spectyra.up.railway.app/v1",
+ *   apiKey: process.env.SPECTYRA_API_KEY,
  * });
  * 
- * const response = await client.chat({
- *   model: 'gpt-4o-mini',
- *   messages: [
- *     { role: 'user', content: 'Explain quantum computing' }
- *   ],
- *   path: 'talk',
- *   optimization_level: 3,
- * });
- * 
- * console.log(`Saved ${response.savings?.pct_saved}% tokens`);
+ * const response = await spectyra.agentOptionsRemote(ctx, promptMeta);
  * ```
  */
 
-export { SpectyraClient } from "./client.js";
+// New SDK-first API
+export { createSpectyra } from "./createSpectyra.js";
+export type {
+  SpectyraConfig,
+  SpectyraMode,
+  SpectyraCtx,
+  PromptMeta,
+  ClaudeAgentOptions,
+  AgentDecision,
+  AgentOptionsRequest,
+  AgentOptionsResponse,
+  AgentEventRequest,
+  AgentEventResponse,
+} from "./types.js";
+
+// Legacy API (deprecated but still supported)
+export { SpectyraClient } from "./legacy/SpectyraClient.js";
 export type {
   SpectyraClientConfig,
   ChatOptions,

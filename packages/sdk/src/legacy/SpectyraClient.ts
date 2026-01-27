@@ -1,14 +1,25 @@
 /**
- * Spectyra Client - Real-time LLM optimization middleware
+ * Legacy Spectyra Client
+ * 
+ * @deprecated Use createSpectyra({mode:"api"}).chatRemote(...) or createSpectyra({mode:"local"})
+ * 
+ * This class is maintained for backwards compatibility.
+ * It now uses the new remote chat client internally.
  */
 
 import type {
   SpectyraClientConfig,
   ChatOptions,
   ChatResponse,
-  ChatMessage,
-} from "./types.js";
+} from "../types.js";
+import { chatRemote, type ChatRemoteConfig } from "../remote/chatRemote.js";
 
+/**
+ * @deprecated Use createSpectyra({mode:"api"}) instead
+ * 
+ * Legacy client for chat optimization via API.
+ * For agentic use cases, use createSpectyra() with agentOptions().
+ */
 export class SpectyraClient {
   private config: SpectyraClientConfig;
 
@@ -32,6 +43,8 @@ export class SpectyraClient {
   /**
    * Send a chat request through Spectyra optimization.
    * 
+   * @deprecated Use createSpectyra({mode:"api"}).chatRemote() instead
+   * 
    * @param options Chat options
    * @returns Optimized response with savings metrics
    */
@@ -50,41 +63,29 @@ export class SpectyraClient {
       throw new Error("messages array cannot be empty");
     }
 
-    // Build request
-    const url = `${this.config.apiUrl}/chat`;
-    const body = {
-      path,
-      provider: this.config.provider,
-      model,
-      messages,
-      mode: "optimized" as const,
-      optimization_level,
-      conversation_id,
-      dry_run,
-    };
-
-    // Make request with Spectyra key and provider key (BYOK)
-    const response = await fetch(url, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "X-SPECTYRA-KEY": this.config.spectyraKey,
-        "X-PROVIDER-KEY": this.config.providerKey, // BYOK - never stored server-side
+    // Use new remote chat client
+    return chatRemote(
+      {
+        endpoint: this.config.apiUrl,
+        apiKey: this.config.spectyraKey,
+        provider: this.config.provider,
+        providerKey: this.config.providerKey,
       },
-      body: JSON.stringify(body),
-    });
-
-    if (!response.ok) {
-      const error = await response.json().catch(() => ({ error: "Unknown error" }));
-      throw new Error(`Spectyra API error: ${error.error || response.statusText}`);
-    }
-
-    const data = await response.json();
-    return data as ChatResponse;
+      {
+        model,
+        messages,
+        path,
+        optimization_level,
+        conversation_id,
+        dry_run,
+      }
+    );
   }
 
   /**
    * Estimate savings for a conversation without making real LLM calls.
+   * 
+   * @deprecated Use createSpectyra({mode:"api"}).chatRemote() with dry_run option
    * 
    * @param options Chat options (dry_run will be set to true)
    * @returns Estimated savings

@@ -1,6 +1,8 @@
 # Spectyra SDK
 
-Real-time LLM optimization middleware that reduces token usage and cost by preventing semantic recomputation.
+**SDK-first agent runtime control: routing, budgets, tool gating, telemetry**
+
+Spectyra SDK provides agent runtime control for Claude Agent SDK and other agent frameworks. Control model selection, budgets, tool permissions, and telemetry—all without requiring a proxy.
 
 ## Installation
 
@@ -12,7 +14,196 @@ pnpm add @spectyra/sdk
 yarn add @spectyra/sdk
 ```
 
-## Quick Start
+## Two Integration Styles
+
+### A) Local SDK Mode (Default)
+
+**No proxy required.** SDK makes local decisions about agent options.
+
+```typescript
+import { createSpectyra } from '@spectyra/sdk';
+
+// Local mode - works offline, no API calls
+const spectyra = createSpectyra({ mode: "local" });
+
+// One line integration with Claude Agent SDK
+const options = spectyra.agentOptions(ctx, prompt);
+const result = await agent.query({ prompt, options });
+```
+
+### B) API Control Plane Mode (Enterprise)
+
+SDK calls Spectyra API to fetch agent options and stream events for telemetry.
+
+```typescript
+import { createSpectyra } from '@spectyra/sdk';
+
+const spectyra = createSpectyra({
+  mode: "api",
+  endpoint: "https://spectyra.up.railway.app/v1",
+  apiKey: process.env.SPECTYRA_API_KEY,
+});
+
+// Fetch options from remote API
+const response = await spectyra.agentOptionsRemote(ctx, promptMeta);
+const result = await agent.query({ prompt, options: response.options });
+
+// Stream events for telemetry
+for await (const event of agentStream) {
+  await spectyra.sendAgentEvent(ctx, event);
+}
+```
+
+## Quick Start: Local Mode
+
+```typescript
+import { createSpectyra } from '@spectyra/sdk';
+import { Agent } from '@anthropic-ai/sdk/agent';
+
+// Create Spectyra instance (local mode - default)
+const spectyra = createSpectyra({ mode: "local" });
+
+// Create context for this agent run
+const ctx = {
+  runId: crypto.randomUUID(),
+  budgetUsd: 2.5,
+  tags: { project: "my-app" },
+};
+
+// Get agent options (synchronous, local decision)
+const prompt = "Fix the bug in src/utils.ts";
+const options = spectyra.agentOptions(ctx, prompt);
+
+// Use with Claude Agent SDK
+const agent = new Agent({
+  apiKey: process.env.ANTHROPIC_API_KEY,
+  ...options, // Model, budget, tools, permissions
+});
+
+const result = await agent.query({ prompt });
+```
+
+## Quick Start: API Mode
+
+```typescript
+import { createSpectyra } from '@spectyra/sdk';
+
+const spectyra = createSpectyra({
+  mode: "api",
+  endpoint: "https://spectyra.up.railway.app/v1",
+  apiKey: process.env.SPECTYRA_API_KEY,
+});
+
+const ctx = {
+  runId: crypto.randomUUID(),
+  budgetUsd: 5.0,
+};
+
+// Fetch options from remote API
+const promptMeta = {
+  promptChars: prompt.length,
+  path: "code",
+  repoId: "my-repo",
+  language: "typescript",
+};
+
+const response = await spectyra.agentOptionsRemote(ctx, promptMeta);
+// response.run_id is set automatically
+
+// Use options with agent
+const agent = new Agent({
+  apiKey: process.env.ANTHROPIC_API_KEY,
+  ...response.options,
+});
+
+// Stream events for telemetry
+const stream = agent.queryStream({ prompt });
+await spectyra.observeAgentStream(ctx, stream);
+```
+
+## API Reference
+
+### `createSpectyra(config?: SpectyraConfig)`
+
+Create a Spectyra SDK instance.
+
+**Config:**
+- `mode?: "local" | "api"` - Default: `"local"`
+- `endpoint?: string` - Required for API mode
+- `apiKey?: string` - Required for API mode
+- `defaults?: { budgetUsd?: number; models?: { small?, medium?, large? } }`
+
+**Returns:** `SpectyraInstance`
+
+### `agentOptions(ctx: SpectyraCtx, prompt: string | PromptMeta): ClaudeAgentOptions`
+
+Get agent options locally (synchronous, offline).
+
+**Context:**
+- `runId?: string` - Run identifier
+- `budgetUsd?: number` - Budget for this run
+- `tags?: Record<string, string>` - Tags for analytics
+
+**Returns:** Claude Agent SDK-compatible options
+
+### `agentOptionsRemote(ctx: SpectyraCtx, promptMeta: PromptMeta): Promise<AgentOptionsResponse>`
+
+Fetch agent options from remote API (asynchronous).
+
+**PromptMeta:**
+- `promptChars: number` - Prompt character count
+- `path?: "code" | "talk"` - Path type
+- `repoId?: string` - Repository identifier
+- `language?: string` - Programming language
+- `filesChanged?: number` - Number of files changed
+
+**Returns:** Options with `run_id` and `reasons`
+
+### `sendAgentEvent(ctx: SpectyraCtx, event: any): Promise<void>`
+
+Send agent event for telemetry (best-effort, non-blocking).
+
+### `observeAgentStream(ctx: SpectyraCtx, stream: AsyncIterable<any>): Promise<void>`
+
+Observe agent stream and forward events automatically.
+
+## Agent Options
+
+The SDK returns Claude Agent SDK-compatible options:
+
+```typescript
+interface ClaudeAgentOptions {
+  model?: string;                    // e.g., "claude-3-5-sonnet-latest"
+  maxBudgetUsd?: number;             // Budget limit
+  allowedTools?: string[];           // e.g., ["Read", "Edit", "Bash"]
+  permissionMode?: "acceptEdits";    // Permission mode
+  canUseTool?: (tool, input) => boolean; // Tool gate function
+}
+```
+
+## Local Decision Logic
+
+In local mode, the SDK uses simple heuristics:
+
+- **Prompt length < 6k chars** → Small tier → `claude-3-5-haiku-latest`
+- **Prompt length < 20k chars** → Medium tier → `claude-3-5-sonnet-latest`
+- **Prompt length ≥ 20k chars** → Large tier → `claude-3-7-sonnet-latest`
+
+Default budget: $2.5 per run  
+Default tools: `["Read", "Edit", "Bash", "Glob"]`  
+Default permissions: `"acceptEdits"`
+
+## Tool Gating
+
+The SDK includes a default `canUseTool` gate that:
+- ✅ Allows: Read, Edit, Bash (safe commands), Glob
+- ❌ Denies: Bash commands containing `curl`, `wget`, `ssh`, `scp`, `nc`, `telnet`
+
+You can override this by providing your own `canUseTool` function in the options.
+
+## Remote Chat Optimization (Optional)
+
+For chat optimization (not agentic), use the legacy client:
 
 ```typescript
 import { SpectyraClient } from '@spectyra/sdk';
@@ -21,117 +212,32 @@ const client = new SpectyraClient({
   apiUrl: 'https://spectyra.up.railway.app/v1',
   spectyraKey: process.env.SPECTYRA_API_KEY,
   provider: 'openai',
-  providerKey: process.env.OPENAI_API_KEY, // BYOK - Bring Your Own Key
+  providerKey: process.env.OPENAI_API_KEY, // BYOK
 });
 
 const response = await client.chat({
   model: 'gpt-4o-mini',
-  messages: [
-    { role: 'user', content: 'Explain quantum computing' }
-  ],
+  messages: [{ role: 'user', content: 'Hello' }],
   path: 'talk',
   optimization_level: 3,
 });
-
-console.log(`Response: ${response.response_text}`);
-console.log(`Saved ${response.savings?.pct_saved}% tokens`);
-console.log(`Cost saved: $${response.savings?.cost_saved_usd}`);
 ```
 
-## API Reference
-
-### `SpectyraClient`
-
-#### Constructor
-
-```typescript
-new SpectyraClient(config: SpectyraClientConfig)
-```
-
-**Config:**
-- `apiUrl`: Spectyra API base URL
-- `spectyraKey`: Your Spectyra API key
-- `provider`: LLM provider (`"openai" | "anthropic" | "gemini" | "grok"`)
-- `providerKey`: Your provider API key (BYOK - never stored server-side)
-
-#### Methods
-
-##### `chat(options: ChatOptions): Promise<ChatResponse>`
-
-Send a chat request through Spectyra optimization.
-
-**Options:**
-- `model`: Model name (e.g., `"gpt-4o-mini"`)
-- `messages`: Conversation messages
-- `path`: `"talk"` for chat/Q&A, `"code"` for coding workflows
-- `optimization_level`: 0-4 (default: 2)
-  - 0 = Minimal
-  - 1 = Conservative
-  - 2 = Balanced
-  - 3 = Aggressive
-  - 4 = Maximum
-- `conversation_id`: Optional conversation ID for state tracking
-- `dry_run`: Estimate savings without making real LLM calls
-
-**Returns:**
-- `response_text`: Optimized response
-- `usage`: Token usage
-- `cost_usd`: Estimated cost
-- `savings`: Savings metrics (tokens saved, %, cost saved, confidence band)
-- `quality`: Quality check results
-
-##### `estimateSavings(options): Promise<ChatResponse>`
-
-Estimate savings without making real LLM calls (convenience method for `chat` with `dry_run: true`).
-
-## BYOK (Bring Your Own Key)
-
-Spectyra uses BYOK architecture:
-- Your provider API keys are sent via `X-PROVIDER-KEY` header
-- Keys are **never stored** server-side
-- Keys are only used for the duration of the request
-- You maintain full control over your provider billing
+**Note:** `SpectyraClient` is deprecated. For agentic use cases, use `createSpectyra()`.
 
 ## Examples
 
-### Basic Chat
+See `examples/` directory:
+- `claude-agent-local.ts` - Local mode with Claude Agent SDK
+- `claude-agent-remote.ts` - API mode with telemetry
+- `chat-remote.ts` - Chat optimization (legacy)
 
-```typescript
-const response = await client.chat({
-  model: 'gpt-4o-mini',
-  messages: [
-    { role: 'user', content: 'What is React?' }
-  ],
-  path: 'talk',
-  optimization_level: 2,
-});
-```
+## BYOK (Bring Your Own Key)
 
-### Code Workflow
-
-```typescript
-const response = await client.chat({
-  model: 'claude-3-5-sonnet-20241022',
-  messages: [
-    { role: 'user', content: 'Fix this bug: ...' }
-  ],
-  path: 'code',
-  optimization_level: 3,
-});
-```
-
-### Estimate Savings (Dry Run)
-
-```typescript
-const estimate = await client.estimateSavings({
-  model: 'gpt-4o-mini',
-  messages: [...],
-  path: 'talk',
-  optimization_level: 3,
-});
-
-console.log(`Estimated savings: ${estimate.savings?.pct_saved}%`);
-```
+- Provider API keys are **never stored** server-side
+- Keys are only used for the duration of the request
+- You maintain full control over provider billing
+- Agent options/events endpoints don't require provider keys
 
 ## License
 

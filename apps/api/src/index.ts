@@ -14,6 +14,7 @@ import { replaySimulateRouter } from "./routes/replaySimulate.js";
 import { billingRouter } from "./routes/billing.js";
 import { authRouter } from "./routes/auth.js";
 import { integrationsRouter } from "./routes/integrations.js";
+import { agentRouter } from "./routes/agent.js";
 import { initDb } from "./services/storage/db.js";
 
 const app = express();
@@ -43,6 +44,7 @@ app.use("/v1/replay/simulate", replaySimulateRouter);
 app.use("/v1/billing", billingRouter);
 app.use("/v1/auth", authRouter);
 app.use("/v1/integrations", integrationsRouter);
+app.use("/v1/agent", agentRouter);
 
 app.listen(config.port, "0.0.0.0", () => {
   console.log(`Spectyra API listening on port ${config.port}`);

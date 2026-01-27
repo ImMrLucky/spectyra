@@ -1,7 +1,18 @@
 /**
- * Basic Spectyra SDK Usage Example
+ * Chat Optimization (Remote API Mode)
  * 
- * Run with: npx tsx examples/basic.ts
+ * Example: Using Spectyra for chat optimization via remote API
+ * This is the legacy chat optimization use case (not agentic)
+ * 
+ * Run with: npx tsx examples/chat-remote.ts
+ * 
+ * Prerequisites:
+ * - Set SPECTYRA_API_URL environment variable
+ * - Set SPECTYRA_API_KEY environment variable
+ * - Set OPENAI_API_KEY (or other provider key) environment variable
+ * 
+ * Note: For agentic use cases, use createSpectyra() with agentOptions()
+ * See: examples/claude-agent-local.ts and examples/claude-agent-remote.ts
  */
 
 import { SpectyraClient } from '../src/index.js';
