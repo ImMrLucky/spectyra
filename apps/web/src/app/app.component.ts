@@ -14,20 +14,24 @@ import { map } from 'rxjs/operators';
   template: `
     <div class="app-container">
       <header class="app-header">
-        <h1>Spectyra</h1>
+        <h1 routerLink="/" style="cursor: pointer;">Spectyra</h1>
         <nav>
-          <a routerLink="/scenarios">Proof Scenarios</a>
-          <a routerLink="/integrations">Integrations</a>
-          <a routerLink="/projects">Projects</a>
-          <a routerLink="/runs">Gateway Runs</a>
-          <a routerLink="/savings">Org Savings</a>
-          <a routerLink="/billing">Billing</a>
-          <a routerLink="/settings">Settings</a>
-          <a routerLink="/admin" class="admin-link">Admin</a>
+          <!-- Navigation links (only show when authenticated) -->
+          <ng-container *ngIf="isAuthenticated">
+            <a routerLink="/scenarios">Proof Scenarios</a>
+            <a routerLink="/integrations">Integrations</a>
+            <a routerLink="/projects">Projects</a>
+            <a routerLink="/runs">Gateway Runs</a>
+            <a routerLink="/savings">Org Savings</a>
+            <a routerLink="/billing">Billing</a>
+            <a routerLink="/settings">Settings</a>
+            <a routerLink="/admin" class="admin-link">Admin</a>
+            
+            <!-- Org/Project Switcher -->
+            <app-org-switcher></app-org-switcher>
+          </ng-container>
           
-          <!-- Org/Project Switcher (if authenticated) -->
-          <app-org-switcher *ngIf="isAuthenticated"></app-org-switcher>
-          
+          <!-- Auth links -->
           <span *ngIf="!isAuthenticated" class="auth-links">
             <a routerLink="/login">Login</a>
             <a routerLink="/register">Sign Up</a>

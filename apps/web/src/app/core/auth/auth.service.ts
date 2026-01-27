@@ -103,16 +103,12 @@ export class AuthService {
 
   /**
    * Get current user info
+   * Interceptor will automatically add auth headers (JWT or API key)
    */
   getMe(): Observable<{ org: any; project: any; has_access: boolean; trial_active: boolean }> {
-    const apiKey = this.currentApiKey;
-    if (!apiKey) {
-      throw new Error('No API key found');
-    }
-
+    // Interceptor handles auth headers automatically
     return this.http.get<{ org: any; project: any; has_access: boolean; trial_active: boolean }>(
-      `${this.baseUrl}/auth/me`,
-      { headers: { 'X-SPECTYRA-API-KEY': apiKey } }
+      `${this.baseUrl}/auth/me`
     ).pipe(
       tap(response => {
         // Map org to user for backward compatibility
@@ -133,47 +129,35 @@ export class AuthService {
 
   /**
    * Create a new API key
+   * Interceptor will automatically add auth headers (JWT or API key)
    */
   createApiKey(name?: string, projectId?: string): Observable<{ id: string; key: string; name: string | null; project_id: string | null; created_at: string }> {
-    const apiKey = this.currentApiKey;
-    if (!apiKey) {
-      throw new Error('No API key found');
-    }
-
+    // Interceptor handles auth headers automatically
     return this.http.post<{ id: string; key: string; name: string | null; project_id: string | null; created_at: string }>(
       `${this.baseUrl}/auth/api-keys`,
-      { name, project_id: projectId },
-      { headers: { 'X-SPECTYRA-API-KEY': apiKey } }
+      { name, project_id: projectId }
     );
   }
 
   /**
    * List API keys
+   * Interceptor will automatically add auth headers (JWT or API key)
    */
   listApiKeys(): Observable<Array<{ id: string; name: string | null; project_id: string | null; created_at: string; last_used_at: string | null; revoked_at: string | null }>> {
-    const apiKey = this.currentApiKey;
-    if (!apiKey) {
-      throw new Error('No API key found');
-    }
-
+    // Interceptor handles auth headers automatically
     return this.http.get<Array<{ id: string; name: string | null; project_id: string | null; created_at: string; last_used_at: string | null; revoked_at: string | null }>>(
-      `${this.baseUrl}/auth/api-keys`,
-      { headers: { 'X-SPECTYRA-API-KEY': apiKey } }
+      `${this.baseUrl}/auth/api-keys`
     );
   }
 
   /**
    * Delete an API key
+   * Interceptor will automatically add auth headers (JWT or API key)
    */
   deleteApiKey(keyId: string): Observable<{ success: boolean }> {
-    const apiKey = this.currentApiKey;
-    if (!apiKey) {
-      throw new Error('No API key found');
-    }
-
+    // Interceptor handles auth headers automatically
     return this.http.delete<{ success: boolean }>(
-      `${this.baseUrl}/auth/api-keys/${keyId}`,
-      { headers: { 'X-SPECTYRA-API-KEY': apiKey } }
+      `${this.baseUrl}/auth/api-keys/${keyId}`
     );
   }
 

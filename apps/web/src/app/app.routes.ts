@@ -12,20 +12,23 @@ import { IntegrationsPage } from './features/integrations/integrations.page';
 import { ProjectsPage } from './features/projects/projects.page';
 import { BillingPage } from './features/billing/billing.page';
 import { AdminPage } from './features/admin/admin.page';
+import { HomePage } from './features/home/home.page';
+import { authGuard } from './core/guards/auth.guard';
 
 export const appRoutes: Routes = [
-  { path: '', redirectTo: '/scenarios', pathMatch: 'full' },
+  { path: '', component: HomePage },
   { path: 'register', component: RegisterPage },
   { path: 'login', component: LoginPage },
-  { path: 'scenarios', component: ScenariosPage },
-  { path: 'scenarios/:id/run', component: RunPage },
-  { path: 'runs', component: RunsPage },
-  { path: 'savings', component: SavingsPage },
-  { path: 'proof', component: ProofPage },
-  { path: 'settings', component: SettingsPage },
-  { path: 'connections', component: ConnectionsPage },
-  { path: 'integrations', component: IntegrationsPage },
-  { path: 'projects', component: ProjectsPage },
-  { path: 'billing', component: BillingPage },
-  { path: 'admin', component: AdminPage },
+  // Protected routes - require authentication
+  { path: 'scenarios', component: ScenariosPage, canActivate: [authGuard] },
+  { path: 'scenarios/:id/run', component: RunPage, canActivate: [authGuard] },
+  { path: 'runs', component: RunsPage, canActivate: [authGuard] },
+  { path: 'savings', component: SavingsPage, canActivate: [authGuard] },
+  { path: 'proof', component: ProofPage, canActivate: [authGuard] },
+  { path: 'settings', component: SettingsPage, canActivate: [authGuard] },
+  { path: 'connections', component: ConnectionsPage, canActivate: [authGuard] },
+  { path: 'integrations', component: IntegrationsPage, canActivate: [authGuard] },
+  { path: 'projects', component: ProjectsPage, canActivate: [authGuard] },
+  { path: 'billing', component: BillingPage, canActivate: [authGuard] },
+  { path: 'admin', component: AdminPage, canActivate: [authGuard] },
 ];

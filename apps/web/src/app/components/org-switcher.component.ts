@@ -230,38 +230,20 @@ export class OrgSwitcherComponent implements OnInit, OnDestroy {
     this.loading = true;
     
     try {
-      const token = await this.supabase.getAccessToken();
-      if (!token) {
-        this.loading = false;
-        this.loadInProgress = false;
-        return;
-      }
-
-      const headers = new HttpHeaders({
-        'Authorization': `Bearer ${token}`,
-        'Content-Type': 'application/json'
-      });
-
-      // Load org info
-      try {
-        const me = await this.http.get<any>(`${environment.apiUrl}/auth/me`, { headers }).toPromise();
-        if (me && me.org) {
-          this.org = me.org;
-        }
-        
-        // Load projects (if available in response or separate endpoint)
-        if (me && me.projects) {
-          this.projects = me.projects;
-        }
-      } catch (err: any) {
-        console.error('Failed to load org info:', err);
-        // Don't clear org info on error - keep last known state
+      // Interceptor will automatically add auth headers
+      const me = await this.http.get<any>(`${environment.apiUrl}/auth/me`).toPromise();
+      if (me && me.org) {
+        this.org = me.org;
       }
       
-      this.loading = false;
-      this.loadInProgress = false;
+      // Load projects (if available in response or separate endpoint)
+      if (me && me.projects) {
+        this.projects = me.projects;
+      }
     } catch (err: any) {
       console.error('Failed to load org info:', err);
+      // Don't clear org info on error - keep last known state
+    } finally {
       this.loading = false;
       this.loadInProgress = false;
     }

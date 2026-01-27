@@ -394,15 +394,10 @@ export class LoginPage implements OnInit, OnDestroy {
         return;
       }
 
-      // Check if user has an org by calling /v1/auth/me with JWT
-      const headers = new HttpHeaders({
-        'Authorization': `Bearer ${token}`,
-        'Content-Type': 'application/json'
-      });
-
+      // Interceptor will automatically add Authorization header
       try {
         // Try to get user's org info
-        const me = await this.http.get<any>(`${environment.apiUrl}/auth/me`, { headers }).toPromise();
+        const me = await this.http.get<any>(`${environment.apiUrl}/auth/me`).toPromise();
         if (me && me.org) {
           // User has org, proceed normally
           this.success = true;
@@ -410,13 +405,19 @@ export class LoginPage implements OnInit, OnDestroy {
           this.hasAccess = me.has_access;
           this.trialActive = me.trial_active;
           this.trialEndsAt = me.org.trial_ends_at;
+          this.needsBootstrap = false;
         }
       } catch (err: any) {
-        if (err.status === 401 || err.status === 404) {
+        // Check if error indicates user needs bootstrap
+        if (err.status === 404 && err.error?.needs_bootstrap) {
           // User doesn't have an org yet, show bootstrap
           this.needsBootstrap = true;
+        } else if (err.status === 401 || err.status === 404) {
+          // Also show bootstrap for 404 (org not found)
+          this.needsBootstrap = true;
         } else {
-          throw err;
+          // Other error - show error message
+          this.error = err.error?.error || 'Failed to check organization status';
         }
       }
     } catch (err: any) {
@@ -434,25 +435,13 @@ export class LoginPage implements OnInit, OnDestroy {
     this.error = null;
 
     try {
-      const token = await this.supabase.getAccessToken();
-      if (!token) {
-        this.error = 'Not authenticated';
-        this.bootstrapLoading = false;
-        return;
-      }
-
-      const headers = new HttpHeaders({
-        'Authorization': `Bearer ${token}`,
-        'Content-Type': 'application/json'
-      });
-
+      // Interceptor will automatically add Authorization header
       const response = await this.http.post<any>(
         `${environment.apiUrl}/auth/bootstrap`,
         {
           org_name: this.orgName.trim(),
           project_name: this.projectName.trim() || undefined
-        },
-        { headers }
+        }
       ).toPromise();
 
       this.bootstrapSuccess = true;
