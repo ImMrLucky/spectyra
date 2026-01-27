@@ -5,6 +5,7 @@ import { SupabaseService } from '../services/supabase.service';
 import { HttpClient, HttpHeaders } from '@angular/common/http';
 import { environment } from '../../environments/environment';
 import { Subscription } from 'rxjs';
+import { debounceTime, distinctUntilChanged } from 'rxjs/operators';
 
 interface Org {
   id: string;
@@ -195,9 +196,20 @@ export class OrgSwitcherComponent implements OnInit, OnDestroy {
   ) {}
 
   ngOnInit() {
-    this.sessionSub = this.supabase.getSession().subscribe(session => {
+    // Debounce session changes to prevent multiple rapid calls
+    this.sessionSub = this.supabase.getSession().pipe(
+      debounceTime(300), // Wait 300ms after last emission
+      distinctUntilChanged((prev, curr) => {
+        // Only reload if session actually changed (was null, now exists, or vice versa)
+        return (!!prev) === (!!curr);
+      })
+    ).subscribe(session => {
       if (session) {
         this.loadOrgInfo();
+      } else {
+        // Clear org info when session is lost
+        this.org = null;
+        this.projects = [];
       }
     });
   }
@@ -206,13 +218,22 @@ export class OrgSwitcherComponent implements OnInit, OnDestroy {
     this.sessionSub?.unsubscribe();
   }
 
+  private loadInProgress = false;
+
   async loadOrgInfo() {
+    // Prevent concurrent calls
+    if (this.loadInProgress) {
+      return;
+    }
+    
+    this.loadInProgress = true;
     this.loading = true;
     
     try {
       const token = await this.supabase.getAccessToken();
       if (!token) {
         this.loading = false;
+        this.loadInProgress = false;
         return;
       }
 
@@ -229,18 +250,20 @@ export class OrgSwitcherComponent implements OnInit, OnDestroy {
         }
         
         // Load projects (if available in response or separate endpoint)
-        // TODO: Add projects endpoint or get from org info
         if (me && me.projects) {
           this.projects = me.projects;
         }
       } catch (err: any) {
         console.error('Failed to load org info:', err);
+        // Don't clear org info on error - keep last known state
       }
       
       this.loading = false;
+      this.loadInProgress = false;
     } catch (err: any) {
       console.error('Failed to load org info:', err);
       this.loading = false;
+      this.loadInProgress = false;
     }
   }
 

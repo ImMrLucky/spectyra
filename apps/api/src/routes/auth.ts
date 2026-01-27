@@ -18,6 +18,7 @@ import {
   revokeApiKey,
   deleteOrg,
   updateOrgName,
+  getOrgProjects,
 } from "../services/storage/orgsRepo.js";
 import { requireSpectyraApiKey, optionalProviderKey, requireUserSession, requireOrgMembership, type AuthenticatedRequest } from "../middleware/auth.js";
 import { query, queryOne } from "../services/storage/db.js";
@@ -185,9 +186,19 @@ authRouter.get("/me", async (req: AuthenticatedRequest, res) => {
     // Try Supabase JWT first
     const authHeader = req.headers.authorization;
     if (authHeader && authHeader.startsWith("Bearer ")) {
+      // Use a flag to track if response was sent
+      let responseSent = false;
+      
       try {
         await requireUserSession(req, res, async () => {
+          // Check if response was already sent (e.g., by middleware on error)
+          if (res.headersSent) {
+            responseSent = true;
+            return;
+          }
+          
           if (!req.auth?.userId) {
+            responseSent = true;
             return res.status(401).json({ error: "Not authenticated" });
           }
 
@@ -201,6 +212,7 @@ authRouter.get("/me", async (req: AuthenticatedRequest, res) => {
           `, [req.auth.userId]);
 
           if (!membership) {
+            responseSent = true;
             return res.status(404).json({ 
               error: "Organization not found",
               needs_bootstrap: true 
@@ -209,6 +221,7 @@ authRouter.get("/me", async (req: AuthenticatedRequest, res) => {
 
           const org = await getOrgById(membership.org_id);
           if (!org) {
+            responseSent = true;
             return res.status(404).json({ error: "Organization not found" });
           }
 
@@ -219,6 +232,7 @@ authRouter.get("/me", async (req: AuthenticatedRequest, res) => {
           const trialEnd = org.trial_ends_at ? new Date(org.trial_ends_at) : null;
           const isTrialActive = trialEnd ? trialEnd > new Date() : false;
 
+          responseSent = true;
           res.json({
             org: {
               id: org.id,
@@ -231,42 +245,55 @@ authRouter.get("/me", async (req: AuthenticatedRequest, res) => {
             trial_active: isTrialActive,
           });
         });
-        return;
-      } catch (jwtError) {
-        // JWT auth failed, fall through to API key
+        
+        // If response was sent (success or error), return early
+        if (responseSent || res.headersSent) {
+          return;
+        }
+      } catch (jwtError: any) {
+        // JWT auth failed - check if it was a 503 (JWKS unavailable)
+        // If so, and response wasn't sent, fall through to API key
+        if (res.headersSent) {
+          return; // Response already sent (likely 503), don't try fallback
+        }
+        // Otherwise, fall through to API key auth
       }
     }
 
-    // Fall back to API key auth
-    await requireSpectyraApiKey(req, res, async () => {
-      if (!req.context) {
-        return res.status(401).json({ error: "Not authenticated" });
-      }
-      
-      const org = await getOrgById(req.context.org.id);
-      if (!org) {
-        return res.status(404).json({ error: "Organization not found" });
-      }
-      
-      const hasAccess = hasActiveAccess(org);
-      const trialEnd = org.trial_ends_at ? new Date(org.trial_ends_at) : null;
-      const isTrialActive = trialEnd ? trialEnd > new Date() : false;
-      
-      res.json({
-        org: {
-          id: org.id,
-          name: org.name,
-          trial_ends_at: org.trial_ends_at,
-          subscription_status: org.subscription_status,
-        },
-        project: req.context.project,
-        has_access: hasAccess,
-        trial_active: isTrialActive,
+    // Fall back to API key auth (only if no response was sent)
+    if (!res.headersSent) {
+      await requireSpectyraApiKey(req, res, async () => {
+        if (!req.context) {
+          return res.status(401).json({ error: "Not authenticated" });
+        }
+        
+        const org = await getOrgById(req.context.org.id);
+        if (!org) {
+          return res.status(404).json({ error: "Organization not found" });
+        }
+        
+        const hasAccess = hasActiveAccess(org);
+        const trialEnd = org.trial_ends_at ? new Date(org.trial_ends_at) : null;
+        const isTrialActive = trialEnd ? trialEnd > new Date() : false;
+        
+        res.json({
+          org: {
+            id: org.id,
+            name: org.name,
+            trial_ends_at: org.trial_ends_at,
+            subscription_status: org.subscription_status,
+          },
+          project: req.context.project,
+          has_access: hasAccess,
+          trial_active: isTrialActive,
+        });
       });
-    });
+    }
   } catch (error: any) {
-    safeLog("error", "Get org error", { error: error.message });
-    res.status(500).json({ error: error.message || "Internal server error" });
+    if (!res.headersSent) {
+      safeLog("error", "Get org error", { error: error.message });
+      res.status(500).json({ error: error.message || "Internal server error" });
+    }
   }
 });
 
