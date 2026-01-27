@@ -1,4 +1,4 @@
-import { Component, OnInit, OnDestroy } from '@angular/core';
+import { Component, OnInit, OnDestroy, ChangeDetectorRef, ViewChild, AfterViewInit } from '@angular/core';
 import { RouterOutlet, RouterModule, Router } from '@angular/router';
 import { CommonModule } from '@angular/common';
 import { AuthService } from './core/auth/auth.service';
@@ -8,7 +8,7 @@ import { Subscription, combineLatest } from 'rxjs';
 import { map } from 'rxjs/operators';
 import { MatSnackBarModule } from '@angular/material/snack-bar';
 import { MatDialogModule } from '@angular/material/dialog';
-import { MatSidenavModule } from '@angular/material/sidenav';
+import { MatSidenavModule, MatSidenavContainer, MatSidenav } from '@angular/material/sidenav';
 import { MatButtonModule } from '@angular/material/button';
 import { MatIconModule } from '@angular/material/icon';
 import { MatListModule } from '@angular/material/list';
@@ -40,11 +40,15 @@ interface NavItem {
   templateUrl: './app.component.html',
   styleUrls: ['./app.component.scss'],
 })
-export class AppComponent implements OnInit, OnDestroy {
+export class AppComponent implements OnInit, OnDestroy, AfterViewInit {
+  @ViewChild(MatSidenavContainer) sidenavContainer?: MatSidenavContainer;
+  @ViewChild('sidenav') sidenav?: MatSidenav;
+  
   isAuthenticated = false;
   userEmail: string | null = null;
   sidebarOpen = true;
   sidebarCollapsed = false;
+  private wasAutoCollapsed = false; // Track if collapse was due to screen size
   private authSub?: Subscription;
   private supabaseSub?: Subscription;
 
@@ -63,7 +67,8 @@ export class AppComponent implements OnInit, OnDestroy {
   constructor(
     private authService: AuthService,
     private supabase: SupabaseService,
-    private router: Router
+    private router: Router,
+    private cdr: ChangeDetectorRef
   ) {}
 
   ngOnInit() {
@@ -100,11 +105,46 @@ export class AppComponent implements OnInit, OnDestroy {
     });
   }
 
+  ngAfterViewInit() {
+    // Initial check after view is initialized
+    this.checkScreenSize();
+  }
+
   private checkScreenSize = () => {
-    if (window.innerWidth <= 768) {
+    const isSmallScreen = window.innerWidth <= 768;
+    const previousCollapsed = this.sidebarCollapsed;
+    
+    if (isSmallScreen) {
+      // Auto-collapse on small screens
+      if (!this.sidebarCollapsed) {
+        this.wasAutoCollapsed = true;
+      }
       this.sidebarCollapsed = true;
       this.sidebarOpen = true; // Keep sidebar open but collapsed
+    } else {
+      // On larger screens, auto-expand if it was auto-collapsed
+      if (this.wasAutoCollapsed) {
+        this.sidebarCollapsed = false;
+        this.wasAutoCollapsed = false;
+      }
     }
+    
+    // Only update layout if state actually changed
+    if (previousCollapsed !== this.sidebarCollapsed) {
+      this.updateSidenavLayout();
+    }
+  }
+
+  private updateSidenavLayout() {
+    this.cdr.detectChanges();
+    
+    // Force Material to recalculate layout after change detection
+    setTimeout(() => {
+      if (this.sidenavContainer) {
+        // This method recalculates the content margins based on drawer width
+        this.sidenavContainer.updateContentMargins();
+      }
+    }, 10);
   }
 
   ngOnDestroy() {
@@ -115,10 +155,14 @@ export class AppComponent implements OnInit, OnDestroy {
 
   toggleSidebar() {
     this.sidebarCollapsed = !this.sidebarCollapsed;
+    // Clear auto-collapse flag when user manually toggles
+    this.wasAutoCollapsed = false;
     // Keep sidebar open, just toggle collapsed state
     if (!this.sidebarOpen) {
       this.sidebarOpen = true;
     }
+    // Force layout update
+    this.updateSidenavLayout();
   }
 
   async logout() {

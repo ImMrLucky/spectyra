@@ -38,6 +38,7 @@
       <!-- Sidebar Navigation -->
       <mat-sidenav
         *ngIf="isAuthenticated"
+        #sidenav
         [(opened)]="sidebarOpen"
         mode="side"
         class="app-sidenav"

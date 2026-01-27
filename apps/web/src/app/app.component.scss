@@ -1,7 +1,9 @@
 .app-container {
   min-height: 100vh;
+  height: 100vh;
   display: flex;
   flex-direction: column;
+  overflow: hidden;
 }
 
 .app-header {
@@ -78,24 +80,65 @@
   flex: 1;
   display: flex;
   overflow: hidden;
+  min-height: 0; // Allow flex children to shrink below content size
+  height: calc(100vh - 64px); // Full height minus toolbar (Material toolbar default height)
 }
 
 .sidenav-container {
   flex: 1;
   height: 100%;
+  min-height: 0; // Allow flex children to shrink
+  position: relative;
+
+  // Ensure content adjusts when sidebar width changes
+  ::ng-deep .mat-drawer-backdrop {
+    display: none; // We're using mode="side" so no backdrop needed
+  }
+
+  ::ng-deep .mat-drawer-side {
+    border-right: none;
+  }
+
+  // Force content area to adjust when drawer width changes
+  ::ng-deep .mat-drawer-content {
+    transition: margin-left 0.3s cubic-bezier(0.4, 0, 0.2, 1) !important;
+    min-height: 0; // Allow content to shrink
+  }
+
+  // Ensure drawer always takes full height of container
+  ::ng-deep .mat-drawer {
+    height: 100% !important;
+    position: absolute;
+    top: 0;
+    bottom: 0;
+  }
 }
 
 .app-sidenav {
   background: white;
   box-shadow: 2px 0 4px rgba(0, 0, 0, 0.1);
-  transition: width 0.3s ease;
+  transition: width 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  height: 100% !important;
+  display: flex;
+  flex-direction: column;
+  position: absolute;
+  top: 0;
+  bottom: 0;
 
   ::ng-deep .mat-drawer-inner-container {
     overflow-x: hidden;
+    overflow-y: auto;
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
   }
 
   ::ng-deep .mat-nav-list {
     padding-top: 8px;
+    flex: 1;
+    overflow-y: auto;
+    min-height: 0; // Allow scrolling if needed
 
     .nav-item {
       &.active {
