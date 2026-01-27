@@ -150,6 +150,14 @@ export class RunsPage implements OnInit {
     return total;
   }
 
+  getTokenBreakdownForOpt(run: UnifiedRun, opt: string): { before: number; after: number; saved: number } | null {
+    if (!run.token_breakdown) return null;
+    if (opt === 'refpack' && run.token_breakdown.refpack) return run.token_breakdown.refpack;
+    if (opt === 'phrasebook' && run.token_breakdown.phrasebook) return run.token_breakdown.phrasebook;
+    if (opt === 'codemap' && run.token_breakdown.codemap) return run.token_breakdown.codemap;
+    return null;
+  }
+
   viewRun(run: UnifiedRun) {
     this.router.navigate(['/runs', run.id]);
   }

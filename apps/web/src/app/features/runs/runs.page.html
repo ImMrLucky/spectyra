@@ -132,25 +132,29 @@
         <h2>Optimizations Applied</h2>
       </div>
       <div class="optimizations-list">
-        <div *ngFor="let opt of selectedRun.optimizations_applied" class="optimization-item">
-          <div class="optimization-header">
-            <span class="badge badge-optimization">{{ getOptimizationLabel(opt) }}</span>
+        <ng-container *ngFor="let opt of selectedRun.optimizations_applied">
+          <div class="optimization-item">
+            <div class="optimization-header">
+              <span class="badge badge-optimization">{{ getOptimizationLabel(opt) }}</span>
+            </div>
+            <ng-container *ngIf="getTokenBreakdownForOpt(selectedRun, opt) as breakdown">
+              <div class="optimization-metrics">
+                <div class="metric">
+                  <span class="metric-label">Tokens Before:</span>
+                  <span class="metric-value">{{ formatNumber(breakdown.before) }}</span>
+                </div>
+                <div class="metric">
+                  <span class="metric-label">Tokens After:</span>
+                  <span class="metric-value">{{ formatNumber(breakdown.after) }}</span>
+                </div>
+                <div class="metric">
+                  <span class="metric-label">Tokens Saved:</span>
+                  <span class="metric-value savings-value">{{ formatNumber(breakdown.saved) }}</span>
+                </div>
+              </div>
+            </ng-container>
           </div>
-          <div *ngIf="selectedRun.token_breakdown && selectedRun.token_breakdown[opt]" class="optimization-metrics">
-            <div class="metric">
-              <span class="metric-label">Tokens Before:</span>
-              <span class="metric-value">{{ formatNumber(selectedRun.token_breakdown[opt]!.before) }}</span>
-            </div>
-            <div class="metric">
-              <span class="metric-label">Tokens After:</span>
-              <span class="metric-value">{{ formatNumber(selectedRun.token_breakdown[opt]!.after) }}</span>
-            </div>
-            <div class="metric">
-              <span class="metric-label">Tokens Saved:</span>
-              <span class="metric-value savings-value">{{ formatNumber(selectedRun.token_breakdown[opt]!.saved) }}</span>
-            </div>
-          </div>
-        </div>
+        </ng-container>
       </div>
     </div>
   </div>

@@ -107,6 +107,11 @@ export class UsagePage implements OnInit {
     return new Intl.NumberFormat('en-US').format(num);
   }
 
+  formatDate(dateStr: string | null | undefined): string {
+    if (!dateStr) return '-';
+    return new Date(dateStr).toLocaleString();
+  }
+
   exportCSV() {
     // TODO: Implement CSV export
     alert('CSV export coming soon');
