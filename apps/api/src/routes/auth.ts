@@ -379,15 +379,54 @@ authRouter.post("/api-keys", async (req: AuthenticatedRequest, res) => {
 /**
  * GET /v1/auth/api-keys
  * 
- * List API keys (requires auth)
+ * List API keys (requires auth - Supabase JWT or API key)
  */
-authRouter.get("/api-keys", requireSpectyraApiKey, optionalProviderKey, async (req: AuthenticatedRequest, res) => {
+authRouter.get("/api-keys", async (req: AuthenticatedRequest, res) => {
   try {
-    if (!req.context) {
+    let orgId: string | null = null;
+
+    // Try Supabase JWT first
+    const authHeader = req.headers.authorization;
+    if (authHeader && authHeader.startsWith("Bearer ")) {
+      try {
+        await requireUserSession(req, res, async () => {
+          if (!req.auth?.userId) {
+            return res.status(401).json({ error: "Not authenticated" });
+          }
+
+          const { queryOne } = await import("../services/storage/db.js");
+          const membership = await queryOne<{ org_id: string }>(`
+            SELECT org_id FROM org_memberships WHERE user_id = $1 LIMIT 1
+          `, [req.auth.userId]);
+
+          if (!membership) {
+            return res.status(404).json({ error: "Organization not found" });
+          }
+
+          orgId = membership.org_id;
+        });
+        if (res.headersSent) return; // Response already sent
+      } catch (jwtError) {
+        // Fall through to API key
+      }
+    }
+
+    // Fall back to API key auth
+    if (!orgId) {
+      await requireSpectyraApiKey(req, res, async () => {
+        if (!req.context) {
+          return res.status(401).json({ error: "Not authenticated" });
+        }
+        orgId = req.context.org.id;
+      });
+      if (res.headersSent) return;
+    }
+
+    if (!orgId) {
       return res.status(401).json({ error: "Not authenticated" });
     }
     
-    const keys = await getOrgApiKeys(req.context.org.id, false);
+    const keys = await getOrgApiKeys(orgId, false);
     
     // Don't return key hashes, just metadata
     res.json(keys.map(k => ({

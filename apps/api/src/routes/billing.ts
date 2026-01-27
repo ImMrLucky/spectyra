@@ -228,38 +228,90 @@ billingRouter.get("/status", async (req: AuthenticatedRequest, res) => {
     // Try Supabase JWT first
     const authHeader = req.headers.authorization;
     if (authHeader && authHeader.startsWith("Bearer ")) {
-      try {
-        await requireUserSession(req, res, async () => {
-          if (!req.auth?.userId) {
-            return res.status(401).json({ error: "Not authenticated" });
-          }
+      let jwtAuthSucceeded = false;
+      let middlewareCompleted = false;
+      
+      // Wrap requireUserSession in a promise to handle the middleware pattern
+      await new Promise<void>((resolve) => {
+        const nextCallback = () => {
+          // This callback is executed when JWT verification succeeds (next() is called)
+          jwtAuthSucceeded = true;
+          middlewareCompleted = true;
+          resolve();
+        };
+        
+        requireUserSession(req, res, nextCallback)
+          .then(() => {
+            // Middleware Promise resolved - check if next() was called
+            if (!middlewareCompleted) {
+              // Middleware completed without calling next() - response was sent (error case)
+              middlewareCompleted = true;
+              resolve();
+            }
+          })
+          .catch(() => {
+            // Error in middleware - response already sent
+            middlewareCompleted = true;
+            resolve();
+          });
+      });
+      
+      // If JWT auth succeeded and no response was sent yet, get orgId
+      if (jwtAuthSucceeded && !res.headersSent) {
+        if (!req.auth?.userId) {
+          return res.status(401).json({ error: "Not authenticated" });
+        }
 
-          const { queryOne } = await import("../services/storage/db.js");
-          const membership = await queryOne<{ org_id: string }>(`
-            SELECT org_id FROM org_memberships WHERE user_id = $1 LIMIT 1
-          `, [req.auth.userId]);
+        const { queryOne } = await import("../services/storage/db.js");
+        const membership = await queryOne<{ org_id: string }>(`
+          SELECT org_id FROM org_memberships WHERE user_id = $1 LIMIT 1
+        `, [req.auth.userId]);
 
-          if (!membership) {
-            return res.status(404).json({ error: "Organization not found" });
-          }
+        if (!membership) {
+          return res.status(404).json({ error: "Organization not found" });
+        }
 
-          orgId = membership.org_id;
-        });
-        if (res.headersSent) return;
-      } catch (jwtError) {
-        // Fall through to API key
+        orgId = membership.org_id;
+      }
+      
+      // If response was already sent (error case from middleware), return early
+      if (res.headersSent) {
+        return;
       }
     }
 
-    // Fall back to API key auth
-    if (!orgId) {
-      await requireSpectyraApiKey(req, res, async () => {
-        if (!req.context) {
-          return res.status(401).json({ error: "Not authenticated" });
-        }
-        orgId = req.context.org.id;
+    // Fall back to API key auth (only if no response was sent)
+    if (!orgId && !res.headersSent) {
+      let apiKeyAuthSucceeded = false;
+      let middlewareCompleted = false;
+      
+      await new Promise<void>((resolve) => {
+        const nextCallback = () => {
+          apiKeyAuthSucceeded = true;
+          middlewareCompleted = true;
+          resolve();
+        };
+        
+        requireSpectyraApiKey(req, res, nextCallback)
+          .then(() => {
+            if (!middlewareCompleted) {
+              middlewareCompleted = true;
+              resolve();
+            }
+          })
+          .catch(() => {
+            middlewareCompleted = true;
+            resolve();
+          });
       });
-      if (res.headersSent) return;
+      
+      if (apiKeyAuthSucceeded && !res.headersSent && req.context) {
+        orgId = req.context.org.id;
+      }
+      
+      if (res.headersSent) {
+        return;
+      }
     }
 
     if (!orgId) {
@@ -287,7 +339,9 @@ billingRouter.get("/status", async (req: AuthenticatedRequest, res) => {
       subscription_active: org.subscription_status === "active",
     });
   } catch (error: any) {
-    safeLog("error", "Billing status error", { error: error.message });
-    res.status(500).json({ error: error.message || "Internal server error" });
+    if (!res.headersSent) {
+      safeLog("error", "Billing status error", { error: error.message });
+      res.status(500).json({ error: error.message || "Internal server error" });
+    }
   }
 });
