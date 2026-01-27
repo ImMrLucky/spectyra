@@ -44,6 +44,7 @@ export class AppComponent implements OnInit, OnDestroy {
   isAuthenticated = false;
   userEmail: string | null = null;
   sidebarOpen = true;
+  sidebarCollapsed = false;
   private authSub?: Subscription;
   private supabaseSub?: Subscription;
 
@@ -66,6 +67,10 @@ export class AppComponent implements OnInit, OnDestroy {
   ) {}
 
   ngOnInit() {
+    // Check screen size and auto-collapse on mobile
+    this.checkScreenSize();
+    window.addEventListener('resize', this.checkScreenSize);
+
     // Check both Supabase session and API key auth
     this.authSub = combineLatest([
       this.supabase.getSession(),
@@ -95,13 +100,25 @@ export class AppComponent implements OnInit, OnDestroy {
     });
   }
 
+  private checkScreenSize = () => {
+    if (window.innerWidth <= 768) {
+      this.sidebarCollapsed = true;
+      this.sidebarOpen = true; // Keep sidebar open but collapsed
+    }
+  }
+
   ngOnDestroy() {
     this.authSub?.unsubscribe();
     this.supabaseSub?.unsubscribe();
+    window.removeEventListener('resize', this.checkScreenSize);
   }
 
   toggleSidebar() {
-    this.sidebarOpen = !this.sidebarOpen;
+    this.sidebarCollapsed = !this.sidebarCollapsed;
+    // Keep sidebar open, just toggle collapsed state
+    if (!this.sidebarOpen) {
+      this.sidebarOpen = true;
+    }
   }
 
   async logout() {

@@ -41,7 +41,8 @@
         [(opened)]="sidebarOpen"
         mode="side"
         class="app-sidenav"
-        [style.width.px]="sidebarOpen ? 240 : 64"
+        [class.collapsed]="sidebarCollapsed"
+        [style.width.px]="sidebarCollapsed ? 64 : 240"
       >
         <mat-nav-list>
           <a
@@ -51,10 +52,10 @@
             routerLinkActive="active"
             [routerLinkActiveOptions]="{ exact: item.route === '/overview' }"
             class="nav-item"
-            [class.collapsed]="!sidebarOpen"
+            [class.collapsed]="sidebarCollapsed"
           >
-            <mat-icon class="nav-icon">{{ item.icon }}</mat-icon>
-            <span class="nav-label" *ngIf="sidebarOpen">{{ item.label }}</span>
+            <mat-icon matListItemIcon>{{ item.icon }}</mat-icon>
+            <span matListItemTitle *ngIf="!sidebarCollapsed">{{ item.label }}</span>
           </a>
         </mat-nav-list>
       </mat-sidenav>
