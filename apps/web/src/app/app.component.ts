@@ -138,31 +138,25 @@ export class AppComponent implements OnInit, OnDestroy, AfterViewInit {
   private updateSidenavLayout() {
     // Use requestAnimationFrame to ensure DOM is ready
     requestAnimationFrame(() => {
-      // First, ensure the drawer width is set
-      if (this.sidenav) {
-        const targetWidth = this.sidebarCollapsed ? 64 : 240;
-        const drawerElement = this.sidenav._elementRef.nativeElement;
-        if (drawerElement) {
-          drawerElement.style.width = `${targetWidth}px`;
-        }
-      }
-      
-      // Force change detection
+      // Force change detection first
       this.cdr.detectChanges();
       
-      // Then update content margins - use multiple attempts to ensure it works
+      // Then update content margins
       requestAnimationFrame(() => {
         if (this.sidenavContainer) {
           // This method recalculates the content margins based on drawer width
           this.sidenavContainer.updateContentMargins();
-          
-          // Also manually ensure margin is correct as fallback
-          const contentElement = this.sidenavContainer._content?.nativeElement;
+        }
+        
+        // Additional fallback: manually update margin using DOM query
+        // This ensures the margin updates even if updateContentMargins() doesn't work
+        setTimeout(() => {
+          const contentElement = document.querySelector('.mat-drawer-content') as HTMLElement;
           if (contentElement && this.sidenav?.opened) {
             const drawerWidth = this.sidebarCollapsed ? 64 : 240;
             contentElement.style.marginLeft = `${drawerWidth}px`;
           }
-        }
+        }, 10);
       });
     });
   }
