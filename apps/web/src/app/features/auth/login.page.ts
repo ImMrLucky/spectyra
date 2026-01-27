@@ -224,6 +224,6 @@ export class LoginPage implements OnInit, OnDestroy {
   }
 
   goToApp() {
-    this.router.navigate(['/scenarios']);
+    this.router.navigate(['/overview']);
   }
 }

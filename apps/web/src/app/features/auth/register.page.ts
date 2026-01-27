@@ -144,6 +144,6 @@ export class RegisterPage {
   }
 
   goToApp() {
-    this.router.navigate(['/scenarios']);
+    this.router.navigate(['/overview']);
   }
 }
