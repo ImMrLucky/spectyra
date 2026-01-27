@@ -9,6 +9,7 @@ import { Injectable, OnDestroy } from '@angular/core';
 import { BehaviorSubject, Observable } from 'rxjs';
 import { AuthSession } from '@supabase/supabase-js';
 import { supabase } from '../supabase/supabase.client';
+import { environment } from '../../../environments/environment';
 
 export interface SupabaseUser {
   id: string;
@@ -90,7 +91,7 @@ export class AuthSessionService implements OnDestroy {
    */
   private tryGetSessionFromStorage() {
     try {
-      const projectRef = supabase.supabaseUrl.split('//')[1]?.split('.')[0];
+      const projectRef = environment.supabaseUrl.split('//')[1]?.split('.')[0];
       const storageKey = `sb-${projectRef}-auth-token`;
       const stored = localStorage.getItem(storageKey);
       if (stored) {
@@ -135,7 +136,7 @@ export class AuthSessionService implements OnDestroy {
         this.updateSession(freshSession);
         return freshSession.access_token || null;
       }
-    } catch (error) {
+    } catch (error: any) {
       // LockManager errors are non-critical
       if (error?.message?.includes('LockManager') || error?.message?.includes('lock')) {
         console.warn('[auth] LockManager warning (non-critical):', error);

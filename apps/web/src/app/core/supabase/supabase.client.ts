@@ -21,7 +21,7 @@ let _client: SupabaseClient | null = null;
 export function getSupabaseClient(): SupabaseClient {
   // Check global first (for HMR/dev scenarios)
   if (g[GLOBAL_KEY]) {
-    _client = g[GLOBAL_KEY];
+    _client = g[GLOBAL_KEY] as SupabaseClient;
     return _client;
   }
 
