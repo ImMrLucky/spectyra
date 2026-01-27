@@ -79,7 +79,7 @@
           <span class="config-label">Policy Decisions</span>
           <div class="config-value">
             <ul>
-              <li *ngFor="let reason of selectedRun.reasons">{{ reason }}</li>
+              <li *ngFor="let reason of selectedRun.reasons!">{{ reason }}</li>
             </ul>
           </div>
         </div>

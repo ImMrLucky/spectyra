@@ -30,7 +30,7 @@
           <span class="billing-label">Trial Ends</span>
           <span class="billing-value">{{ formatDate(billingStatus.trial_ends_at) }}</span>
         </div>
-        <div class="billing-item" *ngIf="billingStatus.has_access">
+        <div class="billing-item" *ngIf="billingStatus && billingStatus.has_access">
           <span class="billing-label">Access</span>
           <span class="billing-value active">Active</span>
         </div>
