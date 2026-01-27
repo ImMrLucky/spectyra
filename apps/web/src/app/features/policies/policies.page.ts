@@ -227,8 +227,8 @@ export class PoliciesPage implements OnInit {
     const str = this.policyForm.config[field] || '';
     this.policyForm.config[arrayField] = str
       .split(',')
-      .map(s => s.trim())
-      .filter(s => s.length > 0);
+      .map((s: string) => s.trim())
+      .filter((s: string) => s.length > 0);
   }
 
   updateProviderList(type: 'allowed' | 'denied') {
@@ -237,8 +237,8 @@ export class PoliciesPage implements OnInit {
     const str = this.policyForm.config[field] || '';
     this.policyForm.config[arrayField] = str
       .split(',')
-      .map(s => s.trim())
-      .filter(s => s.length > 0);
+      .map((s: string) => s.trim())
+      .filter((s: string) => s.length > 0);
   }
 
   updateToolList(type: 'allowed' | 'denied') {
@@ -247,8 +247,8 @@ export class PoliciesPage implements OnInit {
     const str = this.policyForm.config[field] || '';
     this.policyForm.config[arrayField] = str
       .split(',')
-      .map(s => s.trim())
-      .filter(s => s.length > 0);
+      .map((s: string) => s.trim())
+      .filter((s: string) => s.length > 0);
   }
 
   formatDate(dateStr: string): string {
