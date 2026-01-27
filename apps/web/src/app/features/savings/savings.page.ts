@@ -22,7 +22,7 @@ import { SavingsByPathComponent } from './savings-by-path.component';
     SavingsByPathComponent,
   ],
   templateUrl: './savings.page.html',
-  styleUrls: ['./savings.page.css'],
+  styleUrls: ['./savings.page.scss'],
 })
 export class SavingsPage implements OnInit {
   filters = {

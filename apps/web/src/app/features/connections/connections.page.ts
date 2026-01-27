@@ -7,7 +7,7 @@ import { RouterModule } from '@angular/router';
   standalone: true,
   imports: [CommonModule, RouterModule],
   templateUrl: './connections.page.html',
-  styleUrls: ['./connections.page.css'],
+  styleUrls: ['./connections.page.scss'],
 })
 export class ConnectionsPage implements OnInit {
   ngOnInit() {

@@ -30,7 +30,7 @@ const CODE_SLIDER: SliderConfig = {
   standalone: true,
   imports: [CommonModule, FormsModule],
   templateUrl: './optimization-slider.component.html',
-  styleUrls: ['./optimization-slider.component.css'],
+  styleUrls: ['./optimization-slider.component.scss'],
 })
 export class OptimizationSliderComponent implements OnInit {
   @Input() path: 'talk' | 'code' = 'talk';

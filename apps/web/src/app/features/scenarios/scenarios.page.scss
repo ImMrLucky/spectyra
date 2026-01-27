@@ -1,10 +1,10 @@
 .hero-section {
   margin-bottom: 30px;
-}
 
-.hero-section h1 {
-  margin-bottom: 8px;
-  font-size: 32px;
+  h1 {
+    margin-bottom: 8px;
+    font-size: 32px;
+  }
 }
 
 .hero-subtitle {
@@ -25,12 +25,12 @@
   background: white;
   border-radius: 4px;
   cursor: pointer;
-}
 
-.tab-btn.active {
-  background: #007bff;
-  color: white;
-  border-color: #007bff;
+  &.active {
+    background: #007bff;
+    color: white;
+    border-color: #007bff;
+  }
 }
 
 .scenarios-grid {
@@ -42,11 +42,11 @@
 .scenario-card {
   cursor: pointer;
   transition: transform 0.2s;
-}
 
-.scenario-card:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 4px 8px rgba(0,0,0,0.15);
+  &:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15);
+  }
 }
 
 .scenario-id {
@@ -61,16 +61,16 @@
   border-radius: 4px;
   font-size: 12px;
   font-weight: 500;
-}
 
-.badge-talk {
-  background: #e3f2fd;
-  color: #1976d2;
-}
+  &.badge-talk {
+    background: #e3f2fd;
+    color: #1976d2;
+  }
 
-.badge-code {
-  background: #f3e5f5;
-  color: #7b1fa2;
+  &.badge-code {
+    background: #f3e5f5;
+    color: #7b1fa2;
+  }
 }
 
 .info-banner {
@@ -86,23 +86,23 @@
 
 .banner-content {
   flex: 1;
-}
 
-.banner-content strong {
-  display: block;
-  margin-bottom: 4px;
-  color: #0056b3;
-}
+  strong {
+    display: block;
+    margin-bottom: 4px;
+    color: #0056b3;
+  }
 
-.banner-content p {
-  margin: 0;
-  color: #333;
-  font-size: 14px;
-}
+  p {
+    margin: 0;
+    color: #333;
+    font-size: 14px;
+  }
 
-.banner-content a {
-  color: #007bff;
-  font-weight: 500;
+  a {
+    color: #007bff;
+    font-weight: 500;
+  }
 }
 
 .banner-close {
@@ -115,8 +115,8 @@
   width: 24px;
   height: 24px;
   line-height: 1;
-}
 
-.banner-close:hover {
-  color: #333;
+  &:hover {
+    color: #333;
+  }
 }

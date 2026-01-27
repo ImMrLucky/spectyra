@@ -8,7 +8,7 @@ import type { Scenario, Provider } from '../../core/api/models';
   standalone: true,
   imports: [CommonModule, FormsModule],
   templateUrl: './run-controls.component.html',
-  styleUrls: ['./run-controls.component.css'],
+  styleUrls: ['./run-controls.component.scss'],
 })
 export class RunControlsComponent {
   @Input() scenario: Scenario | null = null;

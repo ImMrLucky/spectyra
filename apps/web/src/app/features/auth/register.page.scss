@@ -8,7 +8,7 @@
   background: white;
   border-radius: 8px;
   padding: 32px;
-  box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
 }
 
 h1 {
@@ -57,32 +57,32 @@ label {
   font-weight: 500;
   cursor: pointer;
   margin-top: 8px;
-}
 
-.btn-primary {
-  background: #007bff;
-  color: white;
-}
+  &.btn-primary {
+    background: #007bff;
+    color: white;
+  }
 
-.btn-secondary {
-  background: #6c757d;
-  color: white;
-  width: auto;
-  margin-left: 8px;
-}
+  &.btn-secondary {
+    background: #6c757d;
+    color: white;
+    width: auto;
+    margin-left: 8px;
+  }
 
-.btn:disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
+  &:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
 }
 
 .success-box {
   text-align: center;
-}
 
-.success-box h2 {
-  margin: 0 0 16px;
-  color: #28a745;
+  h2 {
+    margin: 0 0 16px;
+    color: #28a745;
+  }
 }
 
 .api-key-box {
@@ -94,16 +94,16 @@ label {
   display: flex;
   align-items: center;
   gap: 12px;
-}
 
-.api-key-box code {
-  flex: 1;
-  font-family: monospace;
-  font-size: 14px;
-  word-break: break-word;
-  overflow-wrap: break-word;
-  white-space: pre-wrap;
-  color: #333;
+  code {
+    flex: 1;
+    font-family: monospace;
+    font-size: 14px;
+    word-break: break-word;
+    overflow-wrap: break-word;
+    white-space: pre-wrap;
+    color: #333;
+  }
 }
 
 .trial-info {
@@ -113,11 +113,11 @@ label {
   padding: 16px;
   margin: 20px 0;
   text-align: left;
-}
 
-.trial-info p {
-  margin: 8px 0;
-  color: #155724;
+  p {
+    margin: 8px 0;
+    color: #155724;
+  }
 }
 
 .error-box {
@@ -133,9 +133,9 @@ label {
   margin-top: 24px;
   text-align: center;
   color: #666;
-}
 
-.login-link a {
-  color: #007bff;
-  text-decoration: none;
+  a {
+    color: #007bff;
+    text-decoration: none;
+  }
 }

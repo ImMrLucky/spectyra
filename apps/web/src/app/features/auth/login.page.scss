@@ -8,7 +8,7 @@
   background: white;
   border-radius: 8px;
   padding: 32px;
-  box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
 }
 
 h1 {
@@ -35,15 +35,15 @@ h1 {
   color: #666;
   border-bottom: 2px solid transparent;
   margin-bottom: -2px;
-}
 
-.tab.active {
-  color: #007bff;
-  border-bottom-color: #007bff;
-}
+  &.active {
+    color: #007bff;
+    border-bottom-color: #007bff;
+  }
 
-.tab:hover {
-  color: #007bff;
+  &:hover {
+    color: #007bff;
+  }
 }
 
 .form-group {
@@ -71,11 +71,11 @@ label {
   color: #666;
   margin-top: 4px;
   text-align: center;
-}
 
-.help-text a {
-  color: #007bff;
-  text-decoration: none;
+  a {
+    color: #007bff;
+    text-decoration: none;
+  }
 }
 
 .btn {
@@ -87,23 +87,23 @@ label {
   font-weight: 500;
   cursor: pointer;
   margin-top: 8px;
-}
 
-.btn-primary {
-  background: #007bff;
-  color: white;
-}
+  &.btn-primary {
+    background: #007bff;
+    color: white;
+  }
 
-.btn-secondary {
-  background: #6c757d;
-  color: white;
-  width: auto;
-  margin-left: 8px;
-}
+  &.btn-secondary {
+    background: #6c757d;
+    color: white;
+    width: auto;
+    margin-left: 8px;
+  }
 
-.btn:disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
+  &:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
 }
 
 .bootstrap-box {
@@ -111,11 +111,11 @@ label {
   padding: 24px;
   background: #f8f9fa;
   border-radius: 8px;
-}
 
-.bootstrap-box h2 {
-  margin: 0 0 8px;
-  font-size: 20px;
+  h2 {
+    margin: 0 0 8px;
+    font-size: 20px;
+  }
 }
 
 .api-key-box {
@@ -131,25 +131,25 @@ label {
   display: flex;
   align-items: center;
   gap: 12px;
-}
 
-.api-key-display code {
-  flex: 1;
-  font-family: monospace;
-  font-size: 14px;
-  word-break: break-word;
-  overflow-wrap: break-word;
-  white-space: pre-wrap;
-  color: #333;
+  code {
+    flex: 1;
+    font-family: monospace;
+    font-size: 14px;
+    word-break: break-word;
+    overflow-wrap: break-word;
+    white-space: pre-wrap;
+    color: #333;
+  }
 }
 
 .success-box {
   text-align: center;
-}
 
-.success-box h2 {
-  margin: 0 0 16px;
-  color: #28a745;
+  h2 {
+    margin: 0 0 16px;
+    color: #28a745;
+  }
 }
 
 .trial-info {
@@ -159,11 +159,11 @@ label {
   padding: 16px;
   margin: 20px 0;
   text-align: left;
-}
 
-.trial-info p {
-  margin: 8px 0;
-  color: #155724;
+  p {
+    margin: 8px 0;
+    color: #155724;
+  }
 }
 
 .warning-box {

@@ -14,7 +14,7 @@ import { debounceTime, distinctUntilChanged } from 'rxjs/operators';
   standalone: true,
   imports: [CommonModule, FormsModule, RouterModule],
   templateUrl: './login.page.html',
-  styleUrls: ['./login.page.css'],
+  styleUrls: ['./login.page.scss'],
 })
 export class LoginPage implements OnInit, OnDestroy {
   authMethod: 'supabase' | 'apikey' = 'supabase';

@@ -19,7 +19,7 @@ interface BillingStatus {
   standalone: true,
   imports: [CommonModule],
   templateUrl: './billing.page.html',
-  styleUrls: ['./billing.page.css'],
+  styleUrls: ['./billing.page.scss'],
 })
 export class BillingPage implements OnInit {
   status: BillingStatus | null = null;

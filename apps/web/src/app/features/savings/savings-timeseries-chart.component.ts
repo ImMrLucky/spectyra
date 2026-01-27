@@ -7,7 +7,7 @@ import { formatCurrency, formatNumber } from '../../core/util/format';
   standalone: true,
   imports: [CommonModule],
   templateUrl: './savings-timeseries-chart.component.html',
-  styleUrls: ['./savings-timeseries-chart.component.css'],
+  styleUrls: ['./savings-timeseries-chart.component.scss'],
 })
 export class SavingsTimeseriesChartComponent {
   @Input() timeseries: any[] = [];

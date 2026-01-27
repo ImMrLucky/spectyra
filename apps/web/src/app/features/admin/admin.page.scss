@@ -11,12 +11,12 @@
   margin-bottom: 30px;
   padding-bottom: 20px;
   border-bottom: 2px solid #e0e0e0;
-}
 
-.header h1 {
-  margin: 0;
-  font-size: 32px;
-  color: #333;
+  h1 {
+    margin: 0;
+    font-size: 32px;
+    color: #333;
+  }
 }
 
 .auth-section {
@@ -44,12 +44,12 @@
   border-radius: 8px;
   padding: 24px;
   margin-bottom: 20px;
-}
 
-.section h2 {
-  margin: 0 0 20px 0;
-  font-size: 24px;
-  color: #333;
+  h2 {
+    margin: 0 0 20px 0;
+    font-size: 24px;
+    color: #333;
+  }
 }
 
 .org-list {
@@ -63,16 +63,16 @@
   padding: 20px;
   cursor: pointer;
   transition: all 0.2s;
-}
 
-.org-card:hover {
-  border-color: #007bff;
-  box-shadow: 0 2px 8px rgba(0,123,255,0.1);
-}
+  &:hover {
+    border-color: #007bff;
+    box-shadow: 0 2px 8px rgba(0, 123, 255, 0.1);
+  }
 
-.org-card.selected {
-  border-color: #007bff;
-  background: #f0f7ff;
+  &.selected {
+    border-color: #007bff;
+    background: #f0f7ff;
+  }
 }
 
 .org-header {
@@ -81,10 +81,12 @@
   align-items: start;
 }
 
-.org-info h3 {
-  margin: 0 0 8px 0;
-  font-size: 20px;
-  color: #333;
+.org-info {
+  h3 {
+    margin: 0 0 8px 0;
+    font-size: 20px;
+    color: #333;
+  }
 }
 
 .org-id {
@@ -107,16 +109,16 @@
   font-size: 12px;
   font-weight: 600;
   text-transform: uppercase;
-}
 
-.badge.active {
-  background: #4caf50;
-  color: white;
-}
+  &.active {
+    background: #4caf50;
+    color: white;
+  }
 
-.badge.trial {
-  background: #2196f3;
-  color: white;
+  &.trial {
+    background: #2196f3;
+    color: white;
+  }
 }
 
 .created {
@@ -157,11 +159,11 @@
   display: flex;
   flex-direction: column;
   gap: 8px;
-}
 
-.detail-group label {
-  font-weight: 600;
-  color: #333;
+  label {
+    font-weight: 600;
+    color: #333;
+  }
 }
 
 .edit-name {
@@ -196,18 +198,20 @@
   gap: 4px;
 }
 
-.project-list, .api-key-list {
+.project-list,
+.api-key-list {
   list-style: none;
   padding: 0;
   margin: 0;
+
+  li {
+    padding: 8px 0;
+    border-bottom: 1px solid #eee;
+  }
 }
 
-.project-list li, .api-key-list li {
-  padding: 8px 0;
-  border-bottom: 1px solid #eee;
-}
-
-.project-id, .key-meta {
+.project-id,
+.key-meta {
   font-size: 12px;
   color: #666;
   margin-left: 8px;
@@ -223,11 +227,11 @@
   background: #fff3cd;
   border: 2px solid #ffc107;
   border-radius: 8px;
-}
 
-.danger-zone h3 {
-  margin: 0 0 12px 0;
-  color: #856404;
+  h3 {
+    margin: 0 0 12px 0;
+    color: #856404;
+  }
 }
 
 .warning {
@@ -256,46 +260,48 @@
   font-weight: 500;
   cursor: pointer;
   transition: all 0.2s;
+
+  &:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+  }
+
+  &.btn-primary {
+    background: #007bff;
+    color: white;
+
+    &:hover:not(:disabled) {
+      background: #0056b3;
+    }
+  }
+
+  &.btn-secondary {
+    background: #6c757d;
+    color: white;
+
+    &:hover:not(:disabled) {
+      background: #545b62;
+    }
+  }
+
+  &.btn-danger {
+    background: #dc3545;
+    color: white;
+
+    &:hover:not(:disabled) {
+      background: #c82333;
+    }
+  }
+
+  &.btn-sm {
+    padding: 6px 12px;
+    font-size: 12px;
+  }
 }
 
-.btn:disabled {
-  opacity: 0.6;
-  cursor: not-allowed;
-}
-
-.btn-primary {
-  background: #007bff;
-  color: white;
-}
-
-.btn-primary:hover:not(:disabled) {
-  background: #0056b3;
-}
-
-.btn-secondary {
-  background: #6c757d;
-  color: white;
-}
-
-.btn-secondary:hover:not(:disabled) {
-  background: #545b62;
-}
-
-.btn-danger {
-  background: #dc3545;
-  color: white;
-}
-
-.btn-danger:hover:not(:disabled) {
-  background: #c82333;
-}
-
-.btn-sm {
-  padding: 6px 12px;
-  font-size: 12px;
-}
-
-.loading, .error, .empty {
+.loading,
+.error,
+.empty {
   text-align: center;
   padding: 40px;
   color: #666;

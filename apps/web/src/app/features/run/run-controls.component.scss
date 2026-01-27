@@ -29,20 +29,20 @@
   border-radius: 4px;
   cursor: pointer;
   flex: 1;
-}
 
-.toggle-option input[type="radio"] {
-  margin: 0;
-}
+  input[type="radio"] {
+    margin: 0;
 
-.toggle-option input[type="radio"]:checked + span {
-  font-weight: 600;
-  color: #007bff;
-}
+    &:checked + span {
+      font-weight: 600;
+      color: #007bff;
+    }
+  }
 
-.toggle-option:has(input[type="radio"]:checked) {
-  border-color: #007bff;
-  background: #f0f8ff;
+  &:has(input[type="radio"]:checked) {
+    border-color: #007bff;
+    background: #f0f8ff;
+  }
 }
 
 .toggle-description {

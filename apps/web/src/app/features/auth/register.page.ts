@@ -12,7 +12,7 @@ import { AuthService } from '../../core/auth/auth.service';
   standalone: true,
   imports: [CommonModule, FormsModule, RouterModule],
   templateUrl: './register.page.html',
-  styleUrls: ['./register.page.css'],
+  styleUrls: ['./register.page.scss'],
 })
 export class RegisterPage {
   email = '';

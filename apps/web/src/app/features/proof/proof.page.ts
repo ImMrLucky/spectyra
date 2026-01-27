@@ -31,7 +31,7 @@ interface ProofEstimate {
   standalone: true,
   imports: [CommonModule, FormsModule],
   templateUrl: './proof.page.html',
-  styleUrls: ['./proof.page.css'],
+  styleUrls: ['./proof.page.scss'],
 })
 export class ProofPage {
   path: 'talk' | 'code' = 'talk';

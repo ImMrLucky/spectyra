@@ -24,7 +24,7 @@ interface Project {
   standalone: true,
   imports: [CommonModule, RouterModule],
   templateUrl: './org-switcher.component.html',
-  styleUrls: ['./org-switcher.component.css'],
+  styleUrls: ['./org-switcher.component.scss'],
 })
 export class OrgSwitcherComponent implements OnInit, OnDestroy {
   org: Org | null = null;

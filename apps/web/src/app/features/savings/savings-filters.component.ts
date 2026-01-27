@@ -8,7 +8,7 @@ import { getStoredSavingsFilters, setStoredSavingsFilters } from '../../core/uti
   standalone: true,
   imports: [CommonModule, FormsModule],
   templateUrl: './savings-filters.component.html',
-  styleUrls: ['./savings-filters.component.css'],
+  styleUrls: ['./savings-filters.component.scss'],
 })
 export class SavingsFiltersComponent implements OnInit {
   @Input() filters!: any;

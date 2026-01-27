@@ -12,7 +12,7 @@ import type { ReplayResult } from '../../core/api/models';
   standalone: true,
   imports: [CommonModule, FormsModule, TokenCostTableComponent, TabsOutputComponent, TabsPromptComponent, TabsDebugComponent],
   templateUrl: './compare-view.component.html',
-  styleUrls: ['./compare-view.component.css'],
+  styleUrls: ['./compare-view.component.scss'],
 })
 export class CompareViewComponent {
   @Input() result!: ReplayResult;

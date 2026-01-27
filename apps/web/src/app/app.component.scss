@@ -11,27 +11,27 @@
   display: flex;
   justify-content: space-between;
   align-items: center;
-}
 
-.app-header h1 {
-  margin: 0;
-  font-size: 24px;
-}
+  h1 {
+    margin: 0;
+    font-size: 24px;
+  }
 
-.app-header nav {
-  display: flex;
-  gap: 20px;
-  align-items: center;
-}
+  nav {
+    display: flex;
+    gap: 20px;
+    align-items: center;
 
-.app-header nav a {
-  color: white;
-  text-decoration: none;
-  font-weight: 500;
-}
+    a {
+      color: white;
+      text-decoration: none;
+      font-weight: 500;
 
-.app-header nav a:hover {
-  text-decoration: underline;
+      &:hover {
+        text-decoration: underline;
+      }
+    }
+  }
 }
 
 .admin-link {
@@ -51,17 +51,17 @@
 }
 
 .btn-logout {
-  background: rgba(255,255,255,0.2);
-  border: 1px solid rgba(255,255,255,0.3);
+  background: rgba(255, 255, 255, 0.2);
+  border: 1px solid rgba(255, 255, 255, 0.3);
   color: white;
   padding: 6px 12px;
   border-radius: 4px;
   cursor: pointer;
   font-size: 14px;
-}
 
-.btn-logout:hover {
-  background: rgba(255,255,255,0.3);
+  &:hover {
+    background: rgba(255, 255, 255, 0.3);
+  }
 }
 
 .app-main {

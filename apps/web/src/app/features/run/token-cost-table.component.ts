@@ -8,7 +8,7 @@ import type { RunRecord } from '../../core/api/models';
   standalone: true,
   imports: [CommonModule],
   templateUrl: './token-cost-table.component.html',
-  styleUrls: ['./token-cost-table.component.css'],
+  styleUrls: ['./token-cost-table.component.scss'],
 })
 export class TokenCostTableComponent {
   @Input() run!: RunRecord;

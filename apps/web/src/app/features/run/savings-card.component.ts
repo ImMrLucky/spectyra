@@ -8,7 +8,7 @@ import type { ReplayResult } from '../../core/api/models';
   standalone: true,
   imports: [CommonModule],
   templateUrl: './savings-card.component.html',
-  styleUrls: ['./savings-card.component.css'],
+  styleUrls: ['./savings-card.component.scss'],
 })
 export class SavingsCardComponent {
   @Input() result!: ReplayResult;

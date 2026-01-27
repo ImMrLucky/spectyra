@@ -7,7 +7,7 @@ import { formatCurrency, formatPercent, formatNumber } from '../../core/util/for
   standalone: true,
   imports: [CommonModule],
   templateUrl: './savings-kpis.component.html',
-  styleUrls: ['./savings-kpis.component.css'],
+  styleUrls: ['./savings-kpis.component.scss'],
 })
 export class SavingsKpisComponent {
   @Input() summary: any = null;

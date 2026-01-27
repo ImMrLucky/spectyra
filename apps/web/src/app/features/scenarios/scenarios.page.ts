@@ -9,7 +9,7 @@ import type { Scenario } from '../../core/api/models';
   standalone: true,
   imports: [CommonModule, RouterModule],
   templateUrl: './scenarios.page.html',
-  styleUrls: ['./scenarios.page.css'],
+  styleUrls: ['./scenarios.page.scss'],
 })
 export class ScenariosPage implements OnInit {
   scenarios: Scenario[] = [];

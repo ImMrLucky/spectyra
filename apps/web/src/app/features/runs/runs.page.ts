@@ -10,7 +10,7 @@ import type { RunRecord } from '../../core/api/models';
   standalone: true,
   imports: [CommonModule, RouterModule],
   templateUrl: './runs.page.html',
-  styleUrls: ['./runs.page.css'],
+  styleUrls: ['./runs.page.scss'],
 })
 export class RunsPage implements OnInit {
   runs: RunRecord[] = [];

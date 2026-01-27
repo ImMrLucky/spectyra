@@ -1,0 +1,233 @@
+// SCSS Variables
+$primary-color: #007bff;
+$primary-hover: #0056b3;
+$secondary-color: #6c757d;
+$secondary-hover: #545b62;
+$success-color: #28a745;
+$success-bg: #d4edda;
+$success-text: #155724;
+$danger-color: #dc3545;
+$danger-bg: #f8d7da;
+$danger-text: #721c24;
+$warning-bg: #fff3cd;
+$warning-text: #856404;
+$info-bg: #d1ecf1;
+$info-text: #0c5460;
+
+$text-primary: #333;
+$text-secondary: #666;
+$text-muted: #999;
+
+$bg-primary: #f5f5f5;
+$bg-secondary: #f8f9fa;
+$bg-white: white;
+
+$border-color: #ddd;
+$border-radius: 4px;
+$border-radius-lg: 8px;
+$border-radius-xl: 12px;
+
+$spacing-xs: 4px;
+$spacing-sm: 8px;
+$spacing-md: 12px;
+$spacing-lg: 16px;
+$spacing-xl: 20px;
+$spacing-2xl: 24px;
+$spacing-3xl: 32px;
+$spacing-4xl: 40px;
+$spacing-5xl: 60px;
+
+$font-size-xs: 12px;
+$font-size-sm: 14px;
+$font-size-base: 16px;
+$font-size-lg: 18px;
+$font-size-xl: 20px;
+$font-size-2xl: 24px;
+$font-size-3xl: 28px;
+$font-size-4xl: 36px;
+$font-size-5xl: 48px;
+
+$font-weight-normal: 400;
+$font-weight-medium: 500;
+$font-weight-semibold: 600;
+$font-weight-bold: 700;
+
+$shadow-sm: 0 2px 4px rgba(0, 0, 0, 0.1);
+$shadow-md: 0 2px 8px rgba(0, 0, 0, 0.1);
+$shadow-lg: 0 4px 12px rgba(0, 0, 0, 0.15);
+$shadow-xl: 0 4px 16px rgba(0, 0, 0, 0.1);
+
+$breakpoint-sm: 576px;
+$breakpoint-md: 768px;
+$breakpoint-lg: 992px;
+$breakpoint-xl: 1200px;
+
+// Mixins
+@mixin transition($property: all, $duration: 0.2s, $easing: ease) {
+  transition: $property $duration $easing;
+}
+
+@mixin card {
+  background: $bg-white;
+  border-radius: $border-radius-lg;
+  padding: $spacing-xl;
+  margin-bottom: $spacing-xl;
+  box-shadow: $shadow-md;
+}
+
+@mixin button-base {
+  padding: $spacing-md $spacing-xl;
+  border: none;
+  border-radius: $border-radius;
+  cursor: pointer;
+  font-size: $font-size-sm;
+  font-weight: $font-weight-medium;
+  @include transition(background);
+}
+
+@mixin button-primary {
+  @include button-base;
+  background: $primary-color;
+  color: white;
+
+  &:hover {
+    background: $primary-hover;
+  }
+}
+
+@mixin button-secondary {
+  @include button-base;
+  background: $secondary-color;
+  color: white;
+
+  &:hover {
+    background: $secondary-hover;
+  }
+}
+
+// Global Styles
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+body {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+  background: $bg-primary;
+  color: $text-primary;
+}
+
+.container {
+  max-width: $breakpoint-xl;
+  margin: 0 auto;
+  padding: $spacing-xl;
+}
+
+.card {
+  @include card;
+}
+
+.btn {
+  @include button-base;
+}
+
+.btn-primary {
+  @include button-primary;
+}
+
+.btn-secondary {
+  @include button-secondary;
+}
+
+.form-group {
+  margin-bottom: $spacing-lg;
+}
+
+.form-label {
+  display: block;
+  margin-bottom: 5px;
+  font-weight: $font-weight-medium;
+}
+
+.form-select,
+.form-input {
+  width: 100%;
+  padding: $spacing-sm $spacing-md;
+  border: 1px solid $border-color;
+  border-radius: $border-radius;
+  font-size: $font-size-sm;
+}
+
+.table {
+  width: 100%;
+  border-collapse: collapse;
+
+  th,
+  td {
+    padding: $spacing-md;
+    text-align: left;
+    border-bottom: 1px solid $border-color;
+  }
+
+  th {
+    background: $bg-secondary;
+    font-weight: $font-weight-semibold;
+  }
+}
+
+.badge {
+  display: inline-block;
+  padding: $spacing-xs $spacing-sm;
+  border-radius: $border-radius;
+  font-size: $font-size-xs;
+  font-weight: $font-weight-medium;
+}
+
+.badge-success {
+  background: $success-bg;
+  color: $success-text;
+}
+
+.badge-danger {
+  background: $danger-bg;
+  color: $danger-text;
+}
+
+.tabs {
+  display: flex;
+  border-bottom: 2px solid $border-color;
+  margin-bottom: $spacing-xl;
+}
+
+.tab {
+  padding: $spacing-md $spacing-xl;
+  cursor: pointer;
+  border: none;
+  background: none;
+  font-size: $font-size-sm;
+  color: $text-secondary;
+
+  &.active {
+    color: $primary-color;
+    border-bottom: 2px solid $primary-color;
+  }
+}
+
+.tab-content {
+  display: none;
+
+  &.active {
+    display: block;
+  }
+}
+
+.compare-view {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: $spacing-xl;
+
+  @media (max-width: $breakpoint-md) {
+    grid-template-columns: 1fr;
+  }
+}

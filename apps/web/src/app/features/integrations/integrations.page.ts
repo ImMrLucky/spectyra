@@ -7,7 +7,7 @@ import { ApiClientService } from '../../core/api/api-client.service';
   standalone: true,
   imports: [CommonModule],
   templateUrl: './integrations.page.html',
-  styleUrls: ['./integrations.page.css'],
+  styleUrls: ['./integrations.page.scss'],
 })
 export class IntegrationsPage implements OnInit {
   snippets: any = null;

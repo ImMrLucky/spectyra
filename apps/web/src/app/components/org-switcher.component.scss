@@ -7,14 +7,14 @@
   align-items: center;
   gap: 8px;
   padding: 6px 12px;
-  background: rgba(255,255,255,0.2);
+  background: rgba(255, 255, 255, 0.2);
   border-radius: 4px;
   cursor: pointer;
   transition: background 0.2s;
-}
 
-.current-org:hover {
-  background: rgba(255,255,255,0.3);
+  &:hover {
+    background: rgba(255, 255, 255, 0.3);
+  }
 }
 
 .org-name {
@@ -28,16 +28,16 @@
   font-size: 11px;
   font-weight: 600;
   text-transform: uppercase;
-}
 
-.org-status.active {
-  background: #4caf50;
-  color: white;
-}
+  &.active {
+    background: #4caf50;
+    color: white;
+  }
 
-.org-status.trial {
-  background: #2196f3;
-  color: white;
+  &.trial {
+    background: #2196f3;
+    color: white;
+  }
 }
 
 .dropdown-arrow {
@@ -53,7 +53,7 @@
   background: white;
   border: 1px solid #ddd;
   border-radius: 8px;
-  box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
   min-width: 250px;
   z-index: 1000;
   padding: 16px;
@@ -63,12 +63,12 @@
   margin-bottom: 16px;
   padding-bottom: 16px;
   border-bottom: 1px solid #e0e0e0;
-}
 
-.org-info h4 {
-  margin: 0 0 4px 0;
-  font-size: 16px;
-  color: #333;
+  h4 {
+    margin: 0 0 4px 0;
+    font-size: 16px;
+    color: #333;
+  }
 }
 
 .org-id {
@@ -86,38 +86,38 @@
 
 .projects-section {
   margin-bottom: 16px;
-}
 
-.projects-section h5 {
-  margin: 0 0 8px 0;
-  font-size: 12px;
-  font-weight: 600;
-  color: #666;
-  text-transform: uppercase;
+  h5 {
+    margin: 0 0 8px 0;
+    font-size: 12px;
+    font-weight: 600;
+    color: #666;
+    text-transform: uppercase;
+  }
 }
 
 .projects-list {
   list-style: none;
   padding: 0;
   margin: 0;
-}
 
-.projects-list li {
-  padding: 8px 12px;
-  border-radius: 4px;
-  cursor: pointer;
-  font-size: 14px;
-  transition: background 0.2s;
-}
+  li {
+    padding: 8px 12px;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 14px;
+    transition: background 0.2s;
 
-.projects-list li:hover {
-  background: #f0f0f0;
-}
+    &:hover {
+      background: #f0f0f0;
+    }
 
-.projects-list li.active {
-  background: #e3f2fd;
-  color: #1976d2;
-  font-weight: 500;
+    &.active {
+      background: #e3f2fd;
+      color: #1976d2;
+      font-weight: 500;
+    }
+  }
 }
 
 .actions {
@@ -133,8 +133,8 @@
   text-decoration: none;
   font-size: 14px;
   padding: 8px 0;
-}
 
-.action-link:hover {
-  text-decoration: underline;
+  &:hover {
+    text-decoration: underline;
+  }
 }

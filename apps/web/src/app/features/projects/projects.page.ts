@@ -6,7 +6,7 @@ import { CommonModule } from '@angular/common';
   standalone: true,
   imports: [CommonModule],
   templateUrl: './projects.page.html',
-  styleUrls: ['./projects.page.css'],
+  styleUrls: ['./projects.page.scss'],
 })
 export class ProjectsPage implements OnInit {
   ngOnInit() {

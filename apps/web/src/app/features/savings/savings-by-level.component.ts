@@ -7,7 +7,7 @@ import { formatCurrency, formatPercent, formatNumber } from '../../core/util/for
   standalone: true,
   imports: [CommonModule],
   templateUrl: './savings-by-level.component.html',
-  styleUrls: ['./savings-by-level.component.css'],
+  styleUrls: ['./savings-by-level.component.scss'],
 })
 export class SavingsByLevelComponent {
   @Input() breakdown: any[] = [];

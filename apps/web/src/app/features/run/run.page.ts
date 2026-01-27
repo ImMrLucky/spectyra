@@ -14,7 +14,7 @@ import type { Scenario, ReplayResult, Provider } from '../../core/api/models';
   standalone: true,
   imports: [CommonModule, RunControlsComponent, CompareViewComponent, SavingsCardComponent, OptimizationSliderComponent],
   templateUrl: './run.page.html',
-  styleUrls: ['./run.page.css'],
+  styleUrls: ['./run.page.scss'],
 })
 export class RunPage implements OnInit {
   scenario: Scenario | null = null;

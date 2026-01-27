@@ -33,7 +33,7 @@ interface Project {
   standalone: true,
   imports: [CommonModule, FormsModule],
   templateUrl: './settings.page.html',
-  styleUrls: ['./settings.page.css'],
+  styleUrls: ['./settings.page.scss'],
 })
 export class SettingsPage implements OnInit {
   apiKeys: ApiKey[] = [];

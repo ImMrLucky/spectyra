@@ -1,11 +1,11 @@
 .savings-card {
   background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
   color: white;
-}
 
-.savings-card h2 {
-  color: white;
-  margin-bottom: 20px;
+  h2 {
+    color: white;
+    margin-bottom: 20px;
+  }
 }
 
 .savings-grid {
@@ -55,19 +55,19 @@
   border-radius: 4px;
   font-size: 12px;
   font-weight: 600;
-}
 
-.badge-success {
-  background: rgba(255, 255, 255, 0.2);
-  color: white;
-}
+  &.badge-success {
+    background: rgba(255, 255, 255, 0.2);
+    color: white;
+  }
 
-.badge-verified {
-  background: #28a745;
-  color: white;
-}
+  &.badge-verified {
+    background: #28a745;
+    color: white;
+  }
 
-.badge-estimated {
-  background: #ffc107;
-  color: #000;
+  &.badge-estimated {
+    background: #ffc107;
+    color: #000;
+  }
 }

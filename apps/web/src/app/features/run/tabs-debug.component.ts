@@ -7,7 +7,7 @@ import type { RunRecord } from '../../core/api/models';
   standalone: true,
   imports: [CommonModule],
   templateUrl: './tabs-debug.component.html',
-  styleUrls: ['./tabs-debug.component.css'],
+  styleUrls: ['./tabs-debug.component.scss'],
 })
 export class TabsDebugComponent {
   @Input() run!: RunRecord;
