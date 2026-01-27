@@ -17,20 +17,20 @@
     <div class="card" *ngIf="billingStatus">
       <div class="card-header">
         <h2>Subscription Status</h2>
-        <a routerLink="/usage" class="btn btn-sm btn-primary" *ngIf="billingStatus && !billingStatus.subscription_active">Upgrade</a>
+        <a routerLink="/usage" class="btn btn-sm btn-primary" *ngIf="showUpgradeButton">Upgrade</a>
       </div>
       <div class="billing-info" *ngIf="billingStatus">
         <div class="billing-item">
           <span class="billing-label">Status</span>
-          <span class="billing-value" [class.active]="billingStatus.subscription_active">
-            {{ billingStatus.subscription_status || 'trial' }}
+          <span class="billing-value" [class.active]="isSubscriptionActive">
+            {{ subscriptionStatusText }}
           </span>
         </div>
-        <div class="billing-item" *ngIf="billingStatus && billingStatus.trial_ends_at">
+        <div class="billing-item" *ngIf="showTrialEndsAt">
           <span class="billing-label">Trial Ends</span>
-          <span class="billing-value">{{ formatDate(billingStatus.trial_ends_at) }}</span>
+          <span class="billing-value">{{ formattedTrialEndsAt }}</span>
         </div>
-        <div class="billing-item" *ngIf="billingStatus && billingStatus.has_access">
+        <div class="billing-item" *ngIf="showHasAccess">
           <span class="billing-label">Access</span>
           <span class="billing-value active">Active</span>
         </div>
@@ -59,15 +59,15 @@
       <div *ngIf="usageData.length > 0" class="usage-summary">
         <div class="summary-item">
           <span class="summary-label">Total Calls</span>
-          <span class="summary-value">{{ formatNumber(usageData.reduce((sum, d) => sum + (d.calls || 0), 0)) }}</span>
+          <span class="summary-value">{{ formattedTotalCalls }}</span>
         </div>
         <div class="summary-item">
           <span class="summary-label">Total Tokens</span>
-          <span class="summary-value">{{ formatNumber(usageData.reduce((sum, d) => sum + (d.tokens || 0), 0)) }}</span>
+          <span class="summary-value">{{ formattedTotalTokens }}</span>
         </div>
         <div class="summary-item">
           <span class="summary-label">Cost Estimate</span>
-          <span class="summary-value">{{ formatCurrency(usageData.reduce((sum, d) => sum + (d.cost_estimate_usd || 0), 0)) }}</span>
+          <span class="summary-value">{{ formattedTotalCost }}</span>
         </div>
       </div>
     </div>
@@ -85,11 +85,11 @@
             <span class="budget-period">{{ budget.period }}</span>
           </div>
           <div class="budget-bar">
-            <div class="budget-bar-fill" [style.width.%]="(budget.used / budget.limit) * 100"></div>
+            <div class="budget-bar-fill" [style.width.%]="getBudgetPercentage(budget)"></div>
           </div>
           <div class="budget-meta">
-            <span>{{ formatCurrency(budget.used) }} / {{ formatCurrency(budget.limit) }}</span>
-            <span>{{ formatCurrency(budget.remaining) }} remaining</span>
+            <span>{{ getFormattedBudgetUsed(budget) }} / {{ getFormattedBudgetLimit(budget) }}</span>
+            <span>{{ getFormattedBudgetRemaining(budget) }} remaining</span>
           </div>
         </div>
       </div>
@@ -105,38 +105,38 @@
         <div *ngFor="let opt of optimizationSavings" class="optimization-savings-item">
           <div class="savings-header">
             <h3>{{ opt.name }}</h3>
-            <span class="runs-count">{{ formatNumber(opt.runs_count) }} runs</span>
+            <span class="runs-count">{{ getFormattedRunsCount(opt.runs_count) }} runs</span>
           </div>
           <div class="savings-value-large">
             <span class="savings-label">Tokens Saved</span>
-            <span class="savings-amount">{{ formatNumber(opt.tokens_saved) }}</span>
+            <span class="savings-amount">{{ getFormattedTokensSaved(opt.tokens_saved) }}</span>
           </div>
         </div>
       </div>
     </div>
 
     <!-- Usage by Project -->
-    <div class="card" *ngIf="usageData.length > 0 && usageData[0] && usageData[0].by_project">
+    <div class="card" *ngIf="hasProjectUsage">
       <div class="card-header">
         <h2>Usage by Project</h2>
       </div>
       <div class="project-usage">
-        <div *ngFor="let project of getProjectList()" class="project-item">
+        <div *ngFor="let project of projectList" class="project-item">
           <div class="project-header">
-            <span class="project-name">{{ project.name || project.id }}</span>
+            <span class="project-name">{{ getProjectName(project) }}</span>
           </div>
           <div class="project-stats">
             <div class="stat">
               <span class="stat-label">Calls</span>
-              <span class="stat-value">{{ formatNumber(project.calls) }}</span>
+              <span class="stat-value">{{ getFormattedProjectCalls(project) }}</span>
             </div>
             <div class="stat">
               <span class="stat-label">Tokens</span>
-              <span class="stat-value">{{ formatNumber(project.tokens) }}</span>
+              <span class="stat-value">{{ getFormattedProjectTokens(project) }}</span>
             </div>
             <div class="stat">
               <span class="stat-label">Cost</span>
-              <span class="stat-value">{{ formatCurrency(project.cost) }}</span>
+              <span class="stat-value">{{ getFormattedProjectCost(project) }}</span>
             </div>
           </div>
         </div>

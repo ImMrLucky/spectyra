@@ -59,6 +59,7 @@ export class UsagePage implements OnInit {
   budgetProgress: BudgetProgress[] = [];
   billingStatus: BillingStatus | null = null;
   optimizationSavings: OptimizationSavings[] = [];
+  projectList: ProjectUsage[] = [];
 
   constructor(private http: HttpClient) {}
 
@@ -103,11 +104,18 @@ export class UsagePage implements OnInit {
       } catch (err: any) {
         this.optimizationSavings = [];
       }
+
+      // Update computed properties
+      this.updateComputedProperties();
     } catch (err: any) {
       this.error = 'Failed to load usage data';
     } finally {
       this.loading = false;
     }
+  }
+
+  private updateComputedProperties() {
+    this.projectList = this.computeProjectList();
   }
 
   onRangeChange() {
@@ -134,7 +142,110 @@ export class UsagePage implements OnInit {
     alert('CSV export coming soon');
   }
 
-  getProjectList(): ProjectUsage[] {
+  // Computed properties for usage summary
+  get totalCalls(): number {
+    return this.usageData.reduce((sum, d) => sum + (d.calls || 0), 0);
+  }
+
+  get totalTokens(): number {
+    return this.usageData.reduce((sum, d) => sum + (d.tokens || 0), 0);
+  }
+
+  get totalCost(): number {
+    return this.usageData.reduce((sum, d) => sum + (d.cost_estimate_usd || 0), 0);
+  }
+
+  get formattedTotalCalls(): string {
+    return this.formatNumber(this.totalCalls);
+  }
+
+  get formattedTotalTokens(): string {
+    return this.formatNumber(this.totalTokens);
+  }
+
+  get formattedTotalCost(): string {
+    return this.formatCurrency(this.totalCost);
+  }
+
+  // Computed properties for billing status
+  get showUpgradeButton(): boolean {
+    return this.billingStatus !== null && !this.billingStatus.subscription_active;
+  }
+
+  get subscriptionStatusText(): string {
+    return this.billingStatus?.subscription_status || 'trial';
+  }
+
+  get isSubscriptionActive(): boolean {
+    return this.billingStatus?.subscription_active || false;
+  }
+
+  get formattedTrialEndsAt(): string {
+    return this.formatDate(this.billingStatus?.trial_ends_at || null);
+  }
+
+  get hasAccess(): boolean {
+    return this.billingStatus?.has_access || false;
+  }
+
+  get showTrialEndsAt(): boolean {
+    return this.billingStatus !== null && !!this.billingStatus.trial_ends_at;
+  }
+
+  get showHasAccess(): boolean {
+    return this.billingStatus !== null && !!this.billingStatus.has_access;
+  }
+
+  // Computed property for project usage
+  get hasProjectUsage(): boolean {
+    return this.usageData.length > 0 && 
+           this.usageData[0] !== undefined && 
+           this.usageData[0].by_project !== undefined;
+  }
+
+  // Helper methods
+  getBudgetPercentage(budget: BudgetProgress): number {
+    if (budget.limit === 0) return 0;
+    return (budget.used / budget.limit) * 100;
+  }
+
+  getFormattedBudgetUsed(budget: BudgetProgress): string {
+    return this.formatCurrency(budget.used);
+  }
+
+  getFormattedBudgetLimit(budget: BudgetProgress): string {
+    return this.formatCurrency(budget.limit);
+  }
+
+  getFormattedBudgetRemaining(budget: BudgetProgress): string {
+    return this.formatCurrency(budget.remaining);
+  }
+
+  getProjectName(project: ProjectUsage): string {
+    return project.name || project.id;
+  }
+
+  getFormattedProjectCalls(project: ProjectUsage): string {
+    return this.formatNumber(project.calls);
+  }
+
+  getFormattedProjectTokens(project: ProjectUsage): string {
+    return this.formatNumber(project.tokens);
+  }
+
+  getFormattedProjectCost(project: ProjectUsage): string {
+    return this.formatCurrency(project.cost);
+  }
+
+  getFormattedRunsCount(count: number): string {
+    return this.formatNumber(count);
+  }
+
+  getFormattedTokensSaved(tokens: number): string {
+    return this.formatNumber(tokens);
+  }
+
+  private computeProjectList(): ProjectUsage[] {
     if (!this.usageData.length || !this.usageData[0].by_project) {
       return [];
     }
