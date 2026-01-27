@@ -107,11 +107,9 @@ export class LoginPage implements OnInit, OnDestroy {
     try {
       const token = await this.supabase.getAccessToken();
       if (!token) {
-        console.log('[LoginPage] No access token available, skipping checkBootstrap');
         return;
       }
 
-      console.log('[LoginPage] Calling /auth/me for checkBootstrap');
       // Interceptor will automatically add Authorization header
       try {
         // Try to get user's org info

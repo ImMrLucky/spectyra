@@ -51,15 +51,11 @@ export const authInterceptor: HttpInterceptorFn = (req, next) => {
       if (token) {
         // Use Supabase JWT
         headers['Authorization'] = `Bearer ${token}`;
-        console.log(`[AuthInterceptor] Added Bearer token for ${req.url}`);
       } else {
         // Fall back to API key
         const apiKey = authService.currentApiKey;
         if (apiKey) {
           headers['X-SPECTYRA-API-KEY'] = apiKey;
-          console.log(`[AuthInterceptor] Added API key for ${req.url}`);
-        } else {
-          console.warn(`[AuthInterceptor] No authentication available (no token, no API key) for ${req.url}. Request will likely fail with 401.`);
         }
       }
 
