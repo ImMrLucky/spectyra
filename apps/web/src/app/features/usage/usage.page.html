@@ -17,16 +17,16 @@
     <div class="card" *ngIf="billingStatus">
       <div class="card-header">
         <h2>Subscription Status</h2>
-        <a routerLink="/usage" class="btn btn-sm btn-primary" *ngIf="!billingStatus.subscription_active">Upgrade</a>
+        <a routerLink="/usage" class="btn btn-sm btn-primary" *ngIf="billingStatus && !billingStatus.subscription_active">Upgrade</a>
       </div>
-      <div class="billing-info">
+      <div class="billing-info" *ngIf="billingStatus">
         <div class="billing-item">
           <span class="billing-label">Status</span>
           <span class="billing-value" [class.active]="billingStatus.subscription_active">
             {{ billingStatus.subscription_status || 'trial' }}
           </span>
         </div>
-        <div class="billing-item" *ngIf="billingStatus.trial_ends_at">
+        <div class="billing-item" *ngIf="billingStatus && billingStatus.trial_ends_at">
           <span class="billing-label">Trial Ends</span>
           <span class="billing-value">{{ formatDate(billingStatus.trial_ends_at) }}</span>
         </div>
@@ -59,15 +59,15 @@
       <div *ngIf="usageData.length > 0" class="usage-summary">
         <div class="summary-item">
           <span class="summary-label">Total Calls</span>
-          <span class="summary-value">{{ formatNumber(usageData.reduce((sum, d) => sum + d.calls, 0)) }}</span>
+          <span class="summary-value">{{ formatNumber(usageData.reduce((sum, d) => sum + (d.calls || 0), 0)) }}</span>
         </div>
         <div class="summary-item">
           <span class="summary-label">Total Tokens</span>
-          <span class="summary-value">{{ formatNumber(usageData.reduce((sum, d) => sum + d.tokens, 0)) }}</span>
+          <span class="summary-value">{{ formatNumber(usageData.reduce((sum, d) => sum + (d.tokens || 0), 0)) }}</span>
         </div>
         <div class="summary-item">
           <span class="summary-label">Cost Estimate</span>
-          <span class="summary-value">{{ formatCurrency(usageData.reduce((sum, d) => sum + d.cost_estimate_usd, 0)) }}</span>
+          <span class="summary-value">{{ formatCurrency(usageData.reduce((sum, d) => sum + (d.cost_estimate_usd || 0), 0)) }}</span>
         </div>
       </div>
     </div>
@@ -116,7 +116,7 @@
     </div>
 
     <!-- Usage by Project -->
-    <div class="card" *ngIf="usageData.length > 0 && usageData[0].by_project">
+    <div class="card" *ngIf="usageData.length > 0 && usageData[0] && usageData[0].by_project">
       <div class="card-header">
         <h2>Usage by Project</h2>
       </div>

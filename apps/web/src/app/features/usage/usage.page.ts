@@ -28,6 +28,21 @@ interface OptimizationSavings {
   runs_count: number;
 }
 
+interface BillingStatus {
+  subscription_active?: boolean;
+  subscription_status?: string;
+  trial_ends_at?: string | null;
+  has_access?: boolean;
+}
+
+interface ProjectUsage {
+  id: string;
+  name: string;
+  calls: number;
+  tokens: number;
+  cost: number;
+}
+
 @Component({
   selector: 'app-usage',
   standalone: true,
@@ -42,7 +57,7 @@ export class UsagePage implements OnInit {
   selectedRange: '24h' | '7d' | '30d' | '90d' = '30d';
   usageData: UsageData[] = [];
   budgetProgress: BudgetProgress[] = [];
-  billingStatus: any = null;
+  billingStatus: BillingStatus | null = null;
   optimizationSavings: OptimizationSavings[] = [];
 
   constructor(private http: HttpClient) {}
@@ -99,11 +114,13 @@ export class UsagePage implements OnInit {
     this.loadData();
   }
 
-  formatCurrency(amount: number): string {
+  formatCurrency(amount: number | null | undefined): string {
+    if (amount === null || amount === undefined) return '-';
     return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(amount);
   }
 
-  formatNumber(num: number): string {
+  formatNumber(num: number | null | undefined): string {
+    if (num === null || num === undefined) return '-';
     return new Intl.NumberFormat('en-US').format(num);
   }
 
@@ -117,14 +134,16 @@ export class UsagePage implements OnInit {
     alert('CSV export coming soon');
   }
 
-  getProjectList(): any[] {
+  getProjectList(): ProjectUsage[] {
     if (!this.usageData.length || !this.usageData[0].by_project) {
       return [];
     }
     return Object.entries(this.usageData[0].by_project!).map(([id, data]) => ({
       id,
       name: id, // TODO: Get project name from projects list
-      ...data
+      calls: data.calls || 0,
+      tokens: data.tokens || 0,
+      cost: data.cost || 0,
     }));
   }
 }
