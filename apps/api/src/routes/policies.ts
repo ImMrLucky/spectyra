@@ -120,3 +120,55 @@ policiesRouter.get("/top-triggered", async (req: AuthenticatedRequest, res) => {
     res.status(500).json({ error: error.message || "Internal server error" });
   }
 });
+
+/**
+ * POST /v1/policies/simulate
+ * 
+ * Simulate how policies would apply to a given prompt context
+ */
+policiesRouter.post("/simulate", async (req: AuthenticatedRequest, res) => {
+  try {
+    if (!req.auth?.userId) {
+      return res.status(401).json({ error: "Not authenticated" });
+    }
+
+    const { promptLength, path, model, provider } = req.body as {
+      promptLength: number;
+      path: "code" | "talk";
+      model?: string;
+      provider?: string;
+    };
+
+    if (!promptLength || !path) {
+      return res.status(400).json({ error: "promptLength and path are required" });
+    }
+
+    // Get user's org
+    const membership = await queryOne<{ org_id: string }>(`
+      SELECT org_id FROM org_memberships WHERE user_id = $1 LIMIT 1
+    `, [req.auth.userId]);
+
+    if (!membership) {
+      return res.status(404).json({ error: "Organization not found" });
+    }
+
+    // TODO: Implement actual policy simulation logic
+    // For now, return a mock decision
+    const decision = `Simulated policy decision for ${path} prompt (${promptLength} chars)`;
+    const reasons = [
+      "No active policies configured",
+      "All models and providers allowed by default",
+      "No budget constraints applied",
+    ];
+
+    res.json({
+      decision,
+      reasons,
+      matchedPolicies: [],
+      appliedRules: [],
+    });
+  } catch (error: any) {
+    safeLog("error", "Simulate policy error", { error: error.message });
+    res.status(500).json({ error: error.message || "Internal server error" });
+  }
+});

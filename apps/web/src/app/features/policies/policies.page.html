@@ -61,9 +61,188 @@
             <span>Updated: {{ formatDate(policy.updated_at) }}</span>
           </div>
           <div class="policy-actions">
-            <button class="btn btn-sm btn-secondary">Edit</button>
-            <button class="btn btn-sm btn-secondary">Simulate</button>
+            <button class="btn btn-sm btn-secondary" (click)="openCreateForm(policy.type)">Edit</button>
+            <button class="btn btn-sm btn-secondary" (click)="simulateDecision()">Simulate</button>
           </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Create Policy Form Modal -->
+    <div *ngIf="showCreateForm" class="modal-overlay" (click)="closeCreateForm()">
+      <div class="modal-content" (click)="$event.stopPropagation()">
+        <div class="modal-header">
+          <h2>Create {{ getPolicyTypeLabel(selectedPolicyType!) }}</h2>
+          <button class="btn-close" (click)="closeCreateForm()">×</button>
+        </div>
+        <div class="modal-body">
+          <div class="form-group">
+            <label>Policy Name</label>
+            <input
+              type="text"
+              class="form-input"
+              [(ngModel)]="policyForm.name"
+              placeholder="e.g., Production Budget Limit"
+            />
+          </div>
+
+          <!-- Budget Policy Config -->
+          <div *ngIf="selectedPolicyType === 'budget'" class="form-section">
+            <h4>Budget Limits</h4>
+            <div class="form-group">
+              <label>Max Daily (USD)</label>
+              <input
+                type="number"
+                class="form-input"
+                [(ngModel)]="policyForm.config.maxDailyUsd"
+                min="0"
+                step="0.01"
+              />
+            </div>
+            <div class="form-group">
+              <label>Max Monthly (USD)</label>
+              <input
+                type="number"
+                class="form-input"
+                [(ngModel)]="policyForm.config.maxMonthlyUsd"
+                min="0"
+                step="0.01"
+              />
+            </div>
+            <div class="form-group">
+              <label>Max Per Run (USD)</label>
+              <input
+                type="number"
+                class="form-input"
+                [(ngModel)]="policyForm.config.maxPerRunUsd"
+                min="0"
+                step="0.01"
+              />
+            </div>
+            <div class="form-group">
+              <label>Scope</label>
+              <select class="form-select" [(ngModel)]="policyForm.config.scope">
+                <option value="org">Organization</option>
+                <option value="project">Project</option>
+                <option value="run">Per Run</option>
+              </select>
+            </div>
+          </div>
+
+          <!-- Model Routing Policy Config -->
+          <div *ngIf="selectedPolicyType === 'model_routing'" class="form-section">
+            <h4>Model & Provider Rules</h4>
+            <div class="form-group">
+              <label>Allowed Models (comma-separated)</label>
+              <input
+                type="text"
+                class="form-input"
+                [(ngModel)]="policyForm.config.allowedModelsStr"
+                placeholder="e.g., gpt-4o, claude-3-5-sonnet"
+                (blur)="updateModelList('allowed')"
+              />
+            </div>
+            <div class="form-group">
+              <label>Denied Models (comma-separated)</label>
+              <input
+                type="text"
+                class="form-input"
+                [(ngModel)]="policyForm.config.deniedModelsStr"
+                placeholder="e.g., gpt-3.5-turbo"
+                (blur)="updateModelList('denied')"
+              />
+            </div>
+            <div class="form-group">
+              <label>Allowed Providers (comma-separated)</label>
+              <input
+                type="text"
+                class="form-input"
+                [(ngModel)]="policyForm.config.allowedProvidersStr"
+                placeholder="e.g., openai, anthropic"
+                (blur)="updateProviderList('allowed')"
+              />
+            </div>
+            <div class="form-group">
+              <label>Denied Providers (comma-separated)</label>
+              <input
+                type="text"
+                class="form-input"
+                [(ngModel)]="policyForm.config.deniedProvidersStr"
+                placeholder="e.g., grok"
+                (blur)="updateProviderList('denied')"
+              />
+            </div>
+          </div>
+
+          <!-- Tool Policy Config -->
+          <div *ngIf="selectedPolicyType === 'tool'" class="form-section">
+            <h4>Tool Permissions</h4>
+            <div class="form-group">
+              <label>Allowed Tools (comma-separated)</label>
+              <input
+                type="text"
+                class="form-input"
+                [(ngModel)]="policyForm.config.allowedToolsStr"
+                placeholder="e.g., read_file, edit_file"
+                (blur)="updateToolList('allowed')"
+              />
+            </div>
+            <div class="form-group">
+              <label>Denied Tools (comma-separated)</label>
+              <input
+                type="text"
+                class="form-input"
+                [(ngModel)]="policyForm.config.deniedToolsStr"
+                placeholder="e.g., bash, execute_command"
+                (blur)="updateToolList('denied')"
+              />
+            </div>
+            <div class="form-group">
+              <label>Filesystem Scope</label>
+              <select class="form-select" [(ngModel)]="policyForm.config.filesystemScope">
+                <option value="project">Project Directory</option>
+                <option value="repo">Repository</option>
+                <option value="unrestricted">Unrestricted</option>
+              </select>
+            </div>
+          </div>
+
+          <!-- Data Handling Policy Config -->
+          <div *ngIf="selectedPolicyType === 'data_handling'" class="form-section">
+            <h4>Data Transmission Rules</h4>
+            <div class="form-group">
+              <label>
+                <input
+                  type="checkbox"
+                  [(ngModel)]="policyForm.config.allowPromptTransmission"
+                />
+                Allow sending prompts to control plane
+              </label>
+            </div>
+            <div class="form-group">
+              <label>
+                <input
+                  type="checkbox"
+                  [(ngModel)]="policyForm.config.allowEventTransmission"
+                />
+                Allow sending agent events to control plane
+              </label>
+            </div>
+            <div class="form-group">
+              <label>Data Retention (days)</label>
+              <input
+                type="number"
+                class="form-input"
+                [(ngModel)]="policyForm.config.retentionDays"
+                min="1"
+                max="365"
+              />
+            </div>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button class="btn btn-secondary" (click)="closeCreateForm()">Cancel</button>
+          <button class="btn btn-primary" (click)="savePolicy()">Create Policy</button>
         </div>
       </div>
     </div>
@@ -77,16 +256,27 @@
         <p>Test how policies would apply to a given prompt context.</p>
         <div class="form-group">
           <label>Prompt Length (chars)</label>
-          <input type="number" class="form-input" value="1000">
+          <input
+            type="number"
+            class="form-input"
+            [(ngModel)]="simulatePromptLength"
+            min="1"
+          />
         </div>
         <div class="form-group">
           <label>Path</label>
-          <select class="form-select">
+          <select class="form-select" [(ngModel)]="simulatePath">
             <option value="code">Code</option>
             <option value="talk">Talk</option>
           </select>
         </div>
-        <button class="btn btn-primary">Simulate</button>
+        <button
+          class="btn btn-primary"
+          (click)="simulateDecision()"
+          [disabled]="simulating"
+        >
+          {{ simulating ? 'Simulating...' : 'Simulate' }}
+        </button>
       </div>
     </div>
   </div>
