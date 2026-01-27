@@ -186,83 +186,92 @@ authRouter.get("/me", async (req: AuthenticatedRequest, res) => {
     // Try Supabase JWT first
     const authHeader = req.headers.authorization;
     if (authHeader && authHeader.startsWith("Bearer ")) {
-      // Use a flag to track if response was sent
-      let responseSent = false;
+      let jwtAuthSucceeded = false;
+      let middlewareCompleted = false;
       
-      try {
-        await requireUserSession(req, res, async () => {
-          // Check if response was already sent (e.g., by middleware on error)
-          if (res.headersSent) {
-            responseSent = true;
-            return;
-          }
-          
-          if (!req.auth?.userId) {
-            responseSent = true;
-            return res.status(401).json({ error: "Not authenticated" });
-          }
-
-          // Get user's org membership
-          const { queryOne } = await import("../services/storage/db.js");
-          const membership = await queryOne<{ org_id: string; role: string }>(`
-            SELECT org_id, role 
-            FROM org_memberships 
-            WHERE user_id = $1
-            LIMIT 1
-          `, [req.auth.userId]);
-
-          if (!membership) {
-            responseSent = true;
-            return res.status(404).json({ 
-              error: "Organization not found",
-              needs_bootstrap: true 
-            });
-          }
-
-          const org = await getOrgById(membership.org_id);
-          if (!org) {
-            responseSent = true;
-            return res.status(404).json({ error: "Organization not found" });
-          }
-
-          // Get projects for this org
-          const projects = await getOrgProjects(org.id);
-
-          const hasAccess = hasActiveAccess(org);
-          const trialEnd = org.trial_ends_at ? new Date(org.trial_ends_at) : null;
-          const isTrialActive = trialEnd ? trialEnd > new Date() : false;
-
-          responseSent = true;
-          res.json({
-            org: {
-              id: org.id,
-              name: org.name,
-              trial_ends_at: org.trial_ends_at,
-              subscription_status: org.subscription_status,
-            },
-            projects: projects,
-            has_access: hasAccess,
-            trial_active: isTrialActive,
-          });
-        });
+      // Wrap requireUserSession in a promise to handle the middleware pattern
+      await new Promise<void>((resolve) => {
+        const nextCallback = () => {
+          // This callback is executed when JWT verification succeeds (next() is called)
+          jwtAuthSucceeded = true;
+          middlewareCompleted = true;
+          resolve();
+        };
         
-        // If response was sent (success or error), return early
-        if (responseSent || res.headersSent) {
-          return;
+        requireUserSession(req, res, nextCallback)
+          .then(() => {
+            // Middleware Promise resolved - check if next() was called
+            if (!middlewareCompleted) {
+              // Middleware completed without calling next() - response was sent (error case)
+              middlewareCompleted = true;
+              resolve();
+            }
+          })
+          .catch(() => {
+            // Error in middleware - response already sent
+            middlewareCompleted = true;
+            resolve();
+          });
+      });
+      
+      // If JWT auth succeeded and no response was sent yet, handle the response
+      if (jwtAuthSucceeded && !res.headersSent) {
+        if (!req.auth?.userId) {
+          return res.status(401).json({ error: "Not authenticated" });
         }
-      } catch (jwtError: any) {
-        // JWT auth failed - check if it was a 503 (JWKS unavailable)
-        // If so, and response wasn't sent, fall through to API key
-        if (res.headersSent) {
-          return; // Response already sent (likely 503), don't try fallback
+
+        // Get user's org membership
+        const { queryOne } = await import("../services/storage/db.js");
+        const membership = await queryOne<{ org_id: string; role: string }>(`
+          SELECT org_id, role 
+          FROM org_memberships 
+          WHERE user_id = $1
+          LIMIT 1
+        `, [req.auth.userId]);
+
+        if (!membership) {
+          return res.status(404).json({ 
+            error: "Organization not found",
+            needs_bootstrap: true 
+          });
         }
-        // Otherwise, fall through to API key auth
+
+        const org = await getOrgById(membership.org_id);
+        if (!org) {
+          return res.status(404).json({ error: "Organization not found" });
+        }
+
+        // Get projects for this org
+        const projects = await getOrgProjects(org.id);
+
+        const hasAccess = hasActiveAccess(org);
+        const trialEnd = org.trial_ends_at ? new Date(org.trial_ends_at) : null;
+        const isTrialActive = trialEnd ? trialEnd > new Date() : false;
+
+        return res.json({
+          org: {
+            id: org.id,
+            name: org.name,
+            trial_ends_at: org.trial_ends_at,
+            subscription_status: org.subscription_status,
+          },
+          projects: projects,
+          has_access: hasAccess,
+          trial_active: isTrialActive,
+        });
+      }
+      
+      // If response was already sent (error case from middleware), return early
+      if (res.headersSent) {
+        return;
       }
     }
 
     // Fall back to API key auth (only if no response was sent)
     if (!res.headersSent) {
       await requireSpectyraApiKey(req, res, async () => {
+        if (res.headersSent) return; // Safety check
+        
         if (!req.context) {
           return res.status(401).json({ error: "Not authenticated" });
         }
