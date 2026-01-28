@@ -7,10 +7,16 @@ import { ModalService } from '../../core/services/modal.service';
 
 interface AuditLog {
   id: string;
-  event_type: 'key_created' | 'key_rotated' | 'key_revoked' | 'policy_created' | 'policy_updated' | 'policy_deleted' | 'member_added' | 'member_removed' | 'member_role_changed' | 'integration_changed' | 'run_deleted' | 'security_event';
-  actor: string; // user_id or system
-  target: string; // resource affected
-  details: any;
+  org_id: string;
+  project_id: string | null;
+  actor_type: 'USER' | 'API_KEY' | 'SYSTEM';
+  actor_id: string;
+  action: string;
+  target_type: string | null;
+  target_id: string | null;
+  ip: string | null;
+  user_agent: string | null;
+  metadata: any;
   created_at: string;
 }
 
@@ -48,8 +54,8 @@ export class AuditPage implements OnInit {
         params.set('event_type', this.selectedEventType);
       }
 
-      const logs = await this.http.get<AuditLog[]>(`${environment.apiUrl}/audit?${params.toString()}`).toPromise();
-      this.logs = logs || [];
+      const response = await this.http.get<{ logs: AuditLog[]; total: number }>(`${environment.apiUrl}/v1/audit?${params.toString()}`).toPromise();
+      this.logs = response?.logs || [];
     } catch (err: any) {
       if (err.status === 404) {
         // Endpoint doesn't exist yet - empty list is fine
@@ -70,28 +76,55 @@ export class AuditPage implements OnInit {
     return new Date(dateStr).toLocaleString();
   }
 
-  getEventTypeLabel(type: string): string {
+  getEventTypeLabel(action: string): string {
     const labels: { [key: string]: string } = {
-      key_created: 'Key Created',
-      key_rotated: 'Key Rotated',
-      key_revoked: 'Key Revoked',
-      policy_created: 'Policy Created',
-      policy_updated: 'Policy Updated',
-      policy_deleted: 'Policy Deleted',
-      member_added: 'Member Added',
-      member_removed: 'Member Removed',
-      member_role_changed: 'Role Changed',
-      integration_changed: 'Integration Changed',
-      run_deleted: 'Run Deleted',
-      security_event: 'Security Event',
+      LOGIN: 'Login',
+      LOGOUT: 'Logout',
+      KEY_CREATED: 'Key Created',
+      KEY_ROTATED: 'Key Rotated',
+      KEY_REVOKED: 'Key Revoked',
+      ORG_CREATED: 'Organization Created',
+      MEMBER_ADDED: 'Member Added',
+      MEMBER_REMOVED: 'Member Removed',
+      MEMBER_ROLE_CHANGED: 'Role Changed',
+      SETTINGS_UPDATED: 'Settings Updated',
+      PROVIDER_KEY_SET: 'Provider Key Set',
+      PROVIDER_KEY_REVOKED: 'Provider Key Revoked',
+      EXPORT_DATA: 'Data Export',
+      RETENTION_APPLIED: 'Retention Applied',
     };
-    return labels[type] || type;
+    return labels[action] || action;
   }
 
   showDetails(log: AuditLog) {
+    const details = {
+      id: log.id,
+      actor_type: log.actor_type,
+      actor_id: log.actor_id,
+      action: log.action,
+      target_type: log.target_type,
+      target_id: log.target_id,
+      ip: log.ip,
+      user_agent: log.user_agent,
+      metadata: log.metadata,
+      created_at: log.created_at,
+    };
     this.modalService.showDetails(
       'Audit Log Details',
-      JSON.stringify(log.details, null, 2)
+      JSON.stringify(details, null, 2)
     );
+  }
+
+  async exportLogs() {
+    try {
+      const from = new Date();
+      from.setDate(from.getDate() - 30); // Last 30 days
+      const to = new Date();
+      
+      const url = `${environment.apiUrl}/v1/audit/export?from=${from.toISOString()}&to=${to.toISOString()}`;
+      window.open(url, '_blank');
+    } catch (err: any) {
+      console.error('Failed to export logs:', err);
+    }
   }
 }

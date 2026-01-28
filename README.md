@@ -46,6 +46,33 @@ pnpm dev:web
 - **SDK**: Easy integration for applications and coding workflows
 - **BYOK**: Bring Your Own Key - use your existing provider accounts
 
+## Security
+
+Spectyra implements enterprise-grade security controls:
+
+- **🔐 Strong Tenant Isolation**: Every request is scoped to organization/project and enforced server-side
+- **🛡️ RBAC + Scopes**: Role-based access control for humans (JWT) and fine-grained scopes for API keys
+- **📋 Audit Logging**: Complete audit trail for all security-relevant events with export capability
+- **🔑 Provider Key Management**: Encrypted storage (vaulted keys) or BYOK (Bring Your Own Key) mode
+- **🗄️ Data Retention Controls**: Configurable retention policies, "no prompt storage" by default
+- **⚡ Rate Limiting**: Per-organization/project/API key rate limiting to prevent abuse
+- **🔒 Security Headers**: Hardened CORS, CSP, and security headers
+- **🔍 CI Security Gates**: Automated dependency scanning, CodeQL, secret scanning, SBOM generation
+
+**Security Documentation:**
+- [SECURITY.md](SECURITY.md) - Vulnerability disclosure and security reporting
+- [docs/DATA_HANDLING.md](docs/DATA_HANDLING.md) - What data is stored and how
+- [docs/RETENTION.md](docs/RETENTION.md) - Data retention policies
+- [docs/ENTERPRISE_SECURITY.md](docs/ENTERPRISE_SECURITY.md) - Complete enterprise security guide
+
+**Provenance:**
+- SDK packages are published with npm Trusted Publishing (OIDC)
+- SBOM (Software Bill of Materials) generated for all releases
+- Security scans run on every PR and release
+
+**Reporting Security Issues:**
+Please email security@spectyra.com for any security concerns. See [SECURITY.md](SECURITY.md) for details.
+
 ## Quick Links
 
 - **[User Guide](USER_GUIDE.md)** - How to use Spectyra (browser extension, SDK, API)

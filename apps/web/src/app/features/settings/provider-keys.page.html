@@ -1,0 +1,124 @@
+<div class="container">
+  <div class="page-header">
+    <h1>Provider Keys</h1>
+    <p class="subtitle">Manage encrypted provider API keys (vaulted keys)</p>
+  </div>
+
+  <div *ngIf="loading" class="loading">
+    <p>Loading provider keys...</p>
+  </div>
+
+  <div *ngIf="error" class="error-box">
+    <p>{{ error }}</p>
+  </div>
+
+  <div *ngIf="!loading && !error">
+    <!-- Provider Key Mode -->
+    <div class="card">
+      <h2>Provider Key Mode</h2>
+      <div class="form-group">
+        <label for="providerKeyMode">Mode</label>
+        <select
+          id="providerKeyMode"
+          [(ngModel)]="providerKeyMode"
+          (change)="updateProviderKeyMode()"
+          [disabled]="saving"
+          class="form-input">
+          <option value="EITHER">Either (BYOK or Vaulted)</option>
+          <option value="BYOK_ONLY">BYOK Only (must provide X-PROVIDER-KEY header)</option>
+          <option value="VAULT_ONLY">Vaulted Only (must use stored keys)</option>
+        </select>
+        <p class="help-text">
+          Controls how provider keys are used. See Security Settings for more details.
+        </p>
+      </div>
+    </div>
+
+    <!-- Add Provider Key -->
+    <div class="card">
+      <div class="card-header">
+        <h2>Add Provider Key</h2>
+        <button class="btn btn-secondary" (click)="showAddForm = !showAddForm">
+          {{ showAddForm ? 'Cancel' : 'Add Key' }}
+        </button>
+      </div>
+
+      <form *ngIf="showAddForm" (ngSubmit)="addProviderKey()">
+        <div class="form-group">
+          <label for="provider">Provider</label>
+          <select id="provider" [(ngModel)]="selectedProvider" name="provider" class="form-input">
+            <option value="openai">OpenAI</option>
+            <option value="anthropic">Anthropic</option>
+            <option value="google">Google</option>
+            <option value="azure">Azure OpenAI</option>
+            <option value="aws">AWS Bedrock</option>
+          </select>
+        </div>
+
+        <div class="form-group">
+          <label for="project">Project (Optional)</label>
+          <select id="project" [(ngModel)]="selectedProjectId" name="project" class="form-input">
+            <option [value]="null">Org-level (all projects)</option>
+            <option *ngFor="let project of projects" [value]="project.id">{{ project.name }}</option>
+          </select>
+        </div>
+
+        <div class="form-group">
+          <label for="providerKey">API Key</label>
+          <input
+            type="password"
+            id="providerKey"
+            [(ngModel)]="providerKey"
+            name="providerKey"
+            placeholder="sk-..."
+            class="form-input"
+            required>
+          <p class="help-text">Key will be encrypted and stored securely. Never stored in plaintext.</p>
+        </div>
+
+        <div class="form-actions">
+          <button type="submit" class="btn btn-primary" [disabled]="saving || !providerKey.trim()">
+            {{ saving ? 'Saving...' : 'Save Key' }}
+          </button>
+        </div>
+      </form>
+    </div>
+
+    <!-- Provider Keys List -->
+    <div class="card">
+      <h2>Vaulted Provider Keys</h2>
+      
+      <div *ngIf="credentials.length === 0" class="empty-state">
+        <p>No provider keys configured. Add one above to use vaulted keys.</p>
+      </div>
+
+      <div *ngIf="credentials.length > 0" class="credentials-list">
+        <div *ngFor="let cred of credentials" class="credential-item">
+          <div class="credential-info">
+            <div class="credential-header">
+              <strong>{{ getProviderLabel(cred.provider) }}</strong>
+              <span class="status-badge" [class.revoked]="cred.revoked_at">
+                {{ cred.revoked_at ? 'Revoked' : 'Active' }}
+              </span>
+            </div>
+            <p class="fingerprint">Fingerprint: <code>{{ maskFingerprint(cred.key_fingerprint) }}</code></p>
+            <p class="metadata">
+              Created: {{ cred.created_at | date:'short' }}
+              <span *ngIf="cred.updated_at !== cred.created_at">
+                • Updated: {{ cred.updated_at | date:'short' }}
+              </span>
+            </p>
+          </div>
+          <div class="credential-actions">
+            <button
+              class="btn btn-danger"
+              (click)="revokeCredential(cred.id)"
+              [disabled]="!!cred.revoked_at || revoking === cred.id">
+              {{ revoking === cred.id ? 'Revoking...' : 'Revoke' }}
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>

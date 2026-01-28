@@ -73,7 +73,6 @@ export class OrgSwitcherComponent implements OnInit, OnDestroy {
   async loadOrgInfo() {
     // Prevent concurrent calls
     if (this.loadInProgress) {
-      console.log('[OrgSwitcher] loadOrgInfo already in progress, skipping');
       return;
     }
     
@@ -84,13 +83,11 @@ export class OrgSwitcherComponent implements OnInit, OnDestroy {
       // Verify we have a token before making the call
       const token = await this.supabase.getAccessToken();
       if (!token) {
-        console.log('[OrgSwitcher] No access token available, skipping /auth/me call');
         this.loading = false;
         this.loadInProgress = false;
         return;
       }
 
-      console.log('[OrgSwitcher] Calling /auth/me');
       // Interceptor will automatically add auth headers
       const me = await this.http.get<any>(`${environment.apiUrl}/auth/me`).toPromise();
       if (me && me.org) {
@@ -102,7 +99,6 @@ export class OrgSwitcherComponent implements OnInit, OnDestroy {
         this.projects = me.projects;
       }
     } catch (err: any) {
-      console.error('[OrgSwitcher] Failed to load org info:', err);
       // Don't clear org info on error - keep last known state
     } finally {
       this.loading = false;

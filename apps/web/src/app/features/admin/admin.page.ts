@@ -1,7 +1,9 @@
 import { Component, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-import { AdminService, AdminOrg, AdminOrgDetail } from '../../core/api/admin.service';
+import { AdminService, AdminOrg, AdminOrgDetail, AdminUser } from '../../core/api/admin.service';
+import { SupabaseService } from '../../services/supabase.service';
+import { SnackbarService } from '../../core/services/snackbar.service';
 
 @Component({
   selector: 'app-admin',
@@ -11,10 +13,8 @@ import { AdminService, AdminOrg, AdminOrgDetail } from '../../core/api/admin.ser
   styleUrls: ['./admin.page.scss'],
 })
 export class AdminPage implements OnInit {
+  isOwner = false;
   isAuthenticated = false;
-  adminToken = '';
-  loggingIn = false;
-  authError: string | null = null;
   
   orgs: AdminOrg[] = [];
   loading = false;
@@ -31,52 +31,53 @@ export class AdminPage implements OnInit {
   deleting = false;
   showDeleteConfirm = false;
 
-  constructor(private adminService: AdminService) {}
+  // SDK Access
+  togglingSdkAccess = false;
+
+  // User Management
+  activeTab: 'orgs' | 'users' = 'orgs';
+  users: AdminUser[] = [];
+  loadingUsers = false;
+
+  constructor(
+    private adminService: AdminService,
+    private supabase: SupabaseService,
+    private snackbar: SnackbarService
+  ) {}
 
   ngOnInit() {
-    this.isAuthenticated = this.adminService.isAuthenticated();
-    if (this.isAuthenticated) {
-      this.loadOrgs();
-    }
-  }
-
-  login() {
-    if (!this.adminToken) {
-      this.authError = 'Please enter an admin token';
-      return;
-    }
-
-    this.loggingIn = true;
-    this.authError = null;
-    this.adminService.setAdminToken(this.adminToken);
-    
-    // Test the token by trying to list orgs
-    this.adminService.listOrgs().subscribe({
-      next: () => {
-        this.isAuthenticated = true;
-        this.loggingIn = false;
-        this.loadOrgs();
-      },
-      error: (err) => {
-        this.adminService.clearAdminToken();
-        this.isAuthenticated = false;
-        this.loggingIn = false;
-        if (err.status === 403) {
-          this.authError = 'Invalid admin token';
-        } else {
-          this.authError = 'Failed to authenticate: ' + (err.error?.error || 'Unknown error');
-        }
-      },
+    // Check if user is authenticated
+    this.supabase.getSession().subscribe(session => {
+      this.isAuthenticated = !!session;
+      if (session) {
+        this.checkOwnerAndLoad();
+      } else {
+        this.isOwner = false;
+        this.error = 'Please log in to access admin panel';
+      }
     });
   }
 
-  logout() {
-    this.adminService.clearAdminToken();
-    this.isAuthenticated = false;
-    this.orgs = [];
-    this.selectedOrg = null;
-    this.orgDetails = null;
-    this.adminToken = '';
+  checkOwnerAndLoad() {
+    // Try to load orgs - if successful, user is owner
+    this.loading = true;
+    this.adminService.listOrgs().subscribe({
+      next: (response) => {
+        this.isOwner = true;
+        this.orgs = response.orgs;
+        this.loading = false;
+        this.error = null;
+      },
+      error: (err) => {
+        this.isOwner = false;
+        this.loading = false;
+        if (err.status === 403) {
+          this.error = 'Access denied: Owner only. You must be logged in as gkh1974@gmail.com';
+        } else {
+          this.error = err.error?.error || 'Failed to verify owner status';
+        }
+      },
+    });
   }
 
   loadOrgs() {
@@ -181,6 +182,51 @@ export class AdminPage implements OnInit {
       error: (err) => {
         this.error = err.error?.error || err.error?.message || 'Failed to delete organization';
         this.deleting = false;
+      },
+    });
+  }
+
+  toggleSdkAccess(enabled: boolean) {
+    if (!this.selectedOrg) return;
+
+    this.togglingSdkAccess = true;
+    this.adminService.toggleSdkAccess(this.selectedOrg.id, enabled).subscribe({
+      next: (response) => {
+        this.orgDetails = { ...this.orgDetails!, ...response.org };
+        this.selectedOrg = response.org;
+        // Update in list
+        const index = this.orgs.findIndex(o => o.id === response.org.id);
+        if (index >= 0) {
+          this.orgs[index] = response.org;
+        }
+        this.togglingSdkAccess = false;
+        this.snackbar.showSuccess(response.message);
+      },
+      error: (err) => {
+        this.error = err.error?.error || 'Failed to update SDK access';
+        this.togglingSdkAccess = false;
+        this.snackbar.showError(this.error);
+      },
+    });
+  }
+
+  switchTab(tab: 'orgs' | 'users') {
+    this.activeTab = tab;
+    if (tab === 'users' && this.users.length === 0) {
+      this.loadUsers();
+    }
+  }
+
+  loadUsers() {
+    this.loadingUsers = true;
+    this.adminService.listUsers().subscribe({
+      next: (response) => {
+        this.users = response.users;
+        this.loadingUsers = false;
+      },
+      error: (err) => {
+        this.error = err.error?.error || 'Failed to load users';
+        this.loadingUsers = false;
       },
     });
   }

@@ -84,21 +84,45 @@ replayRouter.post("/", async (req: AuthenticatedRequest, res) => {
     const scenarioContent = readFileSync(scenarioPath, "utf-8");
     const scenario: Scenario = JSON.parse(scenarioContent);
     
-    // Get provider - use override from context if available, otherwise use registry
+    // Enterprise Security: Provider key resolution (BYOK or Vault)
+    const context = req.context || req.auth;
+    const orgId = context?.org?.id || context?.orgId;
+    const projectId = context?.project?.id || context?.projectId;
+    
     const providerKeyOverride = req.context?.providerKeyOverride;
     let llmProvider;
     
     if (providerKeyOverride) {
-      // Create provider with user's API key (BYOK)
+      // BYOK mode: Use ephemeral key from header
       llmProvider = createProviderWithKey(provider, providerKeyOverride);
       if (!llmProvider) {
         return res.status(400).json({ error: `Provider ${provider} not supported for BYOK` });
       }
-    } else {
-      // Use default provider from registry (env vars)
+    } else if (orgId) {
+      // Try vaulted key (Enterprise: encrypted storage)
+      try {
+        const { getProviderCredential } = await import("../services/storage/providerCredentialsRepo.js");
+        const vaultedKey = await getProviderCredential(
+          orgId,
+          projectId || null,
+          provider as "openai" | "anthropic" | "google" | "azure" | "aws"
+        );
+        
+        if (vaultedKey) {
+          llmProvider = createProviderWithKey(provider, vaultedKey);
+        }
+      } catch (error) {
+        // Vault lookup failed, fall through to registry
+      }
+    }
+    
+    // Fallback to default provider from registry (env vars)
+    if (!llmProvider) {
       llmProvider = providerRegistry.get(provider);
       if (!llmProvider) {
-        return res.status(400).json({ error: `Provider ${provider} not available. Provide X-PROVIDER-KEY header for BYOK.` });
+        return res.status(400).json({ 
+          error: `Provider ${provider} not available. Provide X-PROVIDER-KEY header for BYOK or configure vaulted key.` 
+        });
       }
     }
     

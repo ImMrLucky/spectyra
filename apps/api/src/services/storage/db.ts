@@ -174,3 +174,53 @@ export async function closeDb(): Promise<void> {
     console.log("Database pool closed");
   }
 }
+
+/**
+ * Enterprise Security: Tenant Isolation Helpers
+ * 
+ * These functions enforce org/project scoping and throw 403 if context is missing
+ * or if attempting to access another org's data.
+ */
+
+export interface TenantContext {
+  orgId: string;
+  projectId?: string | null;
+}
+
+/**
+ * Require org context - throws 403 if orgId is missing
+ */
+export function requireOrg(ctx: TenantContext | null | undefined): string {
+  if (!ctx || !ctx.orgId) {
+    throw new Error("Forbidden: Organization context required");
+  }
+  return ctx.orgId;
+}
+
+/**
+ * Require project context - throws 403 if projectId is missing
+ * Also validates that project belongs to the org
+ */
+export async function requireProject(
+  ctx: TenantContext | null | undefined,
+  orgId: string
+): Promise<string> {
+  if (!ctx || !ctx.projectId) {
+    throw new Error("Forbidden: Project context required");
+  }
+  
+  // Verify project belongs to org (prevent cross-org access)
+  const project = await queryOne<{ org_id: string }>(`
+    SELECT org_id FROM projects WHERE id = $1
+  `, [ctx.projectId]);
+  
+  if (!project) {
+    throw new Error("Forbidden: Project not found");
+  }
+  
+  if (project.org_id !== orgId) {
+    throw new Error("Forbidden: Project does not belong to organization");
+  }
+  
+  return ctx.projectId;
+}

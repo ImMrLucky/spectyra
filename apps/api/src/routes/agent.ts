@@ -5,7 +5,8 @@
  */
 
 import { Router } from "express";
-import { requireSpectyraApiKey, type AuthenticatedRequest } from "../middleware/auth.js";
+import { requireSpectyraApiKey, requireSdkAccess, type AuthenticatedRequest } from "../middleware/auth.js";
+import { rateLimit } from "../middleware/rateLimit.js";
 import { decideAgentOptions } from "../services/agent/policy.js";
 import { createAgentRun, insertAgentEvent } from "../services/agent/agentRepo.js";
 import { safeLog } from "../utils/redaction.js";
@@ -15,6 +16,10 @@ export const agentRouter = Router();
 
 // Apply authentication middleware (machine auth via API key)
 agentRouter.use(requireSpectyraApiKey);
+// Enforce SDK access control
+agentRouter.use(requireSdkAccess);
+// Enterprise Security: Rate limiting
+agentRouter.use(rateLimit);
 
 /**
  * POST /v1/agent/options

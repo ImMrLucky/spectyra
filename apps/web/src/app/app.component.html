@@ -54,6 +54,7 @@
             [routerLinkActiveOptions]="{ exact: item.route === '/overview' }"
             class="nav-item"
             [class.collapsed]="sidebarCollapsed"
+            *ngIf="!item.adminOnly || showAdminLink"
           >
             <mat-icon matListItemIcon>{{ item.icon }}</mat-icon>
             <span matListItemTitle *ngIf="!sidebarCollapsed">{{ item.label }}</span>

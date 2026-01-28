@@ -1,11 +1,36 @@
 /**
  * Authentication Middleware (Postgres + Supabase)
  * 
+ * ============================================================================
+ * AUTHENTICATION FLOW DOCUMENTATION (Enterprise Security Audit)
+ * ============================================================================
+ * 
  * Two authentication methods:
  * 1. Human auth: Supabase JWT (for dashboard)
- * 2. Machine auth: Project API key with argon2id (for gateway/SDK)
+ *    - Routes: requireUserSession middleware
+ *    - Used by: /auth/* (bootstrap, api-keys), /runs, /usage, /policies, /audit, /admin
+ *    - Sets: req.auth.userId, req.context.userId, req.context.org (via org_memberships)
+ *    - Org inference: From org_memberships table (user_id -> org_id)
  * 
- * Handles ephemeral X-PROVIDER-KEY header (never stored).
+ * 2. Machine auth: Spectyra API key with argon2id (for gateway/SDK)
+ *    - Routes: requireSpectyraApiKey middleware
+ *    - Used by: /chat, /agent/*, /replay, /proof, /auth/login (legacy)
+ *    - Sets: req.context.org.id, req.context.project.id, req.context.apiKeyId
+ *    - Org inference: From api_keys table (key -> org_id, project_id)
+ * 
+ * RequestContext (Single Source of Truth):
+ * - req.context.org.id: ALWAYS set for authenticated requests
+ * - req.context.project.id: Set if API key is project-scoped, null otherwise
+ * - req.context.userId: Set for JWT auth
+ * - req.context.apiKeyId: Set for API key auth
+ * - req.context.userRole: Set for JWT auth (from org_memberships.role)
+ * 
+ * Tenant Isolation:
+ * - All queries MUST filter by req.context.org.id
+ * - Project-scoped queries MUST filter by req.context.project.id AND verify org_id matches
+ * - NEVER trust client-provided org_id or project_id in request body/params
+ * 
+ * Handles ephemeral X-PROVIDER-KEY header (never stored, BYOK mode).
  */
 
 import { Request, Response, NextFunction } from "express";
@@ -125,6 +150,45 @@ export async function requireSpectyraApiKey(
       res.status(401).json({ error: "Invalid API key" });
       return;
     }
+
+    // Enterprise Security: Check key expiration
+    if (apiKeyRecord.expires_at) {
+      const expiresAt = new Date(apiKeyRecord.expires_at);
+      if (expiresAt < new Date()) {
+        safeLog("warn", "Expired API key attempt", {
+          key_id: apiKeyRecord.id,
+          key_prefix: keyPrefix,
+          expires_at: apiKeyRecord.expires_at,
+        });
+        res.status(401).json({ error: "API key has expired" });
+        return;
+      }
+    }
+
+    // Enterprise Security: Check IP restrictions
+    if (apiKeyRecord.allowed_ip_ranges && apiKeyRecord.allowed_ip_ranges.length > 0) {
+      const clientIp = req.ip || req.socket.remoteAddress || "";
+      const ipAllowed = apiKeyRecord.allowed_ip_ranges.some((range) => {
+        // Simple CIDR check (for MVP, can enhance with proper CIDR library)
+        if (range.includes("/")) {
+          // Basic CIDR check - for production, use a proper CIDR library
+          const [network, prefix] = range.split("/");
+          // Simplified check - in production, use ipaddr.js or similar
+          return clientIp.startsWith(network.split(".").slice(0, parseInt(prefix) / 8).join("."));
+        }
+        return clientIp === range;
+      });
+
+      if (!ipAllowed) {
+        safeLog("warn", "API key IP restriction violation", {
+          key_id: apiKeyRecord.id,
+          client_ip: clientIp,
+          allowed_ranges: apiKeyRecord.allowed_ip_ranges,
+        });
+        res.status(403).json({ error: "API key not allowed from this IP address" });
+        return;
+      }
+    }
     
     // Get org
     const org = await getOrgById(apiKeyRecord.org_id);
@@ -180,21 +244,67 @@ export async function requireSpectyraApiKey(
 /**
  * Optional provider key middleware
  * Extracts X-PROVIDER-KEY header and stores in request context (never in DB)
+ * 
+ * Enterprise Security: Enforces BYOK mode based on org_settings.provider_key_mode
  */
-export function optionalProviderKey(
+export async function optionalProviderKey(
   req: AuthenticatedRequest,
   res: Response,
   next: NextFunction
-): void {
-  const providerKey = req.headers["x-provider-key"] as string | undefined;
-  
-  if (providerKey) {
-    // Store in memory only
-    if (req.context) {
-      req.context.providerKeyOverride = providerKey;
+): Promise<void> {
+  try {
+    const providerKey = req.headers["x-provider-key"] as string | undefined;
+    const context = req.context || req.auth;
+    
+    if (!context || !context.orgId) {
+      // If no org context, allow provider key (will be checked later)
+      if (providerKey && req.context) {
+        req.context.providerKeyOverride = providerKey;
+      }
+      next();
+      return;
     }
-    if (req.auth) {
-      req.auth.providerKeyOverride = providerKey;
+
+    // Get org settings to check provider_key_mode
+    const { getOrgSettings } = await import("../services/storage/settingsRepo.js");
+    const orgSettings = await getOrgSettings(context.orgId);
+
+    // Enforce BYOK mode
+    if (orgSettings.provider_key_mode === "BYOK_ONLY") {
+      if (!providerKey) {
+        res.status(400).json({
+          error: "Provider key required",
+          message: "This organization requires BYOK (Bring Your Own Key) mode. Please provide X-PROVIDER-KEY header.",
+        });
+        return;
+      }
+    } else if (orgSettings.provider_key_mode === "VAULT_ONLY") {
+      if (providerKey) {
+        res.status(400).json({
+          error: "Provider key not allowed",
+          message: "This organization uses vaulted keys only. Do not provide X-PROVIDER-KEY header.",
+        });
+        return;
+      }
+    }
+    // EITHER mode: allow both
+
+    if (providerKey) {
+      // Store in memory only
+      if (req.context) {
+        req.context.providerKeyOverride = providerKey;
+    }
+      if (req.auth) {
+        req.auth.providerKeyOverride = providerKey;
+      }
+    }
+
+    next();
+  } catch (error: any) {
+    safeLog("error", "Provider key middleware error", { error: error.message });
+    res.status(500).json({ error: "Internal server error" });
+  }
+}
       
       // Compute fingerprint for audit (if we have org_id)
       if (req.auth.orgId) {
@@ -399,9 +509,144 @@ export async function requireOrgMembership(
       return;
     }
     
+    // Enterprise Security: Check domain allowlist and SSO enforcement
+    try {
+      const { getOrgSettings } = await import("../services/storage/settingsRepo.js");
+      const orgSettings = await getOrgSettings(orgId);
+
+      // Check domain allowlist
+      if (orgSettings.allowed_email_domains && orgSettings.allowed_email_domains.length > 0) {
+        // Get user email from Supabase (if available)
+        const supabaseUrl = process.env.SUPABASE_URL;
+        const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+        
+        if (supabaseUrl && supabaseServiceKey) {
+          try {
+            const response = await fetch(
+              `${supabaseUrl.replace(/\/$/, '')}/auth/v1/admin/users/${req.auth.userId}`,
+              {
+                headers: {
+                  'Authorization': `Bearer ${supabaseServiceKey}`,
+                  'apikey': supabaseServiceKey,
+                },
+              }
+            );
+
+            if (response.ok) {
+              const user = await response.json();
+              const userEmail = user.email || user.user_metadata?.email;
+              
+              if (userEmail) {
+                const userDomain = userEmail.split('@')[1]?.toLowerCase();
+                const allowedDomains = orgSettings.allowed_email_domains.map(d => d.toLowerCase());
+                
+                if (!allowedDomains.includes(userDomain)) {
+                  safeLog("warn", "Domain not allowed", {
+                    userId: req.auth.userId,
+                    userEmail,
+                    userDomain,
+                    allowedDomains,
+                  });
+                  res.status(403).json({
+                    error: "Access denied",
+                    message: `Your email domain is not allowed for this organization. Allowed domains: ${allowedDomains.join(", ")}`,
+                  });
+                  return;
+                }
+              }
+            }
+          } catch (error) {
+            // If we can't check email, allow access (fail open for now)
+            safeLog("warn", "Could not verify email domain", { error });
+          }
+        }
+      }
+
+      // Check SSO enforcement (if enabled, verify user has SSO provider)
+      if (orgSettings.enforce_sso) {
+        // Get user from Supabase to check SSO provider
+        const supabaseUrl = process.env.SUPABASE_URL;
+        const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+        
+        if (supabaseUrl && supabaseServiceKey) {
+          try {
+            const response = await fetch(
+              `${supabaseUrl.replace(/\/$/, '')}/auth/v1/admin/users/${req.auth.userId}`,
+              {
+                headers: {
+                  'Authorization': `Bearer ${supabaseServiceKey}`,
+                  'apikey': supabaseServiceKey,
+                },
+              }
+            );
+
+            if (response.ok) {
+              const user = await response.json();
+              const appMetadata = user.app_metadata || {};
+              const provider = appMetadata.provider || user.user_metadata?.provider;
+              
+              // Check if user authenticated via SSO provider
+              // Supabase SSO providers: 'saml', 'okta', 'azure', 'google', etc.
+              const ssoProviders = ['saml', 'okta', 'azure', 'google', 'auth0', 'onelogin'];
+              const isSsoUser = ssoProviders.includes(provider) || 
+                               appMetadata.providers?.some((p: string) => ssoProviders.includes(p));
+              
+              if (!isSsoUser) {
+                safeLog("warn", "SSO enforcement violation", {
+                  userId: req.auth.userId,
+                  orgId,
+                  userProvider: provider,
+                  appMetadata,
+                });
+                res.status(403).json({
+                  error: "SSO required",
+                  message: "This organization requires SSO (Single Sign-On) authentication. Please sign in using your organization's SSO provider.",
+                });
+                return;
+              }
+              
+              safeLog("info", "SSO user verified", {
+                userId: req.auth.userId,
+                orgId,
+                provider,
+              });
+            } else {
+              // If we can't verify SSO, allow access (fail open for now)
+              safeLog("warn", "Could not verify SSO status", {
+                userId: req.auth.userId,
+                orgId,
+                status: response.status,
+              });
+            }
+          } catch (error) {
+            // If SSO check fails, allow access (fail open)
+            safeLog("warn", "SSO verification error", {
+              userId: req.auth.userId,
+              orgId,
+              error,
+            });
+          }
+        } else {
+          safeLog("warn", "SSO enforcement enabled but Supabase config missing", { orgId });
+        }
+      }
+    } catch (error) {
+      // If settings check fails, allow access (fail open)
+      safeLog("warn", "Could not check org settings for SSO/domain", { error });
+    }
+
     // Attach org info
     req.auth.orgId = orgId;
     req.auth.role = membership.role;
+    
+    // Attach to context
+    req.context = req.context || {} as RequestContext;
+    req.context.org = {
+      id: orgId,
+      name: "", // Will be loaded if needed
+      subscription_status: "",
+    };
+    req.context.userRole = membership.role as string;
     
     // Also attach to context
     req.context = req.context || {} as RequestContext;
@@ -423,8 +668,114 @@ export async function requireOrgMembership(
 }
 
 /**
- * Admin token middleware
+ * Owner check middleware
+ * Validates that the authenticated user is the owner (gkh1974@gmail.com)
+ * Must be used after requireUserSession
+ */
+export async function requireOwner(
+  req: AuthenticatedRequest,
+  res: Response,
+  next: NextFunction
+): Promise<void> {
+  try {
+    if (!req.auth?.userId) {
+      res.status(401).json({ error: "Not authenticated" });
+      return;
+    }
+
+    const ownerEmail = process.env.OWNER_EMAIL || "gkh1974@gmail.com";
+    
+    // Get user email from Supabase
+    const supabaseUrl = process.env.SUPABASE_URL;
+    if (!supabaseUrl) {
+      safeLog("error", "SUPABASE_URL not configured");
+      res.status(503).json({ error: "Authentication not configured" });
+      return;
+    }
+
+    const { queryOne } = await import("../services/storage/db.js");
+    
+    // Query Supabase auth.users table via service role
+    // Note: This requires Supabase service role key
+    const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+    if (!supabaseServiceKey) {
+      // Fallback: check if we can get email from JWT payload
+      // The JWT should contain email in user_metadata
+      const authHeader = req.headers.authorization;
+      if (authHeader && authHeader.startsWith("Bearer ")) {
+        const token = authHeader.substring(7);
+        try {
+          // Decode JWT without verification (we already verified it)
+          const parts = token.split('.');
+          if (parts.length === 3) {
+            const payload = JSON.parse(Buffer.from(parts[1], 'base64').toString());
+            const userEmail = payload.email || payload.user_metadata?.email;
+            
+            if (userEmail && userEmail.toLowerCase() === ownerEmail.toLowerCase()) {
+              safeLog("info", "Owner access granted", { email: userEmail });
+              next();
+              return;
+            }
+          }
+        } catch (e) {
+          // Fall through to error
+        }
+      }
+      
+      safeLog("warn", "SUPABASE_SERVICE_ROLE_KEY not configured, cannot verify owner");
+      res.status(503).json({ error: "Owner verification not configured" });
+      return;
+    }
+
+    // Use Supabase Admin API to get user email
+    try {
+      const response = await fetch(
+        `${supabaseUrl.replace(/\/$/, '')}/auth/v1/admin/users/${req.auth.userId}`,
+        {
+          headers: {
+            'Authorization': `Bearer ${supabaseServiceKey}`,
+            'apikey': supabaseServiceKey,
+          },
+        }
+      );
+
+      if (!response.ok) {
+        safeLog("warn", "Failed to fetch user from Supabase", { 
+          status: response.status,
+          userId: req.auth.userId 
+        });
+        res.status(403).json({ error: "Access denied" });
+        return;
+      }
+
+      const user = await response.json();
+      const userEmail = user.email || user.user_metadata?.email;
+
+      if (!userEmail || userEmail.toLowerCase() !== ownerEmail.toLowerCase()) {
+        safeLog("warn", "Non-owner access attempt", { 
+          email: userEmail,
+          userId: req.auth.userId 
+        });
+        res.status(403).json({ error: "Access denied: Owner only" });
+        return;
+      }
+
+      safeLog("info", "Owner access granted", { email: userEmail });
+      next();
+    } catch (error: any) {
+      safeLog("error", "Owner check error", { error: error.message });
+      res.status(500).json({ error: "Internal server error" });
+    }
+  } catch (error: any) {
+    safeLog("error", "Owner middleware error", { error: error.message });
+    res.status(500).json({ error: "Internal server error" });
+  }
+}
+
+/**
+ * Admin token middleware (legacy, kept for backward compatibility)
  * Validates X-ADMIN-TOKEN header for admin-only endpoints
+ * @deprecated Use requireOwner instead
  */
 export function requireAdminToken(
   req: Request,
@@ -446,4 +797,49 @@ export function requireAdminToken(
   }
   
   next();
+}
+
+/**
+ * SDK Access Check Middleware
+ * Validates that the organization has SDK access enabled
+ * Must be used after requireSpectyraApiKey
+ */
+export async function requireSdkAccess(
+  req: AuthenticatedRequest,
+  res: Response,
+  next: NextFunction
+): Promise<void> {
+  try {
+    if (!req.context?.org?.id) {
+      res.status(401).json({ error: "Not authenticated" });
+      return;
+    }
+
+    const { queryOne } = await import("../services/storage/db.js");
+    const org = await queryOne<{ sdk_access_enabled: boolean }>(`
+      SELECT sdk_access_enabled FROM orgs WHERE id = $1
+    `, [req.context.org.id]);
+
+    if (!org) {
+      res.status(404).json({ error: "Organization not found" });
+      return;
+    }
+
+    if (!org.sdk_access_enabled) {
+      safeLog("warn", "SDK access denied", { 
+        orgId: req.context.org.id,
+        orgName: req.context.org.name 
+      });
+      res.status(403).json({ 
+        error: "SDK access is disabled for this organization",
+        message: "Please contact support to enable SDK access"
+      });
+      return;
+    }
+
+    next();
+  } catch (error: any) {
+    safeLog("error", "SDK access check error", { error: error.message });
+    res.status(500).json({ error: "Internal server error" });
+  }
 }

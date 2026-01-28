@@ -17,6 +17,7 @@ export interface Org {
   trial_ends_at: string | null;
   stripe_customer_id: string | null;
   subscription_status: "trial" | "active" | "canceled" | "past_due";
+  sdk_access_enabled: boolean;
 }
 
 export interface Project {
@@ -37,6 +38,10 @@ export interface ApiKey {
   created_at: string;
   last_used_at: string | null;
   revoked_at: string | null;
+  expires_at: string | null;
+  allowed_ip_ranges: string[] | null;
+  allowed_origins: string[] | null;
+  description: string | null;
 }
 
 /**
@@ -47,10 +52,10 @@ export async function createOrg(name: string, trialDays: number = 7): Promise<Or
   trialEndsAt.setDate(trialEndsAt.getDate() + trialDays);
   
   const result = await query<Org>(`
-    INSERT INTO orgs (name, trial_ends_at, subscription_status)
-    VALUES ($1, $2, 'trial')
-    RETURNING id, name, created_at, trial_ends_at, stripe_customer_id, subscription_status
-  `, [name, trialEndsAt.toISOString()]);
+    INSERT INTO orgs (name, trial_ends_at, subscription_status, sdk_access_enabled)
+    VALUES ($1, $2, 'trial', $3)
+    RETURNING id, name, created_at, trial_ends_at, stripe_customer_id, subscription_status, sdk_access_enabled
+  `, [name, trialEndsAt.toISOString(), true]);
   
   return result.rows[0];
 }
@@ -60,7 +65,7 @@ export async function createOrg(name: string, trialDays: number = 7): Promise<Or
  */
 export async function getAllOrgs(): Promise<Org[]> {
   const result = await query<Org>(`
-    SELECT id, name, created_at, trial_ends_at, stripe_customer_id, subscription_status
+    SELECT id, name, created_at, trial_ends_at, stripe_customer_id, subscription_status, sdk_access_enabled
     FROM orgs 
     ORDER BY created_at DESC
   `);
@@ -73,7 +78,7 @@ export async function getAllOrgs(): Promise<Org[]> {
  */
 export async function getOrgById(id: string): Promise<Org | null> {
   const result = await queryOne<Org>(`
-    SELECT id, name, created_at, trial_ends_at, stripe_customer_id, subscription_status
+    SELECT id, name, created_at, trial_ends_at, stripe_customer_id, subscription_status, sdk_access_enabled
     FROM orgs 
     WHERE id = $1
   `, [id]);
@@ -192,12 +197,16 @@ export function generateApiKey(): string {
 
 /**
  * Get API key by prefix (for fast lookup)
+ * Excludes expired and revoked keys
  */
 export async function getApiKeyByPrefix(keyPrefix: string): Promise<ApiKey | null> {
   const result = await queryOne<ApiKey>(`
-    SELECT id, org_id, project_id, name, key_prefix, key_hash, scopes, created_at, last_used_at, revoked_at
+    SELECT id, org_id, project_id, name, key_prefix, key_hash, scopes, created_at, last_used_at, revoked_at,
+           expires_at, allowed_ip_ranges, allowed_origins, description
     FROM api_keys 
-    WHERE key_prefix = $1 AND revoked_at IS NULL
+    WHERE key_prefix = $1 
+      AND revoked_at IS NULL
+      AND (expires_at IS NULL OR expires_at > now())
   `, [keyPrefix]);
   
   if (!result) return null;
@@ -244,19 +253,37 @@ export async function createApiKey(
   orgId: string,
   projectId: string | null,
   name: string | null = null,
-  scopes: string[] = []
+  scopes: string[] = [],
+  expiresAt: string | null = null,
+  allowedIpRanges: string[] | null = null,
+  allowedOrigins: string[] | null = null,
+  description: string | null = null
 ): Promise<{ key: string; apiKey: ApiKey }> {
   const key = generateApiKey();
   const keyPrefix = key.substring(0, 12); // First 12 chars for lookup (sk_spectyra_ is 12 chars)
   const keyHash = await hashApiKey(key);
   
   const result = await query<ApiKey>(`
-    INSERT INTO api_keys (org_id, project_id, name, key_prefix, key_hash, scopes)
-    VALUES ($1, $2, $3, $4, $5, $6)
-    RETURNING id, org_id, project_id, name, key_prefix, key_hash, scopes, created_at, last_used_at, revoked_at
-  `, [orgId, projectId, name || "Default Key", keyPrefix, keyHash, scopes]);
+    INSERT INTO api_keys (org_id, project_id, name, key_prefix, key_hash, scopes, expires_at, allowed_ip_ranges, allowed_origins, description)
+    VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+    RETURNING id, org_id, project_id, name, key_prefix, key_hash, scopes, created_at, last_used_at, revoked_at, expires_at, allowed_ip_ranges, allowed_origins, description
+  `, [orgId, projectId, name || "Default Key", keyPrefix, keyHash, scopes, expiresAt, allowedIpRanges, allowedOrigins, description]);
   
   return { key, apiKey: result.rows[0] };
+}
+
+/**
+ * Get API key by ID
+ */
+export async function getApiKeyById(keyId: string): Promise<ApiKey | null> {
+  const result = await queryOne<ApiKey>(`
+    SELECT id, org_id, project_id, name, key_prefix, key_hash, scopes, created_at, last_used_at, revoked_at,
+           expires_at, allowed_ip_ranges, allowed_origins, description
+    FROM api_keys
+    WHERE id = $1
+  `, [keyId]);
+  
+  return result;
 }
 
 /**
@@ -289,14 +316,22 @@ export async function updateApiKeyLastUsed(keyHash: string): Promise<void> {
 }
 
 /**
- * Revoke an API key
+ * Revoke an API key (by key hash or key ID)
  */
-export async function revokeApiKey(keyHash: string): Promise<void> {
-  await query(`
-    UPDATE api_keys 
-    SET revoked_at = now()
-    WHERE key_hash = $1
-  `, [keyHash]);
+export async function revokeApiKey(keyHashOrId: string, byId: boolean = false): Promise<void> {
+  if (byId) {
+    await query(`
+      UPDATE api_keys 
+      SET revoked_at = now()
+      WHERE id = $1
+    `, [keyHashOrId]);
+  } else {
+    await query(`
+      UPDATE api_keys 
+      SET revoked_at = now()
+      WHERE key_hash = $1
+    `, [keyHashOrId]);
+  }
 }
 
 /**
@@ -379,7 +414,7 @@ export async function deleteOrg(orgId: string): Promise<void> {
  */
 export async function getOrgByStripeCustomerId(customerId: string): Promise<Org | null> {
   const result = await queryOne<Org>(`
-    SELECT id, name, created_at, trial_ends_at, stripe_customer_id, subscription_status
+    SELECT id, name, created_at, trial_ends_at, stripe_customer_id, subscription_status, sdk_access_enabled
     FROM orgs 
     WHERE stripe_customer_id = $1
   `, [customerId]);

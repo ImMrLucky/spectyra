@@ -17,6 +17,7 @@ import { computeWorkloadKey, computePromptHash } from "../services/savings/workl
 import { writeEstimatedSavings } from "../services/savings/ledgerWriter.js";
 import { redactRun } from "../middleware/redact.js";
 import { safeLog } from "../utils/redaction.js";
+import { rateLimit } from "../middleware/rateLimit.js";
 import type { RunRecord, Message, Path, Mode } from "@spectyra/shared";
 import type { ChatMessage } from "../services/optimizer/unitize.js";
 import {
@@ -51,22 +52,45 @@ chatRouter.post("/", async (req: AuthenticatedRequest, res) => {
       return res.status(400).json({ error: "Missing required fields" });
     }
     
-    // BYOK (Bring Your Own Key): Use provider key from context (ephemeral, never stored)
-    // If provided, create provider with user's key; otherwise use default from env
+    // Enterprise Security: Provider key resolution (BYOK or Vault)
+    const context = req.context || req.auth;
+    const orgId = context?.org?.id || context?.orgId;
+    const projectId = context?.project?.id || context?.projectId;
+    
     const providerKeyOverride = req.context?.providerKeyOverride;
     let llmProvider;
     
     if (providerKeyOverride) {
-      // Create provider with user's API key (BYOK)
+      // BYOK mode: Use ephemeral key from header
       llmProvider = createProviderWithKey(provider, providerKeyOverride);
       if (!llmProvider) {
         return res.status(400).json({ error: `Provider ${provider} not supported for BYOK` });
       }
-    } else {
-      // Use default provider from registry (env vars)
+    } else if (orgId) {
+      // Try vaulted key (Enterprise: encrypted storage)
+      try {
+        const { getProviderCredential } = await import("../services/storage/providerCredentialsRepo.js");
+        const vaultedKey = await getProviderCredential(
+          orgId,
+          projectId || null,
+          provider as "openai" | "anthropic" | "google" | "azure" | "aws"
+        );
+        
+        if (vaultedKey) {
+          llmProvider = createProviderWithKey(provider, vaultedKey);
+        }
+      } catch (error) {
+        // Vault lookup failed, fall through to registry
+      }
+    }
+    
+    // Fallback to default provider from registry (env vars)
+    if (!llmProvider) {
       llmProvider = providerRegistry.get(provider);
       if (!llmProvider) {
-        return res.status(400).json({ error: `Provider ${provider} not available. Provide X-PROVIDER-KEY header for BYOK.` });
+        return res.status(400).json({ 
+          error: `Provider ${provider} not available. Provide X-PROVIDER-KEY header for BYOK or configure vaulted key.` 
+        });
       }
     }
     

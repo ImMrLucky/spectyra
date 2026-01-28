@@ -1,0 +1,44 @@
+# Gitleaks configuration for Spectyra
+# Scans for secrets and API keys
+
+title = "Spectyra Secret Scanning"
+
+[extend]
+# Use default rules
+useDefault = true
+
+[allowlist]
+description = "Allowlist for known false positives"
+paths = [
+  '''\.md$''',
+  '''\.txt$''',
+  '''\.example$''',
+  '''\.env\.example$''',
+  '''docs/''',
+  '''\.git/''',
+  '''node_modules/''',
+  '''dist/''',
+  '''build/''',
+]
+
+[[rules]]
+id = "spectyra-api-key"
+description = "Spectyra API key pattern"
+regex = '''sk-spectyra-[a-zA-Z0-9]{32,}'''
+entropy = 3.5
+tags = ["api-key", "spectyra"]
+
+[[rules]]
+id = "supabase-anon-key"
+description = "Supabase anonymous key (public, but monitor)"
+regex = '''eyJ[a-zA-Z0-9_-]+\.eyJ[a-zA-Z0-9_-]+\.[a-zA-Z0-9_-]+'''
+entropy = 3.0
+tags = ["supabase", "public-key"]
+
+# Allowlist known public keys in documentation
+[[allowlist.rules]]
+id = "supabase-anon-key"
+paths = [
+  '''\.md$''',
+  '''docs/''',
+]

@@ -23,6 +23,9 @@ import {
 import { requireSpectyraApiKey, optionalProviderKey, requireUserSession, requireOrgMembership, type AuthenticatedRequest } from "../middleware/auth.js";
 import { query, queryOne } from "../services/storage/db.js";
 import { safeLog } from "../utils/redaction.js";
+import { audit } from "../services/audit/audit.js";
+import { requireOrgMembership } from "../middleware/auth.js";
+import { requireOrgRole } from "../middleware/requireRole.js";
 
 export const authRouter = Router();
 
@@ -46,6 +49,69 @@ authRouter.post("/bootstrap", requireUserSession, async (req: AuthenticatedReque
     }
 
     const userId = req.auth.userId;
+
+    // Enterprise Security: Check domain allowlist BEFORE org creation
+    // If user is trying to join an existing org with domain restrictions, check their email
+    // Note: For new org creation, domain restrictions apply after org is created
+    // This check is primarily for when users are invited to existing orgs
+    try {
+      // Get user email from Supabase to check domain
+      const supabaseUrl = process.env.SUPABASE_URL;
+      const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+      
+      if (supabaseUrl && supabaseServiceKey) {
+        try {
+          const response = await fetch(
+            `${supabaseUrl.replace(/\/$/, '')}/auth/v1/admin/users/${userId}`,
+            {
+              headers: {
+                'Authorization': `Bearer ${supabaseServiceKey}`,
+                'apikey': supabaseServiceKey,
+              },
+            }
+          );
+
+          if (response.ok) {
+            const user = await response.json();
+            const userEmail = user.email || user.user_metadata?.email;
+            
+            if (userEmail) {
+              const userDomain = userEmail.split('@')[1]?.toLowerCase();
+              
+              // Check if any existing org has domain restrictions that would block this user
+              // (This is a pre-check - actual enforcement happens in requireOrgMembership)
+              const { query } = await import("../services/storage/db.js");
+              const orgsWithDomainRestrictions = await query<{ org_id: string; allowed_email_domains: string[] }>(`
+                SELECT org_id, allowed_email_domains
+                FROM org_settings
+                WHERE allowed_email_domains IS NOT NULL
+                  AND array_length(allowed_email_domains, 1) > 0
+              `);
+
+              // If user's domain is restricted by any org, log it (but allow org creation)
+              // Actual enforcement happens when they try to access that org
+              for (const org of orgsWithDomainRestrictions.rows) {
+                const allowedDomains = org.allowed_email_domains.map(d => d.toLowerCase());
+                if (!allowedDomains.includes(userDomain)) {
+                  safeLog("info", "User domain may be restricted by existing org", {
+                    userId,
+                    userEmail,
+                    userDomain,
+                    restrictedOrgId: org.org_id,
+                  });
+                }
+              }
+            }
+          }
+        } catch (error) {
+          // If we can't check email, allow org creation (fail open)
+          safeLog("warn", "Could not verify email domain during bootstrap", { error });
+        }
+      }
+    } catch (error) {
+      // Don't block org creation if domain check fails
+      safeLog("warn", "Domain check error during bootstrap", { error });
+    }
 
     // Check if user already has an org
     const { queryOne } = await import("../services/storage/db.js");
@@ -72,8 +138,30 @@ authRouter.post("/bootstrap", requireUserSession, async (req: AuthenticatedReque
       VALUES ($1, $2, 'OWNER')
     `, [org.id, userId]);
     
+    // Enterprise Security: Audit log
+    try {
+      await audit(req, "ORG_CREATED", {
+        targetType: "ORG",
+        targetId: org.id,
+        metadata: { name: org.name },
+      });
+      await audit(req, "MEMBER_ADDED", {
+        targetType: "ORG_MEMBERSHIP",
+        metadata: { role: "OWNER", org_id: org.id },
+      });
+    } catch {
+      // Don't fail bootstrap if audit fails
+    }
+    
     // Create first API key (org-level, not project-scoped)
     const { key, apiKey } = await createApiKey(org.id, null, "Default Key");
+    
+    // Enterprise Security: Audit log (already done in createApiKey route, but ensure it's here too)
+    await audit(req, "KEY_CREATED", {
+      targetType: "API_KEY",
+      targetId: apiKey.id,
+      metadata: { name: "Default Key", is_bootstrap: true },
+    });
     
     res.status(201).json({
       org: {
@@ -147,6 +235,14 @@ authRouter.post("/register", async (req, res) => {
  * (With API keys, "login" is just validating the key)
  */
 authRouter.post("/login", requireSpectyraApiKey, optionalProviderKey, async (req: AuthenticatedRequest, res) => {
+  // Enterprise Security: Audit log login
+  try {
+    await audit(req, "LOGIN", {
+      metadata: { method: "API_KEY" },
+    });
+  } catch {
+    // Don't fail login if audit fails
+  }
   try {
     if (!req.context) {
       return res.status(401).json({ error: "Not authenticated" });
@@ -363,6 +459,14 @@ authRouter.post("/api-keys", async (req: AuthenticatedRequest, res) => {
       name || null
     );
     
+    // Enterprise Security: Audit log
+    await audit(req, "KEY_CREATED", {
+      projectId: project_id || null,
+      targetType: "API_KEY",
+      targetId: apiKey.id,
+      metadata: { name: name || null, project_id: project_id || null },
+    });
+    
     res.json({
       id: apiKey.id,
       key, // Only returned once
@@ -375,6 +479,93 @@ authRouter.post("/api-keys", async (req: AuthenticatedRequest, res) => {
     res.status(500).json({ error: error.message || "Internal server error" });
   }
 });
+
+/**
+ * POST /v1/orgs/:orgId/api-keys/:keyId/rotate
+ * POST /v1/orgs/:orgId/projects/:projectId/api-keys/:keyId/rotate
+ * 
+ * Rotate an API key (creates new key, revokes old one)
+ * Requires OWNER/ADMIN role
+ */
+authRouter.post("/orgs/:orgId/api-keys/:keyId/rotate", 
+  requireUserSession,
+  requireOrgMembership,
+  requireOrgRole("ADMIN"),
+  async (req: AuthenticatedRequest, res) => {
+    try {
+      const { orgId, keyId } = req.params;
+      const { projectId } = req.query as { projectId?: string };
+      
+      if (!req.auth?.orgId || req.auth.orgId !== orgId) {
+        return res.status(403).json({ error: "Access denied" });
+      }
+
+      // Verify project belongs to org (if project-scoped)
+      const finalProjectId = projectId && projectId !== "null" ? projectId : null;
+      if (finalProjectId) {
+        const { queryOne } = await import("../services/storage/db.js");
+        const project = await queryOne<{ org_id: string }>(`
+          SELECT org_id FROM projects WHERE id = $1
+        `, [finalProjectId]);
+
+        if (!project || project.org_id !== orgId) {
+          return res.status(403).json({ error: "Project not found or access denied" });
+        }
+      }
+
+      // Get existing key
+      const { getApiKeyById } = await import("../services/storage/orgsRepo.js");
+      const existingKey = await getApiKeyById(keyId);
+      
+      if (!existingKey || existingKey.org_id !== orgId) {
+        return res.status(404).json({ error: "API key not found" });
+      }
+
+      if (existingKey.revoked_at) {
+        return res.status(400).json({ error: "API key is already revoked" });
+      }
+
+      // Create new key with same properties
+      const { createApiKey } = await import("../services/storage/orgsRepo.js");
+      const { key: newKey, apiKey: newApiKey } = await createApiKey(
+        orgId,
+        finalProjectId,
+        existingKey.name ? `${existingKey.name} (rotated)` : null,
+        existingKey.scopes || [],
+        existingKey.expires_at,
+        existingKey.allowed_ip_ranges,
+        existingKey.allowed_origins,
+        existingKey.description
+      );
+
+      // Revoke old key
+      const { revokeApiKey } = await import("../services/storage/orgsRepo.js");
+      await revokeApiKey(keyId, true); // byId = true
+
+      // Enterprise Security: Audit log
+      await audit(req, "KEY_ROTATED", {
+        projectId: finalProjectId,
+        targetType: "API_KEY",
+        targetId: keyId,
+        metadata: {
+          old_key_id: keyId,
+          new_key_id: newApiKey.id,
+          name: existingKey.name,
+        },
+      });
+
+      res.json({
+        id: newApiKey.id,
+        key: newKey, // Only returned once
+        name: newApiKey.name,
+        message: "API key rotated successfully. Save the new key - it won't be shown again!",
+      });
+    } catch (error: any) {
+      safeLog("error", "Rotate API key error", { error: error.message });
+      res.status(500).json({ error: error.message || "Internal server error" });
+    }
+  }
+);
 
 /**
  * GET /v1/auth/api-keys
@@ -562,7 +753,13 @@ authRouter.delete("/api-keys/:id", async (req: AuthenticatedRequest, res) => {
     }
     
     // Revoke the key
-    await revokeApiKey(keyId);
+    await revokeApiKey(keyId, true); // byId = true
+    
+    // Enterprise Security: Audit log
+    await audit(req, "KEY_REVOKED", {
+      targetType: "API_KEY",
+      targetId: keyId,
+    });
     
     res.json({ success: true });
   } catch (error: any) {

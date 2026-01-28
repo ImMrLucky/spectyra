@@ -94,15 +94,25 @@ export class AppComponent implements OnInit, OnDestroy, AfterViewInit {
         // Get email from Supabase user
         this.supabase.getUser().subscribe(user => {
           this.userEmail = user?.email || null;
+          // Check if user is owner (gkh1974@gmail.com) to show admin link
+          this.updateAdminVisibility(user?.email);
         });
       } else if (hasApiKey && authState.user) {
         // Extract org name from email (format: orgName@spectyra.local)
         const email = authState.user.email || null;
         this.userEmail = email ? email.split('@')[0] : null;
+        this.updateAdminVisibility(null);
       } else {
         this.userEmail = null;
+        this.updateAdminVisibility(null);
       }
     });
+  }
+
+  private updateAdminVisibility(email: string | null | undefined) {
+    // Show admin link only if user email is gkh1974@gmail.com
+    const ownerEmail = 'gkh1974@gmail.com';
+    this.showAdminLink = email?.toLowerCase() === ownerEmail.toLowerCase();
   }
 
   ngAfterViewInit() {

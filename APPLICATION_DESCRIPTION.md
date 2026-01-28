@@ -40,7 +40,7 @@ Spectyra is an enterprise-grade AI inference cost-control gateway that reduces L
 - Agent control plane endpoints
 - Proof mode endpoints
 
-**Deployment**: Railway (API), Netlify/Vercel (Frontend)
+**Deployment**: Railway (API), Netlify (Frontend)
 
 ---
 

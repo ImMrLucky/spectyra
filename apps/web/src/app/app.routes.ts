@@ -11,6 +11,8 @@ import { OverviewPage } from './features/overview/overview.page';
 import { PoliciesPage } from './features/policies/policies.page';
 import { UsagePage } from './features/usage/usage.page';
 import { AuditPage } from './features/audit/audit.page';
+import { SecuritySettingsPage } from './features/settings/security.page';
+import { ProviderKeysPage } from './features/settings/provider-keys.page';
 import { authGuard } from './core/guards/auth.guard';
 
 export const appRoutes: Routes = [
@@ -29,6 +31,8 @@ export const appRoutes: Routes = [
   { path: 'usage', component: UsagePage, canActivate: [authGuard] },
   { path: 'audit', component: AuditPage, canActivate: [authGuard] },
   { path: 'settings', component: SettingsPage, canActivate: [authGuard] },
+  { path: 'settings/security', component: SecuritySettingsPage, canActivate: [authGuard] },
+  { path: 'settings/provider-keys', component: ProviderKeysPage, canActivate: [authGuard] },
   { path: 'admin', component: AdminPage, canActivate: [authGuard] },
   
   // Redirect old routes for backward compatibility

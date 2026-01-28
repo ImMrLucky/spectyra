@@ -7,6 +7,34 @@
 import { query, queryOne } from "./db.js";
 import type { RunRecord, Usage, Savings, QualityCheck, RunDebug } from "@spectyra/shared";
 
+/**
+ * Get org settings for data handling controls
+ */
+async function getOrgSettingsForRun(orgId: string | undefined): Promise<{
+  store_prompts: boolean;
+  store_responses: boolean;
+  store_internal_debug: boolean;
+} | null> {
+  if (!orgId) return null;
+  
+  try {
+    const { getOrgSettings } = await import("./settingsRepo.js");
+    const settings = await getOrgSettings(orgId);
+    return {
+      store_prompts: settings.store_prompts,
+      store_responses: settings.store_responses,
+      store_internal_debug: settings.store_internal_debug,
+    };
+  } catch {
+    // If settings don't exist, use defaults (no storage)
+    return {
+      store_prompts: false,
+      store_responses: false,
+      store_internal_debug: false,
+    };
+  }
+}
+
 export async function saveRun(run: RunRecord & { 
   replayId?: string; 
   optimizationLevel?: number;
@@ -18,6 +46,16 @@ export async function saveRun(run: RunRecord & {
   projectId?: string | null;
   providerKeyFingerprint?: string | null;
 }): Promise<void> {
+  // Enterprise Security: Check org settings for data storage controls
+  const orgSettings = await getOrgSettingsForRun(run.orgId);
+  
+  // Apply storage controls
+  const promptFinal = orgSettings?.store_prompts ? JSON.stringify(run.promptFinal) : null;
+  const responseText = orgSettings?.store_responses ? run.responseText : null;
+  const debugInternalJson = orgSettings?.store_internal_debug && run.debugInternal 
+    ? JSON.stringify(run.debugInternal) 
+    : null;
+
   await query(`
     INSERT INTO runs (
       id, scenario_id, conversation_id, replay_id, mode, path, optimization_level, provider, model,
@@ -49,8 +87,8 @@ export async function saveRun(run: RunRecord & {
     run.model,
     run.workloadKey || null,
     run.promptHash || null,
-    JSON.stringify(run.promptFinal),
-    run.responseText,
+    promptFinal, // May be null if store_prompts = false
+    responseText, // May be null if store_responses = false
     run.usage.input_tokens,
     run.usage.output_tokens,
     run.usage.total_tokens,
@@ -75,7 +113,7 @@ export async function saveRun(run: RunRecord & {
     run.debug.spectral?.stableUnitIds ? JSON.stringify(run.debug.spectral.stableUnitIds) : null,
     run.debug.spectral?.unstableUnitIds ? JSON.stringify(run.debug.spectral.unstableUnitIds) : null,
     run.debug.spectral?.recommendation || null,
-    run.debugInternal ? JSON.stringify(run.debugInternal) : null,
+    debugInternalJson, // May be null if store_internal_debug = false
     run.orgId || null,
     run.projectId || null,
     run.providerKeyFingerprint || null,

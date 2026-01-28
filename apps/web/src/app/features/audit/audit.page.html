@@ -46,6 +46,7 @@
     <div class="card">
       <div class="card-header">
         <h2>Audit Events</h2>
+        <button class="btn btn-secondary" (click)="exportLogs()">Export CSV</button>
       </div>
 
       <div *ngIf="logs.length === 0" class="empty-state">
@@ -57,9 +58,10 @@
           <thead>
             <tr>
               <th>Time</th>
-              <th>Event Type</th>
+              <th>Action</th>
               <th>Actor</th>
               <th>Target</th>
+              <th>IP</th>
               <th>Details</th>
             </tr>
           </thead>
@@ -67,12 +69,20 @@
             <tr *ngFor="let log of logs">
               <td>{{ formatDate(log.created_at) }}</td>
               <td>
-                <span class="event-badge" [class]="'event-' + log.event_type">
-                  {{ getEventTypeLabel(log.event_type) }}
+                <span class="event-badge" [class]="'event-' + log.action.toLowerCase()">
+                  {{ getEventTypeLabel(log.action) }}
                 </span>
               </td>
-              <td><code>{{ log.actor.substring(0, 8) }}...</code></td>
-              <td><code>{{ log.target.substring(0, 8) }}...</code></td>
+              <td>
+                <span class="actor-type">{{ log.actor_type }}</span>
+                <code>{{ log.actor_id.substring(0, 8) }}...</code>
+              </td>
+              <td>
+                <span *ngIf="log.target_type">{{ log.target_type }}</span>
+                <code *ngIf="log.target_id">{{ log.target_id.substring(0, 8) }}...</code>
+                <span *ngIf="!log.target_type && !log.target_id">-</span>
+              </td>
+              <td>{{ log.ip || '-' }}</td>
               <td>
                 <button class="btn-link" (click)="showDetails(log)">View</button>
               </td>

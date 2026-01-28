@@ -1,6 +1,6 @@
 import { Router } from "express";
 import { query, queryOne } from "../services/storage/db.js";
-import { requireAdminToken } from "../middleware/auth.js";
+import { requireOwner, requireUserSession } from "../middleware/auth.js";
 import { safeLog, redactSecrets } from "../utils/redaction.js";
 import {
   getOrgById,
@@ -11,6 +11,7 @@ import {
   getOrgApiKeys,
   hashApiKey,
 } from "../services/storage/orgsRepo.js";
+import { query, queryOne } from "../services/storage/db.js";
 
 export const adminRouter = Router();
 
@@ -57,7 +58,7 @@ adminRouter.get("/runs/:id/debug", requireAdminToken, async (req, res) => {
  * 
  * List all organizations (admin only)
  */
-adminRouter.get("/orgs", requireAdminToken, async (req, res) => {
+adminRouter.get("/orgs", requireUserSession, requireOwner, async (req, res) => {
   try {
     const orgs = await getAllOrgs();
     
@@ -97,7 +98,7 @@ adminRouter.get("/orgs", requireAdminToken, async (req, res) => {
  * 
  * Get organization details (admin only)
  */
-adminRouter.get("/orgs/:id", requireAdminToken, async (req, res) => {
+adminRouter.get("/orgs/:id", requireUserSession, requireOwner, async (req, res) => {
   try {
     const orgId = req.params.id;
     const org = await getOrgById(orgId);
@@ -141,7 +142,7 @@ adminRouter.get("/orgs/:id", requireAdminToken, async (req, res) => {
  * 
  * Update organization (admin only)
  */
-adminRouter.patch("/orgs/:id", requireAdminToken, async (req, res) => {
+adminRouter.patch("/orgs/:id", requireUserSession, requireOwner, async (req, res) => {
   try {
     const orgId = req.params.id;
     const { name } = req.body as { name?: string };
@@ -205,7 +206,7 @@ adminRouter.delete("/orgs/:id", requireAdminToken, async (req, res) => {
  * Diagnose an API key (admin only)
  * Helps debug why a key might not be working
  */
-adminRouter.post("/diagnose-key", requireAdminToken, async (req, res) => {
+adminRouter.post("/diagnose-key", requireUserSession, requireOwner, async (req, res) => {
   try {
     const { api_key } = req.body as { api_key?: string };
     
@@ -270,6 +271,137 @@ adminRouter.post("/diagnose-key", requireAdminToken, async (req, res) => {
     });
   } catch (error: any) {
     safeLog("error", "Admin diagnose key error", { error: error.message });
+    res.status(500).json({ error: error.message || "Internal server error" });
+  }
+});
+
+/**
+ * PATCH /v1/admin/orgs/:id/sdk-access
+ * 
+ * Toggle SDK access for an organization (owner only)
+ */
+adminRouter.patch("/orgs/:id/sdk-access", requireUserSession, requireOwner, async (req, res) => {
+  try {
+    const orgId = req.params.id;
+    const { enabled } = req.body as { enabled?: boolean };
+    
+    if (enabled === undefined) {
+      return res.status(400).json({ error: "enabled field is required (true/false)" });
+    }
+    
+    const org = await getOrgById(orgId);
+    if (!org) {
+      return res.status(404).json({ error: "Organization not found" });
+    }
+    
+    await query(`
+      UPDATE orgs 
+      SET sdk_access_enabled = $1
+      WHERE id = $2
+    `, [enabled, orgId]);
+    
+    safeLog("info", "SDK access updated", { 
+      orgId, 
+      orgName: org.name, 
+      enabled 
+    });
+    
+    const updatedOrg = await getOrgById(orgId);
+    res.json({ 
+      org: updatedOrg,
+      message: `SDK access ${enabled ? 'enabled' : 'disabled'} for ${org.name}`
+    });
+  } catch (error: any) {
+    safeLog("error", "Admin update SDK access error", { error: error.message });
+    res.status(500).json({ error: error.message || "Internal server error" });
+  }
+});
+
+/**
+ * GET /v1/admin/users
+ * 
+ * List all users with their org memberships (owner only)
+ */
+adminRouter.get("/users", requireUserSession, requireOwner, async (req, res) => {
+  try {
+    // Get all users from org_memberships with their email from Supabase
+    // Note: This requires Supabase service role access
+    const memberships = await query<{
+      user_id: string;
+      org_id: string;
+      org_name: string;
+      role: string;
+      created_at: string;
+    }>(`
+      SELECT 
+        om.user_id,
+        om.org_id,
+        o.name as org_name,
+        om.role,
+        om.created_at
+      FROM org_memberships om
+      JOIN orgs o ON o.id = om.org_id
+      ORDER BY om.created_at DESC
+    `, []);
+
+    // Group by user_id
+    const usersMap = new Map<string, {
+      user_id: string;
+      email?: string;
+      orgs: Array<{
+        org_id: string;
+        org_name: string;
+        role: string;
+        created_at: string;
+      }>;
+    }>();
+
+    for (const m of memberships) {
+      if (!usersMap.has(m.user_id)) {
+        usersMap.set(m.user_id, {
+          user_id: m.user_id,
+          orgs: [],
+        });
+      }
+      usersMap.get(m.user_id)!.orgs.push({
+        org_id: m.org_id,
+        org_name: m.org_name,
+        role: m.role,
+        created_at: m.created_at,
+      });
+    }
+
+    const users = Array.from(usersMap.values());
+
+    // Try to get emails from Supabase (optional, won't fail if unavailable)
+    const supabaseUrl = process.env.SUPABASE_URL;
+    const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+    
+    if (supabaseUrl && supabaseServiceKey) {
+      for (const user of users) {
+        try {
+          const response = await fetch(
+            `${supabaseUrl.replace(/\/$/, '')}/auth/v1/admin/users/${user.user_id}`,
+            {
+              headers: {
+                'Authorization': `Bearer ${supabaseServiceKey}`,
+                'apikey': supabaseServiceKey,
+              },
+            }
+          );
+          if (response.ok) {
+            const supabaseUser = await response.json();
+            user.email = supabaseUser.email || supabaseUser.user_metadata?.email;
+          }
+        } catch (e) {
+          // Ignore errors fetching email
+        }
+      }
+    }
+
+    res.json({ users });
+  } catch (error: any) {
+    safeLog("error", "Admin list users error", { error: error.message });
     res.status(500).json({ error: error.message || "Internal server error" });
   }
 });

@@ -1,0 +1,148 @@
+<div class="container">
+  <div class="page-header">
+    <h1>Security Settings</h1>
+    <p class="subtitle">Configure enterprise security and data handling policies</p>
+  </div>
+
+  <div *ngIf="loading" class="loading">
+    <p>Loading settings...</p>
+  </div>
+
+  <div *ngIf="error" class="error-box">
+    <p>{{ error }}</p>
+  </div>
+
+  <form *ngIf="!loading && !error" (ngSubmit)="saveSettings()">
+    <!-- Data Retention -->
+    <div class="card">
+      <h2>Data Retention</h2>
+      <div class="form-group">
+        <label for="retentionDays">Retention Period (days)</label>
+        <input
+          type="number"
+          id="retentionDays"
+          [(ngModel)]="dataRetentionDays"
+          name="retentionDays"
+          min="1"
+          max="3650"
+          class="form-input">
+        <p class="help-text">Runs older than this will be automatically deleted. Default: 30 days.</p>
+      </div>
+    </div>
+
+    <!-- Data Storage Controls -->
+    <div class="card">
+      <h2>Data Storage Controls</h2>
+      <p class="info-text">By default, Spectyra does not store prompts or responses for privacy and compliance.</p>
+      
+      <div class="setting-item">
+        <div class="setting-info">
+          <strong>Store Prompts</strong>
+          <p>Store full prompt content in run records (required for replay/debugging)</p>
+        </div>
+        <label class="toggle">
+          <input type="checkbox" [(ngModel)]="storePrompts" name="storePrompts">
+          <span class="toggle-slider"></span>
+        </label>
+      </div>
+
+      <div class="setting-item">
+        <div class="setting-info">
+          <strong>Store Responses</strong>
+          <p>Store full LLM response text in run records</p>
+        </div>
+        <label class="toggle">
+          <input type="checkbox" [(ngModel)]="storeResponses" name="storeResponses">
+          <span class="toggle-slider"></span>
+        </label>
+      </div>
+
+      <div class="setting-item">
+        <div class="setting-info">
+          <strong>Store Internal Debug Data</strong>
+          <p>Store internal optimization debug data (for troubleshooting)</p>
+        </div>
+        <label class="toggle">
+          <input type="checkbox" [(ngModel)]="storeInternalDebug" name="storeInternalDebug">
+          <span class="toggle-slider"></span>
+        </label>
+      </div>
+
+      <div class="setting-item">
+        <div class="setting-info">
+          <strong>Allow Semantic Cache</strong>
+          <p>Enable semantic caching for cost optimization</p>
+        </div>
+        <label class="toggle">
+          <input type="checkbox" [(ngModel)]="allowSemanticCache" name="allowSemanticCache">
+          <span class="toggle-slider"></span>
+        </label>
+      </div>
+    </div>
+
+    <!-- Provider Key Management -->
+    <div class="card">
+      <h2>Provider Key Management</h2>
+      <div class="form-group">
+        <label for="providerKeyMode">Provider Key Mode</label>
+        <select id="providerKeyMode" [(ngModel)]="providerKeyMode" name="providerKeyMode" class="form-input">
+          <option value="EITHER">Either (BYOK or Vaulted)</option>
+          <option value="BYOK_ONLY">BYOK Only (must provide X-PROVIDER-KEY header)</option>
+          <option value="VAULT_ONLY">Vaulted Only (must use stored keys)</option>
+        </select>
+        <p class="help-text">
+          <strong>EITHER:</strong> Allow both BYOK (header) and vaulted keys<br>
+          <strong>BYOK_ONLY:</strong> Require clients to provide provider keys in X-PROVIDER-KEY header<br>
+          <strong>VAULT_ONLY:</strong> Require using encrypted vaulted keys (configure in Provider Keys page)
+        </p>
+      </div>
+    </div>
+
+    <!-- Access Controls -->
+    <div class="card">
+      <h2>Access Controls</h2>
+      
+      <div class="setting-item">
+        <div class="setting-info">
+          <strong>Enforce SSO</strong>
+          <p>Require users to authenticate via SSO provider (when configured)</p>
+        </div>
+        <label class="toggle">
+          <input type="checkbox" [(ngModel)]="enforceSso" name="enforceSso">
+          <span class="toggle-slider"></span>
+        </label>
+      </div>
+
+      <div class="form-group">
+        <label for="emailDomains">Allowed Email Domains</label>
+        <input
+          type="text"
+          id="emailDomains"
+          [(ngModel)]="allowedEmailDomains"
+          name="emailDomains"
+          placeholder="example.com, company.com"
+          class="form-input">
+        <p class="help-text">Comma-separated list. Only users with these email domains can join the organization.</p>
+      </div>
+
+      <div class="form-group">
+        <label for="ipRanges">Allowed IP Ranges</label>
+        <input
+          type="text"
+          id="ipRanges"
+          [(ngModel)]="allowedIpRanges"
+          name="ipRanges"
+          placeholder="192.168.1.0/24, 10.0.0.0/8"
+          class="form-input">
+        <p class="help-text">Comma-separated CIDR ranges. API keys will only work from these IPs.</p>
+      </div>
+    </div>
+
+    <!-- Save Button -->
+    <div class="form-actions">
+      <button type="submit" class="btn btn-primary" [disabled]="saving">
+        {{ saving ? 'Saving...' : 'Save Settings' }}
+      </button>
+    </div>
+  </form>
+</div>

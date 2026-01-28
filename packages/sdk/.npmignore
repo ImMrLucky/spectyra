@@ -1,0 +1,11 @@
+# Source files
+src/
+examples/
+tsconfig.json
+
+# Development files
+*.log
+.DS_Store
+node_modules/
+
+# Only include dist/ in published package

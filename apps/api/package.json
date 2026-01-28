@@ -11,6 +11,7 @@
     "@spectyra/shared": "workspace:*",
     "express": "^4.18.2",
     "cors": "^2.8.5",
+    "helmet": "^7.1.0",
     "dotenv": "^16.3.1",
     "pg": "^8.11.3",
     "argon2": "^0.31.2",
