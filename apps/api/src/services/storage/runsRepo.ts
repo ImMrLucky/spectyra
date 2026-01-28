@@ -56,6 +56,18 @@ export async function saveRun(run: RunRecord & {
     ? JSON.stringify(run.debugInternal) 
     : null;
 
+  // Lightweight savings breakdown (always persist when available – no full debug blob needed for UI)
+  const di = run.debugInternal;
+  const refpackBefore = di?.refpack?.tokensBefore ?? null;
+  const refpackAfter = di?.refpack?.tokensAfter ?? null;
+  const refpackSaved = di?.refpack?.tokensSaved ?? null;
+  const phrasebookBefore = di?.phrasebook?.tokensBefore ?? null;
+  const phrasebookAfter = di?.phrasebook?.tokensAfter ?? null;
+  const phrasebookSaved = di?.phrasebook?.tokensSaved ?? null;
+  const codemapBefore = di?.codemap?.tokensBefore ?? null;
+  const codemapAfter = di?.codemap?.tokensAfter ?? null;
+  const codemapSaved = di?.codemap?.tokensSaved ?? null;
+
   await query(`
     INSERT INTO runs (
       id, scenario_id, conversation_id, replay_id, mode, path, optimization_level, provider, model,
@@ -69,11 +81,16 @@ export async function saveRun(run: RunRecord & {
       debug_spectral_lambda2, debug_spectral_contradiction_energy,
       debug_spectral_stable_unit_ids, debug_spectral_unstable_unit_ids,
       debug_spectral_recommendation, debug_internal_json,
+      refpack_tokens_before, refpack_tokens_after, refpack_tokens_saved,
+      phrasebook_tokens_before, phrasebook_tokens_after, phrasebook_tokens_saved,
+      codemap_tokens_before, codemap_tokens_after, codemap_tokens_saved,
       org_id, project_id, provider_key_fingerprint,
       created_at
     ) VALUES (
       $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20,
-      $21, $22, $23, $24, $25, $26, $27, $28, $29, $30, $31, $32, $33, $34, $35, $36, $37, $38, $39
+      $21, $22, $23, $24, $25, $26, $27, $28, $29, $30, $31, $32, $33, $34, $35, $36, $37, $38, $39,
+      $40, $41, $42, $43, $44, $45, $46, $47, $48,
+      $49, $50, $51, $52
     )
   `, [
     run.id,
@@ -114,6 +131,15 @@ export async function saveRun(run: RunRecord & {
     run.debug.spectral?.unstableUnitIds ? JSON.stringify(run.debug.spectral.unstableUnitIds) : null,
     run.debug.spectral?.recommendation || null,
     debugInternalJson, // May be null if store_internal_debug = false
+    refpackBefore,
+    refpackAfter,
+    refpackSaved,
+    phrasebookBefore,
+    phrasebookAfter,
+    phrasebookSaved,
+    codemapBefore,
+    codemapAfter,
+    codemapSaved,
     run.orgId || null,
     run.projectId || null,
     run.providerKeyFingerprint || null,
@@ -181,10 +207,23 @@ export async function getRun(id: string): Promise<RunRecord | null> {
   return mapRowToRunRecord(row);
 }
 
+/** Lightweight savings breakdown (from runs table columns, no debug blob needed) */
+export type RunsRowSavingsBreakdown = {
+  refpack_tokens_before?: number | null;
+  refpack_tokens_after?: number | null;
+  refpack_tokens_saved?: number | null;
+  phrasebook_tokens_before?: number | null;
+  phrasebook_tokens_after?: number | null;
+  phrasebook_tokens_saved?: number | null;
+  codemap_tokens_before?: number | null;
+  codemap_tokens_after?: number | null;
+  codemap_tokens_saved?: number | null;
+};
+
 /**
- * Map database row to RunRecord
+ * Map database row to RunRecord (includes lightweight breakdown columns when present)
  */
-function mapRowToRunRecord(row: any): RunRecord {
+function mapRowToRunRecord(row: any): RunRecord & RunsRowSavingsBreakdown {
   return {
     id: row.id,
     scenarioId: row.scenario_id || undefined,
@@ -229,5 +268,15 @@ function mapRowToRunRecord(row: any): RunRecord {
       } : undefined,
     },
     createdAt: row.created_at,
+    // Lightweight breakdown (for UI; columns may be missing before migration)
+    refpack_tokens_before: row.refpack_tokens_before ?? undefined,
+    refpack_tokens_after: row.refpack_tokens_after ?? undefined,
+    refpack_tokens_saved: row.refpack_tokens_saved ?? undefined,
+    phrasebook_tokens_before: row.phrasebook_tokens_before ?? undefined,
+    phrasebook_tokens_after: row.phrasebook_tokens_after ?? undefined,
+    phrasebook_tokens_saved: row.phrasebook_tokens_saved ?? undefined,
+    codemap_tokens_before: row.codemap_tokens_before ?? undefined,
+    codemap_tokens_after: row.codemap_tokens_after ?? undefined,
+    codemap_tokens_saved: row.codemap_tokens_saved ?? undefined,
   };
 }

@@ -87,50 +87,75 @@ runsRouter.get("/", async (req: AuthenticatedRequest, res) => {
     }));
     
     // Transform chat runs to unified format with Core Moat v1 metrics
+    // Prefer lightweight breakdown columns; fall back to debug_internal_json for old rows
     const unifiedChatRuns = await Promise.all(chatRuns.map(async (run) => {
-      // Get full run record to access debug_internal_json
-      let debugInternal: any = null;
-      try {
-        const fullRunRow = await queryOne<any>(`
-          SELECT debug_internal_json FROM runs WHERE id = $1
-        `, [run.id]);
-        
-        if (fullRunRow?.debug_internal_json) {
-          debugInternal = JSON.parse(fullRunRow.debug_internal_json);
-        }
-      } catch (e) {
-        // Ignore errors - debugInternal is optional
-      }
-
-      // Extract Core Moat v1 optimizations
+      const runRow = run as any;
       const optimizationsApplied: string[] = [];
       const tokenBreakdown: any = {};
-      
-      if (debugInternal?.refpack?.entriesCount > 0) {
+
+      // Prefer lightweight columns (no full prompt/debug storage needed)
+      if (runRow.refpack_tokens_saved != null && runRow.refpack_tokens_saved > 0) {
         optimizationsApplied.push('refpack');
         tokenBreakdown.refpack = {
-          before: debugInternal.refpack.tokensBefore || 0,
-          after: debugInternal.refpack.tokensAfter || 0,
-          saved: debugInternal.refpack.tokensSaved || 0,
+          before: runRow.refpack_tokens_before ?? 0,
+          after: runRow.refpack_tokens_after ?? 0,
+          saved: runRow.refpack_tokens_saved ?? 0,
         };
       }
-      
-      if (debugInternal?.phrasebook?.applied) {
+      if (runRow.phrasebook_tokens_saved != null && runRow.phrasebook_tokens_saved > 0) {
         optimizationsApplied.push('phrasebook');
         tokenBreakdown.phrasebook = {
-          before: debugInternal.phrasebook.tokensBefore || 0,
-          after: debugInternal.phrasebook.tokensAfter || 0,
-          saved: debugInternal.phrasebook.tokensSaved || 0,
+          before: runRow.phrasebook_tokens_before ?? 0,
+          after: runRow.phrasebook_tokens_after ?? 0,
+          saved: runRow.phrasebook_tokens_saved ?? 0,
         };
       }
-      
-      if (debugInternal?.codemap?.applied) {
+      if (runRow.codemap_tokens_saved != null && runRow.codemap_tokens_saved > 0) {
         optimizationsApplied.push('codemap');
         tokenBreakdown.codemap = {
-          before: debugInternal.codemap.tokensBefore || 0,
-          after: debugInternal.codemap.tokensAfter || 0,
-          saved: debugInternal.codemap.tokensSaved || 0,
+          before: runRow.codemap_tokens_before ?? 0,
+          after: runRow.codemap_tokens_after ?? 0,
+          saved: runRow.codemap_tokens_saved ?? 0,
         };
+      }
+
+      // Fallback: old rows may only have debug_internal_json
+      if (optimizationsApplied.length === 0) {
+        let debugInternal: any = null;
+        try {
+          const fullRunRow = await queryOne<any>(`
+            SELECT debug_internal_json FROM runs WHERE id = $1
+          `, [run.id]);
+          if (fullRunRow?.debug_internal_json) {
+            debugInternal = JSON.parse(fullRunRow.debug_internal_json);
+          }
+        } catch (e) {
+          // Ignore
+        }
+        if (debugInternal?.refpack?.entriesCount > 0) {
+          optimizationsApplied.push('refpack');
+          tokenBreakdown.refpack = {
+            before: debugInternal.refpack.tokensBefore || 0,
+            after: debugInternal.refpack.tokensAfter || 0,
+            saved: debugInternal.refpack.tokensSaved || 0,
+          };
+        }
+        if (debugInternal?.phrasebook?.applied) {
+          optimizationsApplied.push('phrasebook');
+          tokenBreakdown.phrasebook = {
+            before: debugInternal.phrasebook.tokensBefore || 0,
+            after: debugInternal.phrasebook.tokensAfter || 0,
+            saved: debugInternal.phrasebook.tokensSaved || 0,
+          };
+        }
+        if (debugInternal?.codemap?.applied) {
+          optimizationsApplied.push('codemap');
+          tokenBreakdown.codemap = {
+            before: debugInternal.codemap.tokensBefore || 0,
+            after: debugInternal.codemap.tokensAfter || 0,
+            saved: debugInternal.codemap.tokensSaved || 0,
+          };
+        }
       }
 
       return {
@@ -188,53 +213,76 @@ runsRouter.get("/:id", async (req: AuthenticatedRequest, res) => {
     if (!run) {
       return res.status(404).json({ error: "Run not found" });
     }
-    
-    // Get debug_internal_json for Core Moat v1 metrics
-    const runRow = await queryOne<any>(`
-      SELECT debug_internal_json FROM runs WHERE id = $1
-    `, [id]);
-    
-    let debugInternal: any = null;
-    if (runRow?.debug_internal_json) {
-      try {
-        debugInternal = JSON.parse(runRow.debug_internal_json);
-      } catch (e) {
-        // Ignore parse errors
+
+    const runWithBreakdown = run as typeof run & import("../services/storage/runsRepo.js").RunsRowSavingsBreakdown;
+    const optimizationsApplied: string[] = [];
+    const tokenBreakdown: any = {};
+
+    // Prefer lightweight breakdown columns
+    if (runWithBreakdown.refpack_tokens_saved != null && runWithBreakdown.refpack_tokens_saved > 0) {
+      optimizationsApplied.push('refpack');
+      tokenBreakdown.refpack = {
+        before: runWithBreakdown.refpack_tokens_before ?? 0,
+        after: runWithBreakdown.refpack_tokens_after ?? 0,
+        saved: runWithBreakdown.refpack_tokens_saved ?? 0,
+      };
+    }
+    if (runWithBreakdown.phrasebook_tokens_saved != null && runWithBreakdown.phrasebook_tokens_saved > 0) {
+      optimizationsApplied.push('phrasebook');
+      tokenBreakdown.phrasebook = {
+        before: runWithBreakdown.phrasebook_tokens_before ?? 0,
+        after: runWithBreakdown.phrasebook_tokens_after ?? 0,
+        saved: runWithBreakdown.phrasebook_tokens_saved ?? 0,
+      };
+    }
+    if (runWithBreakdown.codemap_tokens_saved != null && runWithBreakdown.codemap_tokens_saved > 0) {
+      optimizationsApplied.push('codemap');
+      tokenBreakdown.codemap = {
+        before: runWithBreakdown.codemap_tokens_before ?? 0,
+        after: runWithBreakdown.codemap_tokens_after ?? 0,
+        saved: runWithBreakdown.codemap_tokens_saved ?? 0,
+      };
+    }
+
+    // Fallback: old rows may only have debug_internal_json
+    if (optimizationsApplied.length === 0) {
+      const runRow = await queryOne<any>(`
+        SELECT debug_internal_json FROM runs WHERE id = $1
+      `, [id]);
+      let debugInternal: any = null;
+      if (runRow?.debug_internal_json) {
+        try {
+          debugInternal = JSON.parse(runRow.debug_internal_json);
+        } catch (e) {
+          // Ignore
+        }
+      }
+      if (debugInternal?.refpack?.entriesCount > 0) {
+        optimizationsApplied.push('refpack');
+        tokenBreakdown.refpack = {
+          before: debugInternal.refpack.tokensBefore || 0,
+          after: debugInternal.refpack.tokensAfter || 0,
+          saved: debugInternal.refpack.tokensSaved || 0,
+        };
+      }
+      if (debugInternal?.phrasebook?.applied) {
+        optimizationsApplied.push('phrasebook');
+        tokenBreakdown.phrasebook = {
+          before: debugInternal.phrasebook.tokensBefore || 0,
+          after: debugInternal.phrasebook.tokensAfter || 0,
+          saved: debugInternal.phrasebook.tokensSaved || 0,
+        };
+      }
+      if (debugInternal?.codemap?.applied) {
+        optimizationsApplied.push('codemap');
+        tokenBreakdown.codemap = {
+          before: debugInternal.codemap.tokensBefore || 0,
+          after: debugInternal.codemap.tokensAfter || 0,
+          saved: debugInternal.codemap.tokensSaved || 0,
+        };
       }
     }
 
-    // Extract Core Moat v1 optimizations
-    const optimizationsApplied: string[] = [];
-    const tokenBreakdown: any = {};
-    
-    if (debugInternal?.refpack?.entriesCount > 0) {
-      optimizationsApplied.push('refpack');
-      tokenBreakdown.refpack = {
-        before: debugInternal.refpack.tokensBefore || 0,
-        after: debugInternal.refpack.tokensAfter || 0,
-        saved: debugInternal.refpack.tokensSaved || 0,
-      };
-    }
-    
-    if (debugInternal?.phrasebook?.applied) {
-      optimizationsApplied.push('phrasebook');
-      tokenBreakdown.phrasebook = {
-        before: debugInternal.phrasebook.tokensBefore || 0,
-        after: debugInternal.phrasebook.tokensAfter || 0,
-        saved: debugInternal.phrasebook.tokensSaved || 0,
-      };
-    }
-    
-    if (debugInternal?.codemap?.applied) {
-      optimizationsApplied.push('codemap');
-      tokenBreakdown.codemap = {
-        before: debugInternal.codemap.tokensBefore || 0,
-        after: debugInternal.codemap.tokensAfter || 0,
-        saved: debugInternal.codemap.tokensSaved || 0,
-      };
-    }
-
-    // Return run with Core Moat v1 metrics
     res.json({
       ...run,
       optimizations_applied: optimizationsApplied,
