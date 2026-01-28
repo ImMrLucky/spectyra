@@ -16,6 +16,11 @@ export interface MeResponse {
     name: string;
     org_id: string;
   }>;
+  project?: {
+    id: string;
+    name: string;
+    org_id: string;
+  } | null;
   has_access: boolean;
   trial_active: boolean;
 }

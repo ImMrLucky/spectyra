@@ -34,6 +34,7 @@ export interface SpectralDebug {
   nNodes: number;
   nEdges: number;
   stabilityIndex: number;
+  contradictionEnergy?: number;
   lambda2?: number;
   stableUnitIds: string[];
   unstableUnitIds: string[];
@@ -46,6 +47,7 @@ export interface RunDebug {
   codeSliced?: boolean;
   patchMode?: boolean;
   spectral?: SpectralDebug;
+  retry?: boolean;
 }
 
 export interface QualityCheck {

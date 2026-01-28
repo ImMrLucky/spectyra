@@ -1,6 +1,6 @@
 import { Injectable } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
-import { Observable, BehaviorSubject, tap } from 'rxjs';
+import { Observable, BehaviorSubject, tap, map } from 'rxjs';
 import { environment } from '../../../environments/environment';
 import { MeService } from '../services/me.service';
 
@@ -112,6 +112,18 @@ export class AuthService {
   getMe(): Observable<{ org: any; project: any; has_access: boolean; trial_active: boolean }> {
     // Use MeService to cache and prevent duplicate calls
     return this.meService.getMe().pipe(
+      map(response => {
+        // Map response to expected format
+        // If project is not set but projects array exists, use first project
+        const project = response.project ?? (response.projects && response.projects.length > 0 ? response.projects[0] : null);
+        
+        return {
+          org: response.org,
+          project: project,
+          has_access: response.has_access,
+          trial_active: response.trial_active,
+        };
+      }),
       tap(response => {
         // Map org to user for backward compatibility
         const user: User = {

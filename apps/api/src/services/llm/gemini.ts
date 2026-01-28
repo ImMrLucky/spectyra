@@ -20,24 +20,28 @@ export class GeminiProvider implements ChatProvider {
   }
   
   async chat(messages: Message[], model: string, maxOutputTokens?: number): Promise<{ text: string; usage?: Usage }> {
-    const genModel = this.client.getGenerativeModel({ model });
-    
     // Convert messages to Gemini format
     const systemMessage = messages.find(m => m.role === "system");
     const conversationMessages = messages.filter(m => m.role !== "system");
+    
+    // Pass systemInstruction and generationConfig to getGenerativeModel
+    const genModel = this.client.getGenerativeModel({ 
+      model,
+      ...(systemMessage?.content ? { systemInstruction: systemMessage.content } : {}),
+      ...(maxOutputTokens ? { generationConfig: { maxOutputTokens } } : {}),
+    });
     
     const chat = genModel.startChat({
       history: conversationMessages.slice(0, -1).map(m => ({
         role: m.role === "user" ? "user" : "model",
         parts: [{ text: m.content }],
       })),
-      systemInstruction: systemMessage?.content,
     });
     
     const lastMessage = conversationMessages[conversationMessages.length - 1];
-    const result = await chat.sendMessage(lastMessage.content, {
-      ...(maxOutputTokens ? { generationConfig: { maxOutputTokens } } : {}),
-    });
+    
+    // sendMessage accepts only the message text (generationConfig is set on the model)
+    const result = await chat.sendMessage(lastMessage.content);
     const response = await result.response;
     const text = response.text();
     

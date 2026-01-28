@@ -61,7 +61,7 @@ function countTurns(messages: ChatMessage[]): number {
  * Prune messages to keep only the last N turns
  * Always keeps the most recent user message even if it doesn't have a pair yet
  */
-function keepLastTurns(messages: ChatMessage[], keepTurns: number): ChatMessage[] {
+function pruneToLastTurns(messages: ChatMessage[], keepTurns: number): ChatMessage[] {
   if (keepTurns <= 0) {
     // Keep only system messages and the last user message
     const system = messages.filter(m => m.role === "system");
@@ -130,7 +130,7 @@ export function applyContextCompaction(input: ContextCompactionInput): ContextCo
   
   if (cappedStableUnits.length === 0) {
     // Still apply keepLastTurns even if no REFs
-    const prunedMessages = keepLastTurns(messages, keepLastTurns);
+    const prunedMessages = pruneToLastTurns(messages, keepLastTurns);
     return { messages: prunedMessages, refsUsed: [] };
   }
 
@@ -155,7 +155,7 @@ export function applyContextCompaction(input: ContextCompactionInput): ContextCo
   let newMessages: ChatMessage[] = [sysMsg, ...systemExisting, ...nonSystem];
 
   // Apply keepLastTurns pruning (always, not just in aggressive mode)
-  newMessages = keepLastTurns(newMessages, keepLastTurns);
+  newMessages = pruneToLastTurns(newMessages, keepLastTurns);
 
   if (aggressive) {
     // Additional aggressive compaction: drop older assistant messages except last 1

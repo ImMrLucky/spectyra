@@ -47,7 +47,8 @@ export class LoginPage implements OnInit, OnDestroy {
     private supabase: SupabaseService,
     private http: HttpClient,
     private router: Router,
-    private snackbarService: SnackbarService
+    private snackbarService: SnackbarService,
+    private meService: MeService
   ) {}
 
   ngOnInit() {
