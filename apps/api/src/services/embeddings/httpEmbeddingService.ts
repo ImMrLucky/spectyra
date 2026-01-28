@@ -165,6 +165,15 @@ export class HttpEmbeddingService implements EmbeddingService {
     const timeoutId = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
     
     try {
+      // Detect if this is HuggingFace Inference API
+      const isHuggingFaceInference = this.baseUrl.includes('api-inference.huggingface.co');
+      
+      // For HuggingFace Inference API, we need to send one text at a time
+      // or use their batch format
+      if (isHuggingFaceInference) {
+        return await this.fetchHuggingFaceInference(texts, controller.signal);
+      }
+      
       // Try TEI format first (HuggingFace Text Embeddings Inference)
       const response = await fetch(this.baseUrl, {
         method: "POST",
@@ -203,6 +212,59 @@ export class HttpEmbeddingService implements EmbeddingService {
     } finally {
       clearTimeout(timeoutId);
     }
+  }
+  
+  /**
+   * Fetch embeddings from HuggingFace Inference API (free tier)
+   */
+  private async fetchHuggingFaceInference(texts: string[], signal: AbortSignal): Promise<number[][]> {
+    const results: number[][] = [];
+    
+    // HuggingFace Inference API works best with individual requests
+    // For batching, we process in parallel with concurrency limit
+    const CONCURRENCY = 5;
+    
+    for (let i = 0; i < texts.length; i += CONCURRENCY) {
+      const batch = texts.slice(i, i + CONCURRENCY);
+      const promises = batch.map(async (text) => {
+        const response = await fetch(this.baseUrl, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            ...(this.token ? { "Authorization": `Bearer ${this.token}` } : {}),
+          },
+          body: JSON.stringify({
+            inputs: text,
+            options: {
+              wait_for_model: true,
+            },
+          }),
+          signal,
+        });
+        
+        if (!response.ok) {
+          const errorText = await response.text();
+          throw new Error(`HuggingFace API error (${response.status}): ${errorText.slice(0, 200)}`);
+        }
+        
+        const data = await response.json() as number[] | number[][];
+        
+        // HuggingFace returns either a flat array or nested array
+        if (Array.isArray(data) && typeof data[0] === 'number') {
+          return data as number[];
+        } else if (Array.isArray(data) && Array.isArray(data[0])) {
+          // Some models return [[embedding]]
+          return (data as number[][])[0];
+        }
+        
+        throw new Error(`Unexpected HuggingFace response: ${JSON.stringify(data).slice(0, 100)}`);
+      });
+      
+      const batchResults = await Promise.all(promises);
+      results.push(...batchResults);
+    }
+    
+    return results;
   }
   
   /**

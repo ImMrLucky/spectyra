@@ -46,7 +46,7 @@ export const config = {
   // Default: "local" (uses EMBEDDINGS_HTTP_URL)
   // ============================================================================
   embeddings: {
-    provider: (process.env.EMBEDDINGS_PROVIDER || "local") as "local" | "http" | "openai",
+    provider: (process.env.EMBEDDINGS_PROVIDER || "local") as "local" | "http" | "disabled",
     httpUrl: process.env.EMBEDDINGS_HTTP_URL || "http://localhost:8081",
     httpToken: process.env.EMBEDDINGS_HTTP_TOKEN || "",
     model: process.env.EMBEDDINGS_MODEL || "BAAI/bge-large-en-v1.5",

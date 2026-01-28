@@ -220,9 +220,60 @@ export class DisabledNliService implements NliService {
 
 // Singleton instance
 let nliServiceInstance: NliService | null = null;
+let nliServiceInitPromise: Promise<NliService> | null = null;
 
 /**
- * Get the configured NLI service
+ * Get the configured NLI service (async version for proper initialization)
+ */
+export async function getNliServiceAsync(): Promise<NliService> {
+  if (nliServiceInstance) {
+    return nliServiceInstance;
+  }
+  
+  if (nliServiceInitPromise) {
+    return nliServiceInitPromise;
+  }
+  
+  nliServiceInitPromise = (async () => {
+    const provider = config.nli.provider;
+    
+    // "local" - use in-process Transformers.js (FREE)
+    if (provider === "local") {
+      try {
+        const { LocalNliService, isLocalNliAvailable } = await import("./localNliService.js");
+        if (await isLocalNliAvailable()) {
+          nliServiceInstance = new LocalNliService();
+          safeLog("info", "Local NLI service initialized (FREE, in-process Transformers.js)", {
+            model: config.nli.model || "Xenova/distilbert-base-uncased-mnli",
+          });
+          return nliServiceInstance;
+        }
+      } catch (e: any) {
+        safeLog("warn", "Local NLI not available, trying HTTP fallback", { error: e.message });
+      }
+    }
+    
+    // "http" - external HTTP service
+    if (provider === "http" || provider === "local") {
+      nliServiceInstance = new HttpNliService();
+      safeLog("info", "HTTP NLI service initialized", {
+        url: config.nli.httpUrl,
+        model: config.nli.model,
+      });
+      return nliServiceInstance;
+    }
+    
+    // "disabled" - return neutral for everything
+    nliServiceInstance = new DisabledNliService();
+    safeLog("info", "NLI service disabled (using heuristic contradiction detection)");
+    return nliServiceInstance;
+  })();
+  
+  return nliServiceInitPromise;
+}
+
+/**
+ * Get the configured NLI service (sync version - uses disabled if not initialized)
  */
 export function getNliService(): NliService {
   if (nliServiceInstance) {
@@ -231,10 +282,16 @@ export function getNliService(): NliService {
   
   const provider = config.nli.provider;
   
+  // For sync access, we can only use HTTP or disabled
+  // Local requires async initialization
   switch (provider) {
-    case "local":
     case "http":
       nliServiceInstance = new HttpNliService();
+      break;
+    case "local":
+      // Trigger async init in background, return disabled for now
+      getNliServiceAsync().catch(() => {});
+      nliServiceInstance = new DisabledNliService();
       break;
     case "disabled":
     default:

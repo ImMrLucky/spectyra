@@ -1,17 +1,18 @@
 /**
  * Embedder Registry
  * 
- * Manages embedding service providers. In production, Spectyra uses local/HTTP
- * open-source embeddings (TEI) to avoid paying for external API calls.
+ * Manages embedding service providers. Spectyra uses FREE embeddings only.
  * 
- * Providers:
- * - "local" / "http": HTTP embedding service (default, calls TEI)
- * - "openai": OpenAI embeddings (legacy, only for dev/testing when EMBEDDINGS_PROVIDER=openai)
+ * Providers (all FREE):
+ * - "local": In-process embeddings using Transformers.js (recommended)
+ * - "http": External HTTP service (e.g., HuggingFace Inference API)
+ * - "disabled": No embeddings (uses zero vectors, for testing)
  * 
  * Configuration:
- * - EMBEDDINGS_PROVIDER: "local" | "http" | "openai" (default: "local")
- * - EMBEDDINGS_HTTP_URL: URL of embedding service (default: http://localhost:8081)
- * - EMBEDDINGS_MODEL: Model to use (default: BAAI/bge-large-en-v1.5)
+ * - EMBEDDINGS_PROVIDER: "local" | "http" | "disabled" (default: "local")
+ * - EMBEDDINGS_HTTP_URL: URL for HTTP provider (HuggingFace API or self-hosted)
+ * - EMBEDDINGS_HTTP_TOKEN: Auth token for HTTP provider
+ * - EMBEDDINGS_MODEL: Model name (default: Xenova/bge-small-en-v1.5)
  */
 
 import { config } from "../../config.js";
@@ -29,34 +30,60 @@ class EmbedderRegistry {
   
   /**
    * Lazy initialization of embedders
+   * 
+   * ALL providers are FREE. Spectyra never pays for embeddings.
    */
   private async init() {
     if (this.initialized) return;
     this.initialized = true;
     
-    // Initialize HTTP/Local embedder (default)
-    try {
-      const { HttpEmbeddingService } = await import("./httpEmbeddingService.js");
-      const httpService = new HttpEmbeddingService();
-      this.register("local", httpService);
-      this.register("http", httpService);
-      safeLog("info", "HTTP/Local embedder registered", {
-        url: config.embeddings.httpUrl,
-        model: config.embeddings.model,
-      });
-    } catch (e: any) {
-      safeLog("warn", "HTTP embedder not available", { error: e.message });
+    const provider = config.embeddings.provider;
+    
+    // "disabled" provider - returns zero vectors
+    if (provider === "disabled") {
+      this.register("disabled", new DisabledEmbeddingService());
+      safeLog("warn", "Embeddings DISABLED - semantic features will not work properly");
+      return;
     }
     
-    // Initialize OpenAI embedder (legacy, for dev/testing only)
-    if (config.embeddings.provider === "openai" || config.allowEnvProviderKeys) {
+    // "local" provider - in-process using Transformers.js (FREE)
+    if (provider === "local") {
       try {
-        const { OpenAIEmbeddings } = await import("./openaiEmbeddings.js");
-        this.register("openai", new OpenAIEmbeddingServiceWrapper());
-        safeLog("info", "OpenAI embedder registered (dev/testing mode)");
+        const { LocalEmbeddingService, isLocalEmbeddingAvailable } = await import("./localEmbeddingService.js");
+        if (await isLocalEmbeddingAvailable()) {
+          this.register("local", new LocalEmbeddingService());
+          safeLog("info", "Local embeddings registered (FREE, in-process Transformers.js)", {
+            model: config.embeddings.model || "Xenova/bge-small-en-v1.5",
+          });
+          return;
+        }
       } catch (e: any) {
-        safeLog("warn", "OpenAI embedder not available", { error: e.message });
+        safeLog("warn", "Local embeddings not available, trying HTTP fallback", { error: e.message });
       }
+    }
+    
+    // "http" provider - external service (FREE with HuggingFace Inference API)
+    if (provider === "http" || provider === "local") {
+      try {
+        const { HttpEmbeddingService } = await import("./httpEmbeddingService.js");
+        const httpService = new HttpEmbeddingService();
+        this.register("http", httpService);
+        if (provider === "local") {
+          this.register("local", httpService); // Fallback
+        }
+        safeLog("info", "HTTP embeddings registered (FREE)", {
+          url: config.embeddings.httpUrl,
+          model: config.embeddings.model,
+        });
+      } catch (e: any) {
+        safeLog("error", "HTTP embedder failed to initialize", { error: e.message });
+      }
+    }
+    
+    // If nothing registered, use disabled as last resort
+    if (this.embedders.size === 0) {
+      this.register("disabled", new DisabledEmbeddingService());
+      safeLog("error", "No embedding service available! Using disabled (zero vectors).");
     }
   }
   
@@ -102,22 +129,13 @@ class EmbedderRegistry {
 }
 
 /**
- * Wrapper for OpenAI embeddings (legacy compatibility)
+ * Disabled embedding service - returns zero vectors
+ * Used when embeddings are disabled or unavailable
  */
-class OpenAIEmbeddingServiceWrapper implements EmbeddingService {
-  private client: any | null = null;
-  
-  private async getClient() {
-    if (!this.client) {
-      const { OpenAIEmbeddings } = await import("./openaiEmbeddings.js");
-      this.client = new OpenAIEmbeddings();
-    }
-    return this.client;
-  }
-  
+class DisabledEmbeddingService implements EmbeddingService {
   async embed(texts: string[]): Promise<number[][]> {
-    const client = await this.getClient();
-    return client.embedBatch(texts);
+    // Return 384-dimensional zero vectors (matches bge-small-en-v1.5)
+    return texts.map(() => new Array(384).fill(0));
   }
 }
 
