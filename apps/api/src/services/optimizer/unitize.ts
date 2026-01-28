@@ -1,7 +1,9 @@
 import crypto from "node:crypto";
 import type { PathKind, SemanticUnit, SemanticUnitKind } from "./spectral/types";
+import type { ChatMessage } from "@spectyra/shared";
 
-export type ChatMessage = { role: "system" | "user" | "assistant"; content: string };
+// Re-export canonical type
+export type { ChatMessage };
 
 export interface UnitizeOptions {
   maxUnits: number;              // e.g. 50

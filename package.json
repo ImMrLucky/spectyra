@@ -12,10 +12,14 @@
     "dev:web": "pnpm --filter web dev",
     "dev": "pnpm --parallel --filter \"./apps/*\" dev",
     "build": "pnpm --recursive build",
-    "typecheck": "pnpm --recursive typecheck"
+    "typecheck": "pnpm --recursive typecheck",
+    "types:report": "tsx tools/type-report.ts",
+    "types:report:strict": "tsx tools/type-report.ts --fail-on-collision"
   },
   "devDependencies": {
     "@types/node": "^20.11.0",
+    "ts-morph": "^27.0.2",
+    "tsx": "^4.7.0",
     "typescript": "~5.4.0"
   },
   "packageManager": "pnpm@9.12.3"

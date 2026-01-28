@@ -1,6 +1,8 @@
 import type { PathKind, OptimizerConfig } from "./optimizer";
+import type { OptimizationLevel } from "@spectyra/shared";
 
-export type OptimizationLevel = 0 | 1 | 2 | 3 | 4;
+// Re-export canonical type
+export type { OptimizationLevel };
 
 export interface OptimizationLevelConfig {
   // Talk policy

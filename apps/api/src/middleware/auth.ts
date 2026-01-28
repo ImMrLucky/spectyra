@@ -46,17 +46,12 @@ import {
 import { redactHeaders, safeLog } from "../utils/redaction.js";
 import crypto from "node:crypto";
 import { jwtVerify, createRemoteJWKSet } from "jose";
+import type { Org, Project } from "@spectyra/shared";
+import type { SupabaseAdminUser } from "../types/supabase.js";
 
 export interface RequestContext {
-  org: {
-    id: string;
-    name: string;
-    subscription_status: string;
-  };
-  project: {
-    id: string;
-    name: string;
-  } | null;
+  org: Org;
+  project: Project | null;
   apiKeyId: string;
   providerKeyOverride?: string;
   providerKeyFingerprint?: string;
@@ -214,15 +209,8 @@ export async function requireSpectyraApiKey(
     
     // Attach context to request (legacy format for backward compatibility)
     req.context = {
-      org: {
-        id: org.id,
-        name: org.name,
-        subscription_status: org.subscription_status,
-      },
-      project: project ? {
-        id: project.id,
-        name: project.name,
-      } : null,
+      org: org, // Use full Org type
+      project: project, // Use full Project type
       apiKeyId: apiKeyRecord.id,
     };
     
@@ -254,9 +242,11 @@ export async function optionalProviderKey(
 ): Promise<void> {
   try {
     const providerKey = req.headers["x-provider-key"] as string | undefined;
-    const context = req.context || req.auth;
     
-    if (!context || !context.orgId) {
+    // Get orgId from either req.context.org.id or req.auth.orgId
+    const orgId = req.context?.org?.id ?? req.auth?.orgId;
+    
+    if (!orgId) {
       // If no org context, allow provider key (will be checked later)
       if (providerKey && req.context) {
         req.context.providerKeyOverride = providerKey;
@@ -267,7 +257,7 @@ export async function optionalProviderKey(
 
     // Get org settings to check provider_key_mode
     const { getOrgSettings } = await import("../services/storage/settingsRepo.js");
-    const orgSettings = await getOrgSettings(context.orgId);
+    const orgSettings = await getOrgSettings(orgId);
 
     // Enforce BYOK mode
     if (orgSettings.provider_key_mode === "BYOK_ONLY") {
@@ -293,9 +283,21 @@ export async function optionalProviderKey(
       // Store in memory only
       if (req.context) {
         req.context.providerKeyOverride = providerKey;
-    }
+      }
       if (req.auth) {
         req.auth.providerKeyOverride = providerKey;
+      }
+
+      // Compute fingerprint for audit (if we have org_id)
+      // Reuse orgId computed at the top of the function
+      if (orgId) {
+        const fingerprint = computeProviderKeyFingerprint(providerKey, orgId);
+        if (req.auth) {
+          req.auth.providerKeyFingerprint = fingerprint;
+        }
+        if (req.context) {
+          req.context.providerKeyFingerprint = fingerprint;
+        }
       }
     }
 
@@ -304,22 +306,6 @@ export async function optionalProviderKey(
     safeLog("error", "Provider key middleware error", { error: error.message });
     res.status(500).json({ error: "Internal server error" });
   }
-}
-      
-      // Compute fingerprint for audit (if we have org_id)
-      if (req.auth.orgId) {
-        req.auth.providerKeyFingerprint = computeProviderKeyFingerprint(
-          providerKey,
-          req.auth.orgId
-        );
-        if (req.context) {
-          req.context.providerKeyFingerprint = req.auth.providerKeyFingerprint;
-        }
-      }
-    }
-  }
-  
-  next();
 }
 
 /**
@@ -533,12 +519,12 @@ export async function requireOrgMembership(
             );
 
             if (response.ok) {
-              const user = await response.json();
+              const user = await response.json() as SupabaseAdminUser;
               const userEmail = user.email || user.user_metadata?.email;
               
               if (userEmail) {
                 const userDomain = userEmail.split('@')[1]?.toLowerCase();
-                const allowedDomains = orgSettings.allowed_email_domains.map(d => d.toLowerCase());
+                const allowedDomains = orgSettings.allowed_email_domains.map((d: string) => d.toLowerCase());
                 
                 if (!allowedDomains.includes(userDomain)) {
                   safeLog("warn", "Domain not allowed", {
@@ -581,14 +567,14 @@ export async function requireOrgMembership(
             );
 
             if (response.ok) {
-              const user = await response.json();
+              const user = await response.json() as SupabaseAdminUser;
               const appMetadata = user.app_metadata || {};
               const provider = appMetadata.provider || user.user_metadata?.provider;
               
               // Check if user authenticated via SSO provider
               // Supabase SSO providers: 'saml', 'okta', 'azure', 'google', etc.
               const ssoProviders = ['saml', 'okta', 'azure', 'google', 'auth0', 'onelogin'];
-              const isSsoUser = ssoProviders.includes(provider) || 
+              const isSsoUser = (provider && ssoProviders.includes(provider)) || 
                                appMetadata.providers?.some((p: string) => ssoProviders.includes(p));
               
               if (!isSsoUser) {
@@ -639,23 +625,21 @@ export async function requireOrgMembership(
     req.auth.orgId = orgId;
     req.auth.role = membership.role;
     
-    // Attach to context
-    req.context = req.context || {} as RequestContext;
-    req.context.org = {
-      id: orgId,
-      name: "", // Will be loaded if needed
-      subscription_status: "",
-    };
-    req.context.userRole = membership.role as string;
-    
-    // Also attach to context
+    // Attach to context - load full org
     req.context = req.context || {} as RequestContext;
     const org = await getOrgById(orgId);
     if (org) {
+      req.context.org = org; // Use full Org type
+    } else {
+      // Fallback: create minimal org (shouldn't happen, but type-safe)
       req.context.org = {
-        id: org.id,
-        name: org.name,
-        subscription_status: org.subscription_status,
+        id: orgId,
+        name: "",
+        created_at: new Date().toISOString(),
+        trial_ends_at: null,
+        stripe_customer_id: null,
+        subscription_status: "trial",
+        sdk_access_enabled: false,
       };
     }
     req.context.userRole = membership.role;
@@ -748,7 +732,7 @@ export async function requireOwner(
         return;
       }
 
-      const user = await response.json();
+      const user = await response.json() as SupabaseAdminUser;
       const userEmail = user.email || user.user_metadata?.email;
 
       if (!userEmail || userEmail.toLowerCase() !== ownerEmail.toLowerCase()) {

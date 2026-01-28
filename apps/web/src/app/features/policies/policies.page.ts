@@ -1,4 +1,5 @@
 import { Component, OnInit } from '@angular/core';
+import { firstValueFrom } from 'rxjs';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { HttpClient } from '@angular/common/http';
@@ -85,7 +86,7 @@ export class PoliciesPage implements OnInit {
     this.error = null;
 
     try {
-      const policies = await this.http.get<Policy[]>(`${environment.apiUrl}/policies`).toPromise();
+      const policies = await firstValueFrom(this.http.get<Policy[]>(`${environment.apiUrl}/policies`));
       this.policies = policies || [];
     } catch (err: any) {
       if (err.status === 404) {
@@ -160,13 +161,12 @@ export class PoliciesPage implements OnInit {
     }
 
     try {
-      const newPolicy = await this.http
+      const newPolicy = await firstValueFrom(this.http
         .post<Policy>(`${environment.apiUrl}/policies`, {
           name: this.policyForm.name,
           type: this.policyForm.type,
           config: this.policyForm.config,
-        })
-        .toPromise();
+        }));
 
       this.snackbarService.showSuccess('Policy created successfully');
       this.closeCreateForm();
@@ -189,12 +189,11 @@ export class PoliciesPage implements OnInit {
   async simulateDecision() {
     this.simulating = true;
     try {
-      const result = await this.http
+      const result = await firstValueFrom(this.http
         .post<any>(`${environment.apiUrl}/policies/simulate`, {
           promptLength: this.simulatePromptLength,
           path: this.simulatePath,
-        })
-        .toPromise();
+        }));
 
       // Show results in modal
       const resultText = `Policy Decision Simulation\n\n` +

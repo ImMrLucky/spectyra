@@ -25,6 +25,7 @@ import { query, queryOne } from "../services/storage/db.js";
 import { safeLog } from "../utils/redaction.js";
 import { audit } from "../services/audit/audit.js";
 import { requireOrgRole } from "../middleware/requireRole.js";
+import type { SupabaseAdminUser } from "../types/supabase.js";
 
 export const authRouter = Router();
 
@@ -71,7 +72,7 @@ authRouter.post("/bootstrap", requireUserSession, async (req: AuthenticatedReque
           );
 
           if (response.ok) {
-            const user: any = await response.json();
+            const user = await response.json() as SupabaseAdminUser;
             const userEmail = user.email || user.user_metadata?.email;
             
             if (userEmail) {
@@ -90,7 +91,7 @@ authRouter.post("/bootstrap", requireUserSession, async (req: AuthenticatedReque
               // If user's domain is restricted by any org, log it (but allow org creation)
               // Actual enforcement happens when they try to access that org
               for (const org of orgsWithDomainRestrictions.rows) {
-                const allowedDomains = org.allowed_email_domains.map(d => d.toLowerCase());
+                const allowedDomains = org.allowed_email_domains.map((d: string) => d.toLowerCase());
                 if (!allowedDomains.includes(userDomain)) {
                   safeLog("info", "User domain may be restricted by existing org", {
                     userId,

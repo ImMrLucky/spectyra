@@ -1,4 +1,5 @@
 import { Component, OnInit } from '@angular/core';
+import { firstValueFrom } from 'rxjs';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { Router, RouterModule, ActivatedRoute } from '@angular/router';
@@ -83,7 +84,7 @@ export class RunsPage implements OnInit {
     this.error = null;
 
     try {
-      const runs = await this.http.get<UnifiedRun[]>(`${environment.apiUrl}/runs?limit=100`).toPromise();
+      const runs = await firstValueFrom(this.http.get<UnifiedRun[]>(`${environment.apiUrl}/runs?limit=100`));
       this.runs = runs || [];
     } catch (err: any) {
       this.error = 'Failed to load runs';
@@ -98,7 +99,7 @@ export class RunsPage implements OnInit {
     this.error = null;
 
     try {
-      const run = await this.http.get<UnifiedRun>(`${environment.apiUrl}/runs/${runId}`).toPromise();
+      const run = await firstValueFrom(this.http.get<UnifiedRun>(`${environment.apiUrl}/runs/${runId}`));
       this.selectedRun = run || null;
     } catch (err: any) {
       this.error = 'Failed to load run details';

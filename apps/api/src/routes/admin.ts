@@ -1,6 +1,6 @@
 import { Router } from "express";
 import { query, queryOne } from "../services/storage/db.js";
-import { requireOwner, requireUserSession } from "../middleware/auth.js";
+import {requireAdminToken, requireOwner, requireUserSession} from "../middleware/auth.js";
 import { safeLog, redactSecrets } from "../utils/redaction.js";
 import {
   getOrgById,
@@ -11,7 +11,7 @@ import {
   getOrgApiKeys,
   hashApiKey,
 } from "../services/storage/orgsRepo.js";
-import { query, queryOne } from "../services/storage/db.js";
+import type { SupabaseAdminUser } from "../types/supabase.js";
 
 export const adminRouter = Router();
 
@@ -356,7 +356,8 @@ adminRouter.get("/users", requireUserSession, requireOwner, async (req, res) => 
       }>;
     }>();
 
-    for (const m of memberships) {
+    // Iterate over rows array (query returns { rows, rowCount })
+    for (const m of memberships.rows) {
       if (!usersMap.has(m.user_id)) {
         usersMap.set(m.user_id, {
           user_id: m.user_id,
@@ -390,7 +391,7 @@ adminRouter.get("/users", requireUserSession, requireOwner, async (req, res) => 
             }
           );
           if (response.ok) {
-            const supabaseUser = await response.json();
+            const supabaseUser = await response.json() as SupabaseAdminUser;
             user.email = supabaseUser.email || supabaseUser.user_metadata?.email;
           }
         } catch (e) {

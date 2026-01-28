@@ -107,53 +107,6 @@ export interface PromptMeta {
 }
 
 // ============================================================================
-// Agent Options (Claude Agent SDK Compatible)
-// ============================================================================
-
-export interface ClaudeAgentOptions {
-  /**
-   * Model name (e.g., "claude-3-5-sonnet-latest")
-   */
-  model?: string;
-  
-  /**
-   * Maximum budget in USD for this run
-   */
-  maxBudgetUsd?: number;
-  
-  /**
-   * Working directory
-   */
-  cwd?: string;
-  
-  /**
-   * Allowed tool names
-   */
-  allowedTools?: string[];
-  
-  /**
-   * Permission mode
-   */
-  permissionMode?: "default" | "acceptEdits" | "bypassPermissions";
-  
-  /**
-   * Tool usage gate function
-   */
-  canUseTool?: (toolName: string, toolInput: any) => boolean | Promise<boolean>;
-}
-
-export interface AgentDecision {
-  /**
-   * Generated agent options
-   */
-  options: ClaudeAgentOptions;
-  
-  /**
-   * Decision reasons (for debugging)
-   */
-  reasons: string[];
-}
-
 // ============================================================================
 // Remote API Types
 // ============================================================================
@@ -186,20 +139,10 @@ export interface AgentEventResponse {
 // Legacy Types (for backwards compatibility)
 // ============================================================================
 
-export type Path = "talk" | "code";
-export type Mode = "baseline" | "optimized";
+import type { Path, Mode, ChatMessage, Usage, ClaudeAgentOptions, AgentDecision } from "@spectyra/shared";
 
-export interface ChatMessage {
-  role: "system" | "user" | "assistant";
-  content: string;
-}
-
-export interface Usage {
-  input_tokens: number;
-  output_tokens: number;
-  total_tokens: number;
-  estimated?: boolean;
-}
+// Re-export canonical types
+export type { Path, Mode, ChatMessage, Usage, ClaudeAgentOptions, AgentDecision };
 
 export interface ChatResponse {
   id: string;

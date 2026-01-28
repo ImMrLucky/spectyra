@@ -7,6 +7,7 @@
 
 import { Injectable } from '@angular/core';
 import { BehaviorSubject, Observable } from 'rxjs';
+import { firstValueFrom } from 'rxjs';
 import { SupabaseService } from '../../services/supabase.service';
 import { HttpClient } from '@angular/common/http';
 import { environment } from '../../../environments/environment';
@@ -44,9 +45,9 @@ export class OwnerService {
 
       // Try to access admin endpoint (will return 403 if not owner)
       try {
-        await this.http.get(`${environment.apiUrl}/admin/orgs`, {
+        await firstValueFrom(this.http.get(`${environment.apiUrl}/admin/orgs`, {
           observe: 'response',
-        }).toPromise();
+        }));
         
         // If we get here without error, user is owner
         this.isOwner$.next(true);

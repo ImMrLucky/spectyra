@@ -7,6 +7,7 @@ import { SnackbarService } from '../../core/services/snackbar.service';
 import { MeService } from '../../core/services/me.service';
 import { HttpClient } from '@angular/common/http';
 import { environment } from '../../../environments/environment';
+import { firstValueFrom } from 'rxjs';
 
 @Component({
   selector: 'app-security-settings',
@@ -37,7 +38,8 @@ export class SecuritySettingsPage implements OnInit {
     private settingsService: SettingsService,
     private supabase: SupabaseService,
     private snackbar: SnackbarService,
-    private http: HttpClient
+    private http: HttpClient,
+    private meService: MeService
   ) {}
 
   async ngOnInit() {
@@ -49,7 +51,7 @@ export class SecuritySettingsPage implements OnInit {
 
   async loadOrgId() {
     try {
-      const me = await this.meService.getMe().toPromise();
+      const me = await firstValueFrom(this.meService.getMe());
       if (me && me.org) {
         this.orgId = me.org.id;
       }
@@ -65,7 +67,7 @@ export class SecuritySettingsPage implements OnInit {
     this.error = null;
 
     try {
-      this.settings = await this.settingsService.getOrgSettings(this.orgId).toPromise() || null;
+      this.settings = await firstValueFrom(this.settingsService.getOrgSettings(this.orgId)) || null;
       
       if (this.settings) {
         this.dataRetentionDays = this.settings.data_retention_days;
@@ -118,7 +120,7 @@ export class SecuritySettingsPage implements OnInit {
         updates.allowed_ip_ranges = null;
       }
 
-      await this.settingsService.updateOrgSettings(this.orgId, updates).toPromise();
+      await firstValueFrom(this.settingsService.updateOrgSettings(this.orgId, updates));
       this.snackbar.showSuccess('Settings saved successfully');
       await this.loadSettings();
     } catch (err: any) {

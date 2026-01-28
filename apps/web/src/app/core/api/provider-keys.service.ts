@@ -4,15 +4,10 @@ import { Observable, from } from 'rxjs';
 import { switchMap } from 'rxjs/operators';
 import { environment } from '../../../environments/environment';
 import { SupabaseService } from '../../services/supabase.service';
+import type { ProviderCredential } from '@spectyra/shared';
 
-export interface ProviderCredential {
-  id: string;
-  provider: 'openai' | 'anthropic' | 'google' | 'azure' | 'aws';
-  key_fingerprint: string;
-  created_at: string;
-  updated_at: string;
-  revoked_at: string | null;
-}
+// Re-export for components
+export type { ProviderCredential };
 
 export interface ProviderKeyMode {
   provider_key_mode: 'BYOK_ONLY' | 'VAULT_ONLY' | 'EITHER';

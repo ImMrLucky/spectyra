@@ -13,10 +13,10 @@ export interface TokenEstimate {
   cost_usd: number;
 }
 
-export interface PricingConfig {
-  input_per_1k: number;
-  output_per_1k: number;
-}
+import type { PricingConfig } from "@spectyra/shared";
+
+// Re-export canonical type
+export type { PricingConfig };
 
 // Rough token estimation: ~4 chars per token (conservative)
 const CHARS_PER_TOKEN = 4;

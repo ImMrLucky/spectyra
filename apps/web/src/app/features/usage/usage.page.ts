@@ -1,4 +1,5 @@
 import { Component, OnInit } from '@angular/core';
+import { firstValueFrom } from 'rxjs';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { RouterModule } from '@angular/router';
@@ -22,19 +23,10 @@ interface BudgetProgress {
   period: string;
 }
 
-interface OptimizationSavings {
-  optimization: string;
-  name: string;
-  tokens_saved: number;
-  runs_count: number;
-}
+import type { OptimizationSavings, BillingStatusPartial } from '@spectyra/shared';
 
-interface BillingStatus {
-  subscription_active?: boolean;
-  subscription_status?: string;
-  trial_ends_at?: string | null;
-  has_access?: boolean;
-}
+// Use partial billing status for usage page (different from full BillingStatus)
+type BillingStatusDisplay = BillingStatusPartial;
 
 interface ProjectUsage {
   id: string;
@@ -58,7 +50,7 @@ export class UsagePage implements OnInit {
   selectedRange: '24h' | '7d' | '30d' | '90d' = '30d';
   usageData: UsageData[] = [];
   budgetProgress: BudgetProgress[] = [];
-  billingStatus: BillingStatus | null = null;
+  billingStatus: BillingStatusDisplay | null = null;
   optimizationSavings: OptimizationSavings[] = [];
   projectList: ProjectUsage[] = [];
 
@@ -78,7 +70,7 @@ export class UsagePage implements OnInit {
     try {
       // Load usage data
       try {
-        const usage = await this.http.get<UsageData[]>(`${environment.apiUrl}/usage?range=${this.selectedRange}`).toPromise();
+        const usage = await firstValueFrom(this.http.get<UsageData[]>(`${environment.apiUrl}/usage?range=${this.selectedRange}`));
         this.usageData = usage || [];
       } catch (err: any) {
         // Endpoint might not exist yet
@@ -87,7 +79,7 @@ export class UsagePage implements OnInit {
 
       // Load budget progress
       try {
-        const budgets = await this.http.get<BudgetProgress[]>(`${environment.apiUrl}/usage/budgets`).toPromise();
+        const budgets = await firstValueFrom(this.http.get<BudgetProgress[]>(`${environment.apiUrl}/usage/budgets`));
         this.budgetProgress = budgets || [];
       } catch (err: any) {
         this.budgetProgress = [];
@@ -95,7 +87,7 @@ export class UsagePage implements OnInit {
 
       // Load billing status
       try {
-        const billing = await this.http.get<any>(`${environment.apiUrl}/billing/status`).toPromise();
+        const billing = await firstValueFrom(this.http.get<any>(`${environment.apiUrl}/billing/status`));
         this.billingStatus = billing;
       } catch (err: any) {
         this.billingStatus = null;
@@ -103,7 +95,7 @@ export class UsagePage implements OnInit {
 
       // Load optimization savings (Core Moat v1)
       try {
-        const optimizations = await this.http.get<OptimizationSavings[]>(`${environment.apiUrl}/usage/optimizations?range=${this.selectedRange}`).toPromise();
+        const optimizations = await firstValueFrom(this.http.get<OptimizationSavings[]>(`${environment.apiUrl}/usage/optimizations?range=${this.selectedRange}`));
         this.optimizationSavings = optimizations || [];
       } catch (err: any) {
         this.optimizationSavings = [];

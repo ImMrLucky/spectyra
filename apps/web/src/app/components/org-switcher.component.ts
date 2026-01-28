@@ -6,19 +6,9 @@ import { HttpClient, HttpHeaders } from '@angular/common/http';
 import { environment } from '../../environments/environment';
 import { Subscription } from 'rxjs';
 import { debounceTime, distinctUntilChanged } from 'rxjs/operators';
+import { firstValueFrom } from 'rxjs';
 import {MeService} from "../core/services/me.service";
-
-interface Org {
-  id: string;
-  name: string;
-  subscription_status: string;
-}
-
-interface Project {
-  id: string;
-  name: string;
-  org_id: string;
-}
+import type { OrgDisplay, ProjectDisplay } from '@spectyra/shared';
 
 @Component({
   selector: 'app-org-switcher',
@@ -28,8 +18,8 @@ interface Project {
   styleUrls: ['./org-switcher.component.scss'],
 })
 export class OrgSwitcherComponent implements OnInit, OnDestroy {
-  org: Org | null = null;
-  projects: Project[] = [];
+  org: OrgDisplay | null = null;
+  projects: ProjectDisplay[] = [];
   currentProjectId: string | null = null;
   showDropdown = false;
   loading = false;
@@ -91,7 +81,7 @@ export class OrgSwitcherComponent implements OnInit, OnDestroy {
       }
 
       // Use MeService to prevent duplicate calls
-      const me = await this.meService.getMe().toPromise();
+      const me = await firstValueFrom(this.meService.getMe());
       if (me) {
         if (me.org) {
           this.org = me.org;
@@ -108,7 +98,7 @@ export class OrgSwitcherComponent implements OnInit, OnDestroy {
     }
   }
 
-  selectProject(project: Project) {
+  selectProject(project: ProjectDisplay) {
     this.currentProjectId = project.id;
     // TODO: Store selected project in service/state
     // TODO: Reload data filtered by project

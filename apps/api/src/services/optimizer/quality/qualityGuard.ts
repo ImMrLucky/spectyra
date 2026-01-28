@@ -1,5 +1,5 @@
-export type RequiredCheck =
-  | { name: string; type: "regex"; pattern: string; flags?: string };
+// Import and re-export canonical interface
+export type { RequiredCheck } from "@spectyra/shared";
 
 export interface QualityGuardInput {
   text: string;

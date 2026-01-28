@@ -7,19 +7,12 @@
 import { query, queryOne, tx } from "./db.js";
 import { encryptKey, decryptKey, computeProviderKeyFingerprint, type EncryptedKey } from "../crypto/envelope.js";
 import { safeLog } from "../../utils/redaction.js";
+import type { ProviderCredentialRow } from "@spectyra/shared";
 
-export interface ProviderCredential {
-  id: string;
-  org_id: string;
-  project_id: string | null;
-  provider: "openai" | "anthropic" | "google" | "azure" | "aws";
-  key_ciphertext: string; // JSON string of EncryptedKey
-  key_kid: string;
-  key_fingerprint: string;
-  created_at: string;
-  updated_at: string;
-  revoked_at: string | null;
-}
+// Use canonical Row type (includes ciphertext - server-only)
+// This is the server-side representation with ciphertext
+// Re-export with same name for backward compatibility
+export type { ProviderCredentialRow as ProviderCredential };
 
 /**
  * Set or update a provider credential
@@ -28,9 +21,9 @@ export interface ProviderCredential {
 export async function setProviderCredential(
   orgId: string,
   projectId: string | null,
-  provider: ProviderCredential["provider"],
+  provider: ProviderCredentialRow["provider"],
   plaintextKey: string
-): Promise<ProviderCredential> {
+): Promise<ProviderCredentialRow> {
   // Encrypt the key
   const encrypted = encryptKey(plaintextKey);
   const fingerprint = computeProviderKeyFingerprint(plaintextKey, orgId);

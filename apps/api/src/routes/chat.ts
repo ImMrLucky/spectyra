@@ -10,14 +10,11 @@ import { getEmbedder } from "../services/embeddings/embedderRegistry.js";
 import { makeOptimizerConfig } from "../services/optimizer/config.js";
 import { mapOptimizationLevelToConfig, getKeepLastTurns, getCodeSlicerAggressive, type OptimizationLevel } from "../services/optimizer/optimizationLevel.js";
 import { estimateCost } from "../utils/costEstimator.js";
-import { checkQuality } from "../services/optimizer/quality/qualityGuard.js";
 import { saveRun } from "../services/storage/runsRepo.js";
-import type { OptimizationLevel } from "../services/optimizer/optimizationLevel.js";
 import { computeWorkloadKey, computePromptHash } from "../services/savings/workloadKey.js";
 import { writeEstimatedSavings } from "../services/savings/ledgerWriter.js";
 import { redactRun } from "../middleware/redact.js";
 import { safeLog } from "../utils/redaction.js";
-import { rateLimit } from "../middleware/rateLimit.js";
 import type { RunRecord, Message, Path, Mode } from "@spectyra/shared";
 import type { ChatMessage } from "../services/optimizer/unitize.js";
 import {
@@ -53,9 +50,9 @@ chatRouter.post("/", async (req: AuthenticatedRequest, res) => {
     }
     
     // Enterprise Security: Provider key resolution (BYOK or Vault)
-    const context = req.context || req.auth;
-    const orgId = context?.org?.id || context?.orgId;
-    const projectId = context?.project?.id || context?.projectId;
+    // Extract org and project IDs from context (primary) or auth (fallback)
+    const orgId: string | undefined = req.context?.org?.id ?? req.auth?.orgId;
+    const projectId: string | null | undefined = req.context?.project?.id ?? req.auth?.projectId ?? null;
     
     const providerKeyOverride = req.context?.providerKeyOverride;
     let llmProvider;
@@ -108,7 +105,12 @@ chatRouter.post("/", async (req: AuthenticatedRequest, res) => {
     
     // Get base config and apply optimization level if provided
     const baseConfig = makeOptimizerConfig();
-    const optimizationLevel = optimization_level ?? 2; // default to 2
+    // Validate and type optimization level (must be 0-4)
+    const rawLevel = optimization_level ?? 2;
+    if (rawLevel < 0 || rawLevel > 4 || !Number.isInteger(rawLevel)) {
+      return res.status(400).json({ error: "optimization_level must be an integer between 0 and 4" });
+    }
+    const optimizationLevel = rawLevel as OptimizationLevel;
     const cfg = mapOptimizationLevelToConfig(path as "talk" | "code", optimizationLevel, baseConfig);
     
     // Handle dry-run mode (no real LLM calls)
@@ -292,12 +294,11 @@ chatRouter.post("/", async (req: AuthenticatedRequest, res) => {
     };
     
     const runId = run.id;
-    const optLevel = (optimizationLevel ?? 2) as OptimizationLevel;
     
     // Save to database with org/project context
     await saveRun({ 
       ...run, 
-      optimizationLevel: optLevel,
+      optimizationLevel,
       workloadKey,
       promptHash,
       debugInternal,
@@ -313,7 +314,7 @@ chatRouter.post("/", async (req: AuthenticatedRequest, res) => {
         path,
         provider,
         model,
-        optLevel,
+        optimizationLevel,
         runId,
         usage.total_tokens,
         costUsd,

@@ -6,14 +6,10 @@
  */
 
 import type { RepoContext, OptimizationReportPublic } from "../types";
+import type { ChatMessage } from "@spectyra/shared";
 
-/**
- * Internal ChatMessage format (matches optimizer)
- */
-export interface ChatMessage {
-  role: "system" | "user" | "assistant" | "tool";
-  content: string;
-}
+// Re-export canonical type
+export type { ChatMessage };
 
 /**
  * Input for agent message optimization

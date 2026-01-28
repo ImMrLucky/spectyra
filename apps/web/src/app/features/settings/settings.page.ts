@@ -7,28 +7,11 @@ import { environment } from '../../../environments/environment';
 import { AuthService } from '../../core/auth/auth.service';
 import { SnackbarService } from '../../core/services/snackbar.service';
 import { MeService } from '../../core/services/me.service';
+import { firstValueFrom } from 'rxjs';
+import type { ApiKeyDisplay, OrgWithTrial, ProjectDisplay } from '@spectyra/shared';
 
-interface ApiKey {
-  id: string;
-  name: string | null;
-  project_id: string | null;
-  created_at: string;
-  last_used_at: string | null;
-  revoked_at: string | null;
-}
-
-interface Org {
-  id: string;
-  name: string;
-  trial_ends_at: string | null;
-  subscription_status: string;
-}
-
-interface Project {
-  id: string;
-  name: string;
-  org_id: string;
-}
+// Use OrgWithTrial directly (no local alias to avoid collision)
+// This has required trial_ends_at, different from base OrgDisplay
 
 @Component({
   selector: 'app-settings',
@@ -38,9 +21,9 @@ interface Project {
   styleUrls: ['./settings.page.scss'],
 })
 export class SettingsPage implements OnInit {
-  apiKeys: ApiKey[] = [];
-  org: Org | null = null;
-  projects: Project[] = [];
+  apiKeys: ApiKeyDisplay[] = [];
+  org: OrgWithTrial | null = null;
+  projects: ProjectDisplay[] = [];
   loading = false;
   error: string | null = null;
   creating = false;
@@ -54,7 +37,8 @@ export class SettingsPage implements OnInit {
     private supabase: SupabaseService,
     private http: HttpClient,
     private authService: AuthService,
-    private snackbarService: SnackbarService
+    private snackbarService: SnackbarService,
+    private meService: MeService
   ) {}
 
   async ngOnInit() {
@@ -76,7 +60,7 @@ export class SettingsPage implements OnInit {
       // Use MeService to prevent duplicate calls
       // Load org info and projects (single call)
       try {
-        const me = await this.meService.getMe().toPromise();
+        const me = await firstValueFrom(this.meService.getMe());
         if (me) {
           if (me.org) {
             this.org = me.org;
@@ -91,7 +75,7 @@ export class SettingsPage implements OnInit {
 
       // Load API keys (interceptor handles auth)
       try {
-        const keys = await this.http.get<ApiKey[]>(`${environment.apiUrl}/auth/api-keys`).toPromise();
+        const keys = await firstValueFrom(this.http.get<ApiKeyDisplay[]>(`${environment.apiUrl}/auth/api-keys`));
         this.apiKeys = keys || [];
       } catch (err: any) {
         if (err.status === 401) {
@@ -127,14 +111,14 @@ export class SettingsPage implements OnInit {
         'Content-Type': 'application/json'
       });
 
-      const response = await this.http.post<any>(
+      const response = await firstValueFrom(this.http.post<any>(
         `${environment.apiUrl}/auth/api-keys`,
         {
           name: this.newKeyName || undefined,
           project_id: this.newKeyProjectId || undefined
         },
         { headers }
-      ).toPromise();
+      ));
 
       this.newlyCreatedKey = response.key;
       this.newKeyName = '';
@@ -172,7 +156,7 @@ export class SettingsPage implements OnInit {
         'Content-Type': 'application/json'
       });
 
-      await this.http.delete(`${environment.apiUrl}/auth/api-keys/${keyId}`, { headers }).toPromise();
+      await firstValueFrom(this.http.delete(`${environment.apiUrl}/auth/api-keys/${keyId}`, { headers }));
       
       // Reload API keys list
       await this.loadData();

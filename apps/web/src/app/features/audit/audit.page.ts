@@ -1,4 +1,5 @@
 import { Component, OnInit } from '@angular/core';
+import { firstValueFrom } from 'rxjs';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { HttpClient } from '@angular/common/http';
@@ -54,7 +55,7 @@ export class AuditPage implements OnInit {
         params.set('event_type', this.selectedEventType);
       }
 
-      const response = await this.http.get<{ logs: AuditLog[]; total: number }>(`${environment.apiUrl}/v1/audit?${params.toString()}`).toPromise();
+      const response = await firstValueFrom(this.http.get<{ logs: AuditLog[]; total: number }>(`${environment.apiUrl}/v1/audit?${params.toString()}`));
       this.logs = response?.logs || [];
     } catch (err: any) {
       if (err.status === 404) {

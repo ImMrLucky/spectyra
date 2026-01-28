@@ -5,12 +5,13 @@ import { RouterModule } from '@angular/router';
 import { HttpClient } from '@angular/common/http';
 import { MeService } from '../../core/services/me.service';
 import { environment } from '../../../environments/environment';
+import { firstValueFrom } from 'rxjs';
+import type { ProjectSummary } from '@spectyra/shared';
 
-interface Project {
-  id: string;
-  name: string;
-  org_id: string;
-  created_at: string;
+// Extended Project type for UI with additional fields
+// API may return more fields than base Project type
+interface ProjectWithExtras extends ProjectSummary {
+  created_at?: string; // Optional - API may not always return this
   environments?: string[];
   tags?: string[];
   budget?: {
@@ -28,7 +29,7 @@ interface Project {
   styleUrls: ['./projects.page.scss'],
 })
 export class ProjectsPage implements OnInit {
-  projects: Project[] = [];
+  projects: ProjectWithExtras[] = [];
   loading = false;
   error: string | null = null;
   showCreateForm = false;
@@ -51,7 +52,7 @@ export class ProjectsPage implements OnInit {
     try {
       // Get projects from org info
       // Use MeService to prevent duplicate calls
-      const me = await this.meService.getMe().toPromise();
+      const me = await firstValueFrom(this.meService.getMe());
       if (me && me.projects) {
         this.projects = me.projects;
       }

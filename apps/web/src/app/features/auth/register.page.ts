@@ -7,6 +7,7 @@ import { HttpClient, HttpHeaders } from '@angular/common/http';
 import { environment } from '../../../environments/environment';
 import { AuthService } from '../../core/auth/auth.service';
 import { SnackbarService } from '../../core/services/snackbar.service';
+import { firstValueFrom } from 'rxjs';
 
 @Component({
   selector: 'app-register',
@@ -101,14 +102,14 @@ export class RegisterPage {
         'Content-Type': 'application/json'
       });
 
-      const response = await this.http.post<any>(
+      const response = await firstValueFrom(this.http.post<any>(
         `${environment.apiUrl}/auth/bootstrap`,
         {
           org_name: this.orgName.trim(),
           project_name: this.projectName.trim() || undefined
         },
         { headers }
-      ).toPromise();
+      ));
 
       if (!response || !response.api_key) {
         this.error = 'Failed to create organization. Please try again.';

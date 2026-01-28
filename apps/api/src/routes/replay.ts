@@ -85,9 +85,9 @@ replayRouter.post("/", async (req: AuthenticatedRequest, res) => {
     const scenario: Scenario = JSON.parse(scenarioContent);
     
     // Enterprise Security: Provider key resolution (BYOK or Vault)
-    const context = req.context || req.auth;
-    const orgId = context?.org?.id || context?.orgId;
-    const projectId = context?.project?.id || context?.projectId;
+    // Extract org and project IDs from context (primary) or auth (fallback)
+    const orgId: string | undefined = req.context?.org?.id ?? req.auth?.orgId;
+    const projectId: string | null | undefined = req.context?.project?.id ?? req.auth?.projectId ?? null;
     
     const providerKeyOverride = req.context?.providerKeyOverride;
     let llmProvider;

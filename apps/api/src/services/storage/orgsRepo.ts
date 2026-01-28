@@ -9,40 +9,10 @@ import { query, queryOne, tx } from "./db.js";
 import { safeLog } from "../../utils/redaction.js";
 import crypto from "node:crypto";
 import argon2 from "argon2";
+import type { Org, Project, ApiKey } from "@spectyra/shared";
 
-export interface Org {
-  id: string;
-  name: string;
-  created_at: string;
-  trial_ends_at: string | null;
-  stripe_customer_id: string | null;
-  subscription_status: "trial" | "active" | "canceled" | "past_due";
-  sdk_access_enabled: boolean;
-}
-
-export interface Project {
-  id: string;
-  org_id: string;
-  name: string;
-  created_at: string;
-}
-
-export interface ApiKey {
-  id: string;
-  org_id: string;
-  project_id: string | null;
-  name: string | null;
-  key_prefix: string;
-  key_hash: string;
-  scopes: string[];
-  created_at: string;
-  last_used_at: string | null;
-  revoked_at: string | null;
-  expires_at: string | null;
-  allowed_ip_ranges: string[] | null;
-  allowed_origins: string[] | null;
-  description: string | null;
-}
+// Re-export canonical types
+export type { Org, Project, ApiKey };
 
 /**
  * Create a new organization

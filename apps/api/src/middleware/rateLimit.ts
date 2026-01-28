@@ -79,7 +79,7 @@ export async function rateLimit(
       return;
     }
 
-    const orgId = context.org?.id || context.orgId;
+    const orgId = (context as any).org?.id ?? (context as any).orgId;
     if (!orgId) {
       next();
       return;
@@ -89,7 +89,7 @@ export async function rateLimit(
     let rps = 20; // default
     let burst = 40; // default
 
-    const projectId = context.project?.id || context.projectId;
+    const projectId = (context as any).project?.id ?? (context as any).projectId;
     if (projectId) {
       try {
         const projectSettings = await getProjectSettings(projectId);

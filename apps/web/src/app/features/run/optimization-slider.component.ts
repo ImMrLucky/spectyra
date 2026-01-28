@@ -1,8 +1,10 @@
 import { Component, Input, Output, EventEmitter, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
+import type { OptimizationLevel } from '@spectyra/shared';
 
-export type OptimizationLevel = 0 | 1 | 2 | 3 | 4;
+// Re-export for component usage
+export type { OptimizationLevel };
 
 export interface SliderConfig {
   title: string;

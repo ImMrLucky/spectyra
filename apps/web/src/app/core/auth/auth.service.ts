@@ -3,13 +3,10 @@ import { HttpClient } from '@angular/common/http';
 import { Observable, BehaviorSubject, tap, map } from 'rxjs';
 import { environment } from '../../../environments/environment';
 import { MeService } from '../services/me.service';
+import type { User } from '@spectyra/shared';
 
-export interface User {
-  id: string;
-  email: string;
-  trial_ends_at: string | null;
-  subscription_active: boolean;
-}
+// Re-export canonical type
+export type { User };
 
 export interface AuthState {
   user: User | null;

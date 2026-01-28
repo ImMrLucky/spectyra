@@ -38,7 +38,8 @@ export type AuditTargetType =
   | "PROVIDER_KEY"
   | "ORG_SETTINGS"
   | "PROJECT_SETTINGS"
-  | "ORG_MEMBERSHIP";
+  | "ORG_MEMBERSHIP"
+  | "AUDIT_LOG";
 
 export interface AuditOptions {
   projectId?: string | null;
@@ -68,7 +69,7 @@ export async function audit(
       return;
     }
 
-    const orgId = context.org?.id || context.orgId;
+    const orgId = (context as any).org?.id ?? (context as any).orgId;
     if (!orgId) {
       safeLog("warn", "Audit called without orgId", { action });
       return;
@@ -103,12 +104,12 @@ export async function audit(
       ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, now())
     `, [
       orgId,
-      options.projectId || context.project?.id || context.projectId || null,
+      options.projectId ?? ((context as any).project?.id ?? (context as any).projectId ?? null),
       actorType,
       actorId,
       action,
-      options.targetType || null,
-      options.targetId || null,
+      options.targetType ?? null,
+      options.targetId ?? null,
       ip,
       userAgent,
       metadata ? JSON.stringify(metadata) : null,

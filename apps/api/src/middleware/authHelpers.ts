@@ -36,13 +36,9 @@ export async function requireAuth(
             const { getOrgById, getOrgProjects } = await import("../services/storage/orgsRepo.js");
             const org = await getOrgById(membership.org_id);
             if (org) {
-              // Attach to context for compatibility
+              // Attach to context for compatibility - use full Org type
               req.context = {
-                org: {
-                  id: org.id,
-                  name: org.name,
-                  subscription_status: org.subscription_status,
-                },
+                org: org, // Use full Org type
                 project: null, // Default to org-level
                 apiKeyId: '', // Not applicable for JWT
               };

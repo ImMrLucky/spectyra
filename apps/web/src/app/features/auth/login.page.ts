@@ -9,6 +9,7 @@ import { HttpClient, HttpHeaders } from '@angular/common/http';
 import { environment } from '../../../environments/environment';
 import { Subscription } from 'rxjs';
 import { debounceTime, distinctUntilChanged } from 'rxjs/operators';
+import { firstValueFrom } from 'rxjs';
 import { SnackbarService } from '../../core/services/snackbar.service';
 
 @Component({
@@ -115,7 +116,7 @@ export class LoginPage implements OnInit, OnDestroy {
       // Use MeService to prevent duplicate calls
       try {
         // Try to get user's org info
-        const me = await this.meService.getMe().toPromise();
+        const me = await firstValueFrom(this.meService.getMe());
         if (me && me.org) {
           // User has org, proceed normally
           this.success = true;
@@ -154,13 +155,13 @@ export class LoginPage implements OnInit, OnDestroy {
 
     try {
       // Interceptor will automatically add Authorization header
-      const response = await this.http.post<any>(
+      const response = await firstValueFrom(this.http.post<any>(
         `${environment.apiUrl}/auth/bootstrap`,
         {
           org_name: this.orgName.trim(),
           project_name: this.projectName.trim() || undefined
         }
-      ).toPromise();
+      ));
 
       this.bootstrapSuccess = true;
       this.bootstrapApiKey = response.api_key;

@@ -10,6 +10,7 @@ import { requireOrgRole } from "../middleware/requireRole.js";
 import { getOrgSettings, updateOrgSettings, getProjectSettings, updateProjectSettings } from "../services/storage/settingsRepo.js";
 import { audit } from "../services/audit/audit.js";
 import { safeLog } from "../utils/redaction.js";
+import type { OrgSettingsDTO, ProjectSettingsDTO } from "@spectyra/shared";
 
 export const settingsRouter = Router();
 
@@ -31,7 +32,19 @@ settingsRouter.get("/:orgId/settings", async (req: AuthenticatedRequest, res) =>
       return res.status(403).json({ error: "Access denied" });
     }
 
-    const settings = await getOrgSettings(orgId);
+    const settingsRow = await getOrgSettings(orgId);
+    // Convert Row to DTO (omit IDs and timestamps)
+    const settings: OrgSettingsDTO = {
+      data_retention_days: settingsRow.data_retention_days,
+      store_prompts: settingsRow.store_prompts,
+      store_responses: settingsRow.store_responses,
+      store_internal_debug: settingsRow.store_internal_debug,
+      allow_semantic_cache: settingsRow.allow_semantic_cache,
+      allowed_ip_ranges: settingsRow.allowed_ip_ranges,
+      enforce_sso: settingsRow.enforce_sso,
+      allowed_email_domains: settingsRow.allowed_email_domains,
+      provider_key_mode: settingsRow.provider_key_mode,
+    };
     res.json({ settings });
   } catch (error: any) {
     safeLog("error", "Get org settings error", { error: error.message });
@@ -64,7 +77,7 @@ settingsRouter.patch("/:orgId/settings", requireOrgRole("ADMIN"), async (req: Au
       return res.status(403).json({ error: "Access denied" });
     }
 
-    const settings = await updateOrgSettings(orgId, updates);
+    const updatedRow = await updateOrgSettings(orgId, updates);
 
     // Enterprise Security: Audit log
     await audit(req, "SETTINGS_UPDATED", {
@@ -73,6 +86,18 @@ settingsRouter.patch("/:orgId/settings", requireOrgRole("ADMIN"), async (req: Au
       metadata: { updated_fields: Object.keys(updates) },
     });
 
+    // Convert Row to DTO (omit IDs and timestamps)
+    const settings: OrgSettingsDTO = {
+      data_retention_days: updatedRow.data_retention_days,
+      store_prompts: updatedRow.store_prompts,
+      store_responses: updatedRow.store_responses,
+      store_internal_debug: updatedRow.store_internal_debug,
+      allow_semantic_cache: updatedRow.allow_semantic_cache,
+      allowed_ip_ranges: updatedRow.allowed_ip_ranges,
+      enforce_sso: updatedRow.enforce_sso,
+      allowed_email_domains: updatedRow.allowed_email_domains,
+      provider_key_mode: updatedRow.provider_key_mode,
+    };
     res.json({ settings });
   } catch (error: any) {
     safeLog("error", "Update org settings error", { error: error.message });
@@ -99,7 +124,13 @@ settingsRouter.get("/projects/:projectId/settings", async (req: AuthenticatedReq
       return res.status(403).json({ error: "Access denied" });
     }
 
-    const settings = await getProjectSettings(projectId);
+    const settingsRow = await getProjectSettings(projectId);
+    // Convert Row to DTO (omit IDs and timestamps)
+    const settings: ProjectSettingsDTO = {
+      allowed_origins: settingsRow.allowed_origins,
+      rate_limit_rps: settingsRow.rate_limit_rps,
+      rate_limit_burst: settingsRow.rate_limit_burst,
+    };
     res.json({ settings });
   } catch (error: any) {
     safeLog("error", "Get project settings error", { error: error.message });
@@ -132,7 +163,7 @@ settingsRouter.patch("/projects/:projectId/settings", requireOrgRole("DEV"), asy
       rate_limit_burst: number;
     }>;
 
-    const settings = await updateProjectSettings(projectId, updates);
+    const updatedRow = await updateProjectSettings(projectId, updates);
 
     // Enterprise Security: Audit log
     await audit(req, "SETTINGS_UPDATED", {
@@ -142,6 +173,12 @@ settingsRouter.patch("/projects/:projectId/settings", requireOrgRole("DEV"), asy
       metadata: { updated_fields: Object.keys(updates) },
     });
 
+    // Convert Row to DTO (omit IDs and timestamps)
+    const settings: ProjectSettingsDTO = {
+      allowed_origins: updatedRow.allowed_origins,
+      rate_limit_rps: updatedRow.rate_limit_rps,
+      rate_limit_burst: updatedRow.rate_limit_burst,
+    };
     res.json({ settings });
   } catch (error: any) {
     safeLog("error", "Update project settings error", { error: error.message });

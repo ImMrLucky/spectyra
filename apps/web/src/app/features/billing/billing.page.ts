@@ -1,18 +1,7 @@
 import { Component, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { ApiClientService } from '../../core/api/api-client.service';
-
-interface BillingStatus {
-  org: {
-    id: string;
-    name: string;
-  };
-  has_access: boolean;
-  trial_ends_at: string | null;
-  trial_active: boolean;
-  subscription_status: string;
-  subscription_active: boolean;
-}
+import type { BillingStatus } from '@spectyra/shared';
 
 @Component({
   selector: 'app-billing',

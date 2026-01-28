@@ -4,7 +4,7 @@
   "scripts": {
     "dev": "ng serve",
     "build": "ng build",
-    "typecheck": "ng build --configuration development"
+    "typecheck": "tsc --noEmit"
   },
   "dependencies": {
     "@angular/animations": "^17.0.0",
@@ -17,6 +17,7 @@
     "@angular/platform-browser": "^17.0.0",
     "@angular/platform-browser-dynamic": "^17.0.0",
     "@angular/router": "^17.0.0",
+    "@spectyra/shared": "workspace:*",
     "@supabase/supabase-js": "^2.39.0",
     "rxjs": "^7.8.1",
     "tslib": "^2.6.2",

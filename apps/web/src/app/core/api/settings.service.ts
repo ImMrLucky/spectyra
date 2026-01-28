@@ -4,24 +4,12 @@ import { Observable, from } from 'rxjs';
 import { switchMap } from 'rxjs/operators';
 import { environment } from '../../../environments/environment';
 import { SupabaseService } from '../../services/supabase.service';
+import type { OrgSettingsDTO, ProjectSettingsDTO } from '@spectyra/shared';
 
-export interface OrgSettings {
-  data_retention_days: number;
-  store_prompts: boolean;
-  store_responses: boolean;
-  store_internal_debug: boolean;
-  allow_semantic_cache: boolean;
-  allowed_ip_ranges: string[] | null;
-  enforce_sso: boolean;
-  allowed_email_domains: string[] | null;
-  provider_key_mode: 'BYOK_ONLY' | 'VAULT_ONLY' | 'EITHER';
-}
-
-export interface ProjectSettings {
-  allowed_origins: string[] | null;
-  rate_limit_rps: number;
-  rate_limit_burst: number;
-}
+// Re-export DTO types with shorter names for convenience
+// These are DTOs (omits IDs and timestamps) for API responses
+export type OrgSettings = OrgSettingsDTO;
+export type ProjectSettings = ProjectSettingsDTO;
 
 @Injectable({
   providedIn: 'root',
@@ -48,10 +36,10 @@ export class SettingsService {
   /**
    * Get organization settings
    */
-  getOrgSettings(orgId: string): Observable<OrgSettings> {
+  getOrgSettings(orgId: string): Observable<OrgSettingsDTO> {
     return from(this.getHeaders()).pipe(
       switchMap(headers =>
-        this.http.get<OrgSettings>(`${this.baseUrl}/v1/orgs/${orgId}/settings`, { headers })
+        this.http.get<OrgSettingsDTO>(`${this.baseUrl}/v1/orgs/${orgId}/settings`, { headers })
       )
     );
   }
@@ -59,10 +47,10 @@ export class SettingsService {
   /**
    * Update organization settings
    */
-  updateOrgSettings(orgId: string, settings: Partial<OrgSettings>): Observable<OrgSettings> {
+  updateOrgSettings(orgId: string, settings: Partial<OrgSettingsDTO>): Observable<OrgSettingsDTO> {
     return from(this.getHeaders()).pipe(
       switchMap(headers =>
-        this.http.patch<OrgSettings>(
+        this.http.patch<OrgSettingsDTO>(
           `${this.baseUrl}/v1/orgs/${orgId}/settings`,
           settings,
           { headers }
@@ -74,10 +62,10 @@ export class SettingsService {
   /**
    * Get project settings
    */
-  getProjectSettings(projectId: string): Observable<ProjectSettings> {
+  getProjectSettings(projectId: string): Observable<ProjectSettingsDTO> {
     return from(this.getHeaders()).pipe(
       switchMap(headers =>
-        this.http.get<ProjectSettings>(`${this.baseUrl}/v1/projects/${projectId}/settings`, { headers })
+        this.http.get<ProjectSettingsDTO>(`${this.baseUrl}/v1/projects/${projectId}/settings`, { headers })
       )
     );
   }
@@ -85,10 +73,10 @@ export class SettingsService {
   /**
    * Update project settings
    */
-  updateProjectSettings(projectId: string, settings: Partial<ProjectSettings>): Observable<ProjectSettings> {
+  updateProjectSettings(projectId: string, settings: Partial<ProjectSettingsDTO>): Observable<ProjectSettingsDTO> {
     return from(this.getHeaders()).pipe(
       switchMap(headers =>
-        this.http.patch<ProjectSettings>(
+        this.http.patch<ProjectSettingsDTO>(
           `${this.baseUrl}/v1/projects/${projectId}/settings`,
           settings,
           { headers }

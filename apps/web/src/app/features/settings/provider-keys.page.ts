@@ -7,6 +7,7 @@ import { SnackbarService } from '../../core/services/snackbar.service';
 import { MeService } from '../../core/services/me.service';
 import { HttpClient } from '@angular/common/http';
 import { environment } from '../../../environments/environment';
+import { firstValueFrom } from 'rxjs';
 
 @Component({
   selector: 'app-provider-keys',
@@ -36,7 +37,8 @@ export class ProviderKeysPage implements OnInit {
     private providerKeysService: ProviderKeysService,
     private supabase: SupabaseService,
     private snackbar: SnackbarService,
-    private http: HttpClient
+    private http: HttpClient,
+    private meService: MeService
   ) {}
 
   async ngOnInit() {
@@ -52,7 +54,7 @@ export class ProviderKeysPage implements OnInit {
 
   async loadOrgId() {
     try {
-      const me = await this.meService.getMe().toPromise();
+      const me = await firstValueFrom(this.meService.getMe());
       if (me && me.org) {
         this.orgId = me.org.id;
       }
@@ -63,7 +65,7 @@ export class ProviderKeysPage implements OnInit {
 
   async loadProjects() {
     try {
-      const me = await this.meService.getMe().toPromise();
+      const me = await firstValueFrom(this.meService.getMe());
       if (me && me.projects) {
         this.projects = me.projects;
       }
@@ -79,7 +81,7 @@ export class ProviderKeysPage implements OnInit {
     this.error = null;
 
     try {
-      this.credentials = await this.providerKeysService.listProviderKeys(this.orgId).toPromise() || [];
+      this.credentials = await firstValueFrom(this.providerKeysService.listProviderKeys(this.orgId)) || [];
     } catch (err: any) {
       this.error = err.error?.error || 'Failed to load provider keys';
     } finally {
@@ -91,7 +93,7 @@ export class ProviderKeysPage implements OnInit {
     if (!this.orgId) return;
 
     try {
-      const mode = await this.providerKeysService.getProviderKeyMode(this.orgId).toPromise();
+      const mode = await firstValueFrom(this.providerKeysService.getProviderKeyMode(this.orgId));
       if (mode) {
         this.providerKeyMode = mode.provider_key_mode;
       }
@@ -110,12 +112,12 @@ export class ProviderKeysPage implements OnInit {
     this.error = null;
 
     try {
-      await this.providerKeysService.setProviderKey(
+      await firstValueFrom(this.providerKeysService.setProviderKey(
         this.orgId,
         this.selectedProvider,
         this.providerKey.trim(),
         this.selectedProjectId || null
-      ).toPromise();
+      ));
 
       this.snackbar.showSuccess('Provider key saved successfully');
       this.showAddForm = false;
@@ -140,7 +142,7 @@ export class ProviderKeysPage implements OnInit {
     this.error = null;
 
     try {
-      await this.providerKeysService.revokeProviderKey(this.orgId, credentialId).toPromise();
+      await firstValueFrom(this.providerKeysService.revokeProviderKey(this.orgId, credentialId));
       this.snackbar.showSuccess('Provider key revoked');
       await this.loadCredentials();
     } catch (err: any) {
@@ -158,7 +160,7 @@ export class ProviderKeysPage implements OnInit {
     this.error = null;
 
     try {
-      await this.providerKeysService.updateProviderKeyMode(this.orgId, this.providerKeyMode).toPromise();
+      await firstValueFrom(this.providerKeysService.updateProviderKeyMode(this.orgId, this.providerKeyMode));
       this.snackbar.showSuccess('Provider key mode updated');
     } catch (err: any) {
       this.error = err.error?.error || 'Failed to update provider key mode';

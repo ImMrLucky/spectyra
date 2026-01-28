@@ -1,4 +1,7 @@
 import { PathKind, SemanticUnit, SpectralOptions } from "./spectral/types";
+
+// Re-export PathKind for use in other optimizer modules
+export type { PathKind };
 import { unitizeMessages, ChatMessage, UnitizeOptions } from "./unitize";
 import { buildGraph } from "./buildGraph";
 import { spectralAnalyze } from "./spectral/spectralCore";
@@ -13,19 +16,12 @@ import { computeBudgetsFromSpectral } from "./budgeting/budgetsFromSpectral";
 import { semanticCacheKey } from "./cache/semanticHash";
 import { getCacheStore } from "./cache/createCacheStore";
 
+import type { OptimizerChatProvider } from "@spectyra/shared";
+
 // Provider + embedding interfaces
-export interface ChatProvider {
-  id: string;
-  chat(args: {
-    model: string;
-    messages: ChatMessage[];
-    maxOutputTokens?: number; // optional, provider adapter can ignore
-  }): Promise<{
-    text: string;
-    usage?: { input_tokens: number; output_tokens: number; total_tokens: number; estimated?: boolean };
-    raw?: any;
-  }>;
-}
+// Note: This is a different interface than the LLM service ChatProvider
+// This one is used internally by the optimizer
+export type OptimizerProvider = OptimizerChatProvider;
 
 export interface EmbeddingService {
   embed(texts: string[]): Promise<number[][]>;
@@ -61,7 +57,7 @@ export interface OptimizeInput {
   path: PathKind;
   conversationId?: string;
   model: string;
-  provider: ChatProvider;
+  provider: OptimizerProvider;
   embedder: EmbeddingService;
 
   messages: ChatMessage[];

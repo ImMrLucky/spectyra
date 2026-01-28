@@ -1,15 +1,11 @@
+import type { SemanticUnit } from "@spectyra/shared";
+
 export type PathKind = "talk" | "code";
 
 export type SemanticUnitKind = "fact" | "constraint" | "explanation" | "code" | "patch";
 
-export interface SemanticUnit {
-  id: string;
-  kind: SemanticUnitKind;
-  text: string;
-  embedding?: number[];
-  stabilityScore: number; // [0,1]
-  createdAtTurn: number;
-}
+// Re-export canonical type
+export type { SemanticUnit };
 
 export interface GraphEdge {
   i: number;          // source node index

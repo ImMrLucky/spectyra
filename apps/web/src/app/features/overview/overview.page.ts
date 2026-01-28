@@ -1,4 +1,5 @@
 import { Component, OnInit } from '@angular/core';
+import { firstValueFrom } from 'rxjs';
 import { CommonModule } from '@angular/common';
 import { RouterModule } from '@angular/router';
 import { HttpClient } from '@angular/common/http';
@@ -38,12 +39,7 @@ interface RecentRun {
   created_at: string;
 }
 
-interface OptimizationSavings {
-  optimization: string;
-  name: string;
-  tokens_saved: number;
-  runs_count: number;
-}
+import type { OptimizationSavings } from '@spectyra/shared';
 
 @Component({
   selector: 'app-overview',
@@ -79,7 +75,7 @@ export class OverviewPage implements OnInit {
     try {
       // Load integration status
       try {
-        const status = await this.http.get<IntegrationStatus>(`${environment.apiUrl}/integrations/status`).toPromise();
+        const status = await firstValueFrom(this.http.get<IntegrationStatus>(`${environment.apiUrl}/integrations/status`));
         this.integrationStatus = status || {
           sdk_local: false,
           sdk_remote: false,
@@ -101,7 +97,7 @@ export class OverviewPage implements OnInit {
 
       // Load 24h usage
       try {
-        const usage = await this.http.get<Usage24h>(`${environment.apiUrl}/usage?range=24h`).toPromise();
+        const usage = await firstValueFrom(this.http.get<Usage24h>(`${environment.apiUrl}/usage?range=24h`));
         this.usage24h = usage || { calls: 0, tokens: 0, cost_estimate_usd: 0 };
       } catch (err: any) {
         this.usage24h = { calls: 0, tokens: 0, cost_estimate_usd: 0 };
@@ -109,7 +105,7 @@ export class OverviewPage implements OnInit {
 
       // Load top models
       try {
-        const models = await this.http.get<TopModel[]>(`${environment.apiUrl}/usage/top-models?range=24h`).toPromise();
+        const models = await firstValueFrom(this.http.get<TopModel[]>(`${environment.apiUrl}/usage/top-models?range=24h`));
         this.topModels = models || [];
       } catch (err: any) {
         this.topModels = [];
@@ -117,7 +113,7 @@ export class OverviewPage implements OnInit {
 
       // Load top policies
       try {
-        const policies = await this.http.get<TopPolicy[]>(`${environment.apiUrl}/policies/top-triggered?range=24h`).toPromise();
+        const policies = await firstValueFrom(this.http.get<TopPolicy[]>(`${environment.apiUrl}/policies/top-triggered?range=24h`));
         this.topPolicies = policies || [];
       } catch (err: any) {
         this.topPolicies = [];
@@ -125,7 +121,7 @@ export class OverviewPage implements OnInit {
 
       // Load recent runs
       try {
-        const runs = await this.http.get<RecentRun[]>(`${environment.apiUrl}/runs?limit=5`).toPromise();
+        const runs = await firstValueFrom(this.http.get<RecentRun[]>(`${environment.apiUrl}/runs?limit=5`));
         this.recentRuns = runs || [];
         this.hasRuns = this.recentRuns.length > 0;
       } catch (err: any) {
@@ -134,7 +130,7 @@ export class OverviewPage implements OnInit {
 
       // Load optimization savings (Core Moat v1)
       try {
-        const optimizations = await this.http.get<OptimizationSavings[]>(`${environment.apiUrl}/usage/optimizations?range=24h`).toPromise();
+        const optimizations = await firstValueFrom(this.http.get<OptimizationSavings[]>(`${environment.apiUrl}/usage/optimizations?range=24h`));
         this.optimizationSavings = optimizations || [];
       } catch (err: any) {
         this.optimizationSavings = [];

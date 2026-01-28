@@ -5,14 +5,10 @@
  * Initially uses simple heuristics, can be extended with spectral/policy engine
  */
 
-export interface ClaudeAgentOptions {
-  model?: string;
-  maxBudgetUsd?: number;
-  cwd?: string;
-  allowedTools?: string[];
-  permissionMode?: "default" | "acceptEdits" | "bypassPermissions";
-  canUseTool?: (toolName: string, toolInput: any) => boolean | Promise<boolean>;
-}
+import type { ClaudeAgentOptions, AgentDecision } from "@spectyra/shared";
+
+// Re-export canonical types
+export type { ClaudeAgentOptions, AgentDecision };
 
 export interface DecideAgentOptionsInput {
   orgId: string;
@@ -29,11 +25,6 @@ export interface DecideAgentOptionsInput {
     budgetUsd?: number;
     allowTools?: string[];
   };
-}
-
-export interface AgentDecision {
-  options: ClaudeAgentOptions;
-  reasons: string[];
 }
 
 /**
