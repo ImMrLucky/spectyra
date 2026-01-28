@@ -44,7 +44,9 @@ export class AdminPage implements OnInit {
   constructor(
     private adminService: AdminService,
     private supabase: SupabaseService,
-    private snackbar: SnackbarService
+    private snackbar: SnackbarService,
+    private authService: AuthService,
+    private router: Router
   ) {}
 
   ngOnInit() {
