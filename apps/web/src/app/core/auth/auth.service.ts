@@ -2,6 +2,7 @@ import { Injectable } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { Observable, BehaviorSubject, tap } from 'rxjs';
 import { environment } from '../../../environments/environment';
+import { MeService } from '../services/me.service';
 
 export interface User {
   id: string;
@@ -32,7 +33,10 @@ export class AuthService {
     trialActive: false,
   });
 
-  constructor(private http: HttpClient) {
+  constructor(
+    private http: HttpClient,
+    private meService: MeService
+  ) {
     // Load from storage on init
     this.loadFromStorage();
   }
@@ -103,13 +107,11 @@ export class AuthService {
 
   /**
    * Get current user info
-   * Interceptor will automatically add auth headers (JWT or API key)
+   * Uses MeService to prevent duplicate calls
    */
   getMe(): Observable<{ org: any; project: any; has_access: boolean; trial_active: boolean }> {
-    // Interceptor handles auth headers automatically
-    return this.http.get<{ org: any; project: any; has_access: boolean; trial_active: boolean }>(
-      `${this.baseUrl}/auth/me`
-    ).pipe(
+    // Use MeService to cache and prevent duplicate calls
+    return this.meService.getMe().pipe(
       tap(response => {
         // Map org to user for backward compatibility
         const user: User = {
@@ -174,6 +176,9 @@ export class AuthService {
       key.startsWith('spectyra_') || key.includes('auth')
     );
     authKeys.forEach(key => localStorage.removeItem(key));
+    
+    // Clear MeService cache
+    this.meService.clearCache();
     
     // Update auth state
     this.updateAuthState({

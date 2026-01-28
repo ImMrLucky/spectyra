@@ -24,7 +24,6 @@ import { requireSpectyraApiKey, optionalProviderKey, requireUserSession, require
 import { query, queryOne } from "../services/storage/db.js";
 import { safeLog } from "../utils/redaction.js";
 import { audit } from "../services/audit/audit.js";
-import { requireOrgMembership } from "../middleware/auth.js";
 import { requireOrgRole } from "../middleware/requireRole.js";
 
 export const authRouter = Router();
@@ -72,7 +71,7 @@ authRouter.post("/bootstrap", requireUserSession, async (req: AuthenticatedReque
           );
 
           if (response.ok) {
-            const user = await response.json();
+            const user: any = await response.json();
             const userEmail = user.email || user.user_metadata?.email;
             
             if (userEmail) {
@@ -276,124 +275,137 @@ authRouter.post("/login", requireSpectyraApiKey, optionalProviderKey, async (req
  * 
  * Get current org/project info
  * Supports both Supabase JWT and API key auth
+ * 
+ * Uses proper middleware pattern
  */
 authRouter.get("/me", async (req: AuthenticatedRequest, res) => {
   try {
     // Try Supabase JWT first
     const authHeader = req.headers.authorization;
     if (authHeader && authHeader.startsWith("Bearer ")) {
-      let jwtAuthSucceeded = false;
-      let middlewareCompleted = false;
-      
-      // Wrap requireUserSession in a promise to handle the middleware pattern
-      await new Promise<void>((resolve) => {
-        const nextCallback = () => {
-          // This callback is executed when JWT verification succeeds (next() is called)
-          jwtAuthSucceeded = true;
-          middlewareCompleted = true;
-          resolve();
-        };
-        
-        requireUserSession(req, res, nextCallback)
-          .then(() => {
-            // Middleware Promise resolved - check if next() was called
-            if (!middlewareCompleted) {
-              // Middleware completed without calling next() - response was sent (error case)
-              middlewareCompleted = true;
-              resolve();
-            }
-          })
-          .catch(() => {
-            // Error in middleware - response already sent
-            middlewareCompleted = true;
+      // Use middleware properly - wrap in promise to handle async
+      return new Promise<void>((resolve) => {
+        requireUserSession(req, res, async () => {
+          if (res.headersSent) {
             resolve();
-          });
-      });
-      
-      // If JWT auth succeeded and no response was sent yet, handle the response
-      if (jwtAuthSucceeded && !res.headersSent) {
-        if (!req.auth?.userId) {
-          return res.status(401).json({ error: "Not authenticated" });
-        }
+            return;
+          }
+          
+          if (!req.auth?.userId) {
+            res.status(401).json({ error: "Not authenticated" });
+            resolve();
+            return;
+          }
 
-        // Get user's org membership
-        const { queryOne } = await import("../services/storage/db.js");
-        const membership = await queryOne<{ org_id: string; role: string }>(`
-          SELECT org_id, role 
-          FROM org_memberships 
-          WHERE user_id = $1
-          LIMIT 1
-        `, [req.auth.userId]);
+          try {
+            // Get user's org membership
+            const { queryOne } = await import("../services/storage/db.js");
+            const membership = await queryOne<{ org_id: string; role: string }>(`
+              SELECT org_id, role 
+              FROM org_memberships 
+              WHERE user_id = $1
+              LIMIT 1
+            `, [req.auth.userId]);
 
-        if (!membership) {
-          return res.status(404).json({ 
-            error: "Organization not found",
-            needs_bootstrap: true 
-          });
-        }
+            if (!membership) {
+              res.status(404).json({ 
+                error: "Organization not found",
+                needs_bootstrap: true 
+              });
+              resolve();
+              return;
+            }
 
-        const org = await getOrgById(membership.org_id);
-        if (!org) {
-          return res.status(404).json({ error: "Organization not found" });
-        }
+            const org = await getOrgById(membership.org_id);
+            if (!org) {
+              res.status(404).json({ error: "Organization not found" });
+              resolve();
+              return;
+            }
 
-        // Get projects for this org
-        const projects = await getOrgProjects(org.id);
+            // Get projects for this org
+            const projects = await getOrgProjects(org.id);
 
-        const hasAccess = hasActiveAccess(org);
-        const trialEnd = org.trial_ends_at ? new Date(org.trial_ends_at) : null;
-        const isTrialActive = trialEnd ? trialEnd > new Date() : false;
+            const hasAccess = hasActiveAccess(org);
+            const trialEnd = org.trial_ends_at ? new Date(org.trial_ends_at) : null;
+            const isTrialActive = trialEnd ? trialEnd > new Date() : false;
 
-        return res.json({
-          org: {
-            id: org.id,
-            name: org.name,
-            trial_ends_at: org.trial_ends_at,
-            subscription_status: org.subscription_status,
-          },
-          projects: projects,
-          has_access: hasAccess,
-          trial_active: isTrialActive,
+            res.json({
+              org: {
+                id: org.id,
+                name: org.name,
+                trial_ends_at: org.trial_ends_at,
+                subscription_status: org.subscription_status,
+              },
+              projects: projects,
+              has_access: hasAccess,
+              trial_active: isTrialActive,
+            });
+            resolve();
+          } catch (error: any) {
+            safeLog("error", "Get org error in /me", { error: error.message });
+            if (!res.headersSent) {
+              res.status(500).json({ error: error.message || "Internal server error" });
+            }
+            resolve();
+          }
+        }).catch((error: any) => {
+          // Middleware error - response already sent
+          resolve();
         });
-      }
-      
-      // If response was already sent (error case from middleware), return early
-      if (res.headersSent) {
-        return;
-      }
+      });
     }
 
-    // Fall back to API key auth (only if no response was sent)
-    if (!res.headersSent) {
-      await requireSpectyraApiKey(req, res, async () => {
-        if (res.headersSent) return; // Safety check
+    // Fall back to API key auth
+    return new Promise<void>((resolve) => {
+      requireSpectyraApiKey(req, res, async () => {
+        if (res.headersSent) {
+          resolve();
+          return;
+        }
         
         if (!req.context) {
-          return res.status(401).json({ error: "Not authenticated" });
+          res.status(401).json({ error: "Not authenticated" });
+          resolve();
+          return;
         }
         
-        const org = await getOrgById(req.context.org.id);
-        if (!org) {
-          return res.status(404).json({ error: "Organization not found" });
+        try {
+          const org = await getOrgById(req.context.org.id);
+          if (!org) {
+            res.status(404).json({ error: "Organization not found" });
+            resolve();
+            return;
+          }
+          
+          const hasAccess = hasActiveAccess(org);
+          const trialEnd = org.trial_ends_at ? new Date(org.trial_ends_at) : null;
+          const isTrialActive = trialEnd ? trialEnd > new Date() : false;
+          
+          res.json({
+            org: {
+              id: org.id,
+              name: org.name,
+              trial_ends_at: org.trial_ends_at,
+              subscription_status: org.subscription_status,
+            },
+            project: req.context.project,
+            has_access: hasAccess,
+            trial_active: isTrialActive,
+          });
+          resolve();
+        } catch (error: any) {
+          safeLog("error", "Get org error in /me (API key)", { error: error.message });
+          if (!res.headersSent) {
+            res.status(500).json({ error: error.message || "Internal server error" });
+          }
+          resolve();
         }
-        
-        const hasAccess = hasActiveAccess(org);
-        const trialEnd = org.trial_ends_at ? new Date(org.trial_ends_at) : null;
-        const isTrialActive = trialEnd ? trialEnd > new Date() : false;
-        
-        res.json({
-          org: {
-            id: org.id,
-            name: org.name,
-            trial_ends_at: org.trial_ends_at,
-            subscription_status: org.subscription_status,
-          },
-          project: req.context.project,
-          has_access: hasAccess,
-          trial_active: isTrialActive,
-        });
+      }).catch((error: any) => {
+        // Middleware error - response already sent
+        resolve();
       });
-    }
+    });
   } catch (error: any) {
     if (!res.headersSent) {
       safeLog("error", "Get org error", { error: error.message });
@@ -746,13 +758,15 @@ authRouter.delete("/api-keys/:id", async (req: AuthenticatedRequest, res) => {
     
     // Get the key to verify it belongs to this org
     const keyId = req.params.id;
-    const apiKey = await getApiKeyByHash(keyId);
+    const { getApiKeyById } = await import("../services/storage/orgsRepo.js");
+    const apiKey = await getApiKeyById(keyId);
     
     if (!apiKey || apiKey.org_id !== orgId) {
       return res.status(404).json({ error: "API key not found" });
     }
     
     // Revoke the key
+    const { revokeApiKey } = await import("../services/storage/orgsRepo.js");
     await revokeApiKey(keyId, true); // byId = true
     
     // Enterprise Security: Audit log

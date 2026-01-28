@@ -4,6 +4,7 @@ import { FormsModule } from '@angular/forms';
 import { ProviderKeysService, ProviderCredential, ProviderKeyMode } from '../../core/api/provider-keys.service';
 import { SupabaseService } from '../../services/supabase.service';
 import { SnackbarService } from '../../core/services/snackbar.service';
+import { MeService } from '../../core/services/me.service';
 import { HttpClient } from '@angular/common/http';
 import { environment } from '../../../environments/environment';
 
@@ -51,7 +52,7 @@ export class ProviderKeysPage implements OnInit {
 
   async loadOrgId() {
     try {
-      const me = await this.http.get<any>(`${environment.apiUrl}/auth/me`).toPromise();
+      const me = await this.meService.getMe().toPromise();
       if (me && me.org) {
         this.orgId = me.org.id;
       }
@@ -62,7 +63,7 @@ export class ProviderKeysPage implements OnInit {
 
   async loadProjects() {
     try {
-      const me = await this.http.get<any>(`${environment.apiUrl}/auth/me`).toPromise();
+      const me = await this.meService.getMe().toPromise();
       if (me && me.projects) {
         this.projects = me.projects;
       }

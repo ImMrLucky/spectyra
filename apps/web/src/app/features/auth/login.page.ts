@@ -4,6 +4,7 @@ import { FormsModule } from '@angular/forms';
 import { Router, RouterModule } from '@angular/router';
 import { AuthService } from '../../core/auth/auth.service';
 import { SupabaseService } from '../../services/supabase.service';
+import { MeService } from '../../core/services/me.service';
 import { HttpClient, HttpHeaders } from '@angular/common/http';
 import { environment } from '../../../environments/environment';
 import { Subscription } from 'rxjs';
@@ -110,10 +111,10 @@ export class LoginPage implements OnInit, OnDestroy {
         return;
       }
 
-      // Interceptor will automatically add Authorization header
+      // Use MeService to prevent duplicate calls
       try {
         // Try to get user's org info
-        const me = await this.http.get<any>(`${environment.apiUrl}/auth/me`).toPromise();
+        const me = await this.meService.getMe().toPromise();
         if (me && me.org) {
           // User has org, proceed normally
           this.success = true;

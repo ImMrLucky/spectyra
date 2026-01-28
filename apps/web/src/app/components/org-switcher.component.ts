@@ -37,7 +37,8 @@ export class OrgSwitcherComponent implements OnInit, OnDestroy {
 
   constructor(
     private supabase: SupabaseService,
-    private http: HttpClient
+    private http: HttpClient,
+    private meService: MeService
   ) {}
 
   ngOnInit() {
@@ -88,15 +89,15 @@ export class OrgSwitcherComponent implements OnInit, OnDestroy {
         return;
       }
 
-      // Interceptor will automatically add auth headers
-      const me = await this.http.get<any>(`${environment.apiUrl}/auth/me`).toPromise();
-      if (me && me.org) {
-        this.org = me.org;
-      }
-      
-      // Load projects (if available in response or separate endpoint)
-      if (me && me.projects) {
-        this.projects = me.projects;
+      // Use MeService to prevent duplicate calls
+      const me = await this.meService.getMe().toPromise();
+      if (me) {
+        if (me.org) {
+          this.org = me.org;
+        }
+        if (me.projects) {
+          this.projects = me.projects;
+        }
       }
     } catch (err: any) {
       // Don't clear org info on error - keep last known state

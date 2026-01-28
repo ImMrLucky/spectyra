@@ -3,6 +3,7 @@ import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { RouterModule } from '@angular/router';
 import { HttpClient } from '@angular/common/http';
+import { MeService } from '../../core/services/me.service';
 import { environment } from '../../../environments/environment';
 
 interface Project {
@@ -34,7 +35,10 @@ export class ProjectsPage implements OnInit {
   newProjectName = '';
   newProjectEnv = 'dev';
 
-  constructor(private http: HttpClient) {}
+  constructor(
+    private http: HttpClient,
+    private meService: MeService
+  ) {}
 
   async ngOnInit() {
     await this.loadProjects();
@@ -46,7 +50,8 @@ export class ProjectsPage implements OnInit {
 
     try {
       // Get projects from org info
-      const me = await this.http.get<any>(`${environment.apiUrl}/auth/me`).toPromise();
+      // Use MeService to prevent duplicate calls
+      const me = await this.meService.getMe().toPromise();
       if (me && me.projects) {
         this.projects = me.projects;
       }

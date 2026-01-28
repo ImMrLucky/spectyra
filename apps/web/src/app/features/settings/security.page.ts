@@ -4,6 +4,7 @@ import { FormsModule } from '@angular/forms';
 import { SettingsService, OrgSettings } from '../../core/api/settings.service';
 import { SupabaseService } from '../../services/supabase.service';
 import { SnackbarService } from '../../core/services/snackbar.service';
+import { MeService } from '../../core/services/me.service';
 import { HttpClient } from '@angular/common/http';
 import { environment } from '../../../environments/environment';
 
@@ -48,7 +49,7 @@ export class SecuritySettingsPage implements OnInit {
 
   async loadOrgId() {
     try {
-      const me = await this.http.get<any>(`${environment.apiUrl}/auth/me`).toPromise();
+      const me = await this.meService.getMe().toPromise();
       if (me && me.org) {
         this.orgId = me.org.id;
       }

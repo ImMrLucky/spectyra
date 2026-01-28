@@ -6,6 +6,7 @@ import { HttpClient, HttpHeaders } from '@angular/common/http';
 import { environment } from '../../../environments/environment';
 import { AuthService } from '../../core/auth/auth.service';
 import { SnackbarService } from '../../core/services/snackbar.service';
+import { MeService } from '../../core/services/me.service';
 
 interface ApiKey {
   id: string;
@@ -72,12 +73,17 @@ export class SettingsPage implements OnInit {
         return;
       }
 
-      // Interceptor will automatically add auth headers
-      // Load org info
+      // Use MeService to prevent duplicate calls
+      // Load org info and projects (single call)
       try {
-        const me = await this.http.get<any>(`${environment.apiUrl}/auth/me`).toPromise();
-        if (me && me.org) {
-          this.org = me.org;
+        const me = await this.meService.getMe().toPromise();
+        if (me) {
+          if (me.org) {
+            this.org = me.org;
+          }
+          if (me.projects) {
+            this.projects = me.projects;
+          }
         }
       } catch (err: any) {
         console.error('Failed to load org info:', err);
@@ -93,16 +99,6 @@ export class SettingsPage implements OnInit {
         } else {
           this.error = 'Failed to load API keys';
         }
-      }
-
-      // Load projects from org info
-      try {
-        const me = await this.http.get<any>(`${environment.apiUrl}/auth/me`).toPromise();
-        if (me && me.projects) {
-          this.projects = me.projects;
-        }
-      } catch (err: any) {
-        console.error('Failed to load projects:', err);
       }
 
       this.loading = false;
