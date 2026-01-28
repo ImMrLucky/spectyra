@@ -29,7 +29,7 @@ export function estimateLambda2(L: number[][], iters = 60): { lambda2: number; v
   if (n <= 1) return { lambda2: 0, v: [1] };
 
   // Start with deterministic-ish vector to reduce randomness for demos
-  let v = new Array(n).fill(0).map((_, i) => ((i % 2 === 0) ? 1 : -1));
+  let v: number[] = new Array(n).fill(0).map((_, i) => ((i % 2 === 0) ? 1 : -1));
 
   // Orthogonalize to constant vector 1
   v = orthogonalizeToOnes(v);

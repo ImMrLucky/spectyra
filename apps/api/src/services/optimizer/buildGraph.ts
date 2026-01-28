@@ -1,6 +1,7 @@
 import type { SemanticUnit, SignedGraph, GraphEdge, SpectralOptions, PathKind } from "./spectral/types";
 import { buildSimilarityEdges } from "./edgeBuilders/similarityEdges";
 import { buildContradictionEdges } from "./edgeBuilders/contradictionEdges";
+import { buildDependencyEdges } from "./edgeBuilders/dependencyEdges";
 
 export interface BuildGraphInput {
   path: PathKind;

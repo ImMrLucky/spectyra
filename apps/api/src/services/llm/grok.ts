@@ -41,8 +41,14 @@ export class GrokProvider implements ChatProvider {
       throw new Error(`Grok API error: ${response.statusText}`);
     }
     
-    const data = await response.json();
-    const text = data.choices[0]?.message?.content || "";
+    const data = await response.json() as {
+      choices?: Array<{
+        message?: {
+          content?: string;
+        };
+      }>;
+    };
+    const text = data.choices?.[0]?.message?.content || "";
     
     // Estimate usage
     const usage = estimateUsage(messages, text, model);

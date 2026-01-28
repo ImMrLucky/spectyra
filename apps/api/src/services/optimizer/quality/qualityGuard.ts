@@ -1,5 +1,6 @@
 // Import and re-export canonical interface
-export type { RequiredCheck } from "@spectyra/shared";
+import type { RequiredCheck } from "@spectyra/shared";
+export type { RequiredCheck };
 
 export interface QualityGuardInput {
   text: string;

@@ -62,8 +62,4 @@ export class ProjectsPage implements OnInit {
       this.loading = false;
     }
   }
-
-  formatDate(dateStr: string): string {
-    return new Date(dateStr).toLocaleString();
-  }
 }

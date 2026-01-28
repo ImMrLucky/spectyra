@@ -28,6 +28,5 @@ export function makeOptimizerConfig(): OptimizerConfig {
       trimAggressive: true,
     },
     maxOutputTokensOptimized: config.optimizer.maxOutputTokensOptimized,
-    maxOutputTokensBaseline: undefined, // no limit for baseline
   };
 }

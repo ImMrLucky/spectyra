@@ -43,7 +43,7 @@
               <span *ngIf="project.budget.monthly">Monthly: ${{ project.budget.monthly }}</span>
             </div>
             <div class="meta-item">
-              <strong>Created:</strong> {{ formatDate(project.created_at) }}
+              <strong>Created:</strong> {{ project.created_at ? (project.created_at | date:'short') : 'N/A' }}
             </div>
           </div>
           <div class="project-actions">

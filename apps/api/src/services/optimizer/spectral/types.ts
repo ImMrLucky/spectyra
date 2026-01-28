@@ -46,5 +46,10 @@ export interface SpectralResult {
     noveltyAvg?: number;
     stabilityComponents?: any;
     edgeCountsByType?: { similarity: number; contradiction: number; dependency: number };
+    // Graph metrics and adaptive thresholds (enhanced stability/confidence)
+    graphDensity?: number;
+    avgSimilarity?: number;
+    confidence?: number;
+    adaptiveThresholds?: { tHigh: number; tLow: number };
   };
 }

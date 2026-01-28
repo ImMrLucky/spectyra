@@ -119,7 +119,7 @@ function makeClarifyQuestion(path: PathKind): string {
 
 async function callWithPolicy(
   path: PathKind,
-  provider: ChatProvider,
+  provider: OptimizerProvider,
   model: string,
   messagesFinal: ChatMessage[],
   cfg: OptimizerConfig,
