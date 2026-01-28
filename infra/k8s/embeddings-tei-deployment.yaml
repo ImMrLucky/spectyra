@@ -1,0 +1,126 @@
+# Spectyra Embeddings Service (TEI) - Deployment
+# ===============================================
+# HuggingFace Text Embeddings Inference for open-source embeddings
+#
+# Model: BAAI/bge-large-en-v1.5 (default)
+# This is FREE - no external API costs
+#
+# Resource Requirements:
+# - CPU: 1-4 cores
+# - Memory: 4-8 GB
+# - GPU: Optional (significantly faster)
+#
+# For GPU support, change image to: ghcr.io/huggingface/text-embeddings-inference:1.5
+# and add GPU resources
+
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: embeddings-tei
+  namespace: spectyra
+  labels:
+    app: embeddings-tei
+    component: optimizer
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: embeddings-tei
+  template:
+    metadata:
+      labels:
+        app: embeddings-tei
+        component: optimizer
+    spec:
+      containers:
+        - name: tei
+          # CPU version (use :1.5 for GPU)
+          image: ghcr.io/huggingface/text-embeddings-inference:cpu-1.5
+          ports:
+            - containerPort: 80
+              name: http
+          args:
+            - --model-id
+            - $(MODEL_ID)
+            - --port
+            - "80"
+          env:
+            - name: MODEL_ID
+              valueFrom:
+                configMapKeyRef:
+                  name: embeddings-config
+                  key: MODEL_ID
+            - name: MAX_CLIENT_BATCH_SIZE
+              value: "32"
+            - name: TRUST_REMOTE_CODE
+              value: "true"
+          resources:
+            requests:
+              cpu: "1"
+              memory: "4Gi"
+            limits:
+              cpu: "4"
+              memory: "8Gi"
+          # For GPU support, uncomment:
+          # resources:
+          #   limits:
+          #     nvidia.com/gpu: 1
+          volumeMounts:
+            - name: model-cache
+              mountPath: /data
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: 80
+            initialDelaySeconds: 60
+            periodSeconds: 30
+            timeoutSeconds: 10
+            failureThreshold: 3
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: 80
+            initialDelaySeconds: 30
+            periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 3
+          startupProbe:
+            httpGet:
+              path: /health
+              port: 80
+            initialDelaySeconds: 30
+            periodSeconds: 10
+            timeoutSeconds: 10
+            failureThreshold: 30
+      volumes:
+        - name: model-cache
+          emptyDir:
+            sizeLimit: 10Gi
+      # For persistent model cache, use PVC:
+      # volumes:
+      #   - name: model-cache
+      #     persistentVolumeClaim:
+      #       claimName: embeddings-model-cache
+---
+# ConfigMap for embeddings configuration
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: embeddings-config
+  namespace: spectyra
+data:
+  MODEL_ID: "BAAI/bge-large-en-v1.5"
+---
+# Optional: PersistentVolumeClaim for model cache
+# apiVersion: v1
+# kind: PersistentVolumeClaim
+# metadata:
+#   name: embeddings-model-cache
+#   namespace: spectyra
+# spec:
+#   accessModes:
+#     - ReadWriteOnce
+#   resources:
+#     requests:
+#       storage: 10Gi
+#   storageClassName: standard

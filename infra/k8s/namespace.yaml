@@ -1,0 +1,8 @@
+# Spectyra Kubernetes Namespace
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: spectyra
+  labels:
+    app.kubernetes.io/name: spectyra
+    app.kubernetes.io/part-of: spectyra

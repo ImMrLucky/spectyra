@@ -1,0 +1,177 @@
+# Spectyra API - Deployment
+# ==========================
+# Main API service that orchestrates optimization
+#
+# Connects to:
+# - embeddings service (internal)
+# - nli service (internal)
+# - postgres (external or internal)
+# - redis (external or internal)
+#
+# Provider keys:
+# - Customers provide keys via BYOK (X-PROVIDER-KEY header)
+# - Or use vaulted keys stored in database
+# - ALLOW_ENV_PROVIDER_KEYS=false in production!
+
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: api
+  namespace: spectyra
+  labels:
+    app: api
+    component: backend
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: api
+  template:
+    metadata:
+      labels:
+        app: api
+        component: backend
+    spec:
+      containers:
+        - name: api
+          image: ghcr.io/spectyra/api:latest
+          ports:
+            - containerPort: 8080
+              name: http
+          env:
+            # Database
+            - name: DATABASE_URL
+              valueFrom:
+                secretKeyRef:
+                  name: spectyra-secrets
+                  key: DATABASE_URL
+            # Redis
+            - name: REDIS_URL
+              valueFrom:
+                secretKeyRef:
+                  name: spectyra-secrets
+                  key: REDIS_URL
+                  optional: true
+            # Supabase
+            - name: SUPABASE_URL
+              valueFrom:
+                secretKeyRef:
+                  name: spectyra-secrets
+                  key: SUPABASE_URL
+                  optional: true
+            - name: SUPABASE_JWT_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: spectyra-secrets
+                  key: SUPABASE_JWT_SECRET
+                  optional: true
+            - name: SUPABASE_SERVICE_ROLE_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: spectyra-secrets
+                  key: SUPABASE_SERVICE_ROLE_KEY
+                  optional: true
+            # Embeddings (internal service)
+            - name: EMBEDDINGS_PROVIDER
+              value: "local"
+            - name: EMBEDDINGS_HTTP_URL
+              value: "http://embeddings:80"
+            - name: EMBEDDINGS_MODEL
+              valueFrom:
+                configMapKeyRef:
+                  name: embeddings-config
+                  key: MODEL_ID
+            - name: EMBEDDINGS_CACHE_ENABLED
+              value: "true"
+            - name: EMBEDDINGS_CACHE_TTL_DAYS
+              value: "30"
+            # NLI (internal service)
+            - name: NLI_PROVIDER
+              value: "local"
+            - name: NLI_HTTP_URL
+              value: "http://nli:8000"
+            - name: NLI_MODEL
+              valueFrom:
+                configMapKeyRef:
+                  name: nli-config
+                  key: NLI_MODEL
+            - name: NLI_TIMEOUT_MS
+              value: "10000"
+            # Provider key enforcement (CRITICAL: must be false in production!)
+            - name: ALLOW_ENV_PROVIDER_KEYS
+              value: "false"
+            # Security
+            - name: MASTER_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: spectyra-secrets
+                  key: MASTER_KEY
+                  optional: true
+            - name: ADMIN_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  name: spectyra-secrets
+                  key: ADMIN_TOKEN
+                  optional: true
+            - name: RETENTION_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: spectyra-secrets
+                  key: RETENTION_SECRET
+                  optional: true
+            # Stripe
+            - name: STRIPE_SECRET_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: spectyra-secrets
+                  key: STRIPE_SECRET_KEY
+                  optional: true
+            - name: STRIPE_WEBHOOK_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: spectyra-secrets
+                  key: STRIPE_WEBHOOK_SECRET
+                  optional: true
+            # Server
+            - name: PORT
+              value: "8080"
+            - name: NODE_ENV
+              value: "production"
+            - name: ALLOWED_ORIGINS
+              valueFrom:
+                configMapKeyRef:
+                  name: api-config
+                  key: ALLOWED_ORIGINS
+                  optional: true
+          resources:
+            requests:
+              cpu: "250m"
+              memory: "512Mi"
+            limits:
+              cpu: "1"
+              memory: "2Gi"
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: 8080
+            initialDelaySeconds: 10
+            periodSeconds: 30
+            timeoutSeconds: 5
+            failureThreshold: 3
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: 8080
+            initialDelaySeconds: 5
+            periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 3
+---
+# ConfigMap for API configuration
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: api-config
+  namespace: spectyra
+data:
+  ALLOWED_ORIGINS: "https://app.spectyra.com,https://spectyra.com"

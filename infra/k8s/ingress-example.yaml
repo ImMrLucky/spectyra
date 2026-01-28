@@ -1,0 +1,91 @@
+# Spectyra Ingress - EXAMPLE
+# ==========================
+# Exposes the API to the internet via Ingress controller
+# Customize for your ingress controller (nginx, traefik, etc.)
+
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: api-ingress
+  namespace: spectyra
+  labels:
+    app: api
+  annotations:
+    # For nginx ingress controller
+    kubernetes.io/ingress.class: nginx
+    nginx.ingress.kubernetes.io/ssl-redirect: "true"
+    nginx.ingress.kubernetes.io/proxy-body-size: "10m"
+    nginx.ingress.kubernetes.io/proxy-read-timeout: "120"
+    nginx.ingress.kubernetes.io/proxy-send-timeout: "120"
+    
+    # For cert-manager (automatic TLS)
+    cert-manager.io/cluster-issuer: "letsencrypt-prod"
+    
+    # Rate limiting (optional)
+    nginx.ingress.kubernetes.io/limit-rps: "50"
+    nginx.ingress.kubernetes.io/limit-connections: "100"
+    
+    # CORS headers (if needed)
+    nginx.ingress.kubernetes.io/enable-cors: "true"
+    nginx.ingress.kubernetes.io/cors-allow-origin: "https://app.spectyra.com,https://spectyra.com"
+    nginx.ingress.kubernetes.io/cors-allow-methods: "GET, POST, PUT, DELETE, PATCH, OPTIONS"
+    nginx.ingress.kubernetes.io/cors-allow-headers: "Content-Type, Authorization, X-SPECTYRA-API-KEY, X-PROVIDER-KEY"
+spec:
+  ingressClassName: nginx
+  tls:
+    - hosts:
+        - api.spectyra.com
+      secretName: spectyra-tls
+  rules:
+    - host: api.spectyra.com
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: api
+                port:
+                  number: 8080
+
+---
+# Optional: Certificate resource for cert-manager
+# apiVersion: cert-manager.io/v1
+# kind: Certificate
+# metadata:
+#   name: spectyra-tls
+#   namespace: spectyra
+# spec:
+#   secretName: spectyra-tls
+#   issuerRef:
+#     name: letsencrypt-prod
+#     kind: ClusterIssuer
+#   commonName: api.spectyra.com
+#   dnsNames:
+#     - api.spectyra.com
+
+---
+# Optional: Network Policy
+# Restricts traffic so only the API can call embeddings/nli services
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: optimizer-services-policy
+  namespace: spectyra
+spec:
+  podSelector:
+    matchLabels:
+      component: optimizer
+  policyTypes:
+    - Ingress
+  ingress:
+    # Only allow traffic from API pods
+    - from:
+        - podSelector:
+            matchLabels:
+              app: api
+      ports:
+        - protocol: TCP
+          port: 80
+        - protocol: TCP
+          port: 8000

@@ -1,0 +1,119 @@
+# Spectyra NLI Service - Deployment
+# ==================================
+# FastAPI service with DeBERTa MNLI model for contradiction detection
+#
+# Model: microsoft/deberta-v3-large-mnli (default)
+# This is FREE - no external API costs
+#
+# Resource Requirements:
+# - CPU: 1-2 cores
+# - Memory: 4-8 GB
+# - GPU: Optional (significantly faster)
+
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: nli
+  namespace: spectyra
+  labels:
+    app: nli
+    component: optimizer
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: nli
+  template:
+    metadata:
+      labels:
+        app: nli
+        component: optimizer
+    spec:
+      containers:
+        - name: nli
+          # Build from infra/nli-service or use pre-built image
+          image: ghcr.io/spectyra/nli-service:latest
+          # For local builds, use:
+          # image: spectyra/nli-service:latest
+          # imagePullPolicy: Never
+          ports:
+            - containerPort: 8000
+              name: http
+          env:
+            - name: NLI_MODEL
+              valueFrom:
+                configMapKeyRef:
+                  name: nli-config
+                  key: NLI_MODEL
+            - name: DEVICE
+              valueFrom:
+                configMapKeyRef:
+                  name: nli-config
+                  key: DEVICE
+            - name: MAX_LENGTH
+              value: "256"
+            - name: BATCH_SIZE
+              value: "16"
+            - name: WORKERS
+              value: "1"
+            - name: PORT
+              value: "8000"
+            - name: TRANSFORMERS_CACHE
+              value: "/app/model_cache"
+            - name: HF_HOME
+              value: "/app/model_cache"
+          resources:
+            requests:
+              cpu: "1"
+              memory: "4Gi"
+            limits:
+              cpu: "2"
+              memory: "8Gi"
+          # For GPU support, uncomment:
+          # resources:
+          #   limits:
+          #     nvidia.com/gpu: 1
+          # env:
+          #   - name: DEVICE
+          #     value: "cuda"
+          volumeMounts:
+            - name: model-cache
+              mountPath: /app/model_cache
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: 8000
+            initialDelaySeconds: 120
+            periodSeconds: 30
+            timeoutSeconds: 10
+            failureThreshold: 3
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: 8000
+            initialDelaySeconds: 60
+            periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 3
+          startupProbe:
+            httpGet:
+              path: /health
+              port: 8000
+            initialDelaySeconds: 60
+            periodSeconds: 10
+            timeoutSeconds: 10
+            failureThreshold: 30
+      volumes:
+        - name: model-cache
+          emptyDir:
+            sizeLimit: 10Gi
+---
+# ConfigMap for NLI configuration
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: nli-config
+  namespace: spectyra
+data:
+  NLI_MODEL: "microsoft/deberta-v3-large-mnli"
+  DEVICE: "cpu"

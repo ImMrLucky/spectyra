@@ -130,7 +130,7 @@ For coding assistant workflows:
 - **Database**: PostgreSQL (via Supabase) with Row Level Security (RLS)
 - **Authentication**: Supabase Auth (JWT) + API Keys (argon2id hashing)
 - **LLM SDKs**: OpenAI, Anthropic, Google Generative AI, Grok
-- **Embeddings**: OpenAI text-embedding-3-small
+- **Embeddings**: Local TEI (BAAI/bge-large-en-v1.5) - free, open-source
 - **Math**: Custom spectral analysis (no external math libs)
 - **Deployment**: Railway (API)
 
@@ -179,7 +179,7 @@ Authentication Middleware
   ↓
 Optimizer Pipeline:
   1. Unitize → SemanticUnits[] (paragraphs, bullets, code blocks)
-  2. Embed → Vectors[][] (OpenAI embeddings)
+  2. Embed → Vectors[][] (local TEI embeddings - free)
   3. Build Graph → SignedGraph (similarity, contradiction, dependency edges)
   4. Spectral Analysis → Recommendation (REUSE/EXPAND/ASK_CLARIFY)
   5. Apply Policy → Optimized Messages (context compaction, delta prompting, code slicing)
@@ -1081,9 +1081,10 @@ confidence = 0.15 + 0.55*sample_conf + 0.20*stability_conf + 0.10*recency_conf
    - Units have: id, text, kind (fact/constraint/explanation/code/patch), turn index
 
 2. **Embedding**: Generate vectors for similarity
-   - Uses OpenAI text-embedding-3-small
+   - Uses local TEI with BAAI/bge-large-en-v1.5 (free, open-source)
    - Safe cosine similarity (handles missing embeddings)
-   - Stores embeddings for similarity calculations
+   - Embeddings are cached (Redis/Postgres) to reduce compute
+   - Configurable via EMBEDDINGS_PROVIDER env var
 
 3. **Graph Build**: Create signed weighted graph
    - **Nodes**: Semantic units
@@ -1379,6 +1380,163 @@ psql $DATABASE_URL -f supabase/migrations/YYYYMMDD_migration_name.sql
 
 ---
 
+## Local Optimization Stack (Embeddings + NLI)
+
+### Overview
+
+Spectyra uses **local, open-source** services for all optimizer-internal computations:
+- **Embeddings**: HuggingFace Text Embeddings Inference (TEI) with BGE models
+- **NLI (Natural Language Inference)**: FastAPI service with DeBERTa MNLI
+
+**Key Principle**: Spectyra NEVER pays for customer LLM tokens. Customers provide their own API keys for final LLM calls.
+
+### Cost Model
+
+| Component | Cost | Description |
+|-----------|------|-------------|
+| Embeddings (TEI) | **FREE** | Self-hosted, open-source |
+| NLI Service | **FREE** | Self-hosted, open-source |
+| Final LLM Calls | **Customer pays** | BYOK or vaulted keys |
+| Spectyra API | Infrastructure only | Your hosting costs |
+
+### Provider Key Enforcement
+
+```
+ALLOW_ENV_PROVIDER_KEYS=false  # PRODUCTION (default)
+ALLOW_ENV_PROVIDER_KEYS=true   # Development/demo only
+```
+
+When `ALLOW_ENV_PROVIDER_KEYS=false` (production):
+1. Customer must provide key via `X-PROVIDER-KEY` header (BYOK)
+2. Or have a vaulted key configured for their organization
+3. Otherwise, the request fails with 401
+
+### Configuration Reference
+
+#### Provider Key Enforcement
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `ALLOW_ENV_PROVIDER_KEYS` | `false` | If `true`, allows fallback to env provider keys (dev only) |
+
+#### Embeddings
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `EMBEDDINGS_PROVIDER` | `local` | Provider: `local`, `http`, or `openai` |
+| `EMBEDDINGS_HTTP_URL` | `http://localhost:8081` | URL of embedding service (TEI) |
+| `EMBEDDINGS_HTTP_TOKEN` | (empty) | Optional auth token |
+| `EMBEDDINGS_MODEL` | `BAAI/bge-large-en-v1.5` | Model name |
+| `EMBEDDINGS_CACHE_ENABLED` | `true` | Enable embedding cache |
+| `EMBEDDINGS_CACHE_TTL_DAYS` | `30` | Cache TTL in days |
+
+#### NLI (Natural Language Inference)
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `NLI_PROVIDER` | `local` | Provider: `local`, `http`, or `disabled` |
+| `NLI_HTTP_URL` | `http://localhost:8082` | URL of NLI service |
+| `NLI_HTTP_TOKEN` | (empty) | Optional auth token |
+| `NLI_MODEL` | `microsoft/deberta-v3-large-mnli` | Model name |
+| `NLI_TIMEOUT_MS` | `10000` | Request timeout |
+
+#### Cache
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `REDIS_URL` | (empty) | Redis URL for caching |
+| `CACHE_USE_POSTGRES` | `false` | Use Postgres if Redis unavailable |
+
+### Deployment Modes
+
+#### Local Development (Docker Compose)
+
+```bash
+cd infra
+docker compose up -d
+```
+
+This starts:
+- PostgreSQL (port 5432)
+- Redis (port 6379)
+- Embeddings/TEI (port 8081)
+- NLI service (port 8082)
+
+Then run the API:
+```bash
+export DATABASE_URL="postgres://spectyra:spectyra_dev_password@localhost:5432/spectyra"
+export EMBEDDINGS_HTTP_URL="http://localhost:8081"
+export NLI_HTTP_URL="http://localhost:8082"
+export ALLOW_ENV_PROVIDER_KEYS="true"
+pnpm dev:api
+```
+
+#### Kubernetes (Production)
+
+```bash
+kubectl create namespace spectyra
+kubectl apply -f infra/k8s/
+```
+
+See `infra/k8s/` for manifests:
+- `embeddings-tei-deployment.yaml` - TEI for embeddings
+- `nli-deployment.yaml` - NLI service
+- `api-deployment.yaml` - Spectyra API
+- `secrets-example.yaml` - Secret configuration
+
+### Architecture
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│                     Spectyra API                            │
+│  ┌───────────────────────────────────────────────────────┐  │
+│  │                   Optimizer Pipeline                   │  │
+│  │  ┌─────────────┐  ┌─────────────┐  ┌─────────────┐   │  │
+│  │  │  Unitize    │→ │  Embed      │→ │ Build Graph │   │  │
+│  │  │  Messages   │  │  (TEI)      │  │ (NLI opt.)  │   │  │
+│  │  └─────────────┘  └──────┬──────┘  └──────┬──────┘   │  │
+│  │                          │                │          │  │
+│  │                          ▼                ▼          │  │
+│  │                   ┌─────────────┐  ┌─────────────┐   │  │
+│  │                   │  Embedding  │  │  NLI        │   │  │
+│  │                   │  Service    │  │  Service    │   │  │
+│  │                   │  (FREE)     │  │  (FREE)     │   │  │
+│  │                   └─────────────┘  └─────────────┘   │  │
+│  └───────────────────────────────────────────────────────┘  │
+│                              │                              │
+│                              ▼                              │
+│  ┌───────────────────────────────────────────────────────┐  │
+│  │              Customer LLM Provider Call                │  │
+│  │       (Using BYOK header or vaulted customer key)      │  │
+│  │                   (CUSTOMER PAYS)                      │  │
+│  └───────────────────────────────────────────────────────┘  │
+└─────────────────────────────────────────────────────────────┘
+```
+
+### Resource Requirements
+
+| Service | CPU Request | CPU Limit | Memory Request | Memory Limit |
+|---------|-------------|-----------|----------------|--------------|
+| embeddings | 1 | 4 | 4Gi | 8Gi |
+| nli | 1 | 2 | 4Gi | 8Gi |
+| api | 250m | 1 | 512Mi | 2Gi |
+
+For smaller deployments, use lighter models:
+- Embeddings: `BAAI/bge-small-en-v1.5` (~1GB RAM)
+- NLI: `microsoft/deberta-v3-base-mnli` (~1GB RAM)
+
+### Embedding Cache
+
+Embeddings are cached to reduce compute costs:
+
+1. **Redis** (preferred): Fast in-memory cache
+2. **PostgreSQL** (fallback): Persisted to `embedding_cache` table
+3. **Memory** (last resort): In-process cache (lost on restart)
+
+Cache key: `sha256(normalized_text + model + provider)`
+
+---
+
 ## Additional Resources
 
 ### Documentation
@@ -1390,6 +1548,7 @@ psql $DATABASE_URL -f supabase/migrations/YYYYMMDD_migration_name.sql
 - [docs/ENTERPRISE_SECURITY.md](docs/ENTERPRISE_SECURITY.md) - Complete enterprise security guide
 - [docs/THREAT_MODEL.md](docs/THREAT_MODEL.md) - Threat model and mitigations
 - [docs/ENVIRONMENT_VARIABLES.md](docs/ENVIRONMENT_VARIABLES.md) - Environment variable guide
+- [infra/README.md](infra/README.md) - Infrastructure deployment guide
 
 ### SDK Documentation
 - [packages/sdk/README.md](packages/sdk/README.md) - SDK usage and examples
@@ -1406,4 +1565,4 @@ psql $DATABASE_URL -f supabase/migrations/YYYYMMDD_migration_name.sql
 ---
 
 **Last Updated**: January 2026  
-**Version**: 2.0 (Enterprise Security Ready)
+**Version**: 2.1 (Local Optimization Stack)

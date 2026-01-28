@@ -1,6 +1,6 @@
 import { Router } from "express";
 import { requireSpectyraApiKey, optionalProviderKey, type AuthenticatedRequest } from "../middleware/auth.js";
-import { providerRegistry } from "../services/llm/providerRegistry.js";
+import { resolveOptimizerProvider } from "../services/llm/providerResolver.js";
 import { createOptimizerProvider } from "../services/optimizer/providerAdapter.js";
 import { getEmbedder } from "../services/embeddings/embedderRegistry.js";
 import { makeOptimizerConfig } from "../services/optimizer/config.js";
@@ -41,10 +41,16 @@ proofRouter.post("/estimate", async (req: AuthenticatedRequest, res) => {
       return res.status(400).json({ error: "Missing required fields: path, provider, model, messages" });
     }
     
-    const llmProvider = providerRegistry.get(provider);
-    if (!llmProvider) {
-      return res.status(400).json({ error: `Provider ${provider} not available` });
+    // For proof/estimation mode, we use optimizer provider resolution
+    // which allows env keys since no actual LLM API calls are made (dryRun mode).
+    // This is for optimizer internal use (embeddings, model config), not customer LLM calls.
+    const providerResolution = await resolveOptimizerProvider(provider);
+    if (!providerResolution.provider) {
+      return res.status(providerResolution.statusCode || 400).json({ 
+        error: providerResolution.error || `Provider ${provider} not available` 
+      });
     }
+    const llmProvider = providerResolution.provider;
     
     // Convert messages
     const chatMessages: ChatMessage[] = messages.map(m => ({

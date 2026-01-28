@@ -2,8 +2,7 @@ import { Router } from "express";
 import { v4 as uuidv4 } from "uuid";
 import { requireSpectyraApiKey, optionalProviderKey, type AuthenticatedRequest } from "../middleware/auth.js";
 import { requireActiveAccess } from "../middleware/trialGate.js";
-import { providerRegistry } from "../services/llm/providerRegistry.js";
-import { createProviderWithKey } from "../services/llm/providerFactory.js";
+import { resolveProvider } from "../services/llm/providerResolver.js";
 import { runOptimizedOrBaseline } from "../services/optimizer/optimizer.js";
 import { createOptimizerProvider } from "../services/optimizer/providerAdapter.js";
 import { getEmbedder } from "../services/embeddings/embedderRegistry.js";
@@ -49,47 +48,27 @@ chatRouter.post("/", async (req: AuthenticatedRequest, res) => {
       return res.status(400).json({ error: "Missing required fields" });
     }
     
-    // Enterprise Security: Provider key resolution (BYOK or Vault)
-    // Extract org and project IDs from context (primary) or auth (fallback)
+    // Enterprise Security: Strict provider key resolution
+    // Spectyra NEVER pays for customer LLM tokens in production.
+    // Resolution order: 1) BYOK header, 2) Vaulted key, 3) Env fallback (dev only)
     const orgId: string | undefined = req.context?.org?.id ?? req.auth?.orgId;
     const projectId: string | null | undefined = req.context?.project?.id ?? req.auth?.projectId ?? null;
     
-    const providerKeyOverride = req.context?.providerKeyOverride;
-    let llmProvider;
+    const providerResolution = await resolveProvider({
+      orgId,
+      projectId,
+      byokKey: req.context?.providerKeyOverride,
+      providerName: provider,
+    });
     
-    if (providerKeyOverride) {
-      // BYOK mode: Use ephemeral key from header
-      llmProvider = createProviderWithKey(provider, providerKeyOverride);
-      if (!llmProvider) {
-        return res.status(400).json({ error: `Provider ${provider} not supported for BYOK` });
-      }
-    } else if (orgId) {
-      // Try vaulted key (Enterprise: encrypted storage)
-      try {
-        const { getProviderCredential } = await import("../services/storage/providerCredentialsRepo.js");
-        const vaultedKey = await getProviderCredential(
-          orgId,
-          projectId || null,
-          provider as "openai" | "anthropic" | "google" | "azure" | "aws"
-        );
-        
-        if (vaultedKey) {
-          llmProvider = createProviderWithKey(provider, vaultedKey);
-        }
-      } catch (error) {
-        // Vault lookup failed, fall through to registry
-      }
+    if (!providerResolution.provider) {
+      return res.status(providerResolution.statusCode || 401).json({ 
+        error: providerResolution.error || "Provider key required",
+        hint: "Provide X-PROVIDER-KEY header (BYOK) or configure a vaulted key for your organization.",
+      });
     }
     
-    // Fallback to default provider from registry (env vars)
-    if (!llmProvider) {
-      llmProvider = providerRegistry.get(provider);
-      if (!llmProvider) {
-        return res.status(400).json({ 
-          error: `Provider ${provider} not available. Provide X-PROVIDER-KEY header for BYOK or configure vaulted key.` 
-        });
-      }
-    }
+    const llmProvider = providerResolution.provider;
     
     // Convert Message[] to ChatMessage[]
     const chatMessages: ChatMessage[] = messages.map(m => ({

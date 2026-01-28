@@ -9,7 +9,7 @@ import { getEmbedder } from "../services/embeddings/embedderRegistry.js";
 import { makeOptimizerConfig } from "../services/optimizer/config.js";
 import { mapOptimizationLevelToConfig, type OptimizationLevel } from "../services/optimizer/optimizationLevel.js";
 import { runOptimizedOrBaseline } from "../services/optimizer/optimizer.js";
-import { providerRegistry } from "../services/llm/providerRegistry.js";
+import { resolveOptimizerProvider } from "../services/llm/providerResolver.js";
 import type { ChatMessage } from "../services/optimizer/unitize.js";
 import {
   estimateBaselineTokens,
@@ -64,10 +64,16 @@ replaySimulateRouter.post("/", async (req: AuthenticatedRequest, res) => {
       content: t.content,
     }));
     
-    const llmProvider = providerRegistry.get(provider);
-    if (!llmProvider) {
-      return res.status(400).json({ error: `Provider ${provider} not available` });
+    // For simulation mode, we use optimizer provider resolution
+    // which allows env keys since no actual LLM API calls are made (dryRun mode).
+    // This is for optimizer internal use (embeddings, model config), not customer LLM calls.
+    const providerResolution = await resolveOptimizerProvider(provider);
+    if (!providerResolution.provider) {
+      return res.status(providerResolution.statusCode || 400).json({ 
+        error: providerResolution.error || `Provider ${provider} not available` 
+      });
     }
+    const llmProvider = providerResolution.provider;
     
     const optimizerProvider = createOptimizerProvider(llmProvider);
     const embedder = getEmbedder("openai");

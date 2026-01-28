@@ -1,0 +1,185 @@
+# Spectyra Local Development Stack
+# ================================
+# This docker-compose file provides the complete local development environment
+# including embeddings, NLI, and all dependencies.
+#
+# Usage:
+#   docker compose up -d         # Start all services
+#   docker compose logs -f       # View logs
+#   docker compose down          # Stop all services
+#
+# Services:
+#   - postgres: Database (port 5432)
+#   - redis: Cache for embeddings and semantic cache (port 6379)
+#   - embeddings: HuggingFace TEI for embeddings (port 8081)
+#   - nli: FastAPI NLI service (port 8082)
+#   - api: Spectyra API (port 8080) - optional, can run locally
+#
+# The API connects to embeddings/NLI via internal Docker network.
+
+version: '3.8'
+
+services:
+  # ============================================================================
+  # PostgreSQL Database
+  # ============================================================================
+  postgres:
+    image: postgres:15-alpine
+    container_name: spectyra-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: spectyra
+      POSTGRES_PASSWORD: spectyra_dev_password
+      POSTGRES_DB: spectyra
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U spectyra"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # ============================================================================
+  # Redis Cache
+  # ============================================================================
+  redis:
+    image: redis:7-alpine
+    container_name: spectyra-redis
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    command: redis-server --appendonly yes
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # ============================================================================
+  # Text Embeddings Inference (TEI) - HuggingFace
+  # ============================================================================
+  # Uses BAAI/bge-large-en-v1.5 by default (1024-dim embeddings)
+  # This is a free, open-source embedding model.
+  #
+  # API: POST http://localhost:8081
+  # Body: { "inputs": ["text1", "text2"] }
+  # Response: [[...embedding1...], [...embedding2...]]
+  # ============================================================================
+  embeddings:
+    image: ghcr.io/huggingface/text-embeddings-inference:cpu-1.5
+    container_name: spectyra-embeddings
+    restart: unless-stopped
+    ports:
+      - "8081:80"
+    volumes:
+      - embeddings_cache:/data
+    environment:
+      # Model to use (can override with EMBEDDINGS_MODEL env)
+      MODEL_ID: "BAAI/bge-large-en-v1.5"
+      # Max sequence length
+      MAX_CLIENT_BATCH_SIZE: "32"
+      # Trust remote code for some models
+      TRUST_REMOTE_CODE: "true"
+    command: --model-id BAAI/bge-large-en-v1.5 --port 80
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:80/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+    # Note: For GPU support, use:
+    # image: ghcr.io/huggingface/text-embeddings-inference:1.5
+    # deploy:
+    #   resources:
+    #     reservations:
+    #       devices:
+    #         - driver: nvidia
+    #           count: 1
+    #           capabilities: [gpu]
+
+  # ============================================================================
+  # NLI Service (FastAPI with DeBERTa MNLI)
+  # ============================================================================
+  # Uses microsoft/deberta-v3-large-mnli for contradiction detection
+  # This is a free, open-source NLI model.
+  #
+  # API: POST http://localhost:8082/nli
+  # Body: { "pairs": [{"premise": "...", "hypothesis": "..."}] }
+  # Response: { "results": [{"label": "contradiction", "confidence": 0.95}] }
+  # ============================================================================
+  nli:
+    build:
+      context: ./nli-service
+      dockerfile: Dockerfile
+    container_name: spectyra-nli
+    restart: unless-stopped
+    ports:
+      - "8082:8000"
+    volumes:
+      - nli_cache:/app/model_cache
+    environment:
+      # Model to use
+      NLI_MODEL: "microsoft/deberta-v3-large-mnli"
+      # Number of workers
+      WORKERS: "1"
+      # Device (cpu or cuda)
+      DEVICE: "cpu"
+      # Model cache directory
+      TRANSFORMERS_CACHE: "/app/model_cache"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 120s
+
+  # ============================================================================
+  # Spectyra API (Optional - can run locally with `pnpm dev:api`)
+  # ============================================================================
+  # api:
+  #   build:
+  #     context: ..
+  #     dockerfile: infra/Dockerfile.api
+  #   container_name: spectyra-api
+  #   restart: unless-stopped
+  #   ports:
+  #     - "8080:8080"
+  #   environment:
+  #     # Database
+  #     DATABASE_URL: "postgres://spectyra:spectyra_dev_password@postgres:5432/spectyra"
+  #     # Redis
+  #     REDIS_URL: "redis://redis:6379"
+  #     # Embeddings
+  #     EMBEDDINGS_PROVIDER: "local"
+  #     EMBEDDINGS_HTTP_URL: "http://embeddings:80"
+  #     EMBEDDINGS_MODEL: "BAAI/bge-large-en-v1.5"
+  #     # NLI
+  #     NLI_PROVIDER: "local"
+  #     NLI_HTTP_URL: "http://nli:8000"
+  #     # Provider key enforcement (set to true only for local dev)
+  #     ALLOW_ENV_PROVIDER_KEYS: "true"
+  #     # Port
+  #     PORT: "8080"
+  #   depends_on:
+  #     postgres:
+  #       condition: service_healthy
+  #     redis:
+  #       condition: service_healthy
+  #     embeddings:
+  #       condition: service_healthy
+  #     nli:
+  #       condition: service_healthy
+
+volumes:
+  postgres_data:
+  redis_data:
+  embeddings_cache:
+  nli_cache:
+
+networks:
+  default:
+    name: spectyra-network
