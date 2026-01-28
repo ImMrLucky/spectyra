@@ -1,9 +1,11 @@
 import { Component, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
+import { Router } from '@angular/router';
 import { AdminService, AdminOrg, AdminOrgDetail, AdminUser } from '../../core/api/admin.service';
 import { SupabaseService } from '../../services/supabase.service';
 import { SnackbarService } from '../../core/services/snackbar.service';
+import { AuthService } from '../../core/auth/auth.service';
 
 @Component({
   selector: 'app-admin',
@@ -205,9 +207,24 @@ export class AdminPage implements OnInit {
       error: (err) => {
         this.error = err.error?.error || 'Failed to update SDK access';
         this.togglingSdkAccess = false;
-        this.snackbar.showError(this.error);
+        this.snackbar.showError(this.error || 'An error occurred');
       },
     });
+  }
+
+  async logout() {
+    // Logout from both Supabase and clear API key
+    await this.supabase.signOut();
+    this.authService.logout();
+    
+    // Clear all Supabase-related localStorage items
+    const supabaseKeys = Object.keys(localStorage).filter(key => 
+      key.startsWith('sb-') || key.includes('supabase')
+    );
+    supabaseKeys.forEach(key => localStorage.removeItem(key));
+    
+    // Redirect to login page
+    this.router.navigate(['/login']);
   }
 
   switchTab(tab: 'orgs' | 'users') {

@@ -123,7 +123,7 @@ export class ProviderKeysPage implements OnInit {
       await this.loadCredentials();
     } catch (err: any) {
       this.error = err.error?.error || 'Failed to save provider key';
-      this.snackbar.showError(this.error);
+      this.snackbar.showError(this.error || 'An error occurred');
     } finally {
       this.saving = false;
     }
@@ -144,7 +144,7 @@ export class ProviderKeysPage implements OnInit {
       await this.loadCredentials();
     } catch (err: any) {
       this.error = err.error?.error || 'Failed to revoke provider key';
-      this.snackbar.showError(this.error);
+      this.snackbar.showError(this.error || 'An error occurred');
     } finally {
       this.revoking = null;
     }
@@ -161,7 +161,7 @@ export class ProviderKeysPage implements OnInit {
       this.snackbar.showSuccess('Provider key mode updated');
     } catch (err: any) {
       this.error = err.error?.error || 'Failed to update provider key mode';
-      this.snackbar.showError(this.error);
+      this.snackbar.showError(this.error || 'An error occurred');
     } finally {
       this.saving = false;
     }

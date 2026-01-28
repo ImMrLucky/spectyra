@@ -122,7 +122,7 @@ export class SecuritySettingsPage implements OnInit {
       await this.loadSettings();
     } catch (err: any) {
       this.error = err.error?.error || 'Failed to save settings';
-      this.snackbar.showError(this.error);
+      this.snackbar.showError(this.error || 'An error occurred');
     } finally {
       this.saving = false;
     }

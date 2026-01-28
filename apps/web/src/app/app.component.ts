@@ -46,6 +46,7 @@ export class AppComponent implements OnInit, OnDestroy, AfterViewInit {
   
   isAuthenticated = false;
   userEmail: string | null = null;
+  showAdminLink = false;
   sidebarOpen = true;
   sidebarCollapsed = false;
   private wasAutoCollapsed = false; // Track if collapse was due to screen size

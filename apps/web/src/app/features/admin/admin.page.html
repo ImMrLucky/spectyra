@@ -2,7 +2,7 @@
   <div class="header">
     <h1>Admin Panel</h1>
     <p class="subtitle" *ngIf="!isAuthenticated">Please log in to access admin panel</p>
-    <p class="subtitle" *ngIf="isAuthenticated && !isOwner">Access denied: Owner only (gkh1974@gmail.com)</p>
+    <p class="subtitle" *ngIf="isAuthenticated && !isOwner">Access denied: Owner only (gkh1974&#64;gmail.com)</p>
   </div>
 
   <div *ngIf="isAuthenticated && isOwner" class="admin-content">
