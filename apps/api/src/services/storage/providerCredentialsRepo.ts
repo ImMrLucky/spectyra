@@ -9,11 +9,6 @@ import { encryptKey, decryptKey, computeProviderKeyFingerprint, type EncryptedKe
 import { safeLog } from "../../utils/redaction.js";
 import type { ProviderCredentialRow } from "@spectyra/shared";
 
-// Use canonical Row type (includes ciphertext - server-only)
-// This is the server-side representation with ciphertext
-// Re-export with same name for backward compatibility
-export type { ProviderCredentialRow as ProviderCredential };
-
 /**
  * Set or update a provider credential
  * Revokes any existing active credential for the same org/project/provider
@@ -40,7 +35,7 @@ export async function setProviderCredential(
     `, [orgId, projectId, provider]);
 
     // Insert new credential
-    const result = await client.query<ProviderCredential>(`
+    const result = await client.query<ProviderCredentialRow>(`
       INSERT INTO provider_credentials (
         org_id, project_id, provider,
         key_ciphertext, key_kid, key_fingerprint
@@ -67,9 +62,9 @@ export async function setProviderCredential(
 export async function getProviderCredential(
   orgId: string,
   projectId: string | null,
-  provider: ProviderCredential["provider"]
+  provider: ProviderCredentialRow["provider"]
 ): Promise<string | null> {
-  const credential = await queryOne<ProviderCredential>(`
+  const credential = await queryOne<ProviderCredentialRow>(`
     SELECT id, org_id, project_id, provider, key_ciphertext, key_kid, key_fingerprint,
            created_at, updated_at, revoked_at
     FROM provider_credentials

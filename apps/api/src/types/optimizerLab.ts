@@ -63,16 +63,32 @@ export interface TokenEstimate {
 }
 
 /**
+ * Per-layer profit gate step (PG-SCC).
+ */
+export interface OptimizationStep {
+  label: string;
+  useAfter: boolean;
+  before: number;
+  after: number;
+  pct: number;
+  absChange?: number;
+}
+
+/**
  * Diff summary showing what was optimized
  */
 export interface DiffSummary {
+  /** Full prompt before optimization (estimated tokens). */
   inputTokensBefore: number;
+  /** Full prompt after optimization (estimated tokens). */
   inputTokensAfter: number;
   pctSaved: number;
   refsUsed?: number;
   phrasebookEntries?: number;
   codemapSnippetsKept?: number;
   codemapOmittedBlocks?: number;
+  /** Per-layer before/after (SCC, RefPack, PhraseBook, CodeMap, Policy). */
+  optimizationSteps?: OptimizationStep[];
 }
 
 /**

@@ -20,6 +20,8 @@ export interface RefPackInput {
   spectral: SpectralResult;
   path: PathKind;
   maxEntries?: number;
+  /** Optional: full message text to count references (v2: only include if refs >= 2 or block > 300 chars). */
+  messageText?: string;
 }
 
 export interface RefPackOutput {
@@ -40,12 +42,17 @@ export interface ApplyInlineRefsOutput {
   replacementsMade: number;
 }
 
+/** v2: summary length 40-80 chars (was 140-180). */
+const REFPACK_SUMMARY_MAX_CHARS = 80;
+const REFPACK_MIN_BLOCK_CHARS = 300;
+const REFPACK_MIN_REFERENCES = 2;
+
 /**
- * Build RefPack from stable units
- * Selects stable units via spectral confidence and generates compact summaries
+ * Build RefPack from stable units (v2: ultra-short summaries, only net-positive entries).
+ * Only include entries referenced >= 2 times OR block > 300 chars.
  */
 export function buildRefPack(input: RefPackInput): RefPackOutput {
-  const { units, spectral, path, maxEntries = 10 } = input;
+  const { units, spectral, path, maxEntries = 10, messageText } = input;
 
   // Get stable units (already filtered by spectral)
   const stableUnitIds = new Set(spectral.stableNodeIdx.map(idx => units[idx]?.id).filter(Boolean));
@@ -59,23 +66,34 @@ export function buildRefPack(input: RefPackInput): RefPackOutput {
     return b.createdAtTurn - a.createdAtTurn;
   });
 
-  // Cap to maxEntries
-  const capped = sorted.slice(0, maxEntries);
+  // v2: filter to entries that are referenced >= 2 times OR replace big blocks (> 300 chars)
+  const fullText = messageText ?? units.map(u => u.text).join(" ");
+  const capped = sorted.slice(0, maxEntries).filter((unit) => {
+    if (unit.text.length >= REFPACK_MIN_BLOCK_CHARS) return true;
+    let count = 0;
+    let pos = 0;
+    while ((pos = fullText.indexOf(unit.text, pos)) !== -1) {
+      count++;
+      pos += 1;
+      if (count >= REFPACK_MIN_REFERENCES) return true;
+    }
+    return false;
+  });
 
-  // Generate compact summaries (8-25 words)
+  // Generate compact summaries (v2: 40-80 chars)
   const entries = capped.map((unit, idx) => {
-    const summary = summarizeUnit(unit.text, path === "code" ? 140 : 180);
+    const summary = summarizeUnit(unit.text, REFPACK_SUMMARY_MAX_CHARS);
     return {
-      id: idx + 1, // Numeric ID starting from 1
+      id: idx + 1,
       summary,
       originalId: unit.id,
     };
   });
 
-  // Estimate tokens before/after
+  // Estimate tokens before/after (v2: compact format)
   const tokensBefore = estimateTokens(units.map(u => u.text).join(" "));
-  const refPackText = entries.map(e => `${e.id}: "${e.summary}"`).join(", ");
-  const tokensAfter = estimateTokens(`REFPACK { ${refPackText} }`);
+  const refPackText = entries.map(e => `${e.id}|${e.summary}`).join("\n");
+  const tokensAfter = estimateTokens(`REFPACK\n${refPackText}\nUse [[R#]] as aliases.`);
 
   return {
     refPack: { entries },
@@ -184,17 +202,10 @@ function summarizeUnit(text: string, maxChars: number): string {
   return summary.slice(0, maxChars - 1) + "…";
 }
 
-/**
- * Build REFPACK system message with strong instruction
- */
+/** v2: compact format — 1|<summary> (no quotes, no extra whitespace). */
 function buildRefPackSystemMessage(refPack: RefPack): string {
-  const entries = refPack.entries.map(e => `  ${e.id}: "${e.summary}"`).join(",\n");
-  
-  return `REFPACK {
-${entries}
-}
-
-IMPORTANT: Treat [[R#]] references as exact aliases. Do not expand them unless explicitly asked. Use [[R1]], [[R2]], etc. to refer to the entries above.`;
+  const entries = refPack.entries.map(e => `${e.id}|${e.summary}`).join("\n");
+  return `REFPACK\n${entries}\nUse [[R1]], [[R2]], etc. as exact aliases.`;
 }
 
 

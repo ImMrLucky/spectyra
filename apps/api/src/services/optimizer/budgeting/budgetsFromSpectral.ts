@@ -17,6 +17,12 @@ export interface Budgets {
   compressionAggressiveness: number; // 0-1 scale
   phrasebookAggressiveness: number; // 0-1 scale
   codemapDetailLevel: number; // 0-1 scale (1 = full detail, 0 = minimal)
+  /** PG-SCC: state compression level 0–1 (0 = off, 1 = aggressive). */
+  stateCompressionLevel: number;
+  /** Max chars for compiled state message (talk vs code have different defaults). */
+  maxStateChars: number;
+  /** Code: retain tool logs in state (errors, stack traces). */
+  retainToolLogs: boolean;
 }
 
 export interface BudgetsFromSpectralInput {
@@ -76,11 +82,19 @@ export function computeBudgetsFromSpectral(input: BudgetsFromSpectralInput): Bud
     Math.round(baseMaxRefs + (normalizedStability * 4) - (normalizedNovelty * 2))
   ));
 
+  // PG-SCC: state compression (higher when stable)
+  const stateCompressionLevel = Math.max(0, Math.min(1, normalizedStability * 0.8 + (1 - normalizedNovelty) * 0.2));
+  const maxStateChars = 4000; // single compact state message cap
+  const retainToolLogs = true; // code path: keep error signatures
+
   return {
     keepLastTurns,
     maxRefpackEntries,
     compressionAggressiveness,
     phrasebookAggressiveness,
     codemapDetailLevel,
+    stateCompressionLevel,
+    maxStateChars,
+    retainToolLogs,
   };
 }

@@ -172,7 +172,10 @@ replayRouter.post("/", async (req: AuthenticatedRequest, res) => {
         estimated: true,
       };
       baselineCost = estimateCost(baselineUsage, provider);
-      baselineQuality = checkQuality(baselineResult.responseText, scenario.required_checks);
+      baselineQuality = runQualityGuard({
+        text: baselineResult.responseText,
+        requiredChecks: scenario.required_checks,
+      });
     }
     
     // Build spectral debug for baseline (empty)
@@ -190,7 +193,13 @@ replayRouter.post("/", async (req: AuthenticatedRequest, res) => {
     // Create replay_id for grouping baseline + optimized
     const replayId = uuidv4();
     const baselineId = uuidv4();
-    const workloadKey = computeWorkloadKey(scenario.path, provider, model, chatMessages);
+    const workloadKey = computeWorkloadKey({
+      path: scenario.path as "talk" | "code",
+      provider,
+      model,
+      promptLength: JSON.stringify(chatMessages).length,
+      scenarioId: scenario_id,
+    });
     
     const baseline: RunRecord = {
       id: baselineId,
@@ -292,8 +301,8 @@ replayRouter.post("/", async (req: AuthenticatedRequest, res) => {
       lambda2: optimizedResult.spectral.lambda2,
       contradictionEnergy: optimizedResult.spectral.contradictionEnergy,
       recommendation: optimizedResult.spectral.recommendation,
-      stableUnitIds: optimizedResult.spectral.stableNodeIdx.map(i => `unit_${i}`), // convert indices to IDs
-      unstableUnitIds: optimizedResult.spectral.unstableNodeIdx.map(i => `unit_${i}`), // convert indices to IDs
+      stableUnitIds: optimizedResult.spectral.stableNodeIdx.map((i: number) => `unit_${i}`), // convert indices to IDs
+      unstableUnitIds: optimizedResult.spectral.unstableNodeIdx.map((i: number) => `unit_${i}`), // convert indices to IDs
     } : undefined;
     
     const optimizedPromptHash = computePromptHash(optimizedResult.promptFinal.messages);

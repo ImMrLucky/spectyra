@@ -28,12 +28,21 @@ export interface PhraseBookOutput {
   changed: boolean;
 }
 
+/** v2: only encode phrases >= 18 chars and appearing >= 3 times. */
+const PHRASEBOOK_MIN_LENGTH = 18;
+const PHRASEBOOK_MIN_OCCURRENCES = 3;
+
 /**
- * Build local phrasebook per request
- * Finds repeated phrases and encodes them
+ * Build local phrasebook per request (v2: net-positive only).
+ * Only add phrase if it appears >= 3 times and length >= 18 chars.
  */
 export function buildLocalPhraseBook(input: PhraseBookInput): PhraseBookOutput {
-  const { messages, aggressiveness, minPhraseLength = 10, minOccurrences = 2 } = input;
+  const {
+    messages,
+    aggressiveness,
+    minPhraseLength = PHRASEBOOK_MIN_LENGTH,
+    minOccurrences = PHRASEBOOK_MIN_OCCURRENCES,
+  } = input;
 
   // Extract all text content
   const allText = messages
@@ -175,17 +184,10 @@ function applyPhraseBookEncoding(messages: ChatMessage[], phraseBook: PhraseBook
   };
 }
 
-/**
- * Build PhraseBook system message
- */
+/** v2: compact format — P1|<phrase> (no quotes). */
 function buildPhraseBookSystemMessage(phraseBook: PhraseBook): string {
-  const entries = phraseBook.entries.map(e => `  ${e.id}: "${e.phrase}"`).join(",\n");
-
-  return `PHRASEBOOK {
-${entries}
-}
-
-Use ⟦P1⟧, ⟦P2⟧, etc. to refer to the phrases above.`;
+  const entries = phraseBook.entries.map((e) => `P${e.id}|${e.phrase}`).join("\n");
+  return `PHRASEBOOK\n${entries}\nUse ⟦P1⟧, ⟦P2⟧, etc. as aliases.`;
 }
 
 /**

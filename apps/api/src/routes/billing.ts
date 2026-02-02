@@ -18,9 +18,9 @@ import { safeLog } from "../utils/redaction.js";
 
 export const billingRouter = Router();
 
-// Initialize Stripe
+// Initialize Stripe (use type assertion for newer API version)
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY || "", {
-  apiVersion: "2024-11-20.acacia",
+  apiVersion: "2024-11-20.acacia" as Stripe.LatestApiVersion,
 });
 
 /**

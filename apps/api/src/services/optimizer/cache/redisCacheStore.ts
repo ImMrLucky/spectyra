@@ -26,15 +26,16 @@ export class RedisCacheStore implements CacheStore {
     }
 
     try {
-      // Try to use @upstash/redis if Upstash URL detected
+      // Try to use @upstash/redis if Upstash URL detected (optional dependency)
       if (url.includes("upstash.io") || process.env.UPSTASH_REDIS_REST_TOKEN) {
+        // @ts-expect-error - optional dependency, may not be installed
         const { Redis } = await import("@upstash/redis");
         this.client = new Redis({
           url: url,
           token: process.env.UPSTASH_REDIS_REST_TOKEN,
         });
       } else {
-        // Use ioredis for standard Redis
+        // @ts-expect-error - optional dependency, may not be installed
         const Redis = (await import("ioredis")).default;
         this.client = new Redis(url);
       }

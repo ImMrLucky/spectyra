@@ -32,6 +32,7 @@ import {
   type ViewMode,
   type TokenEstimate,
   type DiffSummary,
+  type OptimizationStep,
   type SafetySummary,
   type DebugPayload,
   optimizationLevelToNumber,
@@ -356,12 +357,20 @@ optimizerLabRouter.post("/optimize", async (req: AuthenticatedRequest, res) => {
     };
 
     const diffSummary: DiffSummary = {
-      inputTokensBefore: inputTokensBefore,
-      inputTokensAfter: inputTokensAfter,
+      inputTokensBefore,
+      inputTokensAfter,
       pctSaved: Math.round(pctSaved * 100) / 100,
       refsUsed: result.debugInternal?.refpack?.entriesCount,
       phrasebookEntries: result.debugInternal?.phrasebook?.entriesCount,
       codemapSnippetsKept: result.debugInternal?.codemap?.symbolsCount,
+      optimizationSteps: result.debugInternal?.optimizationSteps?.map((s: OptimizationStep) => ({
+        label: s.label,
+        useAfter: s.useAfter,
+        before: s.before,
+        after: s.after,
+        pct: s.pct,
+        absChange: s.absChange,
+      })),
     };
 
     const safetySummary = buildSafetySummary(result.debugInternal, path, optimizationsApplied);

@@ -13,8 +13,8 @@ import type { OrgSettingsRow, ProjectSettingsRow } from "@spectyra/shared";
 /**
  * Get org settings (creates defaults if not exist)
  */
-export async function getOrgSettings(orgId: string): Promise<OrgSettings> {
-  let settings = await queryOne<OrgSettings>(`
+export async function getOrgSettings(orgId: string): Promise<OrgSettingsRow> {
+  let settings = await queryOne<OrgSettingsRow>(`
     SELECT org_id, data_retention_days, store_prompts, store_responses, store_internal_debug,
            allow_semantic_cache, allowed_ip_ranges, enforce_sso, allowed_email_domains,
            provider_key_mode, created_at, updated_at
@@ -51,8 +51,8 @@ export async function getOrgSettings(orgId: string): Promise<OrgSettings> {
  */
 export async function updateOrgSettings(
   orgId: string,
-  updates: Partial<Omit<OrgSettings, "org_id" | "created_at" | "updated_at">>
-): Promise<OrgSettings> {
+  updates: Partial<Omit<OrgSettingsRow, "org_id" | "created_at" | "updated_at">>
+): Promise<OrgSettingsRow> {
   const fields: string[] = [];
   const values: any[] = [];
   let paramIndex = 1;
@@ -127,7 +127,7 @@ export async function getProjectSettings(projectId: string): Promise<ProjectSett
       ON CONFLICT (project_id) DO NOTHING
     `, [projectId]);
 
-    settings = await queryOne<ProjectSettings>(`
+    settings = await queryOne<ProjectSettingsRow>(`
       SELECT project_id, allowed_origins, rate_limit_rps, rate_limit_burst, created_at, updated_at
       FROM project_settings
       WHERE project_id = $1
