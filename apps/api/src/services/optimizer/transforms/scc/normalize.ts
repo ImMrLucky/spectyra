@@ -26,6 +26,20 @@ export function dedupeOrdered<T>(lines: T[], key?: (x: T) => string): T[] {
 }
 
 /**
+ * Dedupe user sentences keeping last occurrence (repeated nags appear once).
+ * If the exact user sentence repeats >= 2 times, keep only the last instance.
+ */
+export function dedupeUserSentencesKeepLast(lines: string[]): string[] {
+  const lastIdx = new Map<string, number>();
+  lines.forEach((line, i) => {
+    const k = line.trim();
+    if (k) lastIdx.set(k, i);
+  });
+  const order = [...lastIdx.entries()].sort((a, b) => a[1]! - b[1]!);
+  return order.map(([s]) => s);
+}
+
+/**
  * Normalize a file path: strip trailing punctuation, collapse slashes, trim.
  */
 export function normalizePath(p: string): string {

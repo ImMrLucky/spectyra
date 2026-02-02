@@ -13,6 +13,7 @@ import assert from "node:assert";
 import {
   normalizeBullet,
   dedupeOrdered,
+  dedupeUserSentencesKeepLast,
   normalizePath,
   dedupeFailingSignals,
   type FailingSignal,
@@ -206,7 +207,16 @@ describe("extractFocusFiles", () => {
     const files = extractFocusFiles(messages);
     assert.ok(files.some((p) => p.includes("optimizer-lab.page.ts")));
     assert.ok(files.some((p) => p.includes("app.component.ts")));
-    assert.ok(files.length <= 5);
+    assert.ok(files.length >= 1 && files.length <= 7, "focus files must be 3–7 when available");
+  });
+});
+
+describe("dedupeUserSentencesKeepLast", () => {
+  it("keeps last occurrence when exact user sentence repeats", () => {
+    const lines = ["Run full test suite and paste output", "Fix the bug", "Run full test suite and paste output"];
+    const out = dedupeUserSentencesKeepLast(lines);
+    assert.strictEqual(out.length, 2);
+    assert.strictEqual(out[out.length - 1], "Run full test suite and paste output");
   });
 });
 
@@ -317,5 +327,80 @@ describe("compileCodeState", () => {
     assert.ok(content.includes("Next actions"));
     assert.ok(content.includes("Open the focus files") || content.includes("read_file"));
     assert.ok(content.includes("Do not edit unrelated files"));
+  });
+
+  it("SCC output contains no [[R ref tokens and no glossary table markers", () => {
+    const messages: ChatMessage[] = [
+      { role: "user", content: "Fix types." },
+      { role: "tool", content: "ERROR in apps/web/src/main.ts:9\nTS2345: error." },
+    ];
+    const out = compileCodeState({
+      messages,
+      units: emptyUnits,
+      spectral: emptySpectral,
+      budgets: defaultBudgets,
+    });
+    const content = typeof out.stateMsg.content === "string" ? out.stateMsg.content : "";
+    assert.ok(!/\[\[R\d+\]\]/.test(content), "SCC must not contain [[R#]] patterns");
+    assert.ok(!/GLOSSARY[\s\S]*END_GLOSSARY/.test(content), "SCC must not contain glossary table markers");
+  });
+
+  it("SCC output contains grounding guardrails", () => {
+    const messages: ChatMessage[] = [
+      { role: "user", content: "Fix the build." },
+    ];
+    const out = compileCodeState({
+      messages,
+      units: emptyUnits,
+      spectral: emptySpectral,
+      budgets: defaultBudgets,
+    });
+    const content = typeof out.stateMsg.content === "string" ? out.stateMsg.content : "";
+    assert.ok(
+      content.includes("Do not propose patches without first opening the file"),
+      "must instruct open file before patch"
+    );
+    assert.ok(
+      content.includes("Never assume the contents of JSON files") || content.includes("treat them as JSON"),
+      "must constrain JSON assumption"
+    );
+    assert.ok(
+      content.includes("run tests") || content.includes("paste output"),
+      "must instruct run tests then paste output"
+    );
+  });
+
+  it("SCC output contains TS2345 hint when latest error is TS2345 + string|undefined", () => {
+    const messages: ChatMessage[] = [
+      { role: "user", content: "Fix lint." },
+      {
+        role: "tool",
+        content: "Command: pnpm lint\nERROR in packages/sdk/src/client.ts:45\nTS2345: Argument of type 'string | undefined' is not assignable to parameter of type 'string'.",
+      },
+    ];
+    const out = compileCodeState({
+      messages,
+      units: emptyUnits,
+      spectral: emptySpectral,
+      budgets: defaultBudgets,
+    });
+    const content = typeof out.stateMsg.content === "string" ? out.stateMsg.content : "";
+    assert.ok(content.includes("TS2345 hint") || content.includes("optional env/config") || content.includes("fallback"), "TS2345 hint section must appear when error matches TS2345 + string|undefined");
+  });
+
+  it("SCC contains Task line and constraints appear once", () => {
+    const messages: ChatMessage[] = [
+      { role: "user", content: "Fix the build.\n\nConstraints:\n- Target ES2019.\n- Do not use replaceAll." },
+      { role: "tool", content: "ERROR in apps/web/src/main.ts:9\nTS2345: error." },
+    ];
+    const out = compileCodeState({
+      messages,
+      units: emptyUnits,
+      spectral: emptySpectral,
+      budgets: defaultBudgets,
+    });
+    const content = typeof out.stateMsg.content === "string" ? out.stateMsg.content : "";
+    assert.ok(content.includes("Task:"), "SCC must contain Task line");
+    assert.ok(content.includes("Constraints") || content.includes("ES2019"), "constraints must appear");
   });
 });

@@ -301,7 +301,7 @@ export function extractMentionedPaths(messages: ChatMessage[]): string[] {
 }
 
 /**
- * Focus files: from failing signals (file:line) + user "Relevant file again:" paths. Top 5, deduped.
+ * Focus files: from failing signals (file:line) + user "Relevant file again:" paths. Top 3–7, deduped.
  */
 export function extractFocusFiles(messages: ChatMessage[]): string[] {
   const fromSignals = extractFailingSignals(messages)
@@ -318,7 +318,7 @@ export function extractFocusFiles(messages: ChatMessage[]): string[] {
     }
   }
   const combined = dedupeOrdered([...fromSignals, ...fromUser]);
-  return combined.slice(0, 5);
+  return combined.slice(0, 7);
 }
 
 /** Count failing signals in the last N messages (for instability override). */

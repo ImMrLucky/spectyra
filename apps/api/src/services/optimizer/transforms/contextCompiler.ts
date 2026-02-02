@@ -14,6 +14,7 @@ import type { Budgets } from "../budgeting/budgetsFromSpectral";
 import {
   normalizeBullet,
   dedupeOrdered,
+  dedupeUserSentencesKeepLast,
   normalizePath,
   dedupeFailingSignals,
 } from "./scc/normalize.js";
@@ -59,6 +60,14 @@ const MAX_CONFIRMED_FILES = 10;
 const MAX_LATEST_TOOL_EXCERPT_CHARS = 1200;
 /** Code path: 1 latest error + 6 history (deduped). */
 const MAX_FAILING_SIGNALS_AFTER_LATEST = 6;
+/** Max stack lines to keep in latest tool excerpt (main error + up to this many "at ..." lines). */
+const MAX_STACK_LINES_IN_EXCERPT = 3;
+
+/** Grounding guardrails: must constrain model behavior (no invented content, open file before patch). */
+const GROUNDING_GUARDRAILS = `Grounding rules:
+- Do not propose patches without first opening the file that contains the failing line.
+- Never assume the contents of JSON files; treat them as JSON unless tool output says otherwise.
+- When user asks to run tests: respond by running tests (tool), then paste output.`;
 
 function truncate(s: string, max: number): string {
   if (s.length <= max) return s;
@@ -70,6 +79,52 @@ function stripRefPackArtifacts(text: string): string {
   return text
     .replace(/\[\[R\d+\]\]/g, "")
     .replace(/GLOSSARY[\s\S]*?END_GLOSSARY/g, "");
+}
+
+/** Trim tool output to main error line + up to maxStackLines "at ..." stack lines (for short state). */
+function trimToolExcerptToErrorAndStack(output: string, maxStackLines: number): string {
+  const lines = output.split("\n");
+  let start = -1;
+  let stackCount = 0;
+  const stackRe = /^\s*at\s+\S+\s+\([^)]+:\d+:\d+\)/;
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i]!;
+    if (/ERROR\s+in\s|TS\d+:/i.test(line)) {
+      if (start < 0) start = i;
+      stackCount = 0;
+    }
+    if (start >= 0 && stackRe.test(line)) {
+      stackCount++;
+      if (stackCount > maxStackLines) {
+        return lines.slice(start, i).join("\n").trim();
+      }
+    }
+  }
+  if (start >= 0) {
+    const slice = lines.slice(start);
+    const collected: string[] = [slice[0]!];
+    let n = 0;
+    for (let j = 1; j < slice.length && n < maxStackLines; j++) {
+      if (stackRe.test(slice[j]!)) {
+        collected.push(slice[j]!);
+        n++;
+      }
+    }
+    return collected.join("\n").trim();
+  }
+  return output.slice(0, MAX_LATEST_TOOL_EXCERPT_CHARS);
+}
+
+/** TS2345 + string|undefined hint: include only when latest error matches; no invented code. */
+function buildTs2345Hint(
+  latestSignal: { code?: string; message?: string; raw?: string } | null,
+  latestToolFailure: { output: string } | null
+): string {
+  const raw = latestSignal?.raw ?? latestSignal?.message ?? latestToolFailure?.output ?? "";
+  const code = latestSignal?.code ?? (raw.match(/TS2345/) ? "TS2345" : null);
+  if (code !== "TS2345") return "";
+  if (!/string\s*\|\s*undefined|undefined.*string/i.test(raw)) return "";
+  return `TS2345 hint: This usually means optional env/config value is flowing into a function expecting string. Look for process.env.X or config lookup returning string | undefined and either provide a fallback, throw early, or narrow type.`;
 }
 
 /** Build deduped constraint list; always include ES target + optional chaining bans if present. */
@@ -126,17 +181,19 @@ export function compileTalkState(input: CompileTalkStateInput): CompileTalkState
   const constraintsBlock = buildConstraintsBlock(extracted);
 
   const olderUser = messages.filter((m) => m.role === "user").slice(1, -keepLastTurns);
-  const knownFacts = olderUser
+  const rawFacts = olderUser
     .map((m) => normalizeBullet((m.content ?? "").replace(/\s+/g, " ").trim()))
-    .filter((t) => t.length > 10)
+    .filter((t) => t.length > 10);
+  const knownFacts = dedupeUserSentencesKeepLast(rawFacts)
     .slice(0, 8)
     .map((t) => `- ${truncate(t, MAX_BULLET_LEN)}`);
 
   const assistantMsgs = messages.filter((m) => m.role === "assistant");
   const olderAssistant = assistantMsgs.slice(0, -keepLastTurns);
-  const decisions = olderAssistant
+  const rawDecisions = olderAssistant
     .map((m) => normalizeBullet((m.content ?? "").replace(/\s+/g, " ").trim()))
-    .filter((t) => t.length > 10)
+    .filter((t) => t.length > 10);
+  const decisions = dedupeUserSentencesKeepLast(rawDecisions)
     .slice(0, 8)
     .map((t) => `- ${truncate(t, MAX_BULLET_LEN)}`);
 
@@ -209,13 +266,18 @@ export function compileCodeState(input: CompileCodeStateInput): CompileCodeState
       : "- (none)";
 
   const latestToolFailure = retainToolLogs ? extractLatestToolFailure(messages) : null;
+  const rawOutput = latestToolFailure != null ? latestToolFailure.output : "";
+  const trimmedOutput =
+    rawOutput.length > 0
+      ? trimToolExcerptToErrorAndStack(rawOutput, MAX_STACK_LINES_IN_EXCERPT)
+      : "";
   const toolExcerpt =
     latestToolFailure != null
       ? (latestToolFailure.cmd ? `Command: ${latestToolFailure.cmd}\n` : "") +
         "Output:\n" +
-        (latestToolFailure.output.length > MAX_LATEST_TOOL_EXCERPT_CHARS
-          ? latestToolFailure.output.slice(0, MAX_LATEST_TOOL_EXCERPT_CHARS - 1) + "…"
-          : latestToolFailure.output)
+        (trimmedOutput.length > MAX_LATEST_TOOL_EXCERPT_CHARS
+          ? trimmedOutput.slice(0, MAX_LATEST_TOOL_EXCERPT_CHARS - 1) + "…"
+          : trimmedOutput)
       : "";
 
   const focusFiles = extractFocusFiles(messages);
@@ -231,6 +293,8 @@ export function compileCodeState(input: CompileCodeStateInput): CompileCodeState
 1) Open the focus files (read_file) and identify the exact expression causing the error.
 2) Do not edit unrelated files. Do not propose patches without first opening the file.
 3) Keep fixes minimal and within constraints.`;
+
+  const ts2345Hint = buildTs2345Hint(latestSignal, latestToolFailure);
 
   let stateBody = `Task: ${task}
 
@@ -249,6 +313,9 @@ Repo context:
 - key symbols: (see recent context)
 
 ${nextActionsBlock}
+
+${GROUNDING_GUARDRAILS}
+${ts2345Hint ? `\n${ts2345Hint}` : ""}
 
 Recent context kept verbatim below.`;
 
