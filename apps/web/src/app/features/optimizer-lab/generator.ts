@@ -25,6 +25,21 @@ function mulberry32(seed: number): () => number {
   };
 }
 
+/** Derive a numeric seed from a string so different scenarios produce different RNG sequences. */
+function hashScenario(scenario: string): number {
+  let h = 0;
+  for (let i = 0; i < scenario.length; i++) {
+    h = (h << 5) - h + scenario.charCodeAt(i);
+    h = h | 0;
+  }
+  return h >>> 0;
+}
+
+/** Combined seed so changing scenario always changes generated content. */
+function seedForScenario(seed: number, scenario: string): number {
+  return Math.imul(seed, 31) + hashScenario(scenario);
+}
+
 function createRng(seed: number) {
   const next = mulberry32(seed);
   return {
@@ -64,12 +79,26 @@ const CHAT_SCENARIOS = [
   'Customer Support: billing + policy boilerplate',
   'Sales: product requirements + constraints',
   'Internal QA: repeated acceptance criteria',
+  'Onboarding: setup steps and feature walkthroughs',
+  'Technical Support: API docs and error messages',
+  'Compliance: security and audit trail questions',
+  'Renewals: contract terms and pricing tiers',
+  'Escalation: handoff and SLA acknowledgments',
+  'Feedback: NPS and feature requests',
+  'Outage: status updates and ETA boilerplate',
 ] as const;
 
 const CODE_SCENARIOS = [
   'Fix failing tests',
   'Refactor types/interfaces',
   'Optimize build / lint errors',
+  'Add error handling and logging',
+  'Migrate deprecated APIs',
+  'Document public functions',
+  'Reduce bundle size and tree-shake',
+  'Fix accessibility (a11y) issues',
+  'Add unit tests for edge cases',
+  'Resolve dependency conflicts',
 ] as const;
 
 const POLICY_BLOCKS = [
@@ -105,7 +134,7 @@ const REQUIREMENTS_REPEAT = [
 
 export function generateChatMessages(params: GeneratorParams): ChatMessage[] {
   const { turns, seed, scenario, includeSystem } = params;
-  const rng = createRng(seed);
+  const rng = createRng(seedForScenario(seed, scenario));
 
   // Fixed entities for repetition
   const customerName = rng.pickOne(['John', 'Sarah', 'Alex', 'Jordan', 'Morgan']);
@@ -137,18 +166,53 @@ export function generateChatMessages(params: GeneratorParams): ChatMessage[] {
   const usedPolicyBlocks: string[] = [];
   let requirementsRepeatCount = 0;
 
+  // Scenario-specific boilerplate so generated text visibly differs per scenario
+  const scenarioIntro: Record<string, string> = {
+    'Customer Support': ' [Billing/Support scenario]',
+    'Sales': ' [Sales evaluation]',
+    'Internal QA': ' [QA/acceptance scenario]',
+    'Onboarding': ' [Onboarding – setup and walkthrough]',
+    'Technical Support': ' [Technical – API/docs]',
+    'Compliance': ' [Compliance and audit]',
+    'Renewals': ' [Renewals – contract/pricing]',
+    'Escalation': ' [Escalation – handoff/SLA]',
+    'Feedback': ' [Feedback – NPS/feature request]',
+    'Outage': ' [Outage – status/ETA]',
+  };
+  const scenarioKey = Object.keys(scenarioIntro).find((k) => scenario.includes(k)) ?? '';
+
   for (let t = 0; t < turns; t++) {
-    // User turn (scenario affects framing: support vs sales vs QA)
     const intent = rng.pickOne(USER_INTENTS);
     let userContent = fill(intent.msg);
+    if (scenarioKey && t === 0) userContent += scenarioIntro[scenarioKey];
     if (scenario.includes('Sales')) {
       if (t === 0) userContent += '\n\nI am evaluating ' + product + ' for our team.';
       if (t > 0 && t % 5 === 0) userContent += '\n\nWe need: ' + requirements;
     } else if (scenario.includes('Internal QA')) {
       if (t === 0) userContent += '\n\nContext: ' + requirements;
       if (t > 0 && t % 6 === 0) userContent += '\n\nAcceptance criteria: ' + requirements;
+    } else if (scenario.includes('Onboarding')) {
+      if (t === 0) userContent += '\n\nFirst time here – need setup steps.';
+      if (t > 0 && t % 4 === 0) userContent += '\n\nCan you walk me through the next feature?';
+    } else if (scenario.includes('Technical Support')) {
+      if (t === 0) userContent += '\n\nI checked the API docs – still getting errors.';
+      if (t > 0 && t % 5 === 0) userContent += '\n\nError message: ' + requirements;
+    } else if (scenario.includes('Compliance')) {
+      if (t === 0) userContent += '\n\nWe need to confirm security and audit trail.';
+      if (t > 0 && t % 5 === 0) userContent += '\n\nAudit requirement: ' + requirements;
+    } else if (scenario.includes('Renewals')) {
+      if (t === 0) userContent += '\n\nContract is up for renewal – need pricing tiers.';
+      if (t > 0 && t % 5 === 0) userContent += '\n\nTerms: ' + requirements;
+    } else if (scenario.includes('Escalation')) {
+      if (t === 0) userContent += '\n\nThis needs to be escalated. SLA acknowledgment required.';
+      if (t > 0 && t % 4 === 0) userContent += '\n\nConfirm handoff and ETA.';
+    } else if (scenario.includes('Feedback')) {
+      if (t === 0) userContent += '\n\nSubmitting NPS and feature request.';
+      if (t > 0 && t % 5 === 0) userContent += '\n\nAdditional feedback: ' + requirements;
+    } else if (scenario.includes('Outage')) {
+      if (t === 0) userContent += '\n\nChecking status – are we in an outage?';
+      if (t > 0 && t % 4 === 0) userContent += '\n\nNeed ETA and status update.';
     }
-    // Every 7th user: repeat requirements with minor variation
     if (t > 0 && t % 7 === 0 && requirementsRepeatCount < 3) {
       userContent += '\n\nAlso confirming: ' + requirements;
       requirementsRepeatCount++;
@@ -253,14 +317,14 @@ function pseudoDiff(rng: ReturnType<typeof createRng>): string {
 
 export function generateCodeMessages(params: GeneratorParams): ChatMessage[] {
   const { turns, seed, scenario, includeSystem, includeTools = true } = params;
-  const rng = createRng(seed);
+  const rng = createRng(seedForScenario(seed, scenario));
 
   const messages: ChatMessage[] = [];
 
   if (includeSystem) {
     messages.push({
       role: 'system',
-      content: 'You are an expert software engineer. Follow constraints. Use tools when needed. Target ES2019 where specified.',
+      content: `You are an expert software engineer. Scenario: ${scenario}. Follow constraints. Use tools when needed. Target ES2019 where specified.`,
     });
   }
 
@@ -274,17 +338,29 @@ export function generateCodeMessages(params: GeneratorParams): ChatMessage[] {
   let blobIndex = 0;
   let errorLogIndex = 0;
 
-  const userTasks = [
-    `Fix the failing tests in the optimizer lab. ${scenario}`,
-    `Refactor types in the SDK – avoid \`any\`. ${scenario}`,
-    `Resolve build/lint errors. Keep changes minimal. ${scenario}`,
-  ];
+  // Scenario-specific task lines so generated code prompts visibly differ
+  const scenarioTaskLines: Record<string, string> = {
+    'Fix failing tests': 'Fix the failing tests in the optimizer lab.',
+    'Refactor types/interfaces': 'Refactor types in the SDK – avoid `any`.',
+    'Optimize build / lint errors': 'Resolve build/lint errors. Keep changes minimal.',
+    'Add error handling and logging': 'Add error handling and logging around the API client.',
+    'Migrate deprecated APIs': 'Migrate usages of deprecated APIs to the new ones.',
+    'Document public functions': 'Document all public functions with JSDoc.',
+    'Reduce bundle size and tree-shake': 'Reduce bundle size and improve tree-shaking.',
+    'Fix accessibility (a11y) issues': 'Fix accessibility (a11y) issues in the form components.',
+    'Add unit tests for edge cases': 'Add unit tests for edge cases in the validator.',
+    'Resolve dependency conflicts': 'Resolve dependency conflicts in package.json.',
+  };
+  const codeScenarioKey = Object.keys(scenarioTaskLines).find((k) => scenario.includes(k));
+  const taskLine = codeScenarioKey
+    ? scenarioTaskLines[codeScenarioKey]! + ` [Scenario: ${scenario}]`
+    : `Fix the failing tests. [Scenario: ${scenario}]`;
   const constraints = [...CONSTRAINT_PHRASES];
   rng.shuffle(constraints);
 
   messages.push({
     role: 'user',
-    content: userTasks[0]! + '\n\nConstraints:\n- ' + constraints.slice(0, 3).join('\n- '),
+    content: taskLine + '\n\nConstraints:\n- ' + constraints.slice(0, 3).join('\n- '),
   });
 
   for (let t = 0; t < turns; t++) {

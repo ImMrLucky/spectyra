@@ -188,10 +188,11 @@ export class OptimizerLabPage implements OnInit {
   }
 
   generateMessages() {
-    // Use generatorScenario directly; it's kept in sync with the dropdown and demo type
-    const scenario = this.generatorScenarioOptions.includes(this.generatorScenario)
+    // Always use current dropdown value so each click produces new content for the selected scenario
+    const opts = this.generatorScenarioOptions;
+    const scenario = opts.includes(this.generatorScenario)
       ? this.generatorScenario
-      : (this.generatorScenarioOptions[0] ?? '');
+      : (opts[0] ?? '');
     const params = {
       turns: Math.max(1, Math.min(500, this.turnCount)),
       seed: this.seed,
@@ -207,7 +208,7 @@ export class OptimizerLabPage implements OnInit {
     this.showAdvancedOptions = true;
     const total = messages.length;
     const pairs = messages.filter((m) => m.role === 'user').length;
-    this.generatedSummary = `Generated ${pairs} turns (${total} messages) with seed ${this.seed}`;
+    this.generatedSummary = `Generated ${pairs} turns (${total} messages) · scenario: ${scenario} · seed ${this.seed}`;
     this.snackbar.showSuccess(this.generatedSummary);
     this.cdr.detectChanges();
   }
