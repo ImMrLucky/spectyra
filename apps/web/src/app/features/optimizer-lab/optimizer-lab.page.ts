@@ -10,7 +10,7 @@
  * - No raw prompt storage
  */
 
-import { Component, OnInit } from '@angular/core';
+import { Component, OnInit, ChangeDetectorRef } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { Router, RouterLink } from '@angular/router';
@@ -74,7 +74,8 @@ export class OptimizerLabPage implements OnInit {
     private supabase: SupabaseService,
     private authService: AuthService,
     private snackbar: SnackbarService,
-    private router: Router
+    private router: Router,
+    private cdr: ChangeDetectorRef
   ) {}
 
   ngOnInit() {
@@ -179,13 +180,15 @@ export class OptimizerLabPage implements OnInit {
 
     this.optimizerLab.runOptimization(request).subscribe({
       next: (response) => {
-        this.result = this.normalizeResponse(response);
+        const body = response && (response as any).data !== undefined ? (response as any).data : response;
+        this.result = this.normalizeResponse(body);
         this.running = false;
         this.activeTab = 'metrics';
         const pct = this.result.diff?.summary?.pctSaved ?? 0;
         this.snackbar.showSuccess(
           `Optimization complete: ${typeof pct === 'number' ? pct.toFixed(1) : pct}% tokens saved`
         );
+        this.cdr.detectChanges();
       },
       error: (err) => {
         this.running = false;

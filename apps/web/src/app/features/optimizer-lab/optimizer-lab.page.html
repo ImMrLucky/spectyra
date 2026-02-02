@@ -250,7 +250,7 @@
           <!-- Tab Content -->
           <div class="tab-content">
             <!-- Metrics Tab -->
-            <div *ngIf="activeTab === 'metrics' && result" class="tab-pane metrics-pane">
+            <div *ngIf="activeTab === 'metrics'" class="tab-pane metrics-pane">
               <div class="savings-hero">
                 <div class="savings-value">{{ formatPercent(result.diff?.summary?.pctSaved ?? 0) }}</div>
                 <div class="savings-label">Tokens Saved</div>
@@ -318,7 +318,7 @@
             </div>
 
             <!-- Trust Tab -->
-            <div *ngIf="activeTab === 'trust' && result" class="tab-pane trust-pane">
+            <div *ngIf="activeTab === 'trust'" class="tab-pane trust-pane">
               <div class="trust-intro">
                 <h3>🛡️ Trust & Safety Summary</h3>
                 <p>Spectyra optimizes prompts without losing important content. Here's what we preserved and what we changed.</p>
@@ -350,7 +350,7 @@
             </div>
 
             <!-- Before Tab -->
-            <div *ngIf="activeTab === 'before' && result" class="tab-pane content-pane">
+            <div *ngIf="activeTab === 'before'" class="tab-pane content-pane">
               <div class="content-header">
                 <h3>Original Prompt</h3>
                 <button 
@@ -373,7 +373,7 @@
             </div>
 
             <!-- After Tab -->
-            <div *ngIf="activeTab === 'after' && result" class="tab-pane content-pane">
+            <div *ngIf="activeTab === 'after'" class="tab-pane content-pane">
               <div class="content-header">
                 <h3>Optimized Prompt</h3>
                 <button 
@@ -406,7 +406,7 @@
             </div>
 
             <!-- Diff Tab -->
-            <div *ngIf="activeTab === 'diff' && result" class="tab-pane diff-pane">
+            <div *ngIf="activeTab === 'diff'" class="tab-pane diff-pane">
               <div class="content-header">
                 <h3>Diff View</h3>
               </div>
@@ -431,13 +431,13 @@
             </div>
 
             <!-- Debug Tab -->
-            <div *ngIf="activeTab === 'debug' && result?.debug" class="tab-pane debug-pane">
+            <div *ngIf="activeTab === 'debug'" class="tab-pane debug-pane">
               <div class="content-header">
                 <h3>Debug Information</h3>
                 <span class="internal-badge">Internal Only</span>
               </div>
 
-              <div *ngIf="result.debug.spectral" class="debug-section">
+              <div *ngIf="result?.debug?.spectral" class="debug-section">
                 <h4>Spectral Analysis</h4>
                 <div class="debug-grid">
                   <div class="debug-item">
@@ -450,11 +450,11 @@
                   </div>
                   <div class="debug-item">
                     <span class="debug-label">Stability Index:</span>
-                    <span class="debug-value">{{ result.debug.spectral.stabilityIndex.toFixed(3) }}</span>
+                    <span class="debug-value">{{ result.debug.spectral.stabilityIndex?.toFixed(3) ?? '—' }}</span>
                   </div>
                   <div class="debug-item">
                     <span class="debug-label">Lambda2:</span>
-                    <span class="debug-value">{{ result.debug.spectral.lambda2?.toFixed(3) || 'N/A' }}</span>
+                    <span class="debug-value">{{ result.debug.spectral.lambda2 != null ? result.debug.spectral.lambda2.toFixed(3) : 'N/A' }}</span>
                   </div>
                   <div class="debug-item">
                     <span class="debug-label">Recommendation:</span>
@@ -467,7 +467,7 @@
                 </div>
               </div>
 
-              <div *ngIf="result.debug.budgets" class="debug-section">
+              <div *ngIf="result?.debug?.budgets" class="debug-section">
                 <h4>Computed Budgets</h4>
                 <div class="debug-grid">
                   <div class="debug-item">
@@ -493,12 +493,12 @@
                 </div>
               </div>
 
-              <div *ngIf="result.debug.transforms" class="debug-section">
+              <div *ngIf="result?.debug?.transforms" class="debug-section">
                 <h4>Transform Metrics</h4>
                 <pre class="debug-json">{{ result.debug.transforms | json }}</pre>
               </div>
 
-              <div *ngIf="result.debug.runDebug" class="debug-section">
+              <div *ngIf="result?.debug?.runDebug" class="debug-section">
                 <h4>Run Debug</h4>
                 <pre class="debug-json">{{ result.debug.runDebug | json }}</pre>
               </div>
