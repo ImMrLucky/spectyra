@@ -70,8 +70,9 @@ export class IntegrationsPage implements OnInit {
 import { query } from "@anthropic-ai/claude-agent-sdk";
 
 const spectyra = createSpectyra({ mode: "local" });
-
 const prompt = "Fix failing tests.";
+
+// One line: get options from Spectyra instead of hardcoding. Claude Agent SDK does the rest.
 const options = spectyra.agentOptions({ orgId: "acme" }, prompt);
 
 for await (const evt of query({ prompt, options })) {
@@ -80,7 +81,7 @@ for await (const evt of query({ prompt, options })) {
         },
         detailed_guide: {
           where_runs: 'Inside your application (same process). Spectyra SDK makes local decisions.',
-          code_changes: 'One insertion point: wrap agentOptions() call with spectyra.agentOptions().',
+          code_changes: 'One insertion: where you\'d pass options to the agent, use options = spectyra.agentOptions(ctx, prompt). Claude Agent SDK still does the work and LLM calls.',
           data_sent: 'No data sent to Spectyra API (local mode). Only metadata if using API mode.',
           auth_works: 'Local mode: no auth needed. API mode: Spectyra API key in environment.',
           verify_works: 'Send a run → Check Runs page → See run appear with events and policy decisions.',

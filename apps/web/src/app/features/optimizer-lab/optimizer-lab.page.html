@@ -1,0 +1,509 @@
+<div class="optimizer-lab-page">
+  <!-- Loading state -->
+  <div *ngIf="loading" class="loading-state">
+    <p>Loading Optimizer Lab...</p>
+  </div>
+
+  <!-- Access denied -->
+  <div *ngIf="!loading && !isOwner" class="access-denied">
+    <h2>Optimizer Lab</h2>
+    <div class="error-card">
+      <p>{{ error || 'Access denied' }}</p>
+      <p class="hint">This tool is only available to administrators.</p>
+    </div>
+  </div>
+
+  <!-- Main content -->
+  <div *ngIf="!loading && isOwner" class="lab-content">
+    <header class="lab-header">
+      <h1>Optimizer Lab</h1>
+      <p class="subtitle">Test Spectyra's optimization pipeline without making provider calls</p>
+      <div class="no-provider-badge">
+        <span class="icon">🔒</span>
+        <span>No provider calls made • No API keys required</span>
+      </div>
+    </header>
+
+    <div class="lab-layout">
+      <!-- Left: Input Panel -->
+      <section class="input-panel">
+        <div class="panel-header">
+          <h2>Input</h2>
+        </div>
+
+        <div class="form-section">
+          <!-- Demo Type -->
+          <div class="form-group">
+            <label>Demo Type</label>
+            <div class="button-group">
+              <button 
+                [class.active]="demoType === 'chat'"
+                (click)="demoType = 'chat'">
+                💬 Chat
+              </button>
+              <button 
+                [class.active]="demoType === 'code'"
+                (click)="demoType = 'code'">
+                💻 Code
+              </button>
+            </div>
+          </div>
+
+          <!-- Optimization Level -->
+          <div class="form-group">
+            <label>Optimization Level</label>
+            <div class="button-group level-group">
+              <button 
+                [class.active]="optimizationLevel === 'safe'"
+                (click)="optimizationLevel = 'safe'"
+                title="Conservative optimization, minimal changes">
+                Safe
+              </button>
+              <button 
+                [class.active]="optimizationLevel === 'balanced'"
+                (click)="optimizationLevel = 'balanced'"
+                title="Balanced optimization">
+                Balanced
+              </button>
+              <button 
+                [class.active]="optimizationLevel === 'aggressive'"
+                (click)="optimizationLevel = 'aggressive'"
+                title="Maximum optimization">
+                Aggressive
+              </button>
+            </div>
+          </div>
+
+          <!-- View Mode -->
+          <div class="form-group">
+            <label>View Mode</label>
+            <select [(ngModel)]="viewMode" class="form-select">
+              <option value="DEMO_VIEW">Demo View (Redacted)</option>
+              <option value="ADMIN_DEBUG">Admin Debug (Full)</option>
+              <option value="FORENSICS">Forensics (Full + Extra)</option>
+            </select>
+          </div>
+
+          <!-- Include Debug -->
+          <div class="form-group checkbox-group">
+            <label>
+              <input type="checkbox" [(ngModel)]="includeDebug">
+              Include debug info
+            </label>
+          </div>
+
+          <!-- Presets -->
+          <div class="form-group">
+            <label>Load Preset</label>
+            <div class="button-group preset-group">
+              <button class="btn-secondary" (click)="loadPreset('chat')">
+                📋 Chat Demo
+              </button>
+              <button class="btn-secondary" (click)="loadPreset('code')">
+                📋 Code Demo
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <hr class="divider">
+
+        <!-- Prompt Input -->
+        <div class="form-section">
+          <div class="form-group">
+            <label>Prompt</label>
+            <textarea 
+              [(ngModel)]="prompt" 
+              class="form-textarea"
+              rows="8"
+              placeholder="Enter your prompt here, or load a preset above..."></textarea>
+          </div>
+
+          <!-- Repo Context (code only) -->
+          <div *ngIf="demoType === 'code'" class="form-group">
+            <label>Repository Context</label>
+            <textarea 
+              [(ngModel)]="repoContext" 
+              class="form-textarea code-textarea"
+              rows="6"
+              placeholder="Paste file contents, directory structure, or build logs..."></textarea>
+          </div>
+        </div>
+
+        <!-- Advanced Options (collapsible) -->
+        <div class="form-section advanced-section">
+          <button 
+            class="toggle-advanced"
+            (click)="showAdvancedOptions = !showAdvancedOptions">
+            {{ showAdvancedOptions ? '▼' : '▶' }} Advanced Options
+          </button>
+          
+          <div *ngIf="showAdvancedOptions" class="advanced-options">
+            <div class="form-group">
+              <label>Messages (JSON)</label>
+              <textarea 
+                [(ngModel)]="advancedMessages" 
+                class="form-textarea code-textarea"
+                rows="4"
+                placeholder='[{"role": "user", "content": "..."}]'></textarea>
+              <small class="hint">Override prompt with raw ChatMessage[] array</small>
+            </div>
+            
+            <div class="options-grid">
+              <div class="form-group">
+                <label>Keep Last Turns</label>
+                <input 
+                  type="number" 
+                  [(ngModel)]="keepLastTurns" 
+                  class="form-input"
+                  min="1" 
+                  max="20"
+                  placeholder="Auto">
+              </div>
+              <div class="form-group">
+                <label>Max Refs</label>
+                <input 
+                  type="number" 
+                  [(ngModel)]="maxRefs" 
+                  class="form-input"
+                  min="1" 
+                  max="50"
+                  placeholder="Auto">
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Run Button -->
+        <div class="action-buttons">
+          <button 
+            class="btn-primary run-btn"
+            (click)="runOptimization()"
+            [disabled]="running">
+            {{ running ? 'Running...' : '▶ Run Optimization' }}
+          </button>
+          <button 
+            *ngIf="result"
+            class="btn-secondary"
+            (click)="clearResults()">
+            Clear
+          </button>
+        </div>
+
+        <!-- Error -->
+        <div *ngIf="error" class="error-message">
+          {{ error }}
+        </div>
+      </section>
+
+      <!-- Right: Results Panel -->
+      <section class="results-panel" [class.has-results]="result">
+        <div *ngIf="!result && !running" class="empty-state">
+          <div class="empty-icon">🔬</div>
+          <p>Run an optimization to see results</p>
+          <p class="hint">Choose a demo type, load a preset, or enter your own prompt</p>
+        </div>
+
+        <div *ngIf="running" class="loading-state">
+          <div class="spinner"></div>
+          <p>Running optimization pipeline...</p>
+        </div>
+
+        <div *ngIf="result" class="results-content">
+          <!-- Tabs -->
+          <div class="tabs">
+            <button 
+              [class.active]="activeTab === 'metrics'"
+              (click)="switchTab('metrics')">
+              📊 Metrics
+            </button>
+            <button 
+              [class.active]="activeTab === 'trust'"
+              (click)="switchTab('trust')">
+              🛡️ Trust
+            </button>
+            <button 
+              [class.active]="activeTab === 'before'"
+              (click)="switchTab('before')">
+              Before
+            </button>
+            <button 
+              [class.active]="activeTab === 'after'"
+              (click)="switchTab('after')">
+              After
+            </button>
+            <button 
+              [class.active]="activeTab === 'diff'"
+              (click)="switchTab('diff')">
+              Diff
+            </button>
+            <button 
+              *ngIf="result.debug"
+              [class.active]="activeTab === 'debug'"
+              (click)="switchTab('debug')">
+              🔧 Debug
+            </button>
+          </div>
+
+          <!-- Tab Content -->
+          <div class="tab-content">
+            <!-- Metrics Tab -->
+            <div *ngIf="activeTab === 'metrics'" class="tab-pane metrics-pane">
+              <div class="savings-hero">
+                <div class="savings-value">{{ formatPercent(result.diff.summary.pctSaved) }}</div>
+                <div class="savings-label">Tokens Saved</div>
+              </div>
+
+              <div class="metrics-grid">
+                <div class="metric-card">
+                  <div class="metric-label">Input Tokens Before</div>
+                  <div class="metric-value">{{ formatNumber(result.diff.summary.inputTokensBefore) }}</div>
+                </div>
+                <div class="metric-card">
+                  <div class="metric-label">Input Tokens After</div>
+                  <div class="metric-value success">{{ formatNumber(result.diff.summary.inputTokensAfter) }}</div>
+                </div>
+                <div class="metric-card">
+                  <div class="metric-label">Est. Cost Before</div>
+                  <div class="metric-value">{{ formatCost(result.original.tokenEstimate.estimatedCostUsd) }}</div>
+                </div>
+                <div class="metric-card">
+                  <div class="metric-label">Est. Cost After</div>
+                  <div class="metric-value success">{{ formatCost(result.optimized.tokenEstimate.estimatedCostUsd) }}</div>
+                </div>
+                <div class="metric-card">
+                  <div class="metric-label">Latency</div>
+                  <div class="metric-value">{{ result.meta.latencyMs }}ms</div>
+                </div>
+                <div class="metric-card">
+                  <div class="metric-label">View Mode</div>
+                  <div class="metric-value">{{ result.viewMode }}</div>
+                </div>
+              </div>
+
+              <div class="transforms-section">
+                <h3>Applied Transforms</h3>
+                <div class="transforms-list">
+                  <span 
+                    *ngFor="let transform of result.diff.appliedTransforms"
+                    class="transform-badge">
+                    {{ transform }}
+                  </span>
+                  <span *ngIf="result.diff.appliedTransforms.length === 0" class="no-transforms">
+                    No transforms applied
+                  </span>
+                </div>
+              </div>
+
+              <div *ngIf="result.diff.summary.refsUsed" class="detail-row">
+                <span class="detail-label">RefPack Entries:</span>
+                <span class="detail-value">{{ result.diff.summary.refsUsed }}</span>
+              </div>
+              <div *ngIf="result.diff.summary.phrasebookEntries" class="detail-row">
+                <span class="detail-label">Phrasebook Entries:</span>
+                <span class="detail-value">{{ result.diff.summary.phrasebookEntries }}</span>
+              </div>
+              <div *ngIf="result.diff.summary.codemapSnippetsKept" class="detail-row">
+                <span class="detail-label">CodeMap Symbols:</span>
+                <span class="detail-value">{{ result.diff.summary.codemapSnippetsKept }}</span>
+              </div>
+
+              <div class="export-section">
+                <button class="btn-secondary" (click)="exportRedactedReport()">
+                  📄 Export Redacted Report
+                </button>
+              </div>
+            </div>
+
+            <!-- Trust Tab -->
+            <div *ngIf="activeTab === 'trust'" class="tab-pane trust-pane">
+              <div class="trust-intro">
+                <h3>🛡️ Trust & Safety Summary</h3>
+                <p>Spectyra optimizes prompts without losing important content. Here's what we preserved and what we changed.</p>
+              </div>
+
+              <div class="trust-section preserved-section">
+                <h4>✅ Preserved (Unchanged)</h4>
+                <ul>
+                  <li *ngFor="let item of result.diff.safetySummary.preserved">{{ item }}</li>
+                </ul>
+              </div>
+
+              <div class="trust-section changed-section">
+                <h4>🔄 Changed (Optimized)</h4>
+                <ul>
+                  <li *ngFor="let item of result.diff.safetySummary.changed">{{ item }}</li>
+                </ul>
+                <p *ngIf="result.diff.safetySummary.changed.length === 0" class="no-items">
+                  No changes applied
+                </p>
+              </div>
+
+              <div class="trust-section risk-section">
+                <h4>ℹ️ Important Notes</h4>
+                <ul>
+                  <li *ngFor="let item of result.diff.safetySummary.riskNotes">{{ item }}</li>
+                </ul>
+              </div>
+            </div>
+
+            <!-- Before Tab -->
+            <div *ngIf="activeTab === 'before'" class="tab-pane content-pane">
+              <div class="content-header">
+                <h3>Original Prompt</h3>
+                <button 
+                  class="btn-sm"
+                  (click)="copyToClipboard(result.original.renderedText)">
+                  📋 Copy
+                </button>
+              </div>
+              <div class="message-list">
+                <div 
+                  *ngFor="let msg of result.original.messages"
+                  class="message-item"
+                  [class.system]="msg.role === 'system'"
+                  [class.user]="msg.role === 'user'"
+                  [class.assistant]="msg.role === 'assistant'">
+                  <div class="message-role">{{ msg.role | uppercase }}</div>
+                  <pre class="message-content">{{ msg.content }}</pre>
+                </div>
+              </div>
+            </div>
+
+            <!-- After Tab -->
+            <div *ngIf="activeTab === 'after'" class="tab-pane content-pane">
+              <div class="content-header">
+                <h3>Optimized Prompt</h3>
+                <button 
+                  *ngIf="result.viewMode !== 'DEMO_VIEW'"
+                  class="btn-sm"
+                  (click)="copyToClipboard(getRenderedText(result.optimized.renderedText))">
+                  📋 Copy
+                </button>
+                <span *ngIf="result.viewMode === 'DEMO_VIEW'" class="copy-disabled">
+                  Copy disabled (redacted)
+                </span>
+              </div>
+              
+              <div *ngIf="isRedacted(result.optimized.messages)" class="redacted-notice">
+                <span class="redacted-icon">🔒</span>
+                <span>Content redacted for IP protection in DEMO_VIEW mode</span>
+              </div>
+              
+              <div class="message-list">
+                <div 
+                  *ngFor="let msg of getMessages(result.optimized.messages)"
+                  class="message-item"
+                  [class.system]="msg.role === 'system'"
+                  [class.user]="msg.role === 'user'"
+                  [class.assistant]="msg.role === 'assistant'">
+                  <div class="message-role">{{ msg.role | uppercase }}</div>
+                  <pre class="message-content">{{ msg.content }}</pre>
+                </div>
+              </div>
+            </div>
+
+            <!-- Diff Tab -->
+            <div *ngIf="activeTab === 'diff'" class="tab-pane diff-pane">
+              <div class="content-header">
+                <h3>Diff View</h3>
+              </div>
+              
+              <div *ngIf="result.viewMode === 'DEMO_VIEW'" class="diff-summary-only">
+                <p>Detailed diff is only available in ADMIN_DEBUG or FORENSICS mode.</p>
+                <div class="diff-summary">
+                  <div class="diff-stat">
+                    <span class="stat-label">Tokens Removed:</span>
+                    <span class="stat-value removed">-{{ result.diff.summary.inputTokensBefore - result.diff.summary.inputTokensAfter }}</span>
+                  </div>
+                  <div class="diff-stat">
+                    <span class="stat-label">Savings:</span>
+                    <span class="stat-value success">{{ formatPercent(result.diff.summary.pctSaved) }}</span>
+                  </div>
+                </div>
+              </div>
+              
+              <div *ngIf="result.diff.unifiedDiff" class="unified-diff">
+                <pre>{{ result.diff.unifiedDiff }}</pre>
+              </div>
+            </div>
+
+            <!-- Debug Tab -->
+            <div *ngIf="activeTab === 'debug' && result.debug" class="tab-pane debug-pane">
+              <div class="content-header">
+                <h3>Debug Information</h3>
+                <span class="internal-badge">Internal Only</span>
+              </div>
+
+              <div *ngIf="result.debug.spectral" class="debug-section">
+                <h4>Spectral Analysis</h4>
+                <div class="debug-grid">
+                  <div class="debug-item">
+                    <span class="debug-label">Nodes:</span>
+                    <span class="debug-value">{{ result.debug.spectral.nNodes }}</span>
+                  </div>
+                  <div class="debug-item">
+                    <span class="debug-label">Edges:</span>
+                    <span class="debug-value">{{ result.debug.spectral.nEdges }}</span>
+                  </div>
+                  <div class="debug-item">
+                    <span class="debug-label">Stability Index:</span>
+                    <span class="debug-value">{{ result.debug.spectral.stabilityIndex.toFixed(3) }}</span>
+                  </div>
+                  <div class="debug-item">
+                    <span class="debug-label">Lambda2:</span>
+                    <span class="debug-value">{{ result.debug.spectral.lambda2?.toFixed(3) || 'N/A' }}</span>
+                  </div>
+                  <div class="debug-item">
+                    <span class="debug-label">Recommendation:</span>
+                    <span class="debug-value recommendation">{{ result.debug.spectral.recommendation }}</span>
+                  </div>
+                  <div class="debug-item">
+                    <span class="debug-label">Stable/Unstable:</span>
+                    <span class="debug-value">{{ result.debug.spectral.stableCount }}/{{ result.debug.spectral.unstableCount }}</span>
+                  </div>
+                </div>
+              </div>
+
+              <div *ngIf="result.debug.budgets" class="debug-section">
+                <h4>Computed Budgets</h4>
+                <div class="debug-grid">
+                  <div class="debug-item">
+                    <span class="debug-label">Keep Last Turns:</span>
+                    <span class="debug-value">{{ result.debug.budgets.keepLastTurns }}</span>
+                  </div>
+                  <div class="debug-item">
+                    <span class="debug-label">Max RefPack Entries:</span>
+                    <span class="debug-value">{{ result.debug.budgets.maxRefpackEntries }}</span>
+                  </div>
+                  <div class="debug-item">
+                    <span class="debug-label">Compression:</span>
+                    <span class="debug-value">{{ (result.debug.budgets.compressionAggressiveness * 100).toFixed(0) }}%</span>
+                  </div>
+                  <div class="debug-item">
+                    <span class="debug-label">Phrasebook:</span>
+                    <span class="debug-value">{{ (result.debug.budgets.phrasebookAggressiveness * 100).toFixed(0) }}%</span>
+                  </div>
+                  <div class="debug-item">
+                    <span class="debug-label">CodeMap Detail:</span>
+                    <span class="debug-value">{{ (result.debug.budgets.codemapDetailLevel * 100).toFixed(0) }}%</span>
+                  </div>
+                </div>
+              </div>
+
+              <div *ngIf="result.debug.transforms" class="debug-section">
+                <h4>Transform Metrics</h4>
+                <pre class="debug-json">{{ result.debug.transforms | json }}</pre>
+              </div>
+
+              <div *ngIf="result.debug.runDebug" class="debug-section">
+                <h4>Run Debug</h4>
+                <pre class="debug-json">{{ result.debug.runDebug | json }}</pre>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+    </div>
+  </div>
+</div>

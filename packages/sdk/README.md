@@ -16,6 +16,8 @@ yarn add @spectyra/sdk
 
 ## Two Integration Styles
 
+Spectyra does **not** replace your LLM call when using Claude Agent SDK. It supplies **options** (model, tools, budget) that you pass into the agent. Claude Agent SDK does the agentic work and LLM calls. The integration is: **where you'd pass options to the agent, get them from Spectyra instead.**
+
 ### A) Local SDK Mode (Default)
 
 **No proxy required.** SDK makes local decisions about agent options.
@@ -26,7 +28,7 @@ import { createSpectyra } from '@spectyra/sdk';
 // Local mode - works offline, no API calls
 const spectyra = createSpectyra({ mode: "local" });
 
-// One line integration with Claude Agent SDK
+// One line: get options from Spectyra instead of hardcoding. Claude Agent SDK does the rest.
 const options = spectyra.agentOptions(ctx, prompt);
 const result = await agent.query({ prompt, options });
 ```
