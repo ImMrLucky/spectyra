@@ -454,9 +454,10 @@
   min-height: 500px;
   display: flex;
   flex-direction: column;
-  
+  overflow: hidden;
+
   &.has-results {
-    min-height: auto;
+    min-height: 400px;
   }
 }
 
@@ -544,13 +545,15 @@
 .results-content {
   display: flex;
   flex-direction: column;
-  min-height: 400px;
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
 }
 
 .tab-content {
   flex: 1;
+  min-height: 0;
   overflow: auto;
-  min-height: 320px;
 }
 
 .tab-pane {
