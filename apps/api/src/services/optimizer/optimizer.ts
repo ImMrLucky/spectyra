@@ -8,6 +8,9 @@ import { spectralAnalyze } from "./spectral/spectralCore";
 import { applyTalkPolicy, postProcessTalkOutput } from "./policies/talkPolicy";
 import { applyCodePolicy, postProcessCodeOutput } from "./policies/codePolicy";
 import { runQualityGuard, RequiredCheck } from "./quality/qualityGuard";
+// PG-SCC only: SCC is the single context compaction mechanism; no legacy REF-glossary.
+const USE_PG_SCC_ONLY = true;
+
 // Core Moat v1 transforms + PG-SCC
 import { compileTalkState, compileCodeState } from "./transforms/contextCompiler";
 import { buildRefPack, applyInlineRefs } from "./transforms/refPack";
@@ -298,6 +301,12 @@ export async function runOptimizedOrBaseline(
       optimizationSteps.push(gateScc);
       if (gateScc.useAfter && sccResult.droppedCount > 0) {
         messagesAfterScc = sccResult.keptMessages;
+        if (USE_PG_SCC_ONLY) {
+          const sys = messagesAfterScc.filter((m) => m.role === "system");
+          if (sys.length !== 1) {
+            throw new Error("SCC must be single system state");
+          }
+        }
       }
     }
 

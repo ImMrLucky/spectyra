@@ -1,14 +1,23 @@
 import type { PathKind, SemanticUnit, SpectralResult } from "../spectral/types";
 import type { ChatMessage } from "../unitize";
 
-// Transforms (implement or stub no-op)
-import { applyContextCompaction } from "../transforms/contextCompaction";
+// Transforms (trim-only; no bulk system memory — SCC is authoritative)
 import { applyDeltaPrompting } from "../transforms/deltaPrompting";
 import { postProcessOutput } from "../transforms/postProcess";
 
+/** True if messages already contain PG-SCC state (single system message). Policies must not add memory/recap. */
+export function hasSCC(messages: ChatMessage[]): boolean {
+  return messages.some(
+    (m) =>
+      m.role === "system" &&
+      typeof m.content === "string" &&
+      m.content.includes("[SPECTYRA_STATE_")
+  );
+}
+
 export interface TalkPolicyOptions {
-  maxRefs: number;                 // e.g. 8
-  compactionAggressive: boolean;   // for REUSE
+  maxRefs: number;                 // e.g. 8 (used by budgets; RefPack in optimizer)
+  compactionAggressive: boolean;   // legacy; unused when PG-SCC only
   trimAggressive: boolean;         // for REUSE
   keepLastTurns?: number;          // optional, defaults to 2 or 3 based on reuse
 }
@@ -38,47 +47,36 @@ export interface TalkPolicyOutput {
 export function applyTalkPolicy(input: TalkPolicyInput): TalkPolicyOutput {
   const { messages, units, spectral, opts } = input;
 
-  const stableUnitIds = spectral.stableNodeIdx
-    .map(i => units[i]?.id)
-    .filter(Boolean) as string[];
-
   const unstableUnitIds = spectral.unstableNodeIdx
-    .map(i => units[i]?.id)
+    .map((i) => units[i]?.id)
     .filter(Boolean) as string[];
 
-  // Policy invariant: trim-only. No bulk instructional text (instructional text folded into SCC).
-  const reuse = spectral.recommendation === "REUSE";
+  // PG-SCC invariant: if SCC is already present, do not add any system memory / recap / summary.
+  if (hasSCC(messages)) {
+    const reuse = spectral.recommendation === "REUSE";
+    const trimLevel: TalkPolicyOutput["debug"]["trimLevel"] =
+      reuse && opts.trimAggressive ? "aggressive" : "moderate";
+    return {
+      messagesFinal: messages,
+      debug: { refsUsed: [], deltaUsed: false, trimLevel },
+    };
+  }
 
-  // 1) Context compaction: replace stable content with REFs (bounded) — reduces size only
-  const { messages: afterCompaction, refsUsed } = applyContextCompaction({
-    path: "talk",
-    messages,
-    units,
-    stableUnitIds: stableUnitIds.slice(0, opts.maxRefs),
-    aggressive: reuse && opts.compactionAggressive,
-    maxRefs: opts.maxRefs,
-    keepLastTurns: opts.keepLastTurns ?? (reuse ? 2 : 3)
-  });
-
-  // 2) Delta prompting disabled: policies may not add bulk text; SCC is authoritative
+  // Trim-only: delta prompting disabled; SCC is authoritative.
   const { messages: afterDelta, deltaUsed } = applyDeltaPrompting({
     path: "talk",
-    messages: afterCompaction,
+    messages,
     enabled: false,
-    noteUnstableUnitIds: unstableUnitIds
+    noteUnstableUnitIds: unstableUnitIds,
   });
 
-  // 3) Post process: trimming level (actual trimming done after LLM response)
+  const reuse = spectral.recommendation === "REUSE";
   const trimLevel: TalkPolicyOutput["debug"]["trimLevel"] =
     reuse && opts.trimAggressive ? "aggressive" : "moderate";
 
   return {
     messagesFinal: afterDelta,
-    debug: {
-      refsUsed,
-      deltaUsed,
-      trimLevel
-    }
+    debug: { refsUsed: [], deltaUsed, trimLevel },
   };
 }
 

@@ -1,15 +1,24 @@
 import type { SemanticUnit, SpectralResult } from "../spectral/types";
 import type { ChatMessage } from "../unitize";
 
-// Transforms (implement or stub)
+// Transforms (trim-only; no bulk system memory — SCC is authoritative)
 import { applyCodeSlicing } from "../transforms/codeSlicer";
 import { applyPatchMode } from "../transforms/patchMode";
-import { applyContextCompaction } from "../transforms/contextCompaction";
 import { applyDeltaPrompting } from "../transforms/deltaPrompting";
 import { postProcessOutput } from "../transforms/postProcess";
 
+/** True if messages already contain PG-SCC state (single system message). Policies must not add memory/recap. */
+export function hasSCC(messages: ChatMessage[]): boolean {
+  return messages.some(
+    (m) =>
+      m.role === "system" &&
+      typeof m.content === "string" &&
+      m.content.includes("[SPECTYRA_STATE_")
+  );
+}
+
 export interface CodePolicyOptions {
-  maxRefs: number;               // e.g. 6
+  maxRefs: number;               // e.g. 6 (used by budgets; RefPack in optimizer)
   patchModeDefault: boolean;     // true
   patchModeAggressiveOnReuse: boolean; // true
   trimAggressive: boolean;       // true
@@ -44,46 +53,47 @@ export interface CodePolicyOutput {
 export function applyCodePolicy(input: CodePolicyInput): CodePolicyOutput {
   const { messages, units, spectral, opts } = input;
 
-  const stableUnitIds = spectral.stableNodeIdx
-    .map(i => units[i]?.id)
-    .filter(Boolean) as string[];
-
   const unstableUnitIds = spectral.unstableNodeIdx
-    .map(i => units[i]?.id)
+    .map((i) => units[i]?.id)
     .filter(Boolean) as string[];
 
   const reuse = spectral.recommendation === "REUSE";
 
-  // 1) Code slicing (always on in code path)
+  // PG-SCC invariant: if SCC is already present, do not add any system memory / recap / summary.
+  if (hasSCC(messages)) {
+    const trimLevel: CodePolicyOutput["debug"]["trimLevel"] =
+      reuse && opts.trimAggressive ? "aggressive" : "moderate";
+    return {
+      messagesFinal: messages,
+      debug: {
+        refsUsed: [],
+        deltaUsed: false,
+        codeSliced: false,
+        patchMode: false,
+        trimLevel,
+      },
+    };
+  }
+
+  // 1) Code slicing (always on in code path when no SCC)
   const sliced = applyCodeSlicing({
     messages,
-    aggressive: opts.codeSlicerAggressive ?? reuse
+    aggressive: opts.codeSlicerAggressive ?? reuse,
   });
 
-  // 2) Context compaction (stable refs)
-  const { messages: afterCompaction, refsUsed } = applyContextCompaction({
-    path: "code",
-    messages: sliced.messages,
-    units,
-    stableUnitIds: stableUnitIds.slice(0, opts.maxRefs),
-    aggressive: reuse,
-    maxRefs: opts.maxRefs,
-    keepLastTurns: opts.keepLastTurns ?? (reuse ? 2 : 3)
-  });
-
-  // 3) Delta prompting disabled: policies may not add bulk text; SCC is authoritative (trim-only)
+  // 2) Delta prompting disabled: SCC is authoritative (trim-only)
   const { messages: afterDelta, deltaUsed } = applyDeltaPrompting({
     path: "code",
-    messages: afterCompaction,
+    messages: sliced.messages,
     enabled: false,
-    noteUnstableUnitIds: unstableUnitIds
+    noteUnstableUnitIds: unstableUnitIds,
   });
 
-  // 4) Patch mode decision
+  // 3) Patch mode decision
   const patchMode = opts.patchModeDefault || (reuse && opts.patchModeAggressiveOnReuse);
   const patched = applyPatchMode({
     messages: afterDelta,
-    enabled: patchMode
+    enabled: patchMode,
   });
 
   const trimLevel: CodePolicyOutput["debug"]["trimLevel"] =
@@ -92,12 +102,12 @@ export function applyCodePolicy(input: CodePolicyInput): CodePolicyOutput {
   return {
     messagesFinal: patched.messages,
     debug: {
-      refsUsed,
+      refsUsed: [],
       deltaUsed,
       codeSliced: sliced.changed,
       patchMode,
-      trimLevel
-    }
+      trimLevel,
+    },
   };
 }
 

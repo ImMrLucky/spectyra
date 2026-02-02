@@ -45,25 +45,21 @@ jobs:
 
   osv-scanner:
     name: OSV Scanner
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      
-      - name: Run OSV Scanner
-        uses: google/osv-scanner-action@v1
-        with:
-          scan-args: '--lockfile pnpm-lock.yaml --format json --output osv-results.json'
-      
-      - name: Upload OSV results
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: osv-scan-results
-          path: osv-results.json
+    uses: google/osv-scanner-action/.github/workflows/osv-scanner-reusable.yml@v2.3.2
+    permissions:
+      actions: read
+      contents: read
+      security-events: write
+    with:
+      scan-args: |
+        --lockfile pnpm-lock.yaml
+        .
 
   codeql:
     name: CodeQL Analysis
     runs-on: ubuntu-latest
+    # Requires Code scanning to be enabled: Settings > Security > Code security and analysis > Code scanning
+    continue-on-error: true
     permissions:
       actions: read
       contents: read
@@ -122,11 +118,7 @@ jobs:
         run: pnpm install --frozen-lockfile
       
       - name: Generate SBOM with CycloneDX
-        uses: cyclonedx/gh-action-generate@v1
-        with:
-          output-format: json
-          output-file: sbom.json
-          package-manager: pnpm
+        run: npx -y @cyclonedx/cdxgen@latest --output sbom.json
       
       - name: Upload SBOM
         uses: actions/upload-artifact@v4

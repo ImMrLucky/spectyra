@@ -331,18 +331,6 @@ Generated: 2026-01-28T06:32:17.797Z
   - signature: `extends=[] props=[changed,messages,metadata?]`
   - preview: interface CodeSlicerOutput { changed, messages, metadata? }
 
-### ContextCompactionInput
-
-- **interface** — `apps/api/src/services/optimizer/transforms/contextCompaction.ts:4`
-  - signature: `extends=[] props=[aggressive,keepLastTurns,maxRefs,messages,path,stableUnitIds,units]`
-  - preview: interface ContextCompactionInput { aggressive, keepLastTurns, maxRefs, messages, path, stableUnitIds, units }
-
-### ContextCompactionOutput
-
-- **interface** — `apps/api/src/services/optimizer/transforms/contextCompaction.ts:14`
-  - signature: `extends=[] props=[messages,refsUsed]`
-  - preview: interface ContextCompactionOutput { messages, refsUsed }
-
 ### ConversationMetrics
 
 - **interface** — `apps/api/src/services/optimizer/spectral/spectralCore.ts:22`
