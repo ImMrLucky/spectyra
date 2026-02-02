@@ -253,9 +253,11 @@ export class OptimizerLabPage implements OnInit {
         this.running = false;
         this.activeTab = 'metrics';
         const pct = this.result.diff?.summary?.pctSaved ?? 0;
-        this.snackbar.showSuccess(
-          `Optimization complete: ${typeof pct === 'number' ? pct.toFixed(1) : pct}% tokens saved`
-        );
+        const msg =
+          typeof pct === 'number' && pct > 0
+            ? `Optimization complete: ${pct.toFixed(1)}% tokens saved`
+            : 'Optimization complete. Check metrics.';
+        this.snackbar.showSuccess(msg);
         this.cdr.detectChanges();
       },
       error: (err) => {
@@ -371,6 +373,43 @@ export class OptimizerLabPage implements OnInit {
     return isNaN(num) ? '—' : `${num.toFixed(1)}%`;
   }
 
+  /** Net token change: before - after. Positive = saved, negative = increased. */
+  get tokensChange(): number {
+    const r = this.result;
+    if (!r?.diff?.summary) return 0;
+    const before = r.diff.summary.inputTokensBefore ?? 0;
+    const after = r.diff.summary.inputTokensAfter ?? 0;
+    return before - after;
+  }
+
+  /** True when optimized payload is smaller than original (savings). */
+  get hasSavings(): boolean {
+    const pct = this.result?.diff?.summary?.pctSaved;
+    return typeof pct === 'number' && pct > 0;
+  }
+
+  /** Hero label: "Tokens Saved" when savings, else "Token change". */
+  get savingsHeroLabel(): string {
+    return this.hasSavings ? 'Tokens Saved' : 'Token change';
+  }
+
+  /** Hero value: positive % when savings, else "No savings" or "Larger". */
+  get savingsHeroValue(): string {
+    const pct = this.result?.diff?.summary?.pctSaved;
+    if (typeof pct !== 'number' || isNaN(pct)) return '—';
+    if (pct > 0) return `${pct.toFixed(1)}%`;
+    if (pct < 0) return 'No savings (optimized larger)';
+    return '0%';
+  }
+
+  /** Description for "tokens removed/increased" in why-savings. */
+  get tokensChangeDescription(): string {
+    const delta = this.tokensChange;
+    if (delta > 0) return `${this.formatNumber(delta)} fewer (repetition/boilerplate compressed)`;
+    if (delta < 0) return `${this.formatNumber(-delta)} more (optimized payload larger than original)`;
+    return 'No change';
+  }
+
   /** Format 0-1 value as percentage for debug panel (strict template safe). */
   formatDebugPercent(value: number | null | undefined): string {
     if (value == null || typeof value !== 'number' || isNaN(value)) return '—';
@@ -410,11 +449,11 @@ export class OptimizerLabPage implements OnInit {
       `**Optimization Level:** ${r.meta.optimizationLevel}`,
       `**Latency:** ${r.meta.latencyMs}ms`,
       '',
-      '## Token Savings',
+      '## Token Change',
       '',
-      '| Metric | Before | After | Saved |',
-      '|--------|--------|-------|-------|',
-      `| Input Tokens | ${this.formatNumber(r.diff.summary.inputTokensBefore)} | ${this.formatNumber(r.diff.summary.inputTokensAfter)} | ${this.formatPercent(r.diff.summary.pctSaved)} |`,
+      '| Metric | Before | After | Change |',
+      '|--------|--------|-------|--------|',
+      `| Input Tokens | ${this.formatNumber(r.diff.summary.inputTokensBefore)} | ${this.formatNumber(r.diff.summary.inputTokensAfter)} | ${this.hasSavings ? this.formatPercent(r.diff.summary.pctSaved!) : 'No savings (optimized larger)'} |`,
       `| Est. Cost | ${this.formatCost(r.original.tokenEstimate.estimatedCostUsd)} | ${this.formatCost(r.optimized.tokenEstimate.estimatedCostUsd)} | ${this.formatCost(r.original.tokenEstimate.estimatedCostUsd - r.optimized.tokenEstimate.estimatedCostUsd)} |`,
       '',
       '## Applied Transforms',

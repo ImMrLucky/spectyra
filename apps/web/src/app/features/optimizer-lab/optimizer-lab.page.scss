@@ -585,6 +585,13 @@
       text-transform: uppercase;
       letter-spacing: 0.5px;
     }
+
+    &.no-savings {
+      background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%);
+      .savings-value, .savings-label {
+        color: var(--text-warning, #92400e);
+      }
+    }
   }
 }
 
@@ -881,6 +888,10 @@
     
     &.removed {
       color: var(--text-error, #b91c1c);
+    }
+
+    &.added {
+      color: var(--text-warning, #92400e);
     }
     
     &.success {

@@ -318,55 +318,56 @@ optimizerLabRouter.post("/optimize", async (req: AuthenticatedRequest, res) => {
       dryRun: true,
     }, cfg);
     
-    // Estimate tokens
+    // Real numbers only — no fake percentages. Same backend flow as /proof and chat dry-run:
+    // 1. Run optimizer pipeline → result.promptFinal.messages (actual optimized payload).
+    // 2. Before = token estimate of original messages; After = token estimate of that payload.
+    // 3. pctSaved = (before - after) / before * 100, exactly as calculated.
     const pricing = getPricingConfig("openai");
     const baselineEstimate = estimateBaselineTokens(messages, "openai", pricing);
-    const optimizedEstimate = estimateOptimizedTokens(
+    const optimizedEstimateFromMessages = estimateOptimizedTokens(
       result.promptFinal.messages,
       path,
       numericLevel,
       "openai",
       pricing
     );
-    
-    // Build token estimates
+    const inputTokensBefore = baselineEstimate.input_tokens;
+    const inputTokensAfter = optimizedEstimateFromMessages.input_tokens;
+    const pctSaved =
+      inputTokensBefore > 0
+        ? ((inputTokensBefore - inputTokensAfter) / inputTokensBefore) * 100
+        : 0;
+    const optimizationsApplied = result.optimizationsApplied || [];
+
     const originalTokenEstimate: TokenEstimate = {
       inputTokens: baselineEstimate.input_tokens,
       outputTokens: baselineEstimate.output_tokens,
       totalTokens: baselineEstimate.total_tokens,
       estimatedCostUsd: baselineEstimate.cost_usd,
     };
-    
+
+    const optimizedInputTokens = inputTokensAfter;
+    const optimizedOutputTokens = Math.min(250, Math.max(60, Math.floor(optimizedInputTokens * 0.2)));
     const optimizedTokenEstimate: TokenEstimate = {
-      inputTokens: optimizedEstimate.input_tokens,
-      outputTokens: optimizedEstimate.output_tokens,
-      totalTokens: optimizedEstimate.total_tokens,
-      estimatedCostUsd: optimizedEstimate.cost_usd,
+      inputTokens: optimizedInputTokens,
+      outputTokens: optimizedOutputTokens,
+      totalTokens: optimizedInputTokens + optimizedOutputTokens,
+      estimatedCostUsd: (optimizedInputTokens / 1000) * pricing.input_per_1k + (optimizedOutputTokens / 1000) * pricing.output_per_1k,
     };
-    
-    // Build diff summary
-    const tokensSaved = baselineEstimate.input_tokens - optimizedEstimate.input_tokens;
-    const pctSaved = baselineEstimate.input_tokens > 0
-      ? (tokensSaved / baselineEstimate.input_tokens) * 100
-      : 0;
-    
+
     const diffSummary: DiffSummary = {
-      inputTokensBefore: baselineEstimate.input_tokens,
-      inputTokensAfter: optimizedEstimate.input_tokens,
+      inputTokensBefore: inputTokensBefore,
+      inputTokensAfter: inputTokensAfter,
       pctSaved: Math.round(pctSaved * 100) / 100,
       refsUsed: result.debugInternal?.refpack?.entriesCount,
       phrasebookEntries: result.debugInternal?.phrasebook?.entriesCount,
       codemapSnippetsKept: result.debugInternal?.codemap?.symbolsCount,
     };
-    
-    // Build safety summary
-    const optimizationsApplied = result.optimizationsApplied || [];
+
     const safetySummary = buildSafetySummary(result.debugInternal, path, optimizationsApplied);
-    
-    // Prepare optimized messages (with or without redaction)
+
     let optimizedMessages = result.promptFinal.messages;
-    let optimizedRenderedText = renderMessages(result.promptFinal.messages);
-    
+    let optimizedRenderedText = renderMessages(optimizedMessages);
     if (viewMode === "DEMO_VIEW") {
       optimizedMessages = redactOptimizedMessages(result.promptFinal.messages);
       optimizedRenderedText = renderMessages(optimizedMessages);

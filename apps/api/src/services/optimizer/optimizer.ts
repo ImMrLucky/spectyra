@@ -401,15 +401,72 @@ export async function runOptimizedOrBaseline(
       policyDebug = p.debug;
     }
 
-    // If dry-run, skip provider call and return placeholder
+    // If dry-run, skip provider call and return placeholder with optimization report
     if (dryRun) {
+      const optimizationsAppliedDry: string[] = [];
+      if (refPackMetrics.entriesCount > 0) optimizationsAppliedDry.push("refpack");
+      if (phraseBookMetrics.changed) optimizationsAppliedDry.push("phrasebook");
+      if (codeMapMetrics.changed) optimizationsAppliedDry.push("codemap");
+      const totalInputBeforeDry = refPackMetrics.tokensBefore ||
+        (phraseBookMetrics.tokensBefore || 0) + (codeMapMetrics.tokensBefore || 0);
+      const totalInputAfterDry = (refPackMetrics.tokensAfter || 0) +
+        (phraseBookMetrics.tokensAfter || 0) + (codeMapMetrics.tokensAfter || 0);
+      const totalSavedDry = totalInputBeforeDry - totalInputAfterDry;
+      const pctSavedDry = totalInputBeforeDry > 0 ? (totalSavedDry / totalInputBeforeDry) * 100 : 0;
+      const tokenBreakdownDry: OptimizeOutput["tokenBreakdown"] = {};
+      if (refPackMetrics.entriesCount > 0) {
+        tokenBreakdownDry.refpack = {
+          before: refPackMetrics.tokensBefore,
+          after: refPackMetrics.tokensAfter,
+          saved: refPackMetrics.tokensBefore - refPackMetrics.tokensAfter,
+        };
+      }
+      if (phraseBookMetrics.changed) {
+        tokenBreakdownDry.phrasebook = {
+          before: phraseBookMetrics.tokensBefore,
+          after: phraseBookMetrics.tokensAfter,
+          saved: phraseBookMetrics.tokensBefore - phraseBookMetrics.tokensAfter,
+        };
+      }
+      if (codeMapMetrics.changed) {
+        tokenBreakdownDry.codemap = {
+          before: codeMapMetrics.tokensBefore,
+          after: codeMapMetrics.tokensAfter,
+          saved: codeMapMetrics.tokensBefore - codeMapMetrics.tokensAfter,
+        };
+      }
       return {
         promptFinal: { messages: messagesFinal },
         responseText: "DRY_RUN: No provider call made",
         usage: { input_tokens: 0, output_tokens: 0, total_tokens: 0, estimated: true },
         spectral,
         quality: { pass: true, failures: [] },
-        debug: { mode: "optimized", ...policyDebug, dryRun: true }
+        debug: { mode: "optimized", ...policyDebug, dryRun: true },
+        debugInternal: {
+          mode: "optimized",
+          refpack: { tokensBefore: refPackMetrics.tokensBefore, tokensAfter: refPackMetrics.tokensAfter, entriesCount: refPackMetrics.entriesCount },
+          phrasebook: { tokensBefore: phraseBookMetrics.tokensBefore, tokensAfter: phraseBookMetrics.tokensAfter, entriesCount: phraseBookMetrics.entriesCount, changed: phraseBookMetrics.changed },
+          codemap: { tokensBefore: codeMapMetrics.tokensBefore, tokensAfter: codeMapMetrics.tokensAfter, symbolsCount: codeMapMetrics.symbolsCount, changed: codeMapMetrics.changed },
+        },
+        optimizationsApplied: optimizationsAppliedDry,
+        tokenBreakdown: tokenBreakdownDry,
+        optimizationReport: {
+          layers: {
+            refpack: refPackMetrics.entriesCount > 0,
+            phrasebook: phraseBookMetrics.changed,
+            codemap: codeMapMetrics.changed,
+            semantic_cache: false,
+            cache_hit: false,
+          },
+          tokens: {
+            estimated: true,
+            input_before: totalInputBeforeDry > 0 ? totalInputBeforeDry : undefined,
+            input_after: totalInputAfterDry > 0 ? totalInputAfterDry : undefined,
+            saved: totalSavedDry > 0 ? totalSavedDry : undefined,
+            pct_saved: pctSavedDry > 0 ? Math.round(pctSavedDry * 100) / 100 : undefined,
+          },
+          spectral: spectral ? { nNodes: spectral.nNodes, nEdges: spectral.nEdges, stabilityIndex: spectral.stabilityIndex, lambda2: spectral.lambda2 } : undefined,
+        },
       };
     }
 

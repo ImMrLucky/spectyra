@@ -309,9 +309,9 @@
           <div class="tab-content" role="tabpanel">
             <!-- Metrics Tab -->
             <div *ngIf="activeTab === 'metrics'" class="tab-pane metrics-pane">
-              <div class="savings-hero">
-                <div class="savings-value">{{ formatPercent(result.diff?.summary?.pctSaved ?? 0) }}</div>
-                <div class="savings-label">Tokens Saved</div>
+              <div class="savings-hero" [class.no-savings]="!hasSavings">
+                <div class="savings-value">{{ savingsHeroValue }}</div>
+                <div class="savings-label">{{ savingsHeroLabel }}</div>
               </div>
 
               <div class="metrics-grid">
@@ -356,12 +356,11 @@
               </div>
 
               <div class="why-savings-section">
-                <h3>Why savings happened</h3>
+                <h3>{{ hasSavings ? 'Why savings happened' : 'Token change' }}</h3>
                 <ul class="why-savings-list">
                   <li>
-                    <strong>Tokens removed:</strong>
-                    {{ formatNumber((result.diff?.summary?.inputTokensBefore ?? 0) - (result.diff?.summary?.inputTokensAfter ?? 0)) }}
-                    (repetition and boilerplate compressed)
+                    <strong>{{ hasSavings ? 'Tokens removed:' : 'Tokens change:' }}</strong>
+                    {{ tokensChangeDescription }}
                   </li>
                   <li *ngIf="result.diff?.summary?.refsUsed != null">
                     <strong>RefPack entries:</strong> {{ result.diff.summary.refsUsed }}
@@ -500,12 +499,14 @@
                 <p>Detailed diff is only available in ADMIN_DEBUG or FORENSICS mode.</p>
                 <div class="diff-summary">
                   <div class="diff-stat">
-                    <span class="stat-label">Tokens Removed:</span>
-                    <span class="stat-value removed">-{{ (result.diff?.summary?.inputTokensBefore ?? 0) - (result.diff?.summary?.inputTokensAfter ?? 0) }}</span>
+                    <span class="stat-label">{{ tokensChange >= 0 ? 'Tokens removed:' : 'Tokens added:' }}</span>
+                    <span class="stat-value" [class.removed]="tokensChange > 0" [class.added]="tokensChange < 0">
+                      {{ tokensChange >= 0 ? formatNumber(tokensChange) : formatNumber(-tokensChange) }}
+                    </span>
                   </div>
                   <div class="diff-stat">
                     <span class="stat-label">Savings:</span>
-                    <span class="stat-value success">{{ formatPercent(result.diff?.summary?.pctSaved ?? 0) }}</span>
+                    <span class="stat-value" [class.success]="hasSavings">{{ hasSavings ? formatPercent(result.diff?.summary?.pctSaved ?? 0) : '—' }}</span>
                   </div>
                 </div>
               </div>
