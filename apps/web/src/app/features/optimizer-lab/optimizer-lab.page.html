@@ -442,27 +442,27 @@
                 <div class="debug-grid">
                   <div class="debug-item">
                     <span class="debug-label">Nodes:</span>
-                    <span class="debug-value">{{ result.debug.spectral.nNodes }}</span>
+                    <span class="debug-value">{{ result?.debug?.spectral?.nNodes ?? '—' }}</span>
                   </div>
                   <div class="debug-item">
                     <span class="debug-label">Edges:</span>
-                    <span class="debug-value">{{ result.debug.spectral.nEdges }}</span>
+                    <span class="debug-value">{{ result?.debug?.spectral?.nEdges ?? '—' }}</span>
                   </div>
                   <div class="debug-item">
                     <span class="debug-label">Stability Index:</span>
-                    <span class="debug-value">{{ result.debug.spectral.stabilityIndex?.toFixed(3) ?? '—' }}</span>
+                    <span class="debug-value">{{ result?.debug?.spectral?.stabilityIndex != null ? (result?.debug?.spectral?.stabilityIndex | number:'1.3-3') : '—' }}</span>
                   </div>
                   <div class="debug-item">
                     <span class="debug-label">Lambda2:</span>
-                    <span class="debug-value">{{ result.debug.spectral.lambda2 != null ? result.debug.spectral.lambda2.toFixed(3) : 'N/A' }}</span>
+                    <span class="debug-value">{{ result?.debug?.spectral?.lambda2 != null ? (result?.debug?.spectral?.lambda2 | number:'1.3-3') : 'N/A' }}</span>
                   </div>
                   <div class="debug-item">
                     <span class="debug-label">Recommendation:</span>
-                    <span class="debug-value recommendation">{{ result.debug.spectral.recommendation }}</span>
+                    <span class="debug-value recommendation">{{ result?.debug?.spectral?.recommendation ?? '—' }}</span>
                   </div>
                   <div class="debug-item">
                     <span class="debug-label">Stable/Unstable:</span>
-                    <span class="debug-value">{{ result.debug.spectral.stableCount }}/{{ result.debug.spectral.unstableCount }}</span>
+                    <span class="debug-value">{{ result?.debug?.spectral?.stableCount ?? '—' }}/{{ result?.debug?.spectral?.unstableCount ?? '—' }}</span>
                   </div>
                 </div>
               </div>
@@ -472,35 +472,35 @@
                 <div class="debug-grid">
                   <div class="debug-item">
                     <span class="debug-label">Keep Last Turns:</span>
-                    <span class="debug-value">{{ result.debug.budgets.keepLastTurns }}</span>
+                    <span class="debug-value">{{ result?.debug?.budgets?.keepLastTurns ?? '—' }}</span>
                   </div>
                   <div class="debug-item">
                     <span class="debug-label">Max RefPack Entries:</span>
-                    <span class="debug-value">{{ result.debug.budgets.maxRefpackEntries }}</span>
+                    <span class="debug-value">{{ result?.debug?.budgets?.maxRefpackEntries ?? '—' }}</span>
                   </div>
                   <div class="debug-item">
                     <span class="debug-label">Compression:</span>
-                    <span class="debug-value">{{ (result.debug.budgets.compressionAggressiveness * 100).toFixed(0) }}%</span>
+                    <span class="debug-value">{{ result?.debug?.budgets?.compressionAggressiveness != null ? ((result?.debug?.budgets?.compressionAggressiveness * 100) | number:'1.0-0') : '—' }}%</span>
                   </div>
                   <div class="debug-item">
                     <span class="debug-label">Phrasebook:</span>
-                    <span class="debug-value">{{ (result.debug.budgets.phrasebookAggressiveness * 100).toFixed(0) }}%</span>
+                    <span class="debug-value">{{ result?.debug?.budgets?.phrasebookAggressiveness != null ? ((result?.debug?.budgets?.phrasebookAggressiveness * 100) | number:'1.0-0') : '—' }}%</span>
                   </div>
                   <div class="debug-item">
                     <span class="debug-label">CodeMap Detail:</span>
-                    <span class="debug-value">{{ (result.debug.budgets.codemapDetailLevel * 100).toFixed(0) }}%</span>
+                    <span class="debug-value">{{ result?.debug?.budgets?.codemapDetailLevel != null ? ((result?.debug?.budgets?.codemapDetailLevel * 100) | number:'1.0-0') : '—' }}%</span>
                   </div>
                 </div>
               </div>
 
               <div *ngIf="result?.debug?.transforms" class="debug-section">
                 <h4>Transform Metrics</h4>
-                <pre class="debug-json">{{ result.debug.transforms | json }}</pre>
+                <pre class="debug-json">{{ result?.debug?.transforms | json }}</pre>
               </div>
 
               <div *ngIf="result?.debug?.runDebug" class="debug-section">
                 <h4>Run Debug</h4>
-                <pre class="debug-json">{{ result.debug.runDebug | json }}</pre>
+                <pre class="debug-json">{{ result?.debug?.runDebug | json }}</pre>
               </div>
             </div>
           </div>
