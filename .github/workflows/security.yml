@@ -9,6 +9,11 @@ on:
     # Run weekly on Mondays at 9 AM UTC
     - cron: '0 9 * * 1'
 
+# Suppress Node deprecation from dependencies (e.g. url.parse DEP0169) during code scanning.
+# Project code uses WHATWG URL API (new URL()); the warning comes from a dependency.
+env:
+  NODE_OPTIONS: "--no-deprecation"
+
 jobs:
   dependency-audit:
     name: Dependency Audit
