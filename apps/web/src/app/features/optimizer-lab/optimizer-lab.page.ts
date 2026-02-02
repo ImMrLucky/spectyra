@@ -78,48 +78,49 @@ export class OptimizerLabPage implements OnInit {
   ) {}
 
   ngOnInit() {
-    // Give auth a moment to restore session, then check session or API key
+    // Same auth as rest of app: if you have a Supabase session, you're in. No extra login.
     this.supabase.getSession().subscribe(async (session) => {
       if (session) {
         this.isAuthenticated = true;
-        this.checkAccess();
+        this.loading = false;
+        this.error = null;
+        this.isOwner = true; // Show page; API will enforce owner on first run
+        this.verifyAdminInBackground();
         return;
       }
-      // No session yet - might still be loading. Try getAccessToken() to refresh from Supabase.
       const token = await this.supabase.getAccessToken();
       if (token) {
         this.isAuthenticated = true;
-        this.checkAccess();
+        this.loading = false;
+        this.error = null;
+        this.isOwner = true;
+        this.verifyAdminInBackground();
         return;
       }
-      // No Supabase session. If they have API key only, they can't use Optimizer Lab (API requires JWT).
-      const hasApiKey = !!this.authService.currentApiKey;
       this.loading = false;
+      const hasApiKey = !!this.authService.currentApiKey;
       if (hasApiKey) {
-        this.error = 'Optimizer Lab requires dashboard login (email/password). API key authentication is not supported for this page.';
+        this.error = 'Optimizer Lab requires signing in with your account (email/password).';
       } else {
         this.error = 'Please log in to access the Optimizer Lab';
       }
     });
   }
 
-  checkAccess() {
+  /** Optional background check: if not owner, show Access denied. No extra login. */
+  verifyAdminInBackground() {
     this.optimizerLab.checkHealth().subscribe({
       next: () => {
-        this.isOwner = true;
-        this.loading = false;
         this.error = null;
       },
       error: (err) => {
-        this.isOwner = false;
-        this.loading = false;
         if (err.status === 403) {
+          this.isOwner = false;
           this.error = 'Access denied: Admin only. This page is for organization owners.';
         } else if (err.status === 401) {
-          this.error = 'Your session may have expired. Please log out and log in again.';
-        } else {
-          this.error = err.error?.error || err.error?.message || 'Failed to access Optimizer Lab';
+          this.error = 'Session expired. Please log out and log in again.';
         }
+        // Other errors (network etc.): leave page usable, API will fail on Run
       },
     });
   }
