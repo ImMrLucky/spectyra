@@ -33,6 +33,22 @@
     color: var(--text-secondary, #666);
     font-size: 14px;
   }
+  
+  .login-link {
+    display: inline-block;
+    margin-top: 16px;
+    padding: 10px 20px;
+    background: var(--primary-color, #2563eb);
+    color: white;
+    border-radius: 6px;
+    text-decoration: none;
+    font-weight: 500;
+    font-size: 14px;
+    
+    &:hover {
+      background: var(--primary-hover, #1d4ed8);
+    }
+  }
 }
 
 // Header

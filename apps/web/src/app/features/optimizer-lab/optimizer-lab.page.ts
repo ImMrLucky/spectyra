@@ -13,6 +13,7 @@
 import { Component, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
+import { Router, RouterLink } from '@angular/router';
 import {
   OptimizerLabService,
   OptimizeLabRequest,
@@ -23,15 +24,16 @@ import {
   ChatMessage,
 } from '../../core/api/optimizer-lab.service';
 import { SupabaseService } from '../../services/supabase.service';
+import { AuthService } from '../../core/auth/auth.service';
 import { SnackbarService } from '../../core/services/snackbar.service';
-import { CHAT_DEMO_PRESET, CODE_DEMO_PRESET, DemoPreset } from './presets';
+import { CHAT_DEMO_PRESET, CODE_DEMO_PRESET } from './presets';
 
 type ResultTab = 'before' | 'after' | 'diff' | 'metrics' | 'trust' | 'debug';
 
 @Component({
   selector: 'app-optimizer-lab',
   standalone: true,
-  imports: [CommonModule, FormsModule],
+  imports: [CommonModule, FormsModule, RouterLink],
   templateUrl: './optimizer-lab.page.html',
   styleUrls: ['./optimizer-lab.page.scss'],
 })
@@ -70,23 +72,38 @@ export class OptimizerLabPage implements OnInit {
   constructor(
     private optimizerLab: OptimizerLabService,
     private supabase: SupabaseService,
-    private snackbar: SnackbarService
+    private authService: AuthService,
+    private snackbar: SnackbarService,
+    private router: Router
   ) {}
 
   ngOnInit() {
-    this.supabase.getSession().subscribe((session) => {
-      this.isAuthenticated = !!session;
+    // Give auth a moment to restore session, then check session or API key
+    this.supabase.getSession().subscribe(async (session) => {
       if (session) {
+        this.isAuthenticated = true;
         this.checkAccess();
+        return;
+      }
+      // No session yet - might still be loading. Try getAccessToken() to refresh from Supabase.
+      const token = await this.supabase.getAccessToken();
+      if (token) {
+        this.isAuthenticated = true;
+        this.checkAccess();
+        return;
+      }
+      // No Supabase session. If they have API key only, they can't use Optimizer Lab (API requires JWT).
+      const hasApiKey = !!this.authService.currentApiKey;
+      this.loading = false;
+      if (hasApiKey) {
+        this.error = 'Optimizer Lab requires dashboard login (email/password). API key authentication is not supported for this page.';
       } else {
-        this.loading = false;
         this.error = 'Please log in to access the Optimizer Lab';
       }
     });
   }
 
   checkAccess() {
-    // Try health check to verify access
     this.optimizerLab.checkHealth().subscribe({
       next: () => {
         this.isOwner = true;
@@ -97,11 +114,11 @@ export class OptimizerLabPage implements OnInit {
         this.isOwner = false;
         this.loading = false;
         if (err.status === 403) {
-          this.error = 'Access denied: Admin only';
+          this.error = 'Access denied: Admin only. This page is for organization owners.';
         } else if (err.status === 401) {
-          this.error = 'Please log in to access the Optimizer Lab';
+          this.error = 'Your session may have expired. Please log out and log in again.';
         } else {
-          this.error = err.error?.error || 'Failed to access Optimizer Lab';
+          this.error = err.error?.error || err.error?.message || 'Failed to access Optimizer Lab';
         }
       },
     });

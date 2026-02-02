@@ -4,12 +4,14 @@
     <p>Loading Optimizer Lab...</p>
   </div>
 
-  <!-- Access denied -->
+  <!-- Access denied / not logged in -->
   <div *ngIf="!loading && !isOwner" class="access-denied">
     <h2>Optimizer Lab</h2>
     <div class="error-card">
       <p>{{ error || 'Access denied' }}</p>
-      <p class="hint">This tool is only available to administrators.</p>
+      <p class="hint" *ngIf="!error?.includes('API key')">This tool requires dashboard login (email/password).</p>
+      <p class="hint" *ngIf="error?.includes('API key')">Sign in with your account to use Optimizer Lab.</p>
+      <a routerLink="/login" [queryParams]="{ returnUrl: '/admin/optimizer-lab' }" class="login-link">Log in</a>
     </div>
   </div>
 
