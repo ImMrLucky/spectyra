@@ -10,7 +10,7 @@ import { replayRouter } from "./routes/replay.js";
 import { runsRouter } from "./routes/runs.js";
 import { savingsRouter } from "./routes/savings.js";
 import { adminRouter } from "./routes/admin.js";
-import { optimizerLabRouter } from "./routes/optimizerLab.js";
+import { optimizerLabHealthRouter, optimizerLabRouter } from "./routes/optimizerLab.js";
 import { proofRouter } from "./routes/proof.js";
 import { replaySimulateRouter } from "./routes/replaySimulate.js";
 import { billingRouter } from "./routes/billing.js";
@@ -98,7 +98,8 @@ app.use("/v1/replay", replayRouter);
 app.use("/v1/runs", runsRouter);
 app.use("/v1/savings", savingsRouter);
 app.use("/v1/admin", adminRouter);
-app.use("/v1/admin", optimizerLabRouter); // Optimizer Lab (optimize-only mode)
+app.use("/v1/admin", optimizerLabHealthRouter); // GET /optimize/health (public, no auth)
+app.use("/v1/admin", optimizerLabRouter); // Optimizer Lab POST /optimize (owner only)
 app.use("/v1/proof", proofRouter);
 app.use("/v1/replay/simulate", replaySimulateRouter);
 app.use("/v1/billing", billingRouter);

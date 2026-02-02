@@ -27,6 +27,12 @@ import { SupabaseService } from '../../services/supabase.service';
 import { AuthService } from '../../core/auth/auth.service';
 import { SnackbarService } from '../../core/services/snackbar.service';
 import { CHAT_DEMO_PRESET, CODE_DEMO_PRESET } from './presets';
+import {
+  generateChatMessages,
+  generateCodeMessages,
+  CHAT_SCENARIO_OPTIONS,
+  CODE_SCENARIO_OPTIONS,
+} from './generator';
 
 type ResultTab = 'before' | 'after' | 'diff' | 'metrics' | 'trust' | 'debug';
 
@@ -52,6 +58,14 @@ export class OptimizerLabPage implements OnInit {
   includeDebug = true;
   viewMode: ViewMode = 'ADMIN_DEBUG';
 
+  // Generate Test Data
+  turnCount = 20;
+  seed = 42;
+  generatorScenario = CHAT_SCENARIO_OPTIONS[0] ?? '';
+  includeSystemMessage = true;
+  includeToolTraces = true;
+  generatedSummary: string | null = null;
+
   // Advanced options (collapsed by default)
   showAdvancedOptions = false;
   advancedMessages: string = '';
@@ -68,6 +82,34 @@ export class OptimizerLabPage implements OnInit {
     chat: CHAT_DEMO_PRESET,
     code: CODE_DEMO_PRESET,
   };
+
+  chatScenarioOptions = CHAT_SCENARIO_OPTIONS;
+  codeScenarioOptions = CODE_SCENARIO_OPTIONS;
+
+  get generatorScenarioOptions(): string[] {
+    return this.demoType === 'chat' ? this.chatScenarioOptions : this.codeScenarioOptions;
+  }
+
+  get currentGeneratorScenario(): string {
+    const opts = this.generatorScenarioOptions;
+    if (opts.includes(this.generatorScenario)) return this.generatorScenario;
+    return opts[0] ?? '';
+  }
+
+  get parsedMessageCount(): number {
+    if (!this.advancedMessages.trim()) return 0;
+    try {
+      const arr = JSON.parse(this.advancedMessages);
+      return Array.isArray(arr) ? arr.length : 0;
+    } catch {
+      return 0;
+    }
+  }
+
+  get showLowTurnWarning(): boolean {
+    const n = this.parsedMessageCount;
+    return n > 0 && n < 6;
+  }
 
   constructor(
     private optimizerLab: OptimizerLabService,
@@ -132,7 +174,40 @@ export class OptimizerLabPage implements OnInit {
     this.prompt = preset.prompt;
     this.repoContext = preset.repoContext || '';
     this.optimizationLevel = preset.optimizationLevel || 'balanced';
+    this.generatedSummary = null;
     this.snackbar.showSuccess(`Loaded ${type} demo preset`);
+  }
+
+  randomizeSeed() {
+    this.seed = Math.floor(Math.random() * 100000);
+    this.cdr.detectChanges();
+  }
+
+  generateMessages() {
+    const scenario = this.currentGeneratorScenario;
+    const params = {
+      turns: Math.max(1, Math.min(500, this.turnCount)),
+      seed: this.seed,
+      scenario,
+      includeSystem: this.includeSystemMessage,
+      includeTools: this.includeToolTraces,
+    };
+    const messages =
+      this.demoType === 'chat'
+        ? generateChatMessages(params)
+        : generateCodeMessages(params);
+    this.advancedMessages = JSON.stringify(messages, null, 2);
+    this.showAdvancedOptions = true;
+    const total = messages.length;
+    const pairs = messages.filter((m) => m.role === 'user').length;
+    this.generatedSummary = `Generated ${pairs} turns (${total} messages) with seed ${this.seed}`;
+    this.snackbar.showSuccess(this.generatedSummary);
+    this.cdr.detectChanges();
+  }
+
+  generateAndRun() {
+    this.generateMessages();
+    setTimeout(() => this.runOptimization(), 100);
   }
 
   runOptimization() {
@@ -145,7 +220,6 @@ export class OptimizerLabPage implements OnInit {
     this.error = null;
     this.result = null;
 
-    // Build request
     const request: OptimizeLabRequest = {
       demoType: this.demoType,
       optimizationLevel: this.optimizationLevel,
@@ -153,7 +227,6 @@ export class OptimizerLabPage implements OnInit {
       requestedViewMode: this.viewMode,
     };
 
-    // Use advanced messages if provided, otherwise use prompt
     if (this.advancedMessages.trim()) {
       try {
         request.messages = JSON.parse(this.advancedMessages);

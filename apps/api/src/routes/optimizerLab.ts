@@ -38,6 +38,12 @@ import {
   demoTypeToPath,
 } from "../types/optimizerLab.js";
 
+/** Public health check (no auth) for uptime/monitoring and GET from browser */
+export const optimizerLabHealthRouter = Router();
+optimizerLabHealthRouter.get("/optimize/health", (_req, res) => {
+  res.json({ status: "ok", timestamp: new Date().toISOString() });
+});
+
 export const optimizerLabRouter = Router();
 
 // Apply authentication: require user session + owner for now
@@ -480,16 +486,4 @@ optimizerLabRouter.post("/optimize", async (req: AuthenticatedRequest, res) => {
       message: error.message || "Internal server error",
     });
   }
-});
-
-/**
- * GET /v1/admin/optimize/health
- * 
- * Health check for the optimizer lab endpoint
- */
-optimizerLabRouter.get("/optimize/health", async (_req, res) => {
-  res.json({ 
-    status: "ok",
-    timestamp: new Date().toISOString(),
-  });
 });

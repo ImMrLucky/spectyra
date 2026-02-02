@@ -268,6 +268,109 @@
   gap: 12px;
 }
 
+// Generate Test Data panel
+.generate-section {
+  padding: 12px 0;
+  border-top: 1px solid var(--border-primary, #e5e7eb);
+  margin-top: 8px;
+}
+
+.generate-panel-title {
+  font-size: 15px;
+  font-weight: 600;
+  margin: 0 0 12px;
+  color: var(--text-primary, #1a1a1a);
+}
+
+.turn-count-row {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+
+  .turn-input {
+    max-width: 100px;
+  }
+}
+
+.quick-turns {
+  display: flex;
+  gap: 6px;
+}
+
+.btn-quick {
+  padding: 6px 12px;
+  border: 1px solid var(--border-primary, #e5e7eb);
+  border-radius: 6px;
+  background: var(--surface-secondary, #f9fafb);
+  font-size: 13px;
+  cursor: pointer;
+
+  &:hover {
+    background: var(--surface-hover, #f3f4f6);
+  }
+}
+
+.seed-row {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+
+  .seed-input {
+    width: 100px;
+  }
+}
+
+.generate-buttons {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 12px;
+
+  .btn-primary {
+    flex: none;
+  }
+}
+
+.generated-summary {
+  margin: 12px 0 0;
+  font-size: 13px;
+  color: var(--text-success, #166534);
+}
+
+.low-turn-warning {
+  margin: 12px 0 0;
+  padding: 10px 12px;
+  background: var(--surface-warning, #fef3c7);
+  color: var(--text-warning, #92400e);
+  border-radius: 6px;
+  font-size: 13px;
+}
+
+.why-savings-section {
+  margin: 20px 0;
+  padding: 16px;
+  background: var(--surface-secondary, #f9fafb);
+  border-radius: 8px;
+
+  h3 {
+    font-size: 14px;
+    font-weight: 600;
+    margin: 0 0 12px;
+    color: var(--text-primary, #1a1a1a);
+  }
+}
+
+.why-savings-list {
+  margin: 0;
+  padding-left: 20px;
+
+  li {
+    margin-bottom: 8px;
+    font-size: 14px;
+    color: var(--text-primary, #1a1a1a);
+  }
+}
+
 // Action Buttons
 .action-buttons {
   display: flex;
@@ -716,6 +819,11 @@
   &.assistant .message-role {
     background: var(--surface-warning, #fef3c7);
     color: var(--text-warning, #92400e);
+  }
+
+  &.tool .message-role {
+    background: var(--surface-secondary, #f3f4f6);
+    color: var(--text-secondary, #6b7280);
   }
 }
 

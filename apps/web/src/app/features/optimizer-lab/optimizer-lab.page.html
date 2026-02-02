@@ -106,6 +106,52 @@
               </button>
             </div>
           </div>
+
+          <!-- Generate Test Data (uses Demo Type above) -->
+          <div class="form-section generate-section">
+            <h3 class="generate-panel-title">Generate Test Data</h3>
+            <div class="form-group">
+              <label>Turn Count</label>
+              <div class="turn-count-row">
+                <input type="number" [(ngModel)]="turnCount" class="form-input turn-input" min="1" max="500" placeholder="20">
+                <div class="quick-turns">
+                  <button type="button" class="btn-quick" (click)="turnCount = 20">20</button>
+                  <button type="button" class="btn-quick" (click)="turnCount = 50">50</button>
+                  <button type="button" class="btn-quick" (click)="turnCount = 100">100</button>
+                </div>
+              </div>
+            </div>
+            <div class="form-group">
+              <label>Seed</label>
+              <div class="seed-row">
+                <input type="number" [(ngModel)]="seed" class="form-input seed-input" min="0" placeholder="42">
+                <button type="button" class="btn-secondary" (click)="randomizeSeed()">Randomize</button>
+              </div>
+            </div>
+            <div class="form-group">
+              <label>Scenario</label>
+              <select [ngModel]="currentGeneratorScenario" (ngModelChange)="generatorScenario = $event" class="form-select">
+                <option *ngFor="let opt of generatorScenarioOptions" [value]="opt">{{ opt }}</option>
+              </select>
+            </div>
+            <div class="form-group checkbox-group">
+              <label>
+                <input type="checkbox" [(ngModel)]="includeSystemMessage">
+                Include system message
+              </label>
+            </div>
+            <div *ngIf="demoType === 'code'" class="form-group checkbox-group">
+              <label>
+                <input type="checkbox" [(ngModel)]="includeToolTraces">
+                Include tool traces (code only)
+              </label>
+            </div>
+            <div class="generate-buttons">
+              <button type="button" class="btn-primary" (click)="generateMessages()">Generate Messages</button>
+              <button type="button" class="btn-secondary" (click)="generateAndRun()">Generate + Run Optimization</button>
+            </div>
+            <p *ngIf="generatedSummary" class="generated-summary">{{ generatedSummary }}</p>
+          </div>
         </div>
 
         <hr class="divider">
@@ -175,6 +221,10 @@
             </div>
           </div>
         </div>
+
+        <p *ngIf="showLowTurnWarning" class="low-turn-warning">
+          RefPack/PhraseBook benefits appear with repeated turns. Generate 20+ turns for better demo results.
+        </p>
 
         <!-- Run Button -->
         <div class="action-buttons">
@@ -297,6 +347,31 @@
                 </div>
               </div>
 
+              <div class="why-savings-section">
+                <h3>Why savings happened</h3>
+                <ul class="why-savings-list">
+                  <li>
+                    <strong>Tokens removed:</strong>
+                    {{ formatNumber((result.diff?.summary?.inputTokensBefore ?? 0) - (result.diff?.summary?.inputTokensAfter ?? 0)) }}
+                    (repetition and boilerplate compressed)
+                  </li>
+                  <li *ngIf="result.diff?.summary?.refsUsed != null">
+                    <strong>RefPack entries:</strong> {{ result.diff.summary.refsUsed }}
+                    (repeated blocks replaced by refs)
+                  </li>
+                  <li *ngIf="result.diff?.summary?.phrasebookEntries != null">
+                    <strong>PhraseBook entries:</strong> {{ result.diff.summary.phrasebookEntries }}
+                    (repeated phrases encoded)
+                  </li>
+                  <li *ngIf="result.meta?.demoType === 'code'">
+                    <strong>CodeMap:</strong>
+                    <span *ngIf="result.diff?.summary?.codemapSnippetsKept != null">{{ result.diff.summary.codemapSnippetsKept }} snippets kept</span>
+                    <span *ngIf="result.diff?.summary?.codemapOmittedBlocks != null">, {{ result.diff.summary.codemapOmittedBlocks }} blocks omitted</span>
+                    <span *ngIf="result.diff?.summary?.codemapSnippetsKept == null && result.diff?.summary?.codemapOmittedBlocks == null">—</span>
+                  </li>
+                </ul>
+              </div>
+
               <div *ngIf="result.diff?.summary?.refsUsed != null" class="detail-row">
                 <span class="detail-label">RefPack Entries:</span>
                 <span class="detail-value">{{ result.diff.summary.refsUsed }}</span>
@@ -365,7 +440,8 @@
                   class="message-item"
                   [class.system]="msg.role === 'system'"
                   [class.user]="msg.role === 'user'"
-                  [class.assistant]="msg.role === 'assistant'">
+                  [class.assistant]="msg.role === 'assistant'"
+                  [class.tool]="msg.role === 'tool'">
                   <div class="message-role">{{ msg.role | uppercase }}</div>
                   <pre class="message-content">{{ msg.content }}</pre>
                 </div>
@@ -398,7 +474,8 @@
                   class="message-item"
                   [class.system]="msg.role === 'system'"
                   [class.user]="msg.role === 'user'"
-                  [class.assistant]="msg.role === 'assistant'">
+                  [class.assistant]="msg.role === 'assistant'"
+                  [class.tool]="msg.role === 'tool'">
                   <div class="message-role">{{ msg.role | uppercase }}</div>
                   <pre class="message-content">{{ msg.content }}</pre>
                 </div>
