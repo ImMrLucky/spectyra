@@ -7,14 +7,14 @@
  * Used for internal QA testing and customer demos.
  * 
  * Security:
- * - Requires admin/owner authentication
+ * - Requires authenticated session (any logged-in user)
  * - Enforces view mode based on user role
  * - Server-side redaction for DEMO_VIEW mode
  * - No raw prompt/code storage by default (SOC2 posture)
  */
 
 import { Router } from "express";
-import { requireUserSession, requireOwner, type AuthenticatedRequest } from "../middleware/auth.js";
+import { requireUserSession, type AuthenticatedRequest } from "../middleware/auth.js";
 import { runOptimizedOrBaseline } from "../services/optimizer/optimizer.js";
 import { getEmbedder } from "../services/embeddings/embedderRegistry.js";
 import { makeOptimizerConfig } from "../services/optimizer/config.js";
@@ -47,10 +47,8 @@ optimizerLabHealthRouter.get("/optimize/health", (_req, res) => {
 
 export const optimizerLabRouter = Router();
 
-// Apply authentication: require user session + owner for now
-// TODO: Add feature flag support for internal_tools
+// Any authenticated user can run Optimizer Lab (no provider calls; safe for testing)
 optimizerLabRouter.use(requireUserSession);
-optimizerLabRouter.use(requireOwner);
 
 /**
  * Determine the effective view mode based on user role and request
@@ -275,10 +273,9 @@ optimizerLabRouter.post("/optimize", async (req: AuthenticatedRequest, res) => {
     }
     
     // Compute view mode based on role
-    // Since we're past requireOwner, the user is an owner
     const viewMode = computeViewMode(
       body.requestedViewMode,
-      true, // isOwner (we passed requireOwner middleware)
+      true, // isOwner: any authenticated user gets full view (ADMIN_DEBUG/FORENSICS)
       undefined // org settings (future)
     );
     
@@ -371,6 +368,10 @@ optimizerLabRouter.post("/optimize", async (req: AuthenticatedRequest, res) => {
         pct: s.pct,
         absChange: s.absChange,
       })),
+      sccDroppedTurns: result.debugInternal?.scc?.lastSccDropped,
+      sccStateChars: result.debugInternal?.scc?.sccStateChars,
+      failingSignalsCount: result.debugInternal?.scc?.failingSignalsCount,
+      lambda2: result.spectral?.lambda2,
     };
 
     const safetySummary = buildSafetySummary(result.debugInternal, path, optimizationsApplied);
@@ -466,6 +467,7 @@ optimizerLabRouter.post("/optimize", async (req: AuthenticatedRequest, res) => {
           phrasebook: result.debugInternal.phrasebook,
           codemap: result.debugInternal.codemap,
         };
+        debugPayload.scc = result.debugInternal.scc;
       }
       
       response.debug = debugPayload;

@@ -74,8 +74,8 @@ export function computeBudgetsFromSpectral(input: BudgetsFromSpectralInput): Bud
     1.0 - (normalizedStability * 0.4) + (normalizedContradiction * 0.3)
   ));
 
-  // Keep last turns: fewer when stable (can compress more), more when unstable
-  const keepLastTurns = Math.max(1, Math.min(5,
+  // Keep last turns: spectral-derived fallback; λ₂ overrides for SCC alignment
+  const keepLastTurnsBase = Math.max(1, Math.min(5,
     Math.round(baseKeepLastTurns - (normalizedStability * 2) + (normalizedContradiction * 1.5))
   ));
 
@@ -86,9 +86,13 @@ export function computeBudgetsFromSpectral(input: BudgetsFromSpectralInput): Bud
 
   // PG-SCC: state compression (higher when stable)
   const stateCompressionLevel = Math.max(0, Math.min(1, normalizedStability * 0.8 + (1 - normalizedNovelty) * 0.2));
-  const maxStateChars = 4000; // single compact state message cap
-  const retainToolLogs = true; // code path: keep error signatures
-  const minRefpackSavings = 30; // emit dictionary only if net savings >= 30 tokens
+
+  // Budgets → SCC alignment: λ₂ drives aggressiveness (low λ₂ = tighter, high λ₂ = preserve more)
+  const lambda2 = spectral.lambda2 ?? 0;
+  const keepLastTurns = lambda2 < 0.12 ? 2 : 4;
+  const maxStateChars = lambda2 < 0.12 ? 1800 : 3200;
+  const retainToolLogs = lambda2 > 0.15;
+  const minRefpackSavings = 30;
 
   return {
     keepLastTurns,

@@ -6,11 +6,12 @@ import { AdminService, AdminOrg, AdminOrgDetail, AdminUser } from '../../core/ap
 import { SupabaseService } from '../../services/supabase.service';
 import { SnackbarService } from '../../core/services/snackbar.service';
 import { AuthService } from '../../core/auth/auth.service';
+import {MatIcon} from "@angular/material/icon";
 
 @Component({
   selector: 'app-admin',
   standalone: true,
-  imports: [CommonModule, FormsModule, RouterLink],
+    imports: [CommonModule, FormsModule, RouterLink, MatIcon],
   templateUrl: './admin.page.html',
   styleUrls: ['./admin.page.scss'],
 })

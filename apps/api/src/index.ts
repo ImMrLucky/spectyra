@@ -99,7 +99,7 @@ app.use("/v1/runs", runsRouter);
 app.use("/v1/savings", savingsRouter);
 app.use("/v1/admin", adminRouter);
 app.use("/v1/admin", optimizerLabHealthRouter); // GET /optimize/health (public, no auth)
-app.use("/v1/admin", optimizerLabRouter); // Optimizer Lab POST /optimize (owner only)
+app.use("/v1/admin", optimizerLabRouter); // Optimizer Lab POST /optimize (any authenticated user)
 app.use("/v1/proof", proofRouter);
 app.use("/v1/replay/simulate", replaySimulateRouter);
 app.use("/v1/billing", billingRouter);

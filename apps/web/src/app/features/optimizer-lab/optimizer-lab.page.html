@@ -355,6 +355,32 @@
                 </div>
               </div>
 
+              <div class="scc-panels-section">
+                <h3>PG-SCC (State Compiler)</h3>
+                <div class="scc-panels-grid">
+                  <div class="scc-panel">
+                    <span class="scc-panel-label">SCC State size</span>
+                    <span class="scc-panel-value">{{ result.diff?.summary?.sccStateChars ?? '—' }} chars</span>
+                  </div>
+                  <div class="scc-panel">
+                    <span class="scc-panel-label">Dropped turns</span>
+                    <span class="scc-panel-value">{{ result.diff?.summary?.sccDroppedTurns ?? '—' }}</span>
+                  </div>
+                  <div class="scc-panel" *ngIf="result.meta?.demoType === 'code'">
+                    <span class="scc-panel-label">Failing signals count</span>
+                    <span class="scc-panel-value">{{ result.diff?.summary?.failingSignalsCount ?? '—' }}</span>
+                  </div>
+                  <div class="scc-panel">
+                    <span class="scc-panel-label">λ₂ → aggressiveness</span>
+                    <span class="scc-panel-value">{{ result.diff?.summary?.lambda2 != null ? (result.diff.summary.lambda2 | number:'1.3-3') : '—' }}</span>
+                  </div>
+                  <div class="scc-panel">
+                    <span class="scc-panel-label">Tokens before / after</span>
+                    <span class="scc-panel-value">{{ formatNumber(result.diff?.summary?.inputTokensBefore ?? 0) }} / {{ formatNumber(result.diff?.summary?.inputTokensAfter ?? 0) }}</span>
+                  </div>
+                </div>
+              </div>
+
               <div class="transforms-section">
                 <h3>Applied Transforms</h3>
                 <div class="transforms-list">

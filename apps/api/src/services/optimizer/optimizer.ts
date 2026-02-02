@@ -11,9 +11,8 @@ import { runQualityGuard, RequiredCheck } from "./quality/qualityGuard";
 // PG-SCC only: SCC is the single context compaction mechanism; no legacy REF-glossary.
 const USE_PG_SCC_ONLY = true;
 
-// Core Moat v1 transforms + PG-SCC
+// Core Moat v1 transforms + PG-SCC (SCC is the only memory layer; no RefPack)
 import { compileTalkState, compileCodeState } from "./transforms/contextCompiler";
-import { buildRefPack, applyInlineRefs } from "./transforms/refPack";
 import { buildCodeMap } from "./transforms/codeMap";
 import { computeBudgetsFromSpectral } from "./budgeting/budgetsFromSpectral";
 import { semanticCacheKey } from "./cache/semanticHash";
@@ -172,7 +171,7 @@ export async function runOptimizedOrBaseline(
   // 2. SCC (Spectral Context Compiler) is the authoritative compression step; its output is the only system message added.
   // 3. Optimized prompt must never exceed baseline; final size guard reverts to baseline and sets optimizationReport.reverted if so.
   //
-  // Pipeline order: unitize → embed → graph → spectral → budgets → SCC → profit-gated RefPack → profit-gated STE → profit-gated CodeMap (code only) → policy (trim-only) → final size guard.
+  // Pipeline order: unitize → embed → graph → spectral → budgets → SCC (single memory) → profit-gated STE → profit-gated CodeMap (code only) → policy (trim-only) → final size guard.
   //
   // Markov state carry: prepend prior state if we have conversationId
   let pipelineMessages: ChatMessage[] = messages;
@@ -277,6 +276,10 @@ export async function runOptimizedOrBaseline(
     cacheKey: string;
     budgets: ReturnType<typeof computeBudgetsFromSpectral>;
     optimizationSteps: ProfitGateResult[];
+    lastSccDropped: number;
+    sccStateChars: number;
+    /** Code path only: failing signals in state (1 latest + up to 6 history). */
+    failingSignalsCount: number;
   }
 
   const applyMoatTransforms = (): MoatTransformResult => {
@@ -290,102 +293,47 @@ export async function runOptimizedOrBaseline(
     const gateOpts = path === "code" ? CODE_PROFIT_GATE : TALK_PROFIT_GATE;
     const optimizationSteps: ProfitGateResult[] = [];
 
-    // ===== PG-SCC: Spectral Context Compiler (profit-gated) =====
+    // ===== SINGLE SOURCE OF TRUTH = PG-SCC (no RefPack; no competing memory) =====
     let messagesAfterScc = pipelineMessages;
-    if (budgets.stateCompressionLevel > 0.2) {
-      const sccResult =
-        path === "talk"
-          ? compileTalkState({ messages: pipelineMessages, units, spectral, budgets })
-          : compileCodeState({ messages: pipelineMessages, units, spectral, budgets });
-      const gateScc = profitGate(pipelineMessages, sccResult.keptMessages, gateOpts, "scc");
-      optimizationSteps.push(gateScc);
-      if (gateScc.useAfter && sccResult.droppedCount > 0) {
-        messagesAfterScc = sccResult.keptMessages;
-        if (USE_PG_SCC_ONLY) {
-          const sys = messagesAfterScc.filter((m) => m.role === "system");
-          if (sys.length !== 1) {
-            throw new Error("SCC must be single system state");
-          }
-        }
+    let lastSccDropped = 0;
+    let sccStateChars = 0;
+    let failingSignalsCount = 0;
+
+    if (path === "code") {
+      const scc = compileCodeState({
+        messages: pipelineMessages,
+        units,
+        spectral,
+        budgets,
+      });
+      messagesAfterScc = scc.keptMessages;
+      lastSccDropped = scc.droppedCount;
+      sccStateChars = typeof scc.stateMsg.content === "string" ? scc.stateMsg.content.length : 0;
+      failingSignalsCount = scc.failingSignalsCount;
+    } else {
+      const scc = compileTalkState({
+        messages: pipelineMessages,
+        units,
+        spectral,
+        budgets,
+      });
+      messagesAfterScc = scc.keptMessages;
+      lastSccDropped = scc.droppedCount;
+      sccStateChars = typeof scc.stateMsg.content === "string" ? scc.stateMsg.content.length : 0;
+    }
+
+    if (USE_PG_SCC_ONLY && messagesAfterScc !== pipelineMessages) {
+      const sys = messagesAfterScc.filter((m) => m.role === "system");
+      if (sys.length !== 1) {
+        throw new Error("SCC must be single system state");
       }
     }
 
-    // ===== RefPack: INLINE_ONLY default; emit dictionary only if net_savings >= minRefpackSavings =====
-    // Skip RefPack entirely if SCC already reduced history to <= keepLastTurns.
-    function countTurns(msgs: ChatMessage[]): number {
-      let turns = 0;
-      let lastUser = false;
-      for (const m of msgs) {
-        if (m.role === "user") lastUser = true;
-        else if (m.role === "assistant" && lastUser) {
-          turns++;
-          lastUser = false;
-        }
-      }
-      return turns;
-    }
+    const gateScc = profitGate(pipelineMessages, messagesAfterScc, gateOpts, "scc");
+    optimizationSteps.push(gateScc);
 
     let messagesAfterRefPack = messagesAfterScc;
-    let refPackMetrics = { tokensBefore: 0, tokensAfter: 0, entriesCount: 0, replacementsMade: 0 };
-
-    if (budgets.compressionAggressiveness > 0.3 && countTurns(messagesAfterScc) > budgets.keepLastTurns) {
-      const refPackResult = buildRefPack({
-        units,
-        spectral,
-        path,
-        maxEntries: budgets.maxRefpackEntries,
-        messageText: messagesAfterScc.map((m) => m.content ?? "").join("\n"),
-      });
-
-      const inlineResult = applyInlineRefs({
-        messages: messagesAfterScc,
-        refPack: refPackResult.refPack,
-        spectral,
-        units,
-        omitDictionary: true,
-      });
-
-      const gateRef = profitGate(messagesAfterScc, inlineResult.messages, gateOpts, "refpack");
-      optimizationSteps.push(gateRef);
-      if (gateRef.useAfter) {
-        let finalRefPackMessages = inlineResult.messages;
-        const netSavingsInline = gateRef.before - gateRef.after;
-        if (netSavingsInline >= (budgets.minRefpackSavings ?? 30)) {
-          const withDict = applyInlineRefs({
-            messages: messagesAfterScc,
-            refPack: refPackResult.refPack,
-            spectral,
-            units,
-            omitDictionary: false,
-          });
-          const gateWithDict = profitGate(messagesAfterScc, withDict.messages, gateOpts, "refpack+dict");
-          if (gateWithDict.useAfter) {
-            finalRefPackMessages = withDict.messages;
-            refPackMetrics = {
-              tokensBefore: gateWithDict.before,
-              tokensAfter: gateWithDict.after,
-              entriesCount: refPackResult.refPack.entries.length,
-              replacementsMade: withDict.replacementsMade,
-            };
-          } else {
-            refPackMetrics = {
-              tokensBefore: gateRef.before,
-              tokensAfter: gateRef.after,
-              entriesCount: refPackResult.refPack.entries.length,
-              replacementsMade: inlineResult.replacementsMade,
-            };
-          }
-        } else {
-          refPackMetrics = {
-            tokensBefore: gateRef.before,
-            tokensAfter: gateRef.after,
-            entriesCount: refPackResult.refPack.entries.length,
-            replacementsMade: inlineResult.replacementsMade,
-          };
-        }
-        messagesAfterRefPack = finalRefPackMessages;
-      }
-    }
+    const refPackMetrics = { tokensBefore: 0, tokensAfter: 0, entriesCount: 0, replacementsMade: 0 };
 
     // ===== STE (Spectral Token Encoding): replaces PhraseBook; max 5 entries, ≤60 chars/entry; profit-gated =====
     let messagesAfterSTE = messagesAfterRefPack;
@@ -452,6 +400,9 @@ export async function runOptimizedOrBaseline(
       cacheKey,
       budgets,
       optimizationSteps,
+      lastSccDropped,
+      sccStateChars,
+      failingSignalsCount,
     };
   };
 
@@ -486,6 +437,9 @@ export async function runOptimizedOrBaseline(
       cacheKey,
       budgets: moatBudgets,
       optimizationSteps: moatSteps,
+      lastSccDropped,
+      sccStateChars,
+      failingSignalsCount,
     } = moatResult;
 
     // Update config with dynamic budgets
@@ -553,13 +507,11 @@ export async function runOptimizedOrBaseline(
     // If dry-run, skip provider call and return placeholder with optimization report
     if (dryRun) {
       const optimizationsAppliedDry: string[] = [];
-      if (refPackMetrics.entriesCount > 0) optimizationsAppliedDry.push("refpack");
+      if (lastSccDropped > 0) optimizationsAppliedDry.push("scc");
       if (phraseBookMetrics.changed) optimizationsAppliedDry.push("phrasebook");
       if (codeMapMetrics.changed) optimizationsAppliedDry.push("codemap");
-      const totalInputBeforeDry = refPackMetrics.tokensBefore ||
-        (phraseBookMetrics.tokensBefore || 0) + (codeMapMetrics.tokensBefore || 0);
-      const totalInputAfterDry = (refPackMetrics.tokensAfter || 0) +
-        (phraseBookMetrics.tokensAfter || 0) + (codeMapMetrics.tokensAfter || 0);
+      const totalInputBeforeDry = baselineTokenCount;
+      const totalInputAfterDry = optimizedTokenCount;
       const totalSavedDry = totalInputBeforeDry - totalInputAfterDry;
       const pctSavedDry = totalInputBeforeDry > 0 ? (totalSavedDry / totalInputBeforeDry) * 100 : 0;
       const tokenBreakdownDry: OptimizeOutput["tokenBreakdown"] = {};
@@ -593,6 +545,7 @@ export async function runOptimizedOrBaseline(
         debug: { mode: "optimized", ...policyDebug, dryRun: true },
         debugInternal: {
           mode: "optimized",
+          scc: { lastSccDropped, sccStateChars, failingSignalsCount },
           refpack: { tokensBefore: refPackMetrics.tokensBefore, tokensAfter: refPackMetrics.tokensAfter, entriesCount: refPackMetrics.entriesCount },
           phrasebook: { tokensBefore: phraseBookMetrics.tokensBefore, tokensAfter: phraseBookMetrics.tokensAfter, entriesCount: phraseBookMetrics.entriesCount, changed: phraseBookMetrics.changed },
           codemap: { tokensBefore: codeMapMetrics.tokensBefore, tokensAfter: codeMapMetrics.tokensAfter, symbolsCount: codeMapMetrics.symbolsCount, changed: codeMapMetrics.changed },
@@ -607,7 +560,7 @@ export async function runOptimizedOrBaseline(
             codemap: codeMapMetrics.changed,
             semantic_cache: false,
             cache_hit: false,
-            context_compiler: optimizationSteps.some((s) => s.label === "scc" && s.useAfter),
+            context_compiler: lastSccDropped > 0,
             profit_gated: optimizationSteps.some((s) => !s.useAfter),
           },
           tokens: {
@@ -696,6 +649,7 @@ export async function runOptimizedOrBaseline(
     const debugInternal = {
       mode: "optimized",
       ...policyDebug,
+      scc: { lastSccDropped, sccStateChars, failingSignalsCount },
       spectral: {
         // Public-safe fields (already in spectral result)
         nNodes: spectral.nNodes,

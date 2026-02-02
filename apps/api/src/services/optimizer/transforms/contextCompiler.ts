@@ -47,12 +47,15 @@ export interface CompileCodeStateOutput {
   stateMsg: ChatMessage;
   keptMessages: ChatMessage[];
   droppedCount: number;
+  /** Number of failing signals included in state (1 latest + up to 6 history). */
+  failingSignalsCount: number;
 }
 
 const MAX_BULLET_LEN = 120;
 const MAX_CONSTRAINT_LINE = 200;
 const MAX_TOUCHED_FILES = 15;
-const MAX_FAILING_SIGNALS_AFTER_LATEST = 8;
+/** Code path: 1 latest error + 6 history (deduped). */
+const MAX_FAILING_SIGNALS_AFTER_LATEST = 6;
 
 function truncate(s: string, max: number): string {
   if (s.length <= max) return s;
@@ -226,10 +229,12 @@ ${stateBody}
   const kept = getLastNTurnsPlusToolOutputs(messages, keepLastTurns);
   const keptMessages = [stateMsg, ...kept];
   const droppedCount = messages.length - keptMessages.length;
+  const failingSignalsCount = (latestSignal ? 1 : 0) + rest.length;
 
   return {
     stateMsg,
     keptMessages,
     droppedCount,
+    failingSignalsCount,
   };
 }
