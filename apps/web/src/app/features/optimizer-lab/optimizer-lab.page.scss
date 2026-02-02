@@ -77,11 +77,83 @@
     border-radius: 20px;
     font-size: 14px;
     font-weight: 500;
-    
-    .icon {
-      font-size: 16px;
+
+    .badge-icon {
+      font-size: 18px;
+      width: 18px;
+      height: 18px;
     }
   }
+}
+
+// Material icon sizing — consistent, professional look
+.btn-icon {
+  font-size: 18px;
+  width: 18px;
+  height: 18px;
+  margin-right: 6px;
+  vertical-align: middle;
+}
+
+.btn-icon-sm {
+  font-size: 16px;
+  width: 16px;
+  height: 16px;
+  margin-right: 4px;
+  vertical-align: middle;
+}
+
+.tab-icon {
+  font-size: 18px;
+  width: 18px;
+  height: 18px;
+  margin-right: 6px;
+  vertical-align: middle;
+}
+
+.toggle-icon {
+  font-size: 20px;
+  width: 20px;
+  height: 20px;
+  margin-right: 6px;
+  vertical-align: middle;
+}
+
+.empty-icon {
+  font-size: 48px;
+  width: 48px;
+  height: 48px;
+  color: var(--text-secondary, #6b7280);
+  margin-bottom: 16px;
+}
+
+.heading-icon {
+  font-size: 22px;
+  width: 22px;
+  height: 22px;
+  margin-right: 8px;
+  vertical-align: middle;
+}
+
+.list-icon {
+  font-size: 18px;
+  width: 18px;
+  height: 18px;
+  margin-right: 6px;
+  vertical-align: middle;
+
+  &.success {
+    color: var(--text-success, #166534);
+  }
+}
+
+.redacted-icon {
+  font-size: 18px;
+  width: 18px;
+  height: 18px;
+  margin-right: 8px;
+  vertical-align: middle;
+  color: var(--text-secondary, #6b7280);
 }
 
 // Layout
@@ -141,9 +213,12 @@
 .button-group {
   display: flex;
   gap: 8px;
-  
+
   button {
     flex: 1;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
     padding: 10px 16px;
     border: 1px solid var(--border-primary, #e5e7eb);
     border-radius: 6px;
@@ -153,11 +228,11 @@
     font-weight: 500;
     cursor: pointer;
     transition: all 0.15s;
-    
+
     &:hover {
       background: var(--surface-hover, #f3f4f6);
     }
-    
+
     &.active {
       background: var(--primary-color, #2563eb);
       color: white;
@@ -243,13 +318,15 @@
 }
 
 .toggle-advanced {
+  display: inline-flex;
+  align-items: center;
   background: none;
   border: none;
   color: var(--text-secondary, #666);
   font-size: 13px;
   cursor: pointer;
   padding: 4px 0;
-  
+
   &:hover {
     color: var(--primary-color, #2563eb);
   }
@@ -419,6 +496,9 @@
 }
 
 .btn-primary {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   flex: 1;
   padding: 12px 20px;
   background: var(--primary-color, #2563eb);
@@ -441,6 +521,8 @@
 }
 
 .btn-secondary {
+  display: inline-flex;
+  align-items: center;
   padding: 12px 20px;
   background: var(--surface-secondary, #f9fafb);
   color: var(--text-primary, #1a1a1a);
@@ -457,6 +539,8 @@
 }
 
 .btn-sm {
+  display: inline-flex;
+  align-items: center;
   padding: 6px 12px;
   background: var(--surface-secondary, #f9fafb);
   color: var(--text-primary, #1a1a1a);
@@ -464,7 +548,7 @@
   border-radius: 4px;
   font-size: 12px;
   cursor: pointer;
-  
+
   &:hover {
     background: var(--surface-hover, #f3f4f6);
   }
@@ -502,10 +586,13 @@
   flex: 1;
   padding: 48px;
   text-align: center;
-  
+
   .empty-icon {
     font-size: 48px;
+    width: 48px;
+    height: 48px;
     margin-bottom: 16px;
+    color: var(--text-secondary, #6b7280);
   }
   
   p {
@@ -551,8 +638,10 @@
   border-bottom: 1px solid var(--border-primary, #e5e7eb);
   padding: 0 16px;
   overflow-x: auto;
-  
+
   button {
+    display: inline-flex;
+    align-items: center;
     padding: 12px 16px;
     background: none;
     border: none;
@@ -563,7 +652,7 @@
     cursor: pointer;
     white-space: nowrap;
     transition: all 0.15s;
-    
+
     &:hover {
       color: var(--text-primary, #1a1a1a);
     }
@@ -722,8 +811,10 @@
 .trust-pane {
   .trust-intro {
     margin-bottom: 24px;
-    
+
     h3 {
+      display: flex;
+      align-items: center;
       font-size: 18px;
       font-weight: 600;
       margin: 0 0 8px;
@@ -740,8 +831,10 @@
   margin-bottom: 24px;
   padding: 16px;
   border-radius: 8px;
-  
+
   h4 {
+    display: flex;
+    align-items: center;
     font-size: 15px;
     font-weight: 600;
     margin: 0 0 12px;
@@ -819,9 +912,12 @@
   margin-bottom: 16px;
   font-size: 14px;
   color: var(--text-warning, #92400e);
-  
+
   .redacted-icon {
-    font-size: 16px;
+    font-size: 18px;
+    width: 18px;
+    height: 18px;
+    flex-shrink: 0;
   }
 }
 

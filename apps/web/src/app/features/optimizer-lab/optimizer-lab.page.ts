@@ -14,6 +14,7 @@ import { Component, OnInit, ChangeDetectorRef } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { Router, RouterLink } from '@angular/router';
+import { MatIconModule } from '@angular/material/icon';
 import {
   OptimizerLabService,
   OptimizeLabRequest,
@@ -39,7 +40,7 @@ type ResultTab = 'before' | 'after' | 'diff' | 'metrics' | 'trust' | 'debug';
 @Component({
   selector: 'app-optimizer-lab',
   standalone: true,
-  imports: [CommonModule, FormsModule, RouterLink],
+  imports: [CommonModule, FormsModule, RouterLink, MatIconModule],
   templateUrl: './optimizer-lab.page.html',
   styleUrls: ['./optimizer-lab.page.scss'],
 })

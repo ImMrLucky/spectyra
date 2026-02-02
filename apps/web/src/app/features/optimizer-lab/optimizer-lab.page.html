@@ -21,7 +21,7 @@
       <h1>Optimizer Lab</h1>
       <p class="subtitle">Test Spectyra's optimization pipeline without making provider calls</p>
       <div class="no-provider-badge">
-        <span class="icon">🔒</span>
+        <mat-icon class="badge-icon" aria-hidden="true">lock</mat-icon>
         <span>No provider calls made • No API keys required</span>
       </div>
     </header>
@@ -41,12 +41,14 @@
               <button 
                 [class.active]="demoType === 'chat'"
                 (click)="demoType = 'chat'">
-                💬 Chat
+                <mat-icon class="btn-icon">chat_bubble_outline</mat-icon>
+                Chat
               </button>
               <button 
                 [class.active]="demoType === 'code'"
                 (click)="demoType = 'code'">
-                💻 Code
+                <mat-icon class="btn-icon">code</mat-icon>
+                Code
               </button>
             </div>
             <small class="hint">Chat = support/sales style. Code = agentic coding sessions. Choose based on your content.</small>
@@ -100,10 +102,12 @@
             <label>Load Preset</label>
             <div class="button-group preset-group">
               <button class="btn-secondary" (click)="loadPreset('chat')">
-                📋 Chat Demo
+                <mat-icon class="btn-icon">content_paste</mat-icon>
+                Chat Demo
               </button>
               <button class="btn-secondary" (click)="loadPreset('code')">
-                📋 Code Demo
+                <mat-icon class="btn-icon">content_paste</mat-icon>
+                Code Demo
               </button>
             </div>
             <small class="hint">Load a sample prompt into the input below. Or use Generate Test Data for synthetic messages.</small>
@@ -186,7 +190,8 @@
           <button 
             class="toggle-advanced"
             (click)="showAdvancedOptions = !showAdvancedOptions">
-            {{ showAdvancedOptions ? '▼' : '▶' }} Advanced Options
+            <mat-icon class="toggle-icon" aria-hidden="true">{{ showAdvancedOptions ? 'expand_less' : 'keyboard_arrow_right' }}</mat-icon>
+            Advanced Options
           </button>
           
           <div *ngIf="showAdvancedOptions" class="advanced-options">
@@ -235,12 +240,14 @@
             class="btn-primary run-btn"
             (click)="runOptimization()"
             [disabled]="running">
-            {{ running ? 'Running...' : '▶ Run Optimization' }}
+            <mat-icon class="btn-icon" *ngIf="!running">play_arrow</mat-icon>
+            {{ running ? 'Running...' : 'Run Optimization' }}
           </button>
           <button 
             *ngIf="result"
             class="btn-secondary"
             (click)="clearResults()">
+            <mat-icon class="btn-icon">clear</mat-icon>
             Clear
           </button>
         </div>
@@ -254,7 +261,7 @@
       <!-- Right: Results Panel -->
       <section class="results-panel" [class.has-results]="result">
         <div *ngIf="!result && !running" class="empty-state">
-          <div class="empty-icon">🔬</div>
+          <mat-icon class="empty-icon" aria-hidden="true">science</mat-icon>
           <p>Run an optimization to see results</p>
           <p class="hint">Choose a demo type, load a preset, or enter your own prompt</p>
         </div>
@@ -271,30 +278,35 @@
               [class.active]="activeTab === 'metrics'"
               [attr.aria-selected]="activeTab === 'metrics'"
               (click)="switchTab('metrics')">
-              📊 Metrics
+              <mat-icon class="tab-icon">bar_chart</mat-icon>
+              Metrics
             </button>
             <button type="button" role="tab"
               [class.active]="activeTab === 'trust'"
               [attr.aria-selected]="activeTab === 'trust'"
               (click)="switchTab('trust')">
-              🛡️ Trust
+              <mat-icon class="tab-icon">shield</mat-icon>
+              Trust
             </button>
             <button type="button" role="tab"
               [class.active]="activeTab === 'before'"
               [attr.aria-selected]="activeTab === 'before'"
               (click)="switchTab('before')">
+              <mat-icon class="tab-icon">history</mat-icon>
               Before
             </button>
             <button type="button" role="tab"
               [class.active]="activeTab === 'after'"
               [attr.aria-selected]="activeTab === 'after'"
               (click)="switchTab('after')">
+              <mat-icon class="tab-icon">check_circle_outline</mat-icon>
               After
             </button>
             <button type="button" role="tab"
               [class.active]="activeTab === 'diff'"
               [attr.aria-selected]="activeTab === 'diff'"
               (click)="switchTab('diff')">
+              <mat-icon class="tab-icon">compare_arrows</mat-icon>
               Diff
             </button>
             <button type="button" role="tab"
@@ -302,7 +314,8 @@
               [class.active]="activeTab === 'debug'"
               [attr.aria-selected]="activeTab === 'debug'"
               (click)="switchTab('debug')">
-              🔧 Debug
+              <mat-icon class="tab-icon">build</mat-icon>
+              Debug
             </button>
           </div>
 
@@ -407,7 +420,8 @@
 
               <div class="export-section">
                 <button class="btn-secondary" (click)="exportRedactedReport()">
-                  📄 Export Redacted Report
+                  <mat-icon class="btn-icon">file_download</mat-icon>
+                  Export Redacted Report
                 </button>
               </div>
             </div>
@@ -415,19 +429,19 @@
             <!-- Trust Tab -->
             <div *ngIf="activeTab === 'trust'" class="tab-pane trust-pane">
               <div class="trust-intro">
-                <h3>🛡️ Trust & Safety Summary</h3>
+                <h3><mat-icon class="heading-icon">shield</mat-icon> Trust & Safety Summary</h3>
                 <p>Spectyra optimizes prompts without losing important content. Here's what we preserved and what we changed.</p>
               </div>
 
               <div class="trust-section preserved-section">
-                <h4>✅ Preserved (Unchanged)</h4>
+                <h4><mat-icon class="list-icon success">check_circle</mat-icon> Preserved (Unchanged)</h4>
                 <ul>
                   <li *ngFor="let item of (result.diff?.safetySummary?.preserved ?? [])">{{ item }}</li>
                 </ul>
               </div>
 
               <div class="trust-section changed-section">
-                <h4>🔄 Changed (Optimized)</h4>
+                <h4><mat-icon class="list-icon">sync</mat-icon> Changed (Optimized)</h4>
                 <ul>
                   <li *ngFor="let item of (result.diff?.safetySummary?.changed ?? [])">{{ item }}</li>
                 </ul>
@@ -437,7 +451,7 @@
               </div>
 
               <div class="trust-section risk-section">
-                <h4>ℹ️ Important Notes</h4>
+                <h4><mat-icon class="list-icon">info</mat-icon> Important Notes</h4>
                 <ul>
                   <li *ngFor="let item of (result.diff?.safetySummary?.riskNotes ?? [])">{{ item }}</li>
                 </ul>
@@ -451,7 +465,8 @@
                 <button 
                   class="btn-sm"
                   (click)="copyToClipboard(getRenderedText(result.original?.renderedText ?? ''))">
-                  📋 Copy
+                  <mat-icon class="btn-icon-sm">content_copy</mat-icon>
+                  Copy
                 </button>
               </div>
               <div class="message-list">
@@ -476,7 +491,8 @@
                   *ngIf="result.viewMode !== 'DEMO_VIEW'"
                   class="btn-sm"
                   (click)="copyToClipboard(getRenderedText(result.optimized?.renderedText ?? ''))">
-                  📋 Copy
+                  <mat-icon class="btn-icon-sm">content_copy</mat-icon>
+                  Copy
                 </button>
                 <span *ngIf="result.viewMode === 'DEMO_VIEW'" class="copy-disabled">
                   Copy disabled (redacted)
@@ -484,7 +500,7 @@
               </div>
               
               <div *ngIf="isRedacted(result.optimized?.messages)" class="redacted-notice">
-                <span class="redacted-icon">🔒</span>
+                <mat-icon class="redacted-icon" aria-hidden="true">lock</mat-icon>
                 <span>Content redacted for IP protection in DEMO_VIEW mode</span>
               </div>
               
