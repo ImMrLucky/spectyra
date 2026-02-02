@@ -141,8 +141,6 @@ async function getChangedFiles(rootPath: string): Promise<string[]> {
  * ```ts
  * const repoContext = await captureRepoContext({
  *   rootPath: "/path/to/repo",
- *   includeGlobs: ["**/*.ts", "**/*.tsx"],
- *   excludeGlobs: ["**/node_modules/**", "**/dist/**"],
  *   maxBytes: 100000, // 100KB
  *   entrypoints: ["src/index.ts", "src/app.ts"],
  * });
