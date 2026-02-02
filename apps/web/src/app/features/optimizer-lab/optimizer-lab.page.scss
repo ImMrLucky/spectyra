@@ -378,6 +378,39 @@
   }
 }
 
+.per-layer-section {
+  margin-top: 16px;
+  padding-top: 12px;
+  border-top: 1px solid var(--border-color, #e5e7eb);
+
+  h4 {
+    margin: 0 0 8px 0;
+    font-size: 13px;
+    color: var(--text-secondary, #6b7280);
+  }
+}
+
+.per-layer-list {
+  margin: 0;
+  padding-left: 20px;
+  font-size: 13px;
+
+  li {
+    margin-bottom: 6px;
+    color: var(--text-primary, #1a1a1a);
+
+    &.skipped {
+      color: var(--text-secondary, #6b7280);
+    }
+  }
+}
+
+.skipped-badge {
+  font-size: 11px;
+  color: var(--text-secondary, #6b7280);
+  font-style: italic;
+}
+
 // Action Buttons
 .action-buttons {
   display: flex;
