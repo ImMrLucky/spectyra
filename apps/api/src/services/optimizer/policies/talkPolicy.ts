@@ -46,11 +46,10 @@ export function applyTalkPolicy(input: TalkPolicyInput): TalkPolicyOutput {
     .map(i => units[i]?.id)
     .filter(Boolean) as string[];
 
-  // Decide compaction + delta prompting intensity
+  // Policy invariant: trim-only. No bulk instructional text (instructional text folded into SCC).
   const reuse = spectral.recommendation === "REUSE";
-  const delta = reuse || spectral.recommendation === "EXPAND";
 
-  // 1) Context compaction: replace stable content with REFs (bounded)
+  // 1) Context compaction: replace stable content with REFs (bounded) — reduces size only
   const { messages: afterCompaction, refsUsed } = applyContextCompaction({
     path: "talk",
     messages,
@@ -61,19 +60,17 @@ export function applyTalkPolicy(input: TalkPolicyInput): TalkPolicyOutput {
     keepLastTurns: opts.keepLastTurns ?? (reuse ? 2 : 3)
   });
 
-  // 2) Delta prompting: instruct to answer only the change
+  // 2) Delta prompting disabled: policies may not add bulk text; SCC is authoritative
   const { messages: afterDelta, deltaUsed } = applyDeltaPrompting({
     path: "talk",
     messages: afterCompaction,
-    enabled: delta,
+    enabled: false,
     noteUnstableUnitIds: unstableUnitIds
   });
 
   // 3) Post process: trimming level (actual trimming done after LLM response)
   const trimLevel: TalkPolicyOutput["debug"]["trimLevel"] =
-    reuse && opts.trimAggressive ? "aggressive" :
-    delta ? "moderate" :
-    "none";
+    reuse && opts.trimAggressive ? "aggressive" : "moderate";
 
   return {
     messagesFinal: afterDelta,

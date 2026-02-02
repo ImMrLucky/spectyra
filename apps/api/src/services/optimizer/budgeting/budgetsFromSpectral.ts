@@ -14,6 +14,8 @@ import { SpectralResult } from "../spectral/types";
 export interface Budgets {
   keepLastTurns: number;
   maxRefpackEntries: number;
+  /** Emit RefPack dictionary system message only if net_savings >= this (tokens). Default INLINE_ONLY otherwise. */
+  minRefpackSavings: number;
   compressionAggressiveness: number; // 0-1 scale
   phrasebookAggressiveness: number; // 0-1 scale
   codemapDetailLevel: number; // 0-1 scale (1 = full detail, 0 = minimal)
@@ -86,10 +88,12 @@ export function computeBudgetsFromSpectral(input: BudgetsFromSpectralInput): Bud
   const stateCompressionLevel = Math.max(0, Math.min(1, normalizedStability * 0.8 + (1 - normalizedNovelty) * 0.2));
   const maxStateChars = 4000; // single compact state message cap
   const retainToolLogs = true; // code path: keep error signatures
+  const minRefpackSavings = 30; // emit dictionary only if net savings >= 30 tokens
 
   return {
     keepLastTurns,
     maxRefpackEntries,
+    minRefpackSavings,
     compressionAggressiveness,
     phrasebookAggressiveness,
     codemapDetailLevel,

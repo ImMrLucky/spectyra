@@ -52,7 +52,7 @@ export interface CompileCodeStateOutput {
 const MAX_BULLET_LEN = 120;
 const MAX_CONSTRAINT_LINE = 200;
 const MAX_TOUCHED_FILES = 15;
-const MAX_FAILING_SIGNALS = 12;
+const MAX_FAILING_SIGNALS_AFTER_LATEST = 8;
 
 function truncate(s: string, max: number): string {
   if (s.length <= max) return s;
@@ -71,6 +71,30 @@ function getLastNTurns(messages: ChatMessage[], n: number): ChatMessage[] {
   const turns = Math.min(n, Math.ceil(nonSystem.length / 2));
   const keepCount = Math.min(nonSystem.length, turns * 2);
   return nonSystem.slice(-keepCount);
+}
+
+/** Last N turns plus all tool messages after the last user message. SCC invariant: preserve tool output after last user turn. */
+function getLastNTurnsPlusToolOutputs(messages: ChatMessage[], keepLastTurns: number): ChatMessage[] {
+  const nonSystem = messages.filter((m) => m.role !== "system");
+  let lastUserIdx = -1;
+  for (let i = nonSystem.length - 1; i >= 0; i--) {
+    if (nonSystem[i]!.role === "user") {
+      lastUserIdx = i;
+      break;
+    }
+  }
+  const lastNTurns = getLastNTurns(messages, keepLastTurns);
+  if (lastUserIdx < 0) return lastNTurns;
+  const toolAfterLastUser = nonSystem.slice(lastUserIdx + 1).filter((m) => m.role === "tool");
+  const lastSet = new Set(lastNTurns);
+  const added: ChatMessage[] = [];
+  for (const m of toolAfterLastUser) {
+    if (!lastSet.has(m)) {
+      added.push(m);
+      lastSet.add(m);
+    }
+  }
+  return [...lastNTurns, ...added];
 }
 
 /**
@@ -140,7 +164,8 @@ ${stateBody}
 }
 
 /**
- * Code SCC: compile task, constraints, failing signals, repo context; keep last N turns verbatim.
+ * Code SCC: compile task, rule-like constraints only, single latest failing signal + deduped rest; cap files touched; keep last N turns + all tool outputs after last user turn.
+ * SCC output is the ONLY system message added.
  */
 export function compileCodeState(input: CompileCodeStateInput): CompileCodeStateOutput {
   const { messages, budgets } = input;
@@ -155,16 +180,19 @@ export function compileCodeState(input: CompileCodeStateInput): CompileCodeState
   const constraintsBlock = buildConstraintsBlock(extracted);
 
   const failingSignalsRaw = retainToolLogs ? extractFailingSignals(messages) : [];
-  const failingSignalsDeduped = dedupeFailingSignals(failingSignalsRaw).slice(0, MAX_FAILING_SIGNALS);
+  const latestSignal = failingSignalsRaw.length > 0 ? failingSignalsRaw[failingSignalsRaw.length - 1]! : null;
+  const restRaw = latestSignal ? failingSignalsRaw.slice(0, -1) : failingSignalsRaw;
+  const rest = dedupeFailingSignals(restRaw).slice(0, MAX_FAILING_SIGNALS_AFTER_LATEST);
+  const formatSignal = (s: { file?: string; line?: number; code?: string; message?: string; raw?: string }) => {
+    if (s.file != null && s.line != null) return `- ${s.file}:${s.line}`;
+    if (s.code != null && s.message != null) return `- ${s.code}: ${truncate(s.message, 60)}`;
+    return `- ${truncate(s.raw ?? "", 80)}`;
+  };
+  const latestLine = latestSignal ? formatSignal(latestSignal).replace(/^-\s*/, "") : "";
+  const restBlock = rest.map(formatSignal).join("\n");
   const failingBlock =
-    failingSignalsDeduped.length > 0
-      ? failingSignalsDeduped
-          .map((s) => {
-            if (s.file != null && s.line != null) return `- ${s.file}:${s.line}`;
-            if (s.code != null && s.message != null) return `- ${s.code}: ${truncate(s.message, 60)}`;
-            return `- ${truncate(s.raw ?? "", 80)}`;
-          })
-          .join("\n")
+    latestLine || restBlock
+      ? (latestLine ? `Latest: ${latestLine}\nOthers (deduped):\n${restBlock}` : restBlock).trim()
       : "- (none)";
 
   const touchedFiles = extractTouchedFiles(messages)
@@ -174,7 +202,7 @@ export function compileCodeState(input: CompileCodeStateInput): CompileCodeState
 
   let stateBody = `Task: ${task}
 
-Constraints (verbatim):
+Constraints (rule-like only):
 ${constraintsBlock}
 
 Failing signals:
@@ -195,12 +223,13 @@ ${stateBody}
 [/SPECTYRA_STATE_CODE]`;
 
   const stateMsg: ChatMessage = { role: "system", content: stateContent };
-  const kept = getLastNTurns(messages, keepLastTurns);
-  const droppedCount = messages.length - (1 + kept.length);
+  const kept = getLastNTurnsPlusToolOutputs(messages, keepLastTurns);
+  const keptMessages = [stateMsg, ...kept];
+  const droppedCount = messages.length - keptMessages.length;
 
   return {
     stateMsg,
-    keptMessages: [stateMsg, ...kept],
+    keptMessages,
     droppedCount,
   };
 }

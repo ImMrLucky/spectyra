@@ -71,11 +71,11 @@ export function applyCodePolicy(input: CodePolicyInput): CodePolicyOutput {
     keepLastTurns: opts.keepLastTurns ?? (reuse ? 2 : 3)
   });
 
-  // 3) Delta prompting (always on, stronger if REUSE)
+  // 3) Delta prompting disabled: policies may not add bulk text; SCC is authoritative (trim-only)
   const { messages: afterDelta, deltaUsed } = applyDeltaPrompting({
     path: "code",
     messages: afterCompaction,
-    enabled: true,
+    enabled: false,
     noteUnstableUnitIds: unstableUnitIds
   });
 

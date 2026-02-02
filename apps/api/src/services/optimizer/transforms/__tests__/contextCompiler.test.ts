@@ -29,6 +29,7 @@ import type { Budgets } from "../../budgeting/budgetsFromSpectral.js";
 const defaultBudgets: Budgets = {
   keepLastTurns: 2,
   maxRefpackEntries: 6,
+  minRefpackSavings: 30,
   compressionAggressiveness: 0.5,
   phrasebookAggressiveness: 0.5,
   codemapDetailLevel: 0.7,

@@ -11,14 +11,14 @@ import { runQualityGuard, RequiredCheck } from "./quality/qualityGuard";
 // Core Moat v1 transforms + PG-SCC
 import { compileTalkState, compileCodeState } from "./transforms/contextCompiler";
 import { buildRefPack, applyInlineRefs } from "./transforms/refPack";
-import { buildLocalPhraseBook } from "./transforms/phraseBook";
 import { buildCodeMap } from "./transforms/codeMap";
 import { computeBudgetsFromSpectral } from "./budgeting/budgetsFromSpectral";
 import { semanticCacheKey } from "./cache/semanticHash";
 import { getCacheStore } from "./cache/createCacheStore";
 import { getConversationState, setConversationState } from "./cache/conversationState";
-import { profitGate, TALK_PROFIT_GATE, CODE_PROFIT_GATE } from "./utils/tokenCount";
+import { profitGate, TALK_PROFIT_GATE, CODE_PROFIT_GATE, estimateInputTokens } from "./utils/tokenCount";
 import type { ProfitGateResult } from "./utils/tokenCount";
+import { buildSTE } from "./transforms/ste";
 
 import type { OptimizerChatProvider } from "@spectyra/shared";
 
@@ -107,6 +107,8 @@ export interface OptimizeOutput {
       saved?: number;
       pct_saved?: number;
     };
+    /** Set true when optimized exceeded baseline and pipeline reverted to baseline. */
+    reverted?: boolean;
     spectral?: {
       nNodes: number;
       nEdges: number;
@@ -161,6 +163,14 @@ export async function runOptimizedOrBaseline(
   }
 
   // -------- Optimized pipeline --------
+  //
+  // CORE INVARIANTS:
+  // 1. Any optimization layer (RefPack, STE, CodeMap, policies) MUST prove net token savings or be skipped (profit gates).
+  // 2. SCC (Spectral Context Compiler) is the authoritative compression step; its output is the only system message added.
+  // 3. Optimized prompt must never exceed baseline; final size guard reverts to baseline and sets optimizationReport.reverted if so.
+  //
+  // Pipeline order: unitize → embed → graph → spectral → budgets → SCC → profit-gated RefPack → profit-gated STE → profit-gated CodeMap (code only) → policy (trim-only) → final size guard.
+  //
   // Markov state carry: prepend prior state if we have conversationId
   let pipelineMessages: ChatMessage[] = messages;
   if (conversationId) {
@@ -173,6 +183,8 @@ export async function runOptimizedOrBaseline(
       // ignore
     }
   }
+
+  const baselineTokenCount = estimateInputTokens(pipelineMessages);
 
   // 1) Unitize
   const unitsRaw = unitizeMessages({
@@ -189,7 +201,7 @@ export async function runOptimizedOrBaseline(
   // 3) Build graph
   const graph = buildGraph({ path, units, opts: cfg.spectral });
 
-  // 4) Spectral analysis (MOAT) - with multi-operator stability
+  // 4) Spectral analysis → budgets. SCC is the authoritative compression step.
   const spectral = spectralAnalyze({
     graph,
     opts: cfg.spectral,
@@ -289,11 +301,25 @@ export async function runOptimizedOrBaseline(
       }
     }
 
-    // ===== Core Moat v1: RefPack + Inline Replacement (profit-gated) =====
+    // ===== RefPack: INLINE_ONLY default; emit dictionary only if net_savings >= minRefpackSavings =====
+    // Skip RefPack entirely if SCC already reduced history to <= keepLastTurns.
+    function countTurns(msgs: ChatMessage[]): number {
+      let turns = 0;
+      let lastUser = false;
+      for (const m of msgs) {
+        if (m.role === "user") lastUser = true;
+        else if (m.role === "assistant" && lastUser) {
+          turns++;
+          lastUser = false;
+        }
+      }
+      return turns;
+    }
+
     let messagesAfterRefPack = messagesAfterScc;
     let refPackMetrics = { tokensBefore: 0, tokensAfter: 0, entriesCount: 0, replacementsMade: 0 };
-    
-    if (budgets.compressionAggressiveness > 0.3) {
+
+    if (budgets.compressionAggressiveness > 0.3 && countTurns(messagesAfterScc) > budgets.keepLastTurns) {
       const refPackResult = buildRefPack({
         units,
         spectral,
@@ -301,63 +327,94 @@ export async function runOptimizedOrBaseline(
         maxEntries: budgets.maxRefpackEntries,
         messageText: messagesAfterScc.map((m) => m.content ?? "").join("\n"),
       });
-      
+
       const inlineResult = applyInlineRefs({
         messages: messagesAfterScc,
         refPack: refPackResult.refPack,
         spectral,
         units,
+        omitDictionary: true,
       });
-      
+
       const gateRef = profitGate(messagesAfterScc, inlineResult.messages, gateOpts, "refpack");
       optimizationSteps.push(gateRef);
       if (gateRef.useAfter) {
-        messagesAfterRefPack = inlineResult.messages;
-        refPackMetrics = {
-          tokensBefore: refPackResult.tokensBefore,
-          tokensAfter: refPackResult.tokensAfter,
-          entriesCount: refPackResult.refPack.entries.length,
-          replacementsMade: inlineResult.replacementsMade,
-        };
+        let finalRefPackMessages = inlineResult.messages;
+        const netSavingsInline = gateRef.before - gateRef.after;
+        if (netSavingsInline >= (budgets.minRefpackSavings ?? 30)) {
+          const withDict = applyInlineRefs({
+            messages: messagesAfterScc,
+            refPack: refPackResult.refPack,
+            spectral,
+            units,
+            omitDictionary: false,
+          });
+          const gateWithDict = profitGate(messagesAfterScc, withDict.messages, gateOpts, "refpack+dict");
+          if (gateWithDict.useAfter) {
+            finalRefPackMessages = withDict.messages;
+            refPackMetrics = {
+              tokensBefore: gateWithDict.before,
+              tokensAfter: gateWithDict.after,
+              entriesCount: refPackResult.refPack.entries.length,
+              replacementsMade: withDict.replacementsMade,
+            };
+          } else {
+            refPackMetrics = {
+              tokensBefore: gateRef.before,
+              tokensAfter: gateRef.after,
+              entriesCount: refPackResult.refPack.entries.length,
+              replacementsMade: inlineResult.replacementsMade,
+            };
+          }
+        } else {
+          refPackMetrics = {
+            tokensBefore: gateRef.before,
+            tokensAfter: gateRef.after,
+            entriesCount: refPackResult.refPack.entries.length,
+            replacementsMade: inlineResult.replacementsMade,
+          };
+        }
+        messagesAfterRefPack = finalRefPackMessages;
       }
     }
 
-    // ===== Core Moat v1: PhraseBook Encoding (profit-gated) =====
-    let messagesAfterPhraseBook = messagesAfterRefPack;
+    // ===== STE (Spectral Token Encoding): replaces PhraseBook; max 5 entries, ≤60 chars/entry; profit-gated =====
+    let messagesAfterSTE = messagesAfterRefPack;
     let phraseBookMetrics = { tokensBefore: 0, tokensAfter: 0, entriesCount: 0, changed: false };
-    
+
     if (budgets.phrasebookAggressiveness > 0.3) {
-      const phraseBookResult = buildLocalPhraseBook({
+      const steResult = buildSTE({
         messages: messagesAfterRefPack,
         aggressiveness: budgets.phrasebookAggressiveness,
       });
-      
-      const gatePh = profitGate(messagesAfterRefPack, phraseBookResult.messages, gateOpts, "phrasebook");
-      optimizationSteps.push(gatePh);
-      if (gatePh.useAfter && phraseBookResult.changed) {
-        messagesAfterPhraseBook = phraseBookResult.messages;
+
+      const gateSte = profitGate(messagesAfterRefPack, steResult.messages, gateOpts, "ste");
+      optimizationSteps.push(gateSte);
+      if (gateSte.useAfter && steResult.changed) {
+        messagesAfterSTE = steResult.messages;
         phraseBookMetrics = {
-          tokensBefore: phraseBookResult.tokensBefore,
-          tokensAfter: phraseBookResult.tokensAfter,
-          entriesCount: phraseBookResult.phraseBook.entries.length,
-          changed: phraseBookResult.changed,
+          tokensBefore: steResult.tokensBefore,
+          tokensAfter: steResult.tokensAfter,
+          entriesCount: steResult.ste.entries.length,
+          changed: steResult.changed,
         };
       }
     }
 
-    // ===== Core Moat v1: CodeMap Compression (code path only, profit-gated) =====
-    let messagesAfterCodeMap = messagesAfterPhraseBook;
+    // ===== CodeMap: code path only, run on SCC output; structural index only (symbols/imports/exports), no prose =====
+    let messagesAfterCodeMap = messagesAfterSTE;
     let codeMapMetrics = { tokensBefore: 0, tokensAfter: 0, symbolsCount: 0, changed: false };
-    
+
     if (path === "code" && budgets.codemapDetailLevel < 1.0) {
       const codeMapResult = buildCodeMap({
-        messages: messagesAfterPhraseBook,
+        messages: messagesAfterScc,
         spectral,
         detailLevel: budgets.codemapDetailLevel,
+        structuralOnly: true,
       });
-      
+
       if (codeMapResult.changed) {
-        const gateCm = profitGate(messagesAfterPhraseBook, codeMapResult.messages, gateOpts, "codemap");
+        const gateCm = profitGate(messagesAfterSTE, codeMapResult.messages, gateOpts, "codemap");
         optimizationSteps.push(gateCm);
         if (gateCm.useAfter) {
           messagesAfterCodeMap = codeMapResult.messages;
@@ -463,6 +520,14 @@ export async function runOptimizedOrBaseline(
       messagesFinal = messagesAfterCodeMap;
     }
 
+    // Final safety: optimized prompt must never exceed baseline. Revert and mark reverted if so.
+    const optimizedTokenCount = estimateInputTokens(messagesFinal);
+    let reverted = false;
+    if (optimizedTokenCount > baselineTokenCount) {
+      messagesFinal = pipelineMessages;
+      reverted = true;
+    }
+
     // Markov state carry: persist compiled state for next request
     if (conversationId && messagesFinal.length > 0) {
       const stateMsg = messagesFinal.find(
@@ -543,6 +608,7 @@ export async function runOptimizedOrBaseline(
             saved: totalSavedDry > 0 ? totalSavedDry : undefined,
             pct_saved: pctSavedDry > 0 ? Math.round(pctSavedDry * 100) / 100 : undefined,
           },
+          reverted: reverted,
           spectral: spectral ? { nNodes: spectral.nNodes, nEdges: spectral.nEdges, stabilityIndex: spectral.stabilityIndex, lambda2: spectral.lambda2 } : undefined,
         },
       };
@@ -581,6 +647,7 @@ export async function runOptimizedOrBaseline(
         tokens: {
           estimated: true,
         },
+        reverted,
         spectral: {
           nNodes: spectral.nNodes,
           nEdges: spectral.nEdges,
@@ -745,6 +812,7 @@ export async function runOptimizedOrBaseline(
         saved: totalSaved > 0 ? totalSaved : undefined,
         pct_saved: pctSaved > 0 ? Math.round(pctSaved * 100) / 100 : undefined,
       },
+      reverted,
       spectral: {
         nNodes: spectral.nNodes,
         nEdges: spectral.nEdges,
@@ -837,6 +905,14 @@ export async function runOptimizedOrBaseline(
       policyDebug = p.debug;
     }
 
+    // Final safety: revert to baseline if optimized exceeds baseline (same invariant as runOnce)
+    const retryOptimizedTokens = estimateInputTokens(messagesFinal);
+    let reverted = false;
+    if (retryOptimizedTokens > baselineTokenCount) {
+      messagesFinal = pipelineMessages;
+      reverted = true;
+    }
+
     const out = await provider.chat({
       model,
       messages: messagesFinal,
@@ -884,6 +960,7 @@ export async function runOptimizedOrBaseline(
       tokens: {
         estimated: false,
       },
+      reverted,
       spectral: {
         nNodes: spectral.nNodes,
         nEdges: spectral.nEdges,

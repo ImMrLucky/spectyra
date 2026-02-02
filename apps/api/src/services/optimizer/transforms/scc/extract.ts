@@ -6,16 +6,25 @@ import type { ChatMessage } from "@spectyra/shared";
 import type { FailingSignal } from "./normalize.js";
 import { normalizeBullet, normalizePath, dedupeOrdered } from "./normalize.js";
 
-/** Patterns that indicate a constraint line. */
+/** Patterns that indicate a rule-like constraint (excludes config JSON). */
 const CONSTRAINT_PATTERNS = [
   /\b(Do not|Don't|Must|Must not|Never|Always|Target|No\s+[a-z]+)\b/i,
   /\b(Constraints?|constraint)\s*:?\s*$/im,
   /\bAdd the same constraint\b/i,
 ];
 
+/** Exclude lines that look like config/JSON (key-value, braces). */
+function isConfigOrJsonLine(line: string): boolean {
+  const t = line.trim();
+  if (/^\s*[\{\[]/.test(t) || /\}\s*$/.test(t)) return true;
+  if (/^["']?\w+["']?\s*:\s*/.test(t) || /"[^"]*"\s*:\s*/.test(t)) return true;
+  return false;
+}
+
 function isConstraintLine(line: string): boolean {
   const t = line.trim();
   if (t.length > 300) return false;
+  if (isConfigOrJsonLine(t)) return false;
   return CONSTRAINT_PATTERNS.some((re) => re.test(t));
 }
 
@@ -171,4 +180,14 @@ export function extractTouchedFiles(messages: ChatMessage[]): string[] {
     }
   }
   return dedupeOrdered([...paths]);
+}
+
+/**
+ * Return the single latest failing signal (most recent tool error).
+ * SCC uses this as the authoritative "latest error" then dedupes the rest.
+ */
+export function getLatestFailingSignal(messages: ChatMessage[]): FailingSignal | null {
+  const all = extractFailingSignals(messages);
+  if (all.length === 0) return null;
+  return all[all.length - 1]!;
 }

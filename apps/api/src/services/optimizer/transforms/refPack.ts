@@ -35,6 +35,8 @@ export interface ApplyInlineRefsInput {
   refPack: RefPack;
   spectral: SpectralResult;
   units: SemanticUnit[]; // Needed to find original text for replacement
+  /** INLINE_ONLY: if true, do not add RefPack dictionary system message; only inline [[R#]] replacements. */
+  omitDictionary?: boolean;
 }
 
 export interface ApplyInlineRefsOutput {
@@ -103,10 +105,12 @@ export function buildRefPack(input: RefPackInput): RefPackOutput {
 }
 
 /**
- * Apply inline replacements: replace repeated chunks with [[R#]] + tiny label
+ * Apply inline replacements: replace repeated chunks with [[R#]].
+ * Default INLINE_ONLY: set omitDictionary true to avoid adding the RefPack dictionary system message.
+ * Only emit dictionary when caller confirms net_savings >= minRefpackSavings.
  */
 export function applyInlineRefs(input: ApplyInlineRefsInput): ApplyInlineRefsOutput {
-  const { messages, refPack, spectral, units } = input;
+  const { messages, refPack, spectral, units, omitDictionary = true } = input;
 
   if (refPack.entries.length === 0) {
     return { messages, replacementsMade: 0 };
@@ -115,15 +119,12 @@ export function applyInlineRefs(input: ApplyInlineRefsInput): ApplyInlineRefsOut
   let replacementsMade = 0;
   const newMessages: ChatMessage[] = [];
 
-  // Build a map of original unit IDs to ref numbers
   const originalIdToRef = new Map<string, number>();
   refPack.entries.forEach(entry => {
     originalIdToRef.set(entry.originalId, entry.id);
   });
 
-  // Process each message
   for (const msg of messages) {
-    // Skip system messages (we'll add REFPACK separately)
     if (msg.role === "system") {
       newMessages.push(msg);
       continue;
@@ -132,23 +133,14 @@ export function applyInlineRefs(input: ApplyInlineRefsInput): ApplyInlineRefsOut
     let content = msg.content;
     let changed = false;
 
-    // For each ref entry, try to find and replace matching text
-    // We look for exact matches or very similar substrings
-    // IMPORTANT: Skip replacements inside code fences
     for (const entry of refPack.entries) {
-      // Find the unit by ID to get original text
       const unit = units.find(u => u.id === entry.originalId);
       if (!unit) continue;
 
       const originalText = unit.text;
-      if (!originalText || originalText.length < 20) continue; // Skip very short units
+      if (!originalText || originalText.length < 20) continue;
+      if (isInsideCodeFence(content, originalText)) continue;
 
-      // Safety check: skip if originalText appears inside a code fence
-      if (isInsideCodeFence(content, originalText)) {
-        continue;
-      }
-
-      // Apply replacement only outside code fences
       const ref = `[[R${entry.id}]]`;
       const newContent = replaceOnlyOutsideCodeFences(content, (text) => {
         if (text.includes(originalText)) {
@@ -170,11 +162,12 @@ export function applyInlineRefs(input: ApplyInlineRefsInput): ApplyInlineRefsOut
     });
   }
 
-  // Add REFPACK system message at the top
+  if (omitDictionary) {
+    return { messages: newMessages, replacementsMade };
+  }
+
   const refPackContent = buildRefPackSystemMessage(refPack);
   const refPackMsg: ChatMessage = { role: "system", content: refPackContent };
-
-  // Insert REFPACK before other system messages
   const systemMsgs = newMessages.filter(m => m.role === "system");
   const nonSystemMsgs = newMessages.filter(m => m.role !== "system");
   const finalMessages = [refPackMsg, ...systemMsgs, ...nonSystemMsgs];
@@ -202,9 +195,9 @@ function summarizeUnit(text: string, maxChars: number): string {
   return summary.slice(0, maxChars - 1) + "…";
 }
 
-/** v2: compact format — 1|<summary> (no quotes, no extra whitespace). */
-function buildRefPackSystemMessage(refPack: RefPack): string {
-  const entries = refPack.entries.map(e => `${e.id}|${e.summary}`).join("\n");
+/** v2: compact format — 1|<summary>. Exported for optimizer to compute tokens-with-dict for minRefpackSavings check. */
+export function buildRefPackSystemMessage(refPack: RefPack): string {
+  const entries = refPack.entries.map((e) => `${e.id}|${e.summary}`).join("\n");
   return `REFPACK\n${entries}\nUse [[R1]], [[R2]], etc. as exact aliases.`;
 }
 

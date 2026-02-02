@@ -23,6 +23,8 @@ export interface CodeMapInput {
   messages: ChatMessage[];
   spectral: SpectralResult;
   detailLevel: number; // 0-1 scale (1 = full detail, 0 = minimal)
+  /** When true, only emit structural index (symbols/imports/exports). No snippets, no prose. */
+  structuralOnly?: boolean;
 }
 
 export interface CodeMapOutput {
@@ -35,14 +37,14 @@ export interface CodeMapOutput {
 }
 
 /**
- * Build CodeMap from code blocks in messages
+ * Build CodeMap from code blocks in messages.
+ * When structuralOnly is true: only emit symbols/imports/exports index; no snippets, no prose.
  */
 export function buildCodeMap(input: CodeMapInput): CodeMapOutput {
-  const { messages, spectral, detailLevel } = input;
+  const { messages, spectral, detailLevel, structuralOnly = false } = input;
 
-  // Extract all code blocks
   const codeBlocks = extractCodeBlocks(messages);
-  
+
   if (codeBlocks.length === 0) {
     return {
       messages,
@@ -53,38 +55,44 @@ export function buildCodeMap(input: CodeMapInput): CodeMapOutput {
     };
   }
 
-  // Build symbol map, imports, exports
   const symbols: Array<{ name: string; type: string; signature?: string }> = [];
   const exports: string[] = [];
   const imports: string[] = [];
   const dependencies: string[] = [];
 
   for (const block of codeBlocks) {
-    // Extract symbols (functions, classes, variables)
-    const blockSymbols = extractSymbols(block.content, block.lang);
-    symbols.push(...blockSymbols);
-
-    // Extract exports
-    const blockExports = extractExports(block.content, block.lang);
-    exports.push(...blockExports);
-
-    // Extract imports
-    const blockImports = extractImports(block.content, block.lang);
-    imports.push(...blockImports);
-
-    // Extract dependencies (from package.json, requirements.txt, etc.)
-    const blockDeps = extractDependencies(block.content, block.lang);
-    dependencies.push(...blockDeps);
+    symbols.push(...extractSymbols(block.content, block.lang));
+    exports.push(...extractExports(block.content, block.lang));
+    imports.push(...extractImports(block.content, block.lang));
+    dependencies.push(...extractDependencies(block.content, block.lang));
   }
 
-  // Deduplicate
   const uniqueSymbols = deduplicateSymbols(symbols);
   const uniqueExports = [...new Set(exports)];
   const uniqueImports = [...new Set(imports)];
   const uniqueDeps = [...new Set(dependencies)];
 
-  // Select snippets based on detail level
-  // High detail (1.0) = keep all, low detail (0.0) = keep minimal
+  if (structuralOnly) {
+    const codeMap: CodeMap = {
+      symbols: uniqueSymbols,
+      exports: uniqueExports,
+      imports: uniqueImports,
+      dependencies: uniqueDeps,
+      snippets: [],
+    };
+    const structuralText = buildCodeMapStructuralText(codeMap);
+    const tokensBefore = estimateTokens(codeBlocks.map((b) => b.content).join("\n"));
+    const newMessages = replaceCodeBlocksWithStructuralRef(messages, structuralText);
+    const tokensAfter = estimateTokens(structuralText + newMessages.map((m) => m.content).join("\n"));
+    return {
+      messages: newMessages,
+      codeMap,
+      tokensBefore,
+      tokensAfter,
+      changed: true,
+    };
+  }
+
   const keepSnippets = Math.max(1, Math.ceil(codeBlocks.length * detailLevel));
   const sortedBlocks = codeBlocks.sort((a, b) => b.content.length - a.content.length);
   const selectedBlocks = sortedBlocks.slice(0, keepSnippets);
@@ -97,7 +105,7 @@ export function buildCodeMap(input: CodeMapInput): CodeMapOutput {
     lines: block.content.split("\n").length,
   }));
 
-  const omittedBlocksMeta = omittedBlocks.map(block => ({
+  const omittedBlocksMeta = omittedBlocks.map((block) => ({
     lang: block.lang,
     lines: block.content.split("\n").length,
     reason: "detailLevel",
@@ -111,12 +119,10 @@ export function buildCodeMap(input: CodeMapInput): CodeMapOutput {
     snippets: selectedSnippets,
   };
 
-  // Estimate tokens
-  const tokensBefore = estimateTokens(codeBlocks.map(b => b.content).join("\n"));
+  const tokensBefore = estimateTokens(codeBlocks.map((b) => b.content).join("\n"));
   const codeMapText = buildCodeMapText(codeMap, omittedBlocksMeta);
   const tokensAfter = estimateTokens(codeMapText);
 
-  // Replace code blocks in messages with CodeMap
   const newMessages = replaceCodeBlocksWithCodeMap(messages, codeMap, codeBlocks, omittedBlocksMeta);
 
   return {
@@ -127,6 +133,32 @@ export function buildCodeMap(input: CodeMapInput): CodeMapOutput {
     changed: true,
     omittedBlocks: omittedBlocksMeta,
   };
+}
+
+/** Structural index only: symbols, imports, exports. No prose. */
+function buildCodeMapStructuralText(codeMap: CodeMap): string {
+  const lines = [
+    "CODEMAP (structural)",
+    `symbols: [${codeMap.symbols.map((s) => `${s.name}:${s.type}`).join(", ")}]`,
+    `imports: [${codeMap.imports.map((i) => `"${i}"`).join(", ")}]`,
+    `exports: [${codeMap.exports.map((e) => `"${e}"`).join(", ")}]`,
+  ];
+  return lines.join("\n");
+}
+
+/** Replace all code blocks with [[CODEMAP:structural]] and prepend structural index as single system message. No prose. */
+function replaceCodeBlocksWithStructuralRef(messages: ChatMessage[], structuralText: string): ChatMessage[] {
+  const ref = "[[CODEMAP:structural]]";
+  const regex = /```(\w+)?\n([\s\S]*?)```/g;
+  const newMessages: ChatMessage[] = [];
+  for (const msg of messages) {
+    const content = (msg.content ?? "").replace(regex, ref);
+    newMessages.push({ ...msg, content });
+  }
+  const systemMsg: ChatMessage = { role: "system", content: structuralText };
+  const systemMsgs = newMessages.filter((m) => m.role === "system");
+  const nonSystemMsgs = newMessages.filter((m) => m.role !== "system");
+  return [systemMsg, ...systemMsgs, ...nonSystemMsgs];
 }
 
 /**
