@@ -179,7 +179,8 @@ export async function runOptimizedOrBaseline(
   });
 
   // 5) If unstable: clarify short-circuit (saves tokens and avoids wrong answers)
-  if (spectral.recommendation === "ASK_CLARIFY") {
+  // In dry-run (e.g. Optimizer Lab), skip short-circuit so we still run transforms and show real before/after.
+  if (spectral.recommendation === "ASK_CLARIFY" && !dryRun) {
     const qText = makeClarifyQuestion(path);
     const q = runQualityGuard({ text: qText, requiredChecks }); // usually passes if no checks
     
