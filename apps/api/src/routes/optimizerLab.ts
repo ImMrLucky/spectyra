@@ -469,7 +469,7 @@ optimizerLabRouter.post("/optimize", async (req: AuthenticatedRequest, res) => {
       optimizationLevel,
       viewMode,
       tokensBefore: baselineEstimate.input_tokens,
-      tokensAfter: optimizedEstimate.input_tokens,
+      tokensAfter: optimizedEstimateFromMessages.input_tokens,
       pctSaved: Math.round(pctSaved * 100) / 100,
       latencyMs: Date.now() - startTime,
       userId: req.auth?.userId,
