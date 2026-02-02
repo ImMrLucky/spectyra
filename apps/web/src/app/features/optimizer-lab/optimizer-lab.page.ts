@@ -179,11 +179,12 @@ export class OptimizerLabPage implements OnInit {
 
     this.optimizerLab.runOptimization(request).subscribe({
       next: (response) => {
-        this.result = response;
+        this.result = this.normalizeResponse(response);
         this.running = false;
         this.activeTab = 'metrics';
+        const pct = this.result.diff?.summary?.pctSaved ?? 0;
         this.snackbar.showSuccess(
-          `Optimization complete: ${response.diff.summary.pctSaved.toFixed(1)}% tokens saved`
+          `Optimization complete: ${typeof pct === 'number' ? pct.toFixed(1) : pct}% tokens saved`
         );
       },
       error: (err) => {
@@ -196,6 +197,70 @@ export class OptimizerLabPage implements OnInit {
 
   switchTab(tab: ResultTab) {
     this.activeTab = tab;
+  }
+
+  /**
+   * Normalize API response so UI always gets camelCase and expected shape.
+   * Handles both camelCase and snake_case from the API.
+   */
+  private normalizeResponse(res: any): OptimizeLabResponse {
+    const o = res?.original ?? {};
+    const opt = res?.optimized ?? {};
+    const d = res?.diff ?? {};
+    const s = d?.summary ?? {};
+    const safety = d?.safetySummary ?? {};
+    const meta = res?.meta ?? {};
+    const oTe = o?.tokenEstimate ?? o?.token_estimate ?? {};
+    const optTe = opt?.tokenEstimate ?? opt?.token_estimate ?? {};
+    return {
+      viewMode: res?.viewMode ?? res?.view_mode ?? 'DEMO_VIEW',
+      original: {
+        messages: Array.isArray(o?.messages) ? o.messages : [],
+        renderedText: o?.renderedText ?? o?.rendered_text ?? '',
+        tokenEstimate: {
+          inputTokens: oTe?.inputTokens ?? oTe?.input_tokens ?? 0,
+          outputTokens: oTe?.outputTokens ?? oTe?.output_tokens ?? 0,
+          totalTokens: oTe?.totalTokens ?? oTe?.total_tokens ?? 0,
+          estimatedCostUsd: oTe?.estimatedCostUsd ?? oTe?.estimated_cost_usd ?? 0,
+        },
+      },
+      optimized: {
+        messages: Array.isArray(opt?.messages) ? opt.messages : (typeof opt?.messages === 'object' ? opt.messages : []),
+        renderedText: typeof opt?.renderedText === 'string' ? opt.renderedText : (opt?.rendered_text ?? ''),
+        tokenEstimate: {
+          inputTokens: optTe?.inputTokens ?? optTe?.input_tokens ?? 0,
+          outputTokens: optTe?.outputTokens ?? optTe?.output_tokens ?? 0,
+          totalTokens: optTe?.totalTokens ?? optTe?.total_tokens ?? 0,
+          estimatedCostUsd: optTe?.estimatedCostUsd ?? optTe?.estimated_cost_usd ?? 0,
+        },
+      },
+      diff: {
+        appliedTransforms: Array.isArray(d?.appliedTransforms) ? d.appliedTransforms : (d?.applied_transforms ?? []),
+        summary: {
+          inputTokensBefore: s?.inputTokensBefore ?? s?.input_tokens_before ?? 0,
+          inputTokensAfter: s?.inputTokensAfter ?? s?.input_tokens_after ?? 0,
+          pctSaved: typeof s?.pctSaved === 'number' ? s.pctSaved : (s?.pct_saved ?? 0),
+          refsUsed: s?.refsUsed ?? s?.refs_used,
+          phrasebookEntries: s?.phrasebookEntries ?? s?.phrasebook_entries,
+          codemapSnippetsKept: s?.codemapSnippetsKept ?? s?.codemap_snippets_kept,
+          codemapOmittedBlocks: s?.codemapOmittedBlocks ?? s?.codemap_omitted_blocks,
+        },
+        safetySummary: {
+          preserved: Array.isArray(safety?.preserved) ? safety.preserved : [],
+          changed: Array.isArray(safety?.changed) ? safety.changed : [],
+          riskNotes: Array.isArray(safety?.riskNotes) ? safety.riskNotes : (safety?.risk_notes ?? []),
+        },
+        unifiedDiff: d?.unifiedDiff ?? d?.unified_diff,
+      },
+      meta: {
+        demoType: meta?.demoType ?? meta?.demo_type ?? 'chat',
+        path: meta?.path ?? 'talk',
+        optimizationLevel: meta?.optimizationLevel ?? meta?.optimization_level ?? 'balanced',
+        latencyMs: meta?.latencyMs ?? meta?.latency_ms ?? 0,
+        timestamp: meta?.timestamp ?? new Date().toISOString(),
+      },
+      debug: res?.debug,
+    };
   }
 
   // Helper methods for template
@@ -211,26 +276,27 @@ export class OptimizerLabPage implements OnInit {
     return typeof data === 'object' && data?.redacted === true;
   }
 
-  getMessages(data: ChatMessage[] | { redacted: true }): ChatMessage[] {
-    if (Array.isArray(data)) {
-      return data;
-    }
+  getMessages(data: ChatMessage[] | { redacted: true } | null | undefined): ChatMessage[] {
+    if (data == null) return [];
+    if (Array.isArray(data)) return data;
     return [];
   }
 
   formatCost(usd: number): string {
-    if (usd < 0.01) {
-      return `$${usd.toFixed(4)}`;
-    }
-    return `$${usd.toFixed(2)}`;
+    const n = Number(usd);
+    if (isNaN(n)) return '—';
+    if (n < 0.01) return `$${n.toFixed(4)}`;
+    return `$${n.toFixed(2)}`;
   }
 
   formatNumber(n: number): string {
-    return n.toLocaleString();
+    const num = Number(n);
+    return isNaN(num) ? '—' : num.toLocaleString();
   }
 
   formatPercent(n: number): string {
-    return `${n.toFixed(1)}%`;
+    const num = Number(n);
+    return isNaN(num) ? '—' : `${num.toFixed(1)}%`;
   }
 
   copyToClipboard(text: string) {

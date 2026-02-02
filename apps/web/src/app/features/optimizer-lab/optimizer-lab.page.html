@@ -250,36 +250,36 @@
           <!-- Tab Content -->
           <div class="tab-content">
             <!-- Metrics Tab -->
-            <div *ngIf="activeTab === 'metrics'" class="tab-pane metrics-pane">
+            <div *ngIf="activeTab === 'metrics' && result" class="tab-pane metrics-pane">
               <div class="savings-hero">
-                <div class="savings-value">{{ formatPercent(result.diff.summary.pctSaved) }}</div>
+                <div class="savings-value">{{ formatPercent(result.diff?.summary?.pctSaved ?? 0) }}</div>
                 <div class="savings-label">Tokens Saved</div>
               </div>
 
               <div class="metrics-grid">
                 <div class="metric-card">
                   <div class="metric-label">Input Tokens Before</div>
-                  <div class="metric-value">{{ formatNumber(result.diff.summary.inputTokensBefore) }}</div>
+                  <div class="metric-value">{{ formatNumber(result.diff?.summary?.inputTokensBefore ?? 0) }}</div>
                 </div>
                 <div class="metric-card">
                   <div class="metric-label">Input Tokens After</div>
-                  <div class="metric-value success">{{ formatNumber(result.diff.summary.inputTokensAfter) }}</div>
+                  <div class="metric-value success">{{ formatNumber(result.diff?.summary?.inputTokensAfter ?? 0) }}</div>
                 </div>
                 <div class="metric-card">
                   <div class="metric-label">Est. Cost Before</div>
-                  <div class="metric-value">{{ formatCost(result.original.tokenEstimate.estimatedCostUsd) }}</div>
+                  <div class="metric-value">{{ formatCost(result.original?.tokenEstimate?.estimatedCostUsd ?? 0) }}</div>
                 </div>
                 <div class="metric-card">
                   <div class="metric-label">Est. Cost After</div>
-                  <div class="metric-value success">{{ formatCost(result.optimized.tokenEstimate.estimatedCostUsd) }}</div>
+                  <div class="metric-value success">{{ formatCost(result.optimized?.tokenEstimate?.estimatedCostUsd ?? 0) }}</div>
                 </div>
                 <div class="metric-card">
                   <div class="metric-label">Latency</div>
-                  <div class="metric-value">{{ result.meta.latencyMs }}ms</div>
+                  <div class="metric-value">{{ result.meta?.latencyMs ?? 0 }}ms</div>
                 </div>
                 <div class="metric-card">
                   <div class="metric-label">View Mode</div>
-                  <div class="metric-value">{{ result.viewMode }}</div>
+                  <div class="metric-value">{{ result.viewMode ?? '—' }}</div>
                 </div>
               </div>
 
@@ -287,25 +287,25 @@
                 <h3>Applied Transforms</h3>
                 <div class="transforms-list">
                   <span 
-                    *ngFor="let transform of result.diff.appliedTransforms"
+                    *ngFor="let transform of (result.diff?.appliedTransforms ?? [])"
                     class="transform-badge">
                     {{ transform }}
                   </span>
-                  <span *ngIf="result.diff.appliedTransforms.length === 0" class="no-transforms">
+                  <span *ngIf="!(result.diff?.appliedTransforms?.length)" class="no-transforms">
                     No transforms applied
                   </span>
                 </div>
               </div>
 
-              <div *ngIf="result.diff.summary.refsUsed" class="detail-row">
+              <div *ngIf="result.diff?.summary?.refsUsed != null" class="detail-row">
                 <span class="detail-label">RefPack Entries:</span>
                 <span class="detail-value">{{ result.diff.summary.refsUsed }}</span>
               </div>
-              <div *ngIf="result.diff.summary.phrasebookEntries" class="detail-row">
+              <div *ngIf="result.diff?.summary?.phrasebookEntries != null" class="detail-row">
                 <span class="detail-label">Phrasebook Entries:</span>
                 <span class="detail-value">{{ result.diff.summary.phrasebookEntries }}</span>
               </div>
-              <div *ngIf="result.diff.summary.codemapSnippetsKept" class="detail-row">
+              <div *ngIf="result.diff?.summary?.codemapSnippetsKept != null" class="detail-row">
                 <span class="detail-label">CodeMap Symbols:</span>
                 <span class="detail-value">{{ result.diff.summary.codemapSnippetsKept }}</span>
               </div>
@@ -318,7 +318,7 @@
             </div>
 
             <!-- Trust Tab -->
-            <div *ngIf="activeTab === 'trust'" class="tab-pane trust-pane">
+            <div *ngIf="activeTab === 'trust' && result" class="tab-pane trust-pane">
               <div class="trust-intro">
                 <h3>🛡️ Trust & Safety Summary</h3>
                 <p>Spectyra optimizes prompts without losing important content. Here's what we preserved and what we changed.</p>
@@ -327,16 +327,16 @@
               <div class="trust-section preserved-section">
                 <h4>✅ Preserved (Unchanged)</h4>
                 <ul>
-                  <li *ngFor="let item of result.diff.safetySummary.preserved">{{ item }}</li>
+                  <li *ngFor="let item of (result.diff?.safetySummary?.preserved ?? [])">{{ item }}</li>
                 </ul>
               </div>
 
               <div class="trust-section changed-section">
                 <h4>🔄 Changed (Optimized)</h4>
                 <ul>
-                  <li *ngFor="let item of result.diff.safetySummary.changed">{{ item }}</li>
+                  <li *ngFor="let item of (result.diff?.safetySummary?.changed ?? [])">{{ item }}</li>
                 </ul>
-                <p *ngIf="result.diff.safetySummary.changed.length === 0" class="no-items">
+                <p *ngIf="!(result.diff?.safetySummary?.changed?.length)" class="no-items">
                   No changes applied
                 </p>
               </div>
@@ -344,24 +344,24 @@
               <div class="trust-section risk-section">
                 <h4>ℹ️ Important Notes</h4>
                 <ul>
-                  <li *ngFor="let item of result.diff.safetySummary.riskNotes">{{ item }}</li>
+                  <li *ngFor="let item of (result.diff?.safetySummary?.riskNotes ?? [])">{{ item }}</li>
                 </ul>
               </div>
             </div>
 
             <!-- Before Tab -->
-            <div *ngIf="activeTab === 'before'" class="tab-pane content-pane">
+            <div *ngIf="activeTab === 'before' && result" class="tab-pane content-pane">
               <div class="content-header">
                 <h3>Original Prompt</h3>
                 <button 
                   class="btn-sm"
-                  (click)="copyToClipboard(result.original.renderedText)">
+                  (click)="copyToClipboard(getRenderedText(result.original?.renderedText ?? ''))">
                   📋 Copy
                 </button>
               </div>
               <div class="message-list">
                 <div 
-                  *ngFor="let msg of result.original.messages"
+                  *ngFor="let msg of (result.original?.messages ?? [])"
                   class="message-item"
                   [class.system]="msg.role === 'system'"
                   [class.user]="msg.role === 'user'"
@@ -373,13 +373,13 @@
             </div>
 
             <!-- After Tab -->
-            <div *ngIf="activeTab === 'after'" class="tab-pane content-pane">
+            <div *ngIf="activeTab === 'after' && result" class="tab-pane content-pane">
               <div class="content-header">
                 <h3>Optimized Prompt</h3>
                 <button 
                   *ngIf="result.viewMode !== 'DEMO_VIEW'"
                   class="btn-sm"
-                  (click)="copyToClipboard(getRenderedText(result.optimized.renderedText))">
+                  (click)="copyToClipboard(getRenderedText(result.optimized?.renderedText ?? ''))">
                   📋 Copy
                 </button>
                 <span *ngIf="result.viewMode === 'DEMO_VIEW'" class="copy-disabled">
@@ -387,14 +387,14 @@
                 </span>
               </div>
               
-              <div *ngIf="isRedacted(result.optimized.messages)" class="redacted-notice">
+              <div *ngIf="isRedacted(result.optimized?.messages)" class="redacted-notice">
                 <span class="redacted-icon">🔒</span>
                 <span>Content redacted for IP protection in DEMO_VIEW mode</span>
               </div>
               
               <div class="message-list">
                 <div 
-                  *ngFor="let msg of getMessages(result.optimized.messages)"
+                  *ngFor="let msg of getMessages(result.optimized?.messages ?? [])"
                   class="message-item"
                   [class.system]="msg.role === 'system'"
                   [class.user]="msg.role === 'user'"
@@ -406,7 +406,7 @@
             </div>
 
             <!-- Diff Tab -->
-            <div *ngIf="activeTab === 'diff'" class="tab-pane diff-pane">
+            <div *ngIf="activeTab === 'diff' && result" class="tab-pane diff-pane">
               <div class="content-header">
                 <h3>Diff View</h3>
               </div>
@@ -416,22 +416,22 @@
                 <div class="diff-summary">
                   <div class="diff-stat">
                     <span class="stat-label">Tokens Removed:</span>
-                    <span class="stat-value removed">-{{ result.diff.summary.inputTokensBefore - result.diff.summary.inputTokensAfter }}</span>
+                    <span class="stat-value removed">-{{ (result.diff?.summary?.inputTokensBefore ?? 0) - (result.diff?.summary?.inputTokensAfter ?? 0) }}</span>
                   </div>
                   <div class="diff-stat">
                     <span class="stat-label">Savings:</span>
-                    <span class="stat-value success">{{ formatPercent(result.diff.summary.pctSaved) }}</span>
+                    <span class="stat-value success">{{ formatPercent(result.diff?.summary?.pctSaved ?? 0) }}</span>
                   </div>
                 </div>
               </div>
               
-              <div *ngIf="result.diff.unifiedDiff" class="unified-diff">
+              <div *ngIf="result.diff?.unifiedDiff" class="unified-diff">
                 <pre>{{ result.diff.unifiedDiff }}</pre>
               </div>
             </div>
 
             <!-- Debug Tab -->
-            <div *ngIf="activeTab === 'debug' && result.debug" class="tab-pane debug-pane">
+            <div *ngIf="activeTab === 'debug' && result?.debug" class="tab-pane debug-pane">
               <div class="content-header">
                 <h3>Debug Information</h3>
                 <span class="internal-badge">Internal Only</span>
