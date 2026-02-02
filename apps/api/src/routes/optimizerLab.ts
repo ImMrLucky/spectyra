@@ -324,7 +324,7 @@ optimizerLabRouter.post("/optimize", async (req: AuthenticatedRequest, res) => {
     // 3. pctSaved = (before - after) / before * 100, exactly as calculated.
     const pricing = getPricingConfig("openai");
     const baselineEstimate = estimateBaselineTokens(messages, "openai", pricing);
-    const optimizedEstimateFromMessages = estimateOptimizedTokens(
+    const optimizedEstimate = estimateOptimizedTokens(
       result.promptFinal.messages,
       path,
       numericLevel,
@@ -332,7 +332,7 @@ optimizerLabRouter.post("/optimize", async (req: AuthenticatedRequest, res) => {
       pricing
     );
     const inputTokensBefore = baselineEstimate.input_tokens;
-    const inputTokensAfter = optimizedEstimateFromMessages.input_tokens;
+    const inputTokensAfter = optimizedEstimate.input_tokens;
     const pctSaved =
       inputTokensBefore > 0
         ? ((inputTokensBefore - inputTokensAfter) / inputTokensBefore) * 100
@@ -469,7 +469,7 @@ optimizerLabRouter.post("/optimize", async (req: AuthenticatedRequest, res) => {
       optimizationLevel,
       viewMode,
       tokensBefore: baselineEstimate.input_tokens,
-      tokensAfter: optimizedEstimateFromMessages.input_tokens,
+      tokensAfter: optimizedEstimate.input_tokens,
       pctSaved: Math.round(pctSaved * 100) / 100,
       latencyMs: Date.now() - startTime,
       userId: req.auth?.userId,
