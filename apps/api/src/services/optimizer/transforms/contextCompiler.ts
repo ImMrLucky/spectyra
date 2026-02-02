@@ -63,11 +63,11 @@ const MAX_FAILING_SIGNALS_AFTER_LATEST = 6;
 /** Max stack lines to keep in latest tool excerpt (main error + up to this many "at ..." lines). */
 const MAX_STACK_LINES_IN_EXCERPT = 3;
 
-/** Grounding guardrails: must constrain model behavior (no invented content, open file before patch). */
-const GROUNDING_GUARDRAILS = `Grounding rules:
-- Do not propose patches without first opening the file that contains the failing line.
-- Never assume the contents of JSON files; treat them as JSON unless tool output says otherwise.
-- When user asks to run tests: respond by running tests (tool), then paste output.`;
+/** Operating rules: shorter, run-tests-first, same meaning. */
+const GROUNDING_GUARDRAILS = `Operating rules (must follow):
+- If user asks to run tests/lint: run the command tool and paste the full output.
+- Do not propose patches until you read_file the failing file + line.
+- Treat .json as JSON (never assume TS/JS content).`;
 
 function truncate(s: string, max: number): string {
   if (s.length <= max) return s;
@@ -290,9 +290,9 @@ export function compileCodeState(input: CompileCodeStateInput): CompileCodeState
   const filesTouched = confirmedTouched.length > 0 ? confirmedTouched.join(", ") : "(none)";
 
   const nextActionsBlock = `Next actions:
-1) Open the focus files (read_file) and identify the exact expression causing the error.
-2) Do not edit unrelated files. Do not propose patches without first opening the file.
-3) Keep fixes minimal and within constraints.`;
+1) read_file the focus file at the failing line.
+2) identify the exact expression producing the error.
+3) apply the smallest fix; rerun lint/tests.`;
 
   const ts2345Hint = buildTs2345Hint(latestSignal, latestToolFailure);
 
@@ -310,7 +310,6 @@ ${focusBlock}
 
 Repo context:
 - files touched (confirmed): ${filesTouched}
-- key symbols: (see recent context)
 
 ${nextActionsBlock}
 

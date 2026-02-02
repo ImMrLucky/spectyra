@@ -10,7 +10,6 @@ import { normalizeBullet, normalizePath, dedupeOrdered } from "./normalize.js";
 const CONSTRAINT_PATTERNS = [
   /\b(Do not|Don't|Must|Must not|Never|Always|Target|No\s+[a-z]+)\b/i,
   /\b(Constraints?|constraint)\s*:?\s*$/im,
-  /\bAdd the same constraint\b/i,
 ];
 
 /** Exclude lines that look like config/JSON (key-value, braces). */
@@ -47,7 +46,7 @@ export interface ExtractedConstraints {
 
 /**
  * Extract constraints from messages. Recognizes "Constraints:" blocks,
- * "Do not…", "Must…", "Target…", "No …", "Add the same constraint…".
+ * "Do not…", "Must…", "Target…", "No …". Ignores meta-phrase "Add the same constraint…".
  * Ensures ES target + optional chaining bans are kept if present anywhere.
  */
 export function extractConstraints(messages: ChatMessage[]): ExtractedConstraints {
@@ -64,6 +63,10 @@ export function extractConstraints(messages: ChatMessage[]): ExtractedConstraint
       const t = line.trim();
       if (!t) continue;
       const normalized = normalizeBullet(t);
+      // Meta-instruction: do not treat as a constraint.
+      if (/^Add the same constraint\b/i.test(normalized)) {
+        continue;
+      }
       if (isConstraintLine(normalized)) {
         allLines.push(normalized);
         if (isEsOrOcConstraint(normalized)) {

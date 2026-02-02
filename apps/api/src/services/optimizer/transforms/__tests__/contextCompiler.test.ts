@@ -122,6 +122,17 @@ describe("extractConstraints", () => {
     assert.ok(hasEs, "ES2019 constraint should be present");
     assert.ok(hasOc, "no optional chaining constraint should be present");
   });
+
+  it("does not treat 'Add the same constraint' as a constraint", () => {
+    const messages: ChatMessage[] = [
+      { role: "user", content: "Add the same constraint for the other file: do not use replaceAll." },
+      { role: "user", content: "Constraints:\n- Do not use replaceAll." },
+    ];
+    const { global } = extractConstraints(messages);
+    const joined = global.join("\n");
+    assert.ok(!/Add the same constraint/i.test(joined));
+    assert.ok(/replaceAll/i.test(joined));
+  });
 });
 
 describe("extractFailingSignals", () => {
@@ -325,8 +336,9 @@ describe("compileCodeState", () => {
     });
     const content = out.stateMsg.content;
     assert.ok(content.includes("Next actions"));
-    assert.ok(content.includes("Open the focus files") || content.includes("read_file"));
-    assert.ok(content.includes("Do not edit unrelated files"));
+    assert.ok(content.includes("read_file"));
+    assert.ok(content.includes("apply the smallest fix") || content.includes("smallest fix"));
+    assert.ok(content.includes("rerun lint/tests") || content.includes("rerun"));
   });
 
   it("SCC output contains no [[R ref tokens and no glossary table markers", () => {
@@ -357,16 +369,20 @@ describe("compileCodeState", () => {
     });
     const content = typeof out.stateMsg.content === "string" ? out.stateMsg.content : "";
     assert.ok(
-      content.includes("Do not propose patches without first opening the file"),
-      "must instruct open file before patch"
+      content.includes("Operating rules") || content.includes("must follow"),
+      "must include operating rules header"
     );
     assert.ok(
-      content.includes("Never assume the contents of JSON files") || content.includes("treat them as JSON"),
+      /Do not propose patches/i.test(content) && /read_file/i.test(content),
+      "must instruct read_file before patches"
+    );
+    assert.ok(
+      /Treat\s+\.json\s+as\s+JSON/i.test(content),
       "must constrain JSON assumption"
     );
     assert.ok(
-      content.includes("run tests") || content.includes("paste output"),
-      "must instruct run tests then paste output"
+      /run the command tool/i.test(content) && /paste the full output/i.test(content),
+      "must instruct: run tests/lint then paste full output"
     );
   });
 
