@@ -132,9 +132,10 @@
             </div>
             <div class="form-group">
               <label>Scenario</label>
-              <select [ngModel]="currentGeneratorScenario" (ngModelChange)="generatorScenario = $event" class="form-select">
+              <select [(ngModel)]="generatorScenario" class="form-select">
                 <option *ngFor="let opt of generatorScenarioOptions" [value]="opt">{{ opt }}</option>
               </select>
+              <small class="hint">Change scenario then click &quot;Generate Messages&quot; to refresh prompt data.</small>
             </div>
             <div class="form-group checkbox-group">
               <label>

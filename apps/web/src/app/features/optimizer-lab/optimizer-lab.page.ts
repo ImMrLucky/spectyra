@@ -50,8 +50,18 @@ export class OptimizerLabPage implements OnInit {
   loading = true;
   error: string | null = null;
 
-  // Input state
-  demoType: DemoType = 'chat';
+  // Input state (demoType setter keeps generatorScenario in sync with scenario options)
+  private _demoType: DemoType = 'chat';
+  get demoType(): DemoType {
+    return this._demoType;
+  }
+  set demoType(value: DemoType) {
+    if (this._demoType !== value) {
+      this._demoType = value;
+      const opts = value === 'chat' ? this.chatScenarioOptions : this.codeScenarioOptions;
+      this.generatorScenario = opts[0] ?? '';
+    }
+  }
   optimizationLevel: OptimizationLevel = 'balanced';
   prompt = '';
   repoContext = '';
@@ -88,12 +98,6 @@ export class OptimizerLabPage implements OnInit {
 
   get generatorScenarioOptions(): string[] {
     return this.demoType === 'chat' ? this.chatScenarioOptions : this.codeScenarioOptions;
-  }
-
-  get currentGeneratorScenario(): string {
-    const opts = this.generatorScenarioOptions;
-    if (opts.includes(this.generatorScenario)) return this.generatorScenario;
-    return opts[0] ?? '';
   }
 
   get parsedMessageCount(): number {
@@ -184,7 +188,10 @@ export class OptimizerLabPage implements OnInit {
   }
 
   generateMessages() {
-    const scenario = this.currentGeneratorScenario;
+    // Use generatorScenario directly; it's kept in sync with the dropdown and demo type
+    const scenario = this.generatorScenarioOptions.includes(this.generatorScenario)
+      ? this.generatorScenario
+      : (this.generatorScenarioOptions[0] ?? '');
     const params = {
       turns: Math.max(1, Math.min(500, this.turnCount)),
       seed: this.seed,

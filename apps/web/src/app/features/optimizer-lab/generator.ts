@@ -130,7 +130,7 @@ export function generateChatMessages(params: GeneratorParams): ChatMessage[] {
   const messages: ChatMessage[] = [];
 
   if (includeSystem) {
-    const sys = `You are a helpful support agent for Acme. Be polite and professional. Customer context: ${customerName}, account ref ${orderId}, plan ${planTier}.`;
+    const sys = `You are a helpful support agent for Acme. Be polite and professional. Scenario: ${scenario}. Customer context: ${customerName}, account ref ${orderId}, plan ${planTier}.`;
     messages.push({ role: 'system', content: sys });
   }
 
@@ -138,9 +138,16 @@ export function generateChatMessages(params: GeneratorParams): ChatMessage[] {
   let requirementsRepeatCount = 0;
 
   for (let t = 0; t < turns; t++) {
-    // User turn
+    // User turn (scenario affects framing: support vs sales vs QA)
     const intent = rng.pickOne(USER_INTENTS);
     let userContent = fill(intent.msg);
+    if (scenario.includes('Sales')) {
+      if (t === 0) userContent += '\n\nI am evaluating ' + product + ' for our team.';
+      if (t > 0 && t % 5 === 0) userContent += '\n\nWe need: ' + requirements;
+    } else if (scenario.includes('Internal QA')) {
+      if (t === 0) userContent += '\n\nContext: ' + requirements;
+      if (t > 0 && t % 6 === 0) userContent += '\n\nAcceptance criteria: ' + requirements;
+    }
     // Every 7th user: repeat requirements with minor variation
     if (t > 0 && t % 7 === 0 && requirementsRepeatCount < 3) {
       userContent += '\n\nAlso confirming: ' + requirements;
