@@ -47,6 +47,14 @@ export interface DiffSummary {
   codemapOmittedBlocks?: number;
   /** Per-layer before/after (SCC, RefPack, PhraseBook, CodeMap, Policy). */
   optimizationSteps?: OptimizationStep[];
+  /** PG-SCC: turns dropped by state compiler. */
+  sccDroppedTurns?: number;
+  /** PG-SCC: state message size (chars). */
+  sccStateChars?: number;
+  /** Code path: failing signals in state (1 latest + up to 6 history). */
+  failingSignalsCount?: number;
+  /** λ₂ → aggressiveness (from spectral). */
+  lambda2?: number;
 }
 
 export interface SafetySummary {
