@@ -205,11 +205,6 @@ export class OptimizerLabPage implements OnInit {
     this.cdr.detectChanges();
   }
 
-  generateAndRun() {
-    this.generateMessages();
-    setTimeout(() => this.runOptimization(), 100);
-  }
-
   runOptimization() {
     if (!this.prompt.trim() && !this.advancedMessages.trim()) {
       this.snackbar.showError('Please enter a prompt or messages');

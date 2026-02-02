@@ -34,7 +34,7 @@
         </div>
 
         <div class="form-section">
-          <!-- Demo Type -->
+          <!-- Demo Type: tells the optimizer and generator what kind of content this is -->
           <div class="form-group">
             <label>Demo Type</label>
             <div class="button-group">
@@ -49,6 +49,7 @@
                 💻 Code
               </button>
             </div>
+            <small class="hint">Chat = support/sales style. Code = agentic coding sessions. Choose based on your content.</small>
           </div>
 
           <!-- Optimization Level -->
@@ -94,7 +95,7 @@
             </label>
           </div>
 
-          <!-- Presets -->
+          <!-- Presets: load a ready-made sample into the Prompt field -->
           <div class="form-group">
             <label>Load Preset</label>
             <div class="button-group preset-group">
@@ -105,6 +106,7 @@
                 📋 Code Demo
               </button>
             </div>
+            <small class="hint">Load a sample prompt into the input below. Or use Generate Test Data for synthetic messages.</small>
           </div>
 
           <!-- Generate Test Data (uses Demo Type above) -->
@@ -148,8 +150,8 @@
             </div>
             <div class="generate-buttons">
               <button type="button" class="btn-primary" (click)="generateMessages()">Generate Messages</button>
-              <button type="button" class="btn-secondary" (click)="generateAndRun()">Generate + Run Optimization</button>
             </div>
+            <small class="hint">Then click Run Optimization below when ready.</small>
             <p *ngIf="generatedSummary" class="generated-summary">{{ generatedSummary }}</p>
           </div>
         </div>
