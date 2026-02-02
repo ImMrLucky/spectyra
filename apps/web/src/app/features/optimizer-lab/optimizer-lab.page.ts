@@ -268,6 +268,7 @@ export class OptimizerLabPage implements OnInit {
 
   switchTab(tab: ResultTab) {
     this.activeTab = tab;
+    this.cdr.detectChanges();
   }
 
   /**

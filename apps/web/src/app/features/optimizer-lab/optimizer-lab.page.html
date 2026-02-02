@@ -265,42 +265,48 @@
 
         <div *ngIf="result" class="results-content">
           <!-- Tabs -->
-          <div class="tabs">
-            <button 
+          <div class="tabs" role="tablist">
+            <button type="button" role="tab"
               [class.active]="activeTab === 'metrics'"
+              [attr.aria-selected]="activeTab === 'metrics'"
               (click)="switchTab('metrics')">
               📊 Metrics
             </button>
-            <button 
+            <button type="button" role="tab"
               [class.active]="activeTab === 'trust'"
+              [attr.aria-selected]="activeTab === 'trust'"
               (click)="switchTab('trust')">
               🛡️ Trust
             </button>
-            <button 
+            <button type="button" role="tab"
               [class.active]="activeTab === 'before'"
+              [attr.aria-selected]="activeTab === 'before'"
               (click)="switchTab('before')">
               Before
             </button>
-            <button 
+            <button type="button" role="tab"
               [class.active]="activeTab === 'after'"
+              [attr.aria-selected]="activeTab === 'after'"
               (click)="switchTab('after')">
               After
             </button>
-            <button 
+            <button type="button" role="tab"
               [class.active]="activeTab === 'diff'"
+              [attr.aria-selected]="activeTab === 'diff'"
               (click)="switchTab('diff')">
               Diff
             </button>
-            <button 
+            <button type="button" role="tab"
               *ngIf="result.debug"
               [class.active]="activeTab === 'debug'"
+              [attr.aria-selected]="activeTab === 'debug'"
               (click)="switchTab('debug')">
               🔧 Debug
             </button>
           </div>
 
           <!-- Tab Content -->
-          <div class="tab-content">
+          <div class="tab-content" role="tabpanel">
             <!-- Metrics Tab -->
             <div *ngIf="activeTab === 'metrics'" class="tab-pane metrics-pane">
               <div class="savings-hero">
