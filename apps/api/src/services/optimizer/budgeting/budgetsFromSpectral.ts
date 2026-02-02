@@ -7,9 +7,12 @@
  * - compression_aggressiveness
  * - phrasebook_aggressiveness
  * - codemap_detail_level
+ * - instability override when failures repeat (code path)
  */
 
 import { SpectralResult } from "../spectral/types";
+import type { ChatMessage } from "@spectyra/shared";
+import { countRecentFailingSignals, detectRepeatingErrorCodes } from "../transforms/scc/extract.js";
 
 export interface Budgets {
   keepLastTurns: number;
@@ -31,6 +34,8 @@ export interface BudgetsFromSpectralInput {
   spectral: SpectralResult;
   baseKeepLastTurns?: number;
   baseMaxRefs?: number;
+  /** Code path: when provided, instability override may apply (keep more context when failures repeat). */
+  messages?: ChatMessage[];
 }
 
 /**
@@ -47,7 +52,7 @@ export interface BudgetsFromSpectralInput {
  * - stability is dropping ("acceleration" negative)
  */
 export function computeBudgetsFromSpectral(input: BudgetsFromSpectralInput): Budgets {
-  const { spectral, baseKeepLastTurns = 3, baseMaxRefs = 6 } = input;
+  const { spectral, baseKeepLastTurns = 3, baseMaxRefs = 6, messages } = input;
 
   const stability = spectral.stabilityIndex;
   const contradictionEnergy = Math.abs(spectral.contradictionEnergy);
@@ -85,14 +90,26 @@ export function computeBudgetsFromSpectral(input: BudgetsFromSpectralInput): Bud
   ));
 
   // PG-SCC: state compression (higher when stable)
-  const stateCompressionLevel = Math.max(0, Math.min(1, normalizedStability * 0.8 + (1 - normalizedNovelty) * 0.2));
+  let stateCompressionLevel = Math.max(0, Math.min(1, normalizedStability * 0.8 + (1 - normalizedNovelty) * 0.2));
 
   // Budgets → SCC alignment: λ₂ drives aggressiveness (low λ₂ = tighter, high λ₂ = preserve more)
   const lambda2 = spectral.lambda2 ?? 0;
-  const keepLastTurns = lambda2 < 0.12 ? 2 : 4;
-  const maxStateChars = lambda2 < 0.12 ? 1800 : 3200;
-  const retainToolLogs = lambda2 > 0.15;
+  let keepLastTurns = lambda2 < 0.12 ? 2 : 4;
+  let maxStateChars = lambda2 < 0.12 ? 1800 : 3200;
+  let retainToolLogs = lambda2 > 0.15;
   const minRefpackSavings = 30;
+
+  // Instability override: when failures repeat, keep more context to escape loop
+  if (messages && messages.length > 0) {
+    const recentFailures = countRecentFailingSignals(messages, 12);
+    const repeatingCodes = detectRepeatingErrorCodes(messages);
+    const instabilityOverride = recentFailures > 0 || repeatingCodes.length > 0;
+    if (instabilityOverride) {
+      stateCompressionLevel = Math.min(stateCompressionLevel, 0.35);
+      keepLastTurns = Math.max(keepLastTurns, 6);
+      retainToolLogs = true;
+    }
+  }
 
   return {
     keepLastTurns,

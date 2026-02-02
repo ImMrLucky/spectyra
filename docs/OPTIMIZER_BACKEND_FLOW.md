@@ -1,5 +1,9 @@
 # Where optimization and token numbers are calculated (backend)
 
+**❗ CRITICAL: PG-SCC IS THE ONLY COMPRESSION LAYER.** RefPack and Glossary are DEPRECATED for SCC paths and must not run when SCC is produced. See [PG_SCC_SPEC.md](PG_SCC_SPEC.md).
+
+---
+
 ## Why optimized can be *larger* than original
 
 The optimizer **adds** new content (system messages) and **replaces** some body text with short refs. If the added dictionaries are big and the replacements are small, **total size can go up**.

@@ -20,7 +20,9 @@ import {
 import {
   extractConstraints,
   extractFailingSignals,
-  extractTouchedFiles,
+  extractConfirmedTouchedFiles,
+  extractLatestToolFailure,
+  extractFocusFiles,
 } from "./scc/extract.js";
 
 export interface CompileTalkStateInput {
@@ -53,13 +55,21 @@ export interface CompileCodeStateOutput {
 
 const MAX_BULLET_LEN = 120;
 const MAX_CONSTRAINT_LINE = 200;
-const MAX_TOUCHED_FILES = 15;
+const MAX_CONFIRMED_FILES = 10;
+const MAX_LATEST_TOOL_EXCERPT_CHARS = 1200;
 /** Code path: 1 latest error + 6 history (deduped). */
 const MAX_FAILING_SIGNALS_AFTER_LATEST = 6;
 
 function truncate(s: string, max: number): string {
   if (s.length <= max) return s;
   return s.slice(0, max - 1).trim() + "…";
+}
+
+/** Strip RefPack/Glossary artifacts so SCC output never contains [[R#]] or glossary blocks. */
+function stripRefPackArtifacts(text: string): string {
+  return text
+    .replace(/\[\[R\d+\]\]/g, "")
+    .replace(/GLOSSARY[\s\S]*?END_GLOSSARY/g, "");
 }
 
 /** Build deduped constraint list; always include ES target + optional chaining bans if present. */
@@ -198,10 +208,29 @@ export function compileCodeState(input: CompileCodeStateInput): CompileCodeState
       ? (latestLine ? `Latest: ${latestLine}\nOthers (deduped):\n${restBlock}` : restBlock).trim()
       : "- (none)";
 
-  const touchedFiles = extractTouchedFiles(messages)
-    .slice(0, MAX_TOUCHED_FILES)
+  const latestToolFailure = retainToolLogs ? extractLatestToolFailure(messages) : null;
+  const toolExcerpt =
+    latestToolFailure != null
+      ? (latestToolFailure.cmd ? `Command: ${latestToolFailure.cmd}\n` : "") +
+        "Output:\n" +
+        (latestToolFailure.output.length > MAX_LATEST_TOOL_EXCERPT_CHARS
+          ? latestToolFailure.output.slice(0, MAX_LATEST_TOOL_EXCERPT_CHARS - 1) + "…"
+          : latestToolFailure.output)
+      : "";
+
+  const focusFiles = extractFocusFiles(messages);
+  const focusBlock =
+    focusFiles.length > 0 ? focusFiles.map((p) => `- ${p}`).join("\n") : "- (none)";
+
+  const confirmedTouched = extractConfirmedTouchedFiles(messages)
+    .slice(0, MAX_CONFIRMED_FILES)
     .map((p) => normalizePath(p));
-  const filesTouched = touchedFiles.length > 0 ? touchedFiles.join(", ") : "(none)";
+  const filesTouched = confirmedTouched.length > 0 ? confirmedTouched.join(", ") : "(none)";
+
+  const nextActionsBlock = `Next actions:
+1) Open the focus files (read_file) and identify the exact expression causing the error.
+2) Do not edit unrelated files. Do not propose patches without first opening the file.
+3) Keep fixes minimal and within constraints.`;
 
   let stateBody = `Task: ${task}
 
@@ -210,13 +239,20 @@ ${constraintsBlock}
 
 Failing signals:
 ${failingBlock}
+${toolExcerpt ? `\nLatest tool failure (verbatim excerpt):\n${toolExcerpt}\n` : ""}
+
+Focus files (open these first):
+${focusBlock}
 
 Repo context:
-- files touched: ${filesTouched}
+- files touched (confirmed): ${filesTouched}
 - key symbols: (see recent context)
+
+${nextActionsBlock}
 
 Recent context kept verbatim below.`;
 
+  stateBody = stripRefPackArtifacts(stateBody);
   if (stateBody.length > maxStateChars) {
     stateBody = stateBody.slice(0, maxStateChars - 1) + "…";
   }

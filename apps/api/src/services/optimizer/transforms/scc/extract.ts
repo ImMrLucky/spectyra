@@ -191,3 +191,160 @@ export function getLatestFailingSignal(messages: ChatMessage[]): FailingSignal |
   if (all.length === 0) return null;
   return all[all.length - 1]!;
 }
+
+/** Patterns that indicate a failing tool block (lint/test/TS error). */
+const FAILING_TOOL_PATTERNS = [
+  /\bERROR\s+in\s+/i,
+  /\bTS\d+:/,
+  /\bFAIL\s+/i,
+  /\bTypeError\b/,
+  /\bAssertionError\b/,
+  /at\s+\S+\s+\([^)]+:\d+:\d+\)/,
+];
+
+function isFailingToolContent(content: string): boolean {
+  return FAILING_TOOL_PATTERNS.some((re) => re.test(content));
+}
+
+/**
+ * Extract the latest failing tool block (command + output) for verbatim inclusion in SCC.
+ * Prefer the last tool message that contains ERROR, TS####, FAIL, TypeError, or stack lines.
+ */
+export function extractLatestToolFailure(
+  messages: ChatMessage[]
+): { cmd?: string; output: string } | null {
+  let last: { cmd?: string; output: string } | null = null;
+  for (const msg of messages) {
+    if (msg.role !== "tool") continue;
+    const content = (msg.content ?? "").trim();
+    if (!content || !isFailingToolContent(content)) continue;
+    const cmd = content.match(/^(?:Command:\s*)?(pnpm\s+\w+|npm\s+\w+|yarn\s+\w+)/m)?.[1];
+    last = { cmd, output: content };
+  }
+  return last;
+}
+
+/** Strip diff prefix a/ or b/; reject pure diff artifacts like a/tsconfig.js unless real path. */
+function cleanPathForConfirmed(path: string): string | null {
+  const normalized = normalizePath(path);
+  let p = normalized;
+  if (p.startsWith("a/") || p.startsWith("b/")) {
+    p = p.slice(2);
+  }
+  if (!p || p.length < 2) return null;
+  if (/^[\w.-]+$/.test(p) && !p.includes("/")) return null;
+  return normalizePath(p);
+}
+
+/**
+ * Confirmed touched files only: from tool actions (read_file: path=...) and user "Relevant file again:" blocks.
+ * Excludes assistant-hallucinated diff headers (--- a/... / +++ b/...) and loose "Checking ..." paths.
+ */
+export function extractConfirmedTouchedFiles(messages: ChatMessage[]): string[] {
+  const paths = new Set<string>();
+  for (const msg of messages) {
+    const content = (msg.content ?? "").trim();
+    if (!content) continue;
+    if (msg.role === "tool") {
+      const readFile = content.match(/read_file:\s*path=([^\s\n]+)/gi) ?? content.match(/read_file\s+path=([^\s\n]+)/gi);
+      if (readFile) {
+        for (const m of readFile) {
+          const p = m.replace(/read_file:\s*path=/i, "").replace(/read_file\s+path=/i, "").trim();
+          const cleaned = cleanPathForConfirmed(p);
+          if (cleaned) paths.add(cleaned);
+        }
+      }
+      const errorIn = content.match(/ERROR\s+in\s+([^\s:]+):/gi);
+      if (errorIn) {
+        for (const m of errorIn) {
+          const p = m.replace(/ERROR\s+in\s+/i, "").replace(/:$/, "").trim();
+          const cleaned = cleanPathForConfirmed(p);
+          if (cleaned) paths.add(cleaned);
+        }
+      }
+    }
+    if (msg.role === "user") {
+      const relevantMatch = content.match(/Relevant file again:\s*```[\s\S]*?([^\s\n]+\.(?:ts|js|tsx|jsx|json|html|css))/im);
+      if (relevantMatch) {
+        const cleaned = cleanPathForConfirmed(relevantMatch[1]!);
+        if (cleaned) paths.add(cleaned);
+      }
+      const appsPaths = content.match(/(?:apps|packages)\/[\w./-]+\.(?:ts|js|tsx|jsx|json)/g);
+      if (appsPaths) {
+        appsPaths.forEach((p) => {
+          const cleaned = cleanPathForConfirmed(p);
+          if (cleaned) paths.add(cleaned);
+        });
+      }
+    }
+  }
+  return dedupeOrdered([...paths]);
+}
+
+/**
+ * Paths mentioned in assistant/text (e.g. "Checking x/y.ts") — low trust, for debugging only.
+ */
+export function extractMentionedPaths(messages: ChatMessage[]): string[] {
+  const paths = new Set<string>();
+  for (const msg of messages) {
+    const content = (msg.content ?? "").trim();
+    if (!content) continue;
+    const checking = content.match(/Checking\s+([^\s\n.,;:)]+\.(?:ts|js|tsx|jsx|json|html|css))/gi);
+    if (checking) {
+      for (const m of checking) {
+        const cleaned = cleanPathForConfirmed(m.replace(/Checking\s+/i, "").trim());
+        if (cleaned) paths.add(cleaned);
+      }
+    }
+  }
+  return dedupeOrdered([...paths]);
+}
+
+/**
+ * Focus files: from failing signals (file:line) + user "Relevant file again:" paths. Top 5, deduped.
+ */
+export function extractFocusFiles(messages: ChatMessage[]): string[] {
+  const fromSignals = extractFailingSignals(messages)
+    .filter((s) => s.file != null)
+    .map((s) => normalizePath(s.file!));
+  const fromUser: string[] = [];
+  for (const msg of messages) {
+    if (msg.role !== "user") continue;
+    const content = (msg.content ?? "").trim();
+    const relevantMatch = content.match(/Relevant file again:\s*```[\s\S]*?([^\s\n]+\.(?:ts|js|tsx|jsx|json))/im);
+    if (relevantMatch) {
+      const cleaned = cleanPathForConfirmed(relevantMatch[1]!);
+      if (cleaned) fromUser.push(cleaned);
+    }
+  }
+  const combined = dedupeOrdered([...fromSignals, ...fromUser]);
+  return combined.slice(0, 5);
+}
+
+/** Count failing signals in the last N messages (for instability override). */
+export function countRecentFailingSignals(messages: ChatMessage[], window = 12): number {
+  const last = messages.slice(-window);
+  let count = 0;
+  for (const msg of last) {
+    if (msg.role !== "tool") continue;
+    const content = msg.content ?? "";
+    if (isFailingToolContent(content)) count++;
+  }
+  return count;
+}
+
+/** Detect repeating error codes (e.g. TS2345) in tool messages — indicates loop. */
+export function detectRepeatingErrorCodes(messages: ChatMessage[]): string[] {
+  const codes: string[] = [];
+  for (const msg of messages) {
+    if (msg.role !== "tool") continue;
+    const content = msg.content ?? "";
+    const m = content.match(/TS\d+/g);
+    if (m) codes.push(...m);
+  }
+  const seen = new Map<string, number>();
+  for (const c of codes) {
+    seen.set(c, (seen.get(c) ?? 0) + 1);
+  }
+  return [...seen.entries()].filter(([, n]) => n > 1).map(([c]) => c);
+}

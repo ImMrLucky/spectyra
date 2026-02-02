@@ -8,7 +8,11 @@ import { spectralAnalyze } from "./spectral/spectralCore";
 import { applyTalkPolicy, postProcessTalkOutput } from "./policies/talkPolicy";
 import { applyCodePolicy, postProcessCodeOutput } from "./policies/codePolicy";
 import { runQualityGuard, RequiredCheck } from "./quality/qualityGuard";
-// PG-SCC only: SCC is the single context compaction mechanism; no legacy REF-glossary.
+/**
+ * CRITICAL: PG-SCC IS THE ONLY COMPRESSION LAYER.
+ * RefPack and Glossary are DEPRECATED for SCC paths and must not run when SCC is produced.
+ * When PG-SCC is active, RefPack and PhraseBook/Glossary must NOT run (no [[R#]] tokens, no glossary tables).
+ */
 const USE_PG_SCC_ONLY = true;
 
 // Core Moat v1 transforms + PG-SCC (SCC is the only memory layer; no RefPack)
@@ -288,6 +292,7 @@ export async function runOptimizedOrBaseline(
       spectral,
       baseKeepLastTurns: path === "code" ? cfg.codePolicy.keepLastTurns : cfg.talkPolicy.keepLastTurns,
       baseMaxRefs: path === "code" ? cfg.codePolicy.maxRefs : cfg.talkPolicy.maxRefs,
+      messages: path === "code" ? pipelineMessages : undefined,
     });
 
     const gateOpts = path === "code" ? CODE_PROFIT_GATE : TALK_PROFIT_GATE;
@@ -332,14 +337,49 @@ export async function runOptimizedOrBaseline(
     const gateScc = profitGate(pipelineMessages, messagesAfterScc, gateOpts, "scc");
     optimizationSteps.push(gateScc);
 
+    const sccApplied = messagesAfterScc !== pipelineMessages;
+    // When PG-SCC is active, skip RefPack + PhraseBook/STE entirely (single compression layer).
+    const useLegacyCompression = !sccApplied;
+
+    // Code path: embed CodeMap into SCC (no separate CODEMAP system message)
+    let codeMapResultEmbedded: { tokensBefore: number; tokensAfter: number; symbolsCount: number; changed: boolean } | null = null;
+    if (path === "code" && budgets.codemapDetailLevel < 1.0) {
+      const codeMapResult = buildCodeMap({
+        messages: messagesAfterScc,
+        spectral,
+        detailLevel: budgets.codemapDetailLevel,
+        structuralOnly: true,
+      });
+      if (codeMapResult.changed && codeMapResult.codeMap) {
+        const cm = codeMapResult.codeMap;
+        const codemapSnippet =
+          `Repo symbols (from codemap):\n- exports: ${cm.exports.slice(0, 15).join(", ") || "(none)"}\n- imports: ${cm.imports.slice(0, 15).join(", ") || "(none)"}\n- key symbols: ${cm.symbols.slice(0, 20).map((s) => `${s.name}:${s.type}`).join(", ") || "(none)"}`;
+        const sysMsg = messagesAfterScc.find(
+          (m) => m.role === "system" && typeof m.content === "string" && m.content.includes("[SPECTYRA_STATE_CODE]")
+        );
+        if (sysMsg && typeof sysMsg.content === "string") {
+          sysMsg.content = sysMsg.content.replace(
+            /- key symbols: \(see recent context\)/,
+            codemapSnippet.slice(0, 600) + (codemapSnippet.length > 600 ? "…" : "")
+          );
+        }
+        codeMapResultEmbedded = {
+          tokensBefore: codeMapResult.tokensBefore,
+          tokensAfter: codeMapResult.tokensAfter,
+          symbolsCount: cm.symbols.length,
+          changed: true,
+        };
+      }
+    }
+
     let messagesAfterRefPack = messagesAfterScc;
     const refPackMetrics = { tokensBefore: 0, tokensAfter: 0, entriesCount: 0, replacementsMade: 0 };
 
-    // ===== STE (Spectral Token Encoding): replaces PhraseBook; max 5 entries, ≤60 chars/entry; profit-gated =====
+    // ===== STE (PhraseBook): skip when SCC applied — PG-SCC is the only compression layer =====
     let messagesAfterSTE = messagesAfterRefPack;
     let phraseBookMetrics = { tokensBefore: 0, tokensAfter: 0, entriesCount: 0, changed: false };
 
-    if (budgets.phrasebookAggressiveness > 0.3) {
+    if (useLegacyCompression && budgets.phrasebookAggressiveness > 0.3) {
       const steResult = buildSTE({
         messages: messagesAfterRefPack,
         aggressiveness: budgets.phrasebookAggressiveness,
@@ -358,31 +398,14 @@ export async function runOptimizedOrBaseline(
       }
     }
 
-    // ===== CodeMap: code path only, run on SCC output; structural index only (symbols/imports/exports), no prose =====
+    // ===== CodeMap: code path only — already embedded into SCC; no separate system message =====
     let messagesAfterCodeMap = messagesAfterSTE;
     let codeMapMetrics = { tokensBefore: 0, tokensAfter: 0, symbolsCount: 0, changed: false };
 
-    if (path === "code" && budgets.codemapDetailLevel < 1.0) {
-      const codeMapResult = buildCodeMap({
-        messages: messagesAfterScc,
-        spectral,
-        detailLevel: budgets.codemapDetailLevel,
-        structuralOnly: true,
-      });
-
-      if (codeMapResult.changed) {
-        const gateCm = profitGate(messagesAfterSTE, codeMapResult.messages, gateOpts, "codemap");
-        optimizationSteps.push(gateCm);
-        if (gateCm.useAfter) {
-          messagesAfterCodeMap = codeMapResult.messages;
-          codeMapMetrics = {
-            tokensBefore: codeMapResult.tokensBefore,
-            tokensAfter: codeMapResult.tokensAfter,
-            symbolsCount: codeMapResult.codeMap?.symbols.length || 0,
-            changed: codeMapResult.changed,
-          };
-        }
-      }
+    if (path === "code" && codeMapResultEmbedded) {
+      codeMapMetrics = codeMapResultEmbedded;
+      const gateCm = profitGate(messagesAfterSTE, messagesAfterSTE, gateOpts, "codemap");
+      optimizationSteps.push(gateCm);
     }
 
     // ===== Core Moat v1: Semantic Hash Caching =====

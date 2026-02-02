@@ -21,6 +21,9 @@ import {
   extractConstraints,
   extractFailingSignals,
   extractTouchedFiles,
+  extractConfirmedTouchedFiles,
+  extractLatestToolFailure,
+  extractFocusFiles,
 } from "../scc/extract.js";
 import { compileTalkState, compileCodeState } from "../contextCompiler.js";
 import type { ChatMessage } from "@spectyra/shared";
@@ -149,6 +152,64 @@ describe("extractTouchedFiles", () => {
   });
 });
 
+describe("extractConfirmedTouchedFiles", () => {
+  it("includes read_file: path=... from tool messages", () => {
+    const messages: ChatMessage[] = [
+      { role: "tool", content: "read_file: path=apps/web/src/app.component.ts" },
+    ];
+    const files = extractConfirmedTouchedFiles(messages);
+    assert.ok(files.some((p) => p.includes("app.component.ts")));
+  });
+
+  it("includes user Relevant file again: code fence paths", () => {
+    const messages: ChatMessage[] = [
+      { role: "user", content: "Relevant file again:\n```ts\napps/web/src/main.ts\n```" },
+    ];
+    const files = extractConfirmedTouchedFiles(messages);
+    assert.ok(files.some((p) => p.includes("main.ts")));
+  });
+
+  it("ignores --- a/... / +++ b/... diff header artifacts", () => {
+    const messages: ChatMessage[] = [
+      { role: "assistant", content: "Patch: --- a/tsconfig.js\n+++ b/tsconfig.js\n" },
+      { role: "tool", content: "read_file: path=apps/web/src/app.component.ts" },
+    ];
+    const files = extractConfirmedTouchedFiles(messages);
+    assert.ok(!files.some((p) => p === "tsconfig.js" || p.startsWith("a/") || p.startsWith("b/")));
+    assert.ok(files.some((p) => p.includes("app.component.ts")));
+  });
+});
+
+describe("extractLatestToolFailure", () => {
+  it("returns last tool block containing TS error", () => {
+    const messages: ChatMessage[] = [
+      { role: "tool", content: "Command: pnpm lint\nOutput: no errors" },
+      {
+        role: "tool",
+        content: "Command: pnpm lint\nERROR in apps/web/src/main.ts:9\nTS2345: string | undefined not assignable to string.",
+      },
+    ];
+    const out = extractLatestToolFailure(messages);
+    assert.ok(out != null);
+    assert.ok(out!.output.includes("TS2345"));
+    assert.ok(out!.output.includes("string | undefined"));
+  });
+});
+
+describe("extractFocusFiles", () => {
+  it("derives focus files from failing signals and user Relevant file again", () => {
+    const messages: ChatMessage[] = [
+      { role: "user", content: "Fix the bug." },
+      { role: "tool", content: "ERROR in apps/web/src/optimizer-lab.page.ts:9\nTS2345: error." },
+      { role: "user", content: "Relevant file again:\n```\napps/web/src/app.component.ts\n```" },
+    ];
+    const files = extractFocusFiles(messages);
+    assert.ok(files.some((p) => p.includes("optimizer-lab.page.ts")));
+    assert.ok(files.some((p) => p.includes("app.component.ts")));
+    assert.ok(files.length <= 5);
+  });
+});
+
 describe("compileTalkState", () => {
   it("dedupes constraints and does not drop ES2019/no optional chaining", () => {
     const messages: ChatMessage[] = [
@@ -188,5 +249,73 @@ describe("compileCodeState", () => {
     assert.ok(content.includes("Failing signals"));
     assert.ok(content.includes("[SPECTYRA_STATE_CODE]"));
     assert.ok(content.includes("files touched") || content.includes("client.ts"));
+  });
+
+  it("contains Latest tool failure section when tool output has TS error", () => {
+    const messages: ChatMessage[] = [
+      { role: "user", content: "Fix lint." },
+      {
+        role: "tool",
+        content: "Command: pnpm lint\nERROR in apps/web/src/page.ts:9\nTS2345: Type 'string | undefined' is not assignable to type 'string'.",
+      },
+    ];
+    const out = compileCodeState({
+      messages,
+      units: emptyUnits,
+      spectral: emptySpectral,
+      budgets: defaultBudgets,
+    });
+    const content = out.stateMsg.content;
+    assert.ok(content.includes("Latest tool failure") || content.includes("verbatim excerpt"), "SCC should include latest tool failure section");
+    assert.ok(content.includes("TS2345"));
+  });
+
+  it("contains Focus files section", () => {
+    const messages: ChatMessage[] = [
+      { role: "user", content: "Fix the build." },
+      { role: "tool", content: "ERROR in apps/web/src/optimizer-lab.page.ts:9\nTS2345: error." },
+    ];
+    const out = compileCodeState({
+      messages,
+      units: emptyUnits,
+      spectral: emptySpectral,
+      budgets: defaultBudgets,
+    });
+    const content = out.stateMsg.content;
+    assert.ok(content.includes("Focus files"));
+    assert.ok(content.includes("optimizer-lab.page.ts"));
+  });
+
+  it("does not include a/tsconfig.js or b/tsconfig.js style artifacts in repo context", () => {
+    const messages: ChatMessage[] = [
+      { role: "user", content: "Fix types." },
+      { role: "assistant", content: "--- a/tsconfig.js\n+++ b/tsconfig.js\n" },
+      { role: "tool", content: "read_file: path=apps/web/src/app.component.ts" },
+    ];
+    const out = compileCodeState({
+      messages,
+      units: emptyUnits,
+      spectral: emptySpectral,
+      budgets: defaultBudgets,
+    });
+    const content = out.stateMsg.content;
+    assert.ok(!content.includes("a/tsconfig.js"), "SCC must not include diff artifact a/tsconfig.js");
+    assert.ok(!content.includes("b/tsconfig.js"), "SCC must not include diff artifact b/tsconfig.js");
+  });
+
+  it("contains Next actions block", () => {
+    const messages: ChatMessage[] = [
+      { role: "user", content: "Fix the build." },
+    ];
+    const out = compileCodeState({
+      messages,
+      units: emptyUnits,
+      spectral: emptySpectral,
+      budgets: defaultBudgets,
+    });
+    const content = out.stateMsg.content;
+    assert.ok(content.includes("Next actions"));
+    assert.ok(content.includes("Open the focus files") || content.includes("read_file"));
+    assert.ok(content.includes("Do not edit unrelated files"));
   });
 });
