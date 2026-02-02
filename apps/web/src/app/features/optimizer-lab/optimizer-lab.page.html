@@ -480,15 +480,15 @@
                   </div>
                   <div class="debug-item">
                     <span class="debug-label">Compression:</span>
-                    <span class="debug-value">{{ result?.debug?.budgets?.compressionAggressiveness != null ? ((result?.debug?.budgets?.compressionAggressiveness * 100) | number:'1.0-0') : '—' }}%</span>
+                    <span class="debug-value">{{ formatDebugPercent(result?.debug?.budgets?.compressionAggressiveness) }}</span>
                   </div>
                   <div class="debug-item">
                     <span class="debug-label">Phrasebook:</span>
-                    <span class="debug-value">{{ result?.debug?.budgets?.phrasebookAggressiveness != null ? ((result?.debug?.budgets?.phrasebookAggressiveness * 100) | number:'1.0-0') : '—' }}%</span>
+                    <span class="debug-value">{{ formatDebugPercent(result?.debug?.budgets?.phrasebookAggressiveness) }}</span>
                   </div>
                   <div class="debug-item">
                     <span class="debug-label">CodeMap Detail:</span>
-                    <span class="debug-value">{{ result?.debug?.budgets?.codemapDetailLevel != null ? ((result?.debug?.budgets?.codemapDetailLevel * 100) | number:'1.0-0') : '—' }}%</span>
+                    <span class="debug-value">{{ formatDebugPercent(result?.debug?.budgets?.codemapDetailLevel) }}</span>
                   </div>
                 </div>
               </div>

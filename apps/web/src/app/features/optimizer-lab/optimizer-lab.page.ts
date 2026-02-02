@@ -302,6 +302,12 @@ export class OptimizerLabPage implements OnInit {
     return isNaN(num) ? '—' : `${num.toFixed(1)}%`;
   }
 
+  /** Format 0-1 value as percentage for debug panel (strict template safe). */
+  formatDebugPercent(value: number | null | undefined): string {
+    if (value == null || typeof value !== 'number' || isNaN(value)) return '—';
+    return `${(value * 100).toFixed(0)}%`;
+  }
+
   copyToClipboard(text: string) {
     navigator.clipboard.writeText(text).then(
       () => this.snackbar.showSuccess('Copied to clipboard'),
