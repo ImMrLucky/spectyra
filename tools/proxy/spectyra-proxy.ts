@@ -25,7 +25,7 @@ const __dirname = path.dirname(__filename);
 
 // Package version (for client headers)
 const PKG_VERSION = JSON.parse(
-  readFileSync(path.join(__dirname, "../package.json"), "utf-8")
+  readFileSync(path.join(__dirname, "./package.json"), "utf-8")
 ).version;
 
 // ============================================================================

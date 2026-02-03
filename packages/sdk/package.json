@@ -1,6 +1,6 @@
 {
   "name": "@spectyra/sdk",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Spectyra SDK for real-time LLM optimization",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
