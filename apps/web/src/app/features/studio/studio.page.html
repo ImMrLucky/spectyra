@@ -1,0 +1,166 @@
+<div class="studio-page">
+  <div *ngIf="loading" class="loading-state">
+    <p>Loading Spectyra Studio...</p>
+  </div>
+
+  <div *ngIf="!loading && (!isAuthenticated || !isOwner)" class="access-denied">
+    <h2>Spectyra Studio</h2>
+    <div class="error-card">
+      <p>{{ error || 'Access denied' }}</p>
+      <a routerLink="/login" [queryParams]="{ returnUrl: '/admin/studio' }" class="login-link">Log in</a>
+    </div>
+  </div>
+
+  <div *ngIf="!loading && isAuthenticated && isOwner" class="studio-content">
+    <header class="studio-header">
+      <h1>Spectyra Studio</h1>
+      <p class="subtitle">Run Raw vs Spectyra side-by-side across common scenarios</p>
+    </header>
+
+    <div class="studio-layout">
+      <!-- Left panel: setup -->
+      <section class="setup-panel">
+        <div class="panel-header">
+          <h2>Setup</h2>
+        </div>
+
+        <div class="form-group">
+          <label>Scenario</label>
+          <select class="form-select" [(ngModel)]="scenarioId" (ngModelChange)="onScenarioChange()">
+            <option *ngFor="let s of scenarios" [value]="s.id">{{ s.title }}</option>
+          </select>
+          <small class="hint">{{ selectedScenario.description }}</small>
+        </div>
+
+        <div class="form-group">
+          <label>{{ selectedScenario.inputSchema.primaryLabel }}</label>
+          <textarea
+            class="form-textarea"
+            rows="6"
+            [(ngModel)]="primary"
+            [placeholder]="selectedScenario.inputSchema.primaryPlaceholder"></textarea>
+        </div>
+
+        <div class="form-group" *ngIf="selectedScenario.inputSchema.secondaryLabel">
+          <label>{{ selectedScenario.inputSchema.secondaryLabel }}</label>
+          <textarea
+            class="form-textarea"
+            rows="4"
+            [(ngModel)]="secondary"
+            [placeholder]="selectedScenario.inputSchema.secondaryPlaceholder"></textarea>
+        </div>
+
+        <div class="form-group">
+          <button class="btn-link" (click)="useExample()">Use Example</button>
+          <button class="btn-link" (click)="showAdvanced = !showAdvanced">
+            {{ showAdvanced ? 'Hide Advanced' : 'Advanced' }}
+          </button>
+        </div>
+
+        <div class="advanced" *ngIf="showAdvanced">
+          <div class="checkbox-row">
+            <label><input type="checkbox" [(ngModel)]="advanced.showToolCalls" /> Show tool calls</label>
+          </div>
+          <div class="checkbox-row">
+            <label><input type="checkbox" [(ngModel)]="advanced.showPolicyEvaluation" /> Show policy evaluation</label>
+          </div>
+          <div class="checkbox-row">
+            <label><input type="checkbox" [(ngModel)]="advanced.showTokenBreakdown" /> Show token breakdown</label>
+          </div>
+        </div>
+
+        <button class="run-button" (click)="runRawVsSpectyra()" [disabled]="running">
+          <mat-icon class="btn-icon">play_arrow</mat-icon>
+          {{ running ? 'Running...' : 'Run Raw vs Spectyra' }}
+        </button>
+      </section>
+
+      <!-- Right panel: results -->
+      <section class="results-panel">
+        <div class="panel-header">
+          <h2>Results</h2>
+        </div>
+
+        <div *ngIf="!result" class="empty-results">
+          <p>Pick a scenario, click <b>Use Example</b>, then run.</p>
+        </div>
+
+        <div *ngIf="result" class="results">
+          <div class="metrics-row">
+            <div class="metric-card">
+              <div class="label">Raw tokens</div>
+              <div class="value">{{ result.raw.tokens.total }}</div>
+              <div class="sub">Input {{ result.raw.tokens.input }} • Output {{ result.raw.tokens.output }}</div>
+            </div>
+            <div class="metric-card">
+              <div class="label">Spectyra tokens</div>
+              <div class="value">{{ result.spectyra.tokens.total }}</div>
+              <div class="sub">Input {{ result.spectyra.tokens.input }} • Output {{ result.spectyra.tokens.output }}</div>
+            </div>
+            <div class="metric-card">
+              <div class="label">Savings</div>
+              <div class="value">{{ result.metrics.tokenSavingsPct ?? 0 | number:'1.0-2' }}%</div>
+              <div class="sub">Cost {{ result.metrics.costSavingsPct ?? 0 | number:'1.0-2' }}%</div>
+            </div>
+            <div class="metric-card">
+              <div class="label">Latency</div>
+              <div class="value">{{ result.raw.latencyMs }}ms → {{ result.spectyra.latencyMs }}ms</div>
+              <div class="sub">Raw vs Spectyra</div>
+            </div>
+            <div class="metric-card" *ngIf="result.metrics.violationsPrevented != null">
+              <div class="label">Violations prevented</div>
+              <div class="value">{{ result.metrics.violationsPrevented }}</div>
+              <div class="sub">Prompt-level governance checks</div>
+            </div>
+          </div>
+
+          <div class="compare-grid">
+            <div class="pane">
+              <div class="pane-header">Raw output</div>
+              <pre class="pane-body">{{ result.raw.outputText }}</pre>
+              <div class="details" *ngIf="showAdvanced && advanced.showPolicyEvaluation">
+                <div class="details-title">Policy evaluation</div>
+                <div class="details-empty" *ngIf="!result.raw.violations || result.raw.violations.length === 0">No violations detected.</div>
+                <ul class="violations" *ngIf="result.raw.violations && result.raw.violations.length > 0">
+                  <li *ngFor="let v of result.raw.violations">
+                    <span class="code">{{ v.code }}</span>
+                    <span class="msg">{{ v.message }}</span>
+                  </li>
+                </ul>
+              </div>
+            </div>
+            <div class="pane">
+              <div class="pane-header">Spectyra output</div>
+              <pre class="pane-body">{{ result.spectyra.outputText }}</pre>
+              <div class="details" *ngIf="showAdvanced && advanced.showPolicyEvaluation">
+                <div class="details-title">Policy evaluation</div>
+                <div class="details-empty" *ngIf="!result.spectyra.violations || result.spectyra.violations.length === 0">No violations detected.</div>
+                <ul class="violations" *ngIf="result.spectyra.violations && result.spectyra.violations.length > 0">
+                  <li *ngFor="let v of result.spectyra.violations">
+                    <span class="code">{{ v.code }}</span>
+                    <span class="msg">{{ v.message }}</span>
+                  </li>
+                </ul>
+              </div>
+            </div>
+          </div>
+
+          <div class="history" *ngIf="runHistory.length > 1">
+            <h3>Run history</h3>
+            <div class="history-list">
+              <button
+                class="history-item"
+                *ngFor="let r of runHistory"
+                (click)="restoreFromHistory(r)">
+                <span class="id">{{ r.runId.slice(0, 8) }}</span>
+                <span class="time">{{ r.createdAt }}</span>
+                <span class="meta">{{ r.metrics.tokenSavingsPct ?? 0 | number:'1.0-1' }}% saved</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      </section>
+    </div>
+  </div>
+</div>
+

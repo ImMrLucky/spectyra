@@ -7,6 +7,7 @@ import { IntegrationsPage } from './features/integrations/integrations.page';
 import { ProjectsPage } from './features/projects/projects.page';
 import { AdminPage } from './features/admin/admin.page';
 import { OptimizerLabPage } from './features/optimizer-lab/optimizer-lab.page';
+import { StudioPage } from './features/studio/studio.page';
 import { HomePage } from './features/home/home.page';
 import { OverviewPage } from './features/overview/overview.page';
 import { PoliciesPage } from './features/policies/policies.page';
@@ -36,6 +37,7 @@ export const appRoutes: Routes = [
   { path: 'settings/provider-keys', component: ProviderKeysPage, canActivate: [authGuard] },
   { path: 'admin', component: AdminPage, canActivate: [authGuard] },
   { path: 'admin/optimizer-lab', component: OptimizerLabPage, canActivate: [authGuard] },
+  { path: 'admin/studio', component: StudioPage, canActivate: [authGuard] },
   
   // Redirect old routes for backward compatibility
   { path: 'savings', redirectTo: '/usage', pathMatch: 'full' },
