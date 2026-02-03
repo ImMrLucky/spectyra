@@ -67,6 +67,10 @@ export function extractConstraints(messages: ChatMessage[]): ExtractedConstraint
       if (/^Add the same constraint\b/i.test(normalized)) {
         continue;
       }
+      // Persona fluff: do not treat as a constraint.
+      if (/^You are an expert software engineer\b/i.test(normalized)) {
+        continue;
+      }
       if (isConstraintLine(normalized)) {
         allLines.push(normalized);
         if (isEsOrOcConstraint(normalized)) {

@@ -251,7 +251,7 @@ describe("compileTalkState", () => {
 });
 
 describe("compileCodeState", () => {
-  it("dedupes failing signals and normalizes touched files", () => {
+  it("dedupes failing signals and keeps focus files short", () => {
     const messages: ChatMessage[] = [
       { role: "user", content: "Fix the build." },
       {
@@ -267,12 +267,13 @@ describe("compileCodeState", () => {
       budgets: defaultBudgets,
     });
     const content = out.stateMsg.content;
-    assert.ok(content.includes("Failing signals"));
+    assert.ok(content.includes("Latest failure"));
     assert.ok(content.includes("[SPECTYRA_STATE_CODE]"));
-    assert.ok(content.includes("files touched") || content.includes("client.ts"));
+    assert.ok(content.includes("Focus files"));
+    assert.ok(content.includes("apps/web/src/main.ts") || content.includes("client.ts"));
   });
 
-  it("contains Latest tool failure section when tool output has TS error", () => {
+  it("contains Recent tool output excerpt when tool output has TS error", () => {
     const messages: ChatMessage[] = [
       { role: "user", content: "Fix lint." },
       {
@@ -287,7 +288,8 @@ describe("compileCodeState", () => {
       budgets: defaultBudgets,
     });
     const content = out.stateMsg.content;
-    assert.ok(content.includes("Latest tool failure") || content.includes("verbatim excerpt"), "SCC should include latest tool failure section");
+    assert.ok(content.includes("Recent tool output excerpt"), "SCC should include recent tool output excerpt section");
+    assert.ok(content.includes("Command: pnpm lint") || content.includes("Output:"), "excerpt should include command/output header");
     assert.ok(content.includes("TS2345"));
   });
 
@@ -399,6 +401,50 @@ describe("compileCodeState", () => {
     assert.ok(!content.includes("Recent context kept verbatim below"), "must not include verbatim transcript phrase");
     assert.ok(content.includes("run_terminal_cmd"));
     assert.ok(/do NOT read_file first/i.test(content));
+  });
+
+  it("prepends test override banner above operating rules when latest user asks to run tests/lint", () => {
+    const messages: ChatMessage[] = [
+      { role: "user", content: "Fix the issue." },
+      { role: "user", content: "Run tests and paste the output." },
+    ];
+    const out = compileCodeState({
+      messages,
+      units: emptyUnits,
+      spectral: emptySpectral,
+      budgets: defaultBudgets,
+    });
+    const content = typeof out.stateMsg.content === "string" ? out.stateMsg.content : "";
+    const bannerIdx = content.indexOf("MANDATORY FIRST ACTION: run_terminal_cmd now");
+    const rulesIdx = content.indexOf("Operating rules");
+    assert.ok(bannerIdx >= 0, "must include test override banner");
+    assert.ok(rulesIdx >= 0, "must include operating rules");
+    assert.ok(bannerIdx < rulesIdx, "banner must be above operating rules");
+  });
+
+  it("preserves fenced code blocks verbatim in kept messages", () => {
+    const tricky = [
+      "Here is the snippet:",
+      "```ts",
+      "const s = `backticks ${'${}'} </div> \\b \\n 😀`;",
+      "const re = /\\bfoo\\nbar\\t/g;",
+      "const obj = { a: 1, b: \"x\" };",
+      "```",
+      "Do not reformat it.",
+    ].join("\n");
+    const messages: ChatMessage[] = [
+      { role: "user", content: "Fix the build." },
+      { role: "user", content: tricky },
+      { role: "tool", content: "ERROR in apps/web/src/main.ts:9\nTS2345: error." },
+    ];
+    const out = compileCodeState({
+      messages,
+      units: emptyUnits,
+      spectral: emptySpectral,
+      budgets: defaultBudgets,
+    });
+    const keptUser = out.keptMessages.find((m) => m.role === "user" && m.content === tricky);
+    assert.ok(keptUser, "kept messages must include the last user message verbatim (including fenced code)");
   });
 
   it("SCC output contains TS2345 hint when latest error is TS2345 + string|undefined", () => {

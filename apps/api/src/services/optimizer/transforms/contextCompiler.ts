@@ -65,7 +65,7 @@ const MAX_STACK_LINES_IN_EXCERPT = 3;
 
 /** Operating rules: explicit tool mapping + priority (run_terminal_cmd for tests, no read_file first). */
 const OPERATING_RULES = `Operating rules (must follow):
-- If the user asks to run tests/lint: immediately call run_terminal_cmd (do NOT read_file first) and paste the full output.
+- If the user asks to run tests/lint: immediately call run_terminal_cmd (do NOT read_file first) and paste the full output. Do not add narration.
 - Only propose code patches AFTER you read_file the failing file + line.
 - Treat .json as JSON (never assume TS/JS content).`;
 
@@ -87,6 +87,7 @@ function trimToolExcerptToErrorAndStack(output: string, maxStackLines: number): 
   let start = -1;
   let stackCount = 0;
   const stackRe = /^\s*at\s+\S+\s+\([^)]+:\d+:\d+\)/;
+  const tsRe = /^\s*TS\d+:/;
   for (let i = 0; i < lines.length; i++) {
     const line = lines[i]!;
     if (/ERROR\s+in\s|TS\d+:/i.test(line)) {
@@ -103,8 +104,14 @@ function trimToolExcerptToErrorAndStack(output: string, maxStackLines: number): 
   if (start >= 0) {
     const slice = lines.slice(start);
     const collected: string[] = [slice[0]!];
+    let tsLineIncluded = false;
     let n = 0;
     for (let j = 1; j < slice.length && n < maxStackLines; j++) {
+      if (!tsLineIncluded && tsRe.test(slice[j]!)) {
+        collected.push(slice[j]!);
+        tsLineIncluded = true;
+        continue;
+      }
       if (stackRe.test(slice[j]!)) {
         collected.push(slice[j]!);
         n++;
@@ -163,6 +170,22 @@ function getLastNTurnsPlusToolOutputs(messages: ChatMessage[], keepLastTurns: nu
     }
   }
   return [...lastNTurns, ...added];
+}
+
+/** Code SCC: keep only the latest user message + tool outputs after it (avoid copying assistant "checking..." autopilot). */
+function getLastUserPlusToolOutputs(messages: ChatMessage[]): ChatMessage[] {
+  const nonSystem = messages.filter((m) => m.role !== "system");
+  let lastUserIdx = -1;
+  for (let i = nonSystem.length - 1; i >= 0; i--) {
+    if (nonSystem[i]!.role === "user") {
+      lastUserIdx = i;
+      break;
+    }
+  }
+  if (lastUserIdx < 0) return nonSystem.slice(-2);
+  const userMsg = nonSystem[lastUserIdx]!;
+  const toolAfter = nonSystem.slice(lastUserIdx + 1).filter((m) => m.role === "tool");
+  return [userMsg, ...toolAfter];
 }
 
 /**
@@ -245,6 +268,18 @@ export function compileCodeState(input: CompileCodeStateInput): CompileCodeState
 
   const firstUser = messages.find((m) => m.role === "user");
   const task = firstUser?.content?.trim().split(/\n/)[0]?.slice(0, 200) ?? "Code task.";
+  const lastUser = [...messages].reverse().find((m) => m.role === "user");
+  const lastUserText = (lastUser?.content ?? "").trim();
+  const isTestRequest =
+    /\brun the full test suite\b/i.test(lastUserText) ||
+    /\brun tests?\b/i.test(lastUserText) ||
+    /\brun lint\b/i.test(lastUserText) ||
+    /\bpnpm\s+test\b/i.test(lastUserText) ||
+    /\bpnpm\s+lint\b/i.test(lastUserText) ||
+    /\bpaste (?:the )?output\b/i.test(lastUserText);
+  const testOverrideBanner = isTestRequest
+    ? "MANDATORY FIRST ACTION: run_terminal_cmd now (do NOT read_file first).\n"
+    : "";
 
   const extracted = extractConstraints(messages);
   const constraintsBlock = buildConstraintsBlock(extracted);
@@ -280,17 +315,19 @@ export function compileCodeState(input: CompileCodeStateInput): CompileCodeState
           : trimmedOutput)
       : "";
 
-  const focusFiles = extractFocusFiles(messages);
+  // Focus files: max 2–3, deduped. Prefer latest failure file + top stack callsite.
+  const focusSet: string[] = [];
+  if (latestSignal?.file) focusSet.push(normalizePath(latestSignal.file));
+  const stackMatch = trimmedOutput.match(/\bat\s+\S+\s+\(([^)]+):(\d+):\d+\)/);
+  if (stackMatch) focusSet.push(normalizePath(stackMatch[1]!));
+  const confirmedTouched = extractConfirmedTouchedFiles(messages).map((p) => normalizePath(p));
+  for (const p of confirmedTouched) {
+    if (focusSet.length >= 3) break;
+    focusSet.push(p);
+  }
+  const focusFiles = dedupeOrdered(focusSet).slice(0, 3);
   const focusBlock =
     focusFiles.length > 0 ? focusFiles.map((p) => `- ${p}`).join("\n") : "- (none)";
-
-  const allTouched = extractConfirmedTouchedFiles(messages).map((p) => normalizePath(p));
-  const maxTouched = 5;
-  const confirmedTouched = allTouched.slice(0, maxTouched);
-  const filesTouched =
-    confirmedTouched.length > 0
-      ? confirmedTouched.join(", ") + (allTouched.length > maxTouched ? ` (+${allTouched.length - maxTouched} more)` : "")
-      : "(none)";
 
   const nextActionsBlock = `Next actions:
 0) If asked to run tests/lint: run_terminal_cmd now.
@@ -300,25 +337,23 @@ export function compileCodeState(input: CompileCodeStateInput): CompileCodeState
 
   const ts2345Hint = buildTs2345Hint(latestSignal, latestToolFailure);
 
-  let stateBody = `Task: ${task}
+  let stateBody = `${testOverrideBanner}${OPERATING_RULES}
+
+${nextActionsBlock}
+
+Task: ${task}
 
 Constraints (rule-like only):
 ${constraintsBlock}
 
-Failing signals:
+Latest failure:
 ${failingBlock}
-${toolExcerpt ? `\nLatest tool failure (verbatim excerpt):\n${toolExcerpt}\n` : ""}
 
-Focus files (open these first):
+Focus files:
 ${focusBlock}
 
-Repo context:
-- files touched (confirmed): ${filesTouched}
-
-${nextActionsBlock}
-
-${OPERATING_RULES}
-${ts2345Hint ? `\n${ts2345Hint}` : ""}`;
+${toolExcerpt ? `\nRecent tool output excerpt:\n${toolExcerpt}\n` : ""}
+${ts2345Hint ? `\n${ts2345Hint}` : ""}`.trim();
 
   stateBody = stripRefPackArtifacts(stateBody);
   if (stateBody.length > maxStateChars) {
@@ -330,7 +365,7 @@ ${stateBody}
 [/SPECTYRA_STATE_CODE]`;
 
   const stateMsg: ChatMessage = { role: "system", content: stateContent };
-  const kept = getLastNTurnsPlusToolOutputs(messages, keepLastTurns);
+  const kept = getLastUserPlusToolOutputs(messages);
   const keptMessages = [stateMsg, ...kept];
   const droppedCount = messages.length - keptMessages.length;
   const failingSignalsCount = (latestSignal ? 1 : 0) + rest.length;
