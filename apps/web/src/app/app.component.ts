@@ -64,6 +64,7 @@ export class AppComponent implements OnInit, OnDestroy, AfterViewInit {
     { label: 'Settings', route: '/settings', icon: 'settings' },
     { label: 'Admin', route: '/admin', icon: 'admin_panel_settings', adminOnly: true },
     { label: 'Optimizer Lab', route: '/admin/optimizer-lab', icon: 'science', adminOnly: true },
+    { label: 'Spectyra Studio', route: '/admin/studio', icon: 'auto_awesome', adminOnly: true },
   ];
 
   constructor(
