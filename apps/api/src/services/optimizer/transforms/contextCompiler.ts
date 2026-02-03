@@ -23,7 +23,6 @@ import {
   extractFailingSignals,
   extractConfirmedTouchedFiles,
   extractLatestToolFailure,
-  extractFocusFiles,
 } from "./scc/extract.js";
 
 export interface CompileTalkStateInput {
@@ -56,7 +55,6 @@ export interface CompileCodeStateOutput {
 
 const MAX_BULLET_LEN = 120;
 const MAX_CONSTRAINT_LINE = 200;
-const MAX_CONFIRMED_FILES = 10;
 const MAX_LATEST_TOOL_EXCERPT_CHARS = 1200;
 /** Code path: 1 latest error + 6 history (deduped). */
 const MAX_FAILING_SIGNALS_AFTER_LATEST = 6;
@@ -68,6 +66,27 @@ const OPERATING_RULES = `Operating rules (must follow):
 - If the user asks to run tests/lint: immediately call run_terminal_cmd (do NOT read_file first) and paste the full output. Do not add narration.
 - Only propose code patches AFTER you read_file the failing file + line.
 - Treat .json as JSON (never assume TS/JS content).`;
+
+const NEXT_ACTIONS = `Next actions:
+0) If asked to run tests/lint: run_terminal_cmd now.
+1) read_file the focus file at the failing line.
+2) identify the exact expression producing the error.
+3) apply the smallest fix; rerun lint/tests.`;
+
+function extractPinnedTaskFromPriorState(messages: ChatMessage[]): string | null {
+  for (let i = 0; i < messages.length; i++) {
+    const m = messages[i];
+    if (!m) continue;
+    if (m.role !== "system") continue;
+    const c = typeof m.content === "string" ? m.content : "";
+    if (c.indexOf("[SPECTYRA_STATE_CODE]") === -1) continue;
+    const match = c.match(/^\s*Task:\s*(.+)\s*$/m);
+    if (match && match[1]) {
+      return match[1].trim().slice(0, 200);
+    }
+  }
+  return null;
+}
 
 function truncate(s: string, max: number): string {
   if (s.length <= max) return s;
@@ -132,6 +151,157 @@ function buildTs2345Hint(
   if (code !== "TS2345") return "";
   if (!/string\s*\|\s*undefined|undefined.*string/i.test(raw)) return "";
   return `TS2345 hint: This usually means optional env/config value is flowing into a function expecting string. Look for process.env.X or config lookup returning string | undefined and either provide a fallback, throw early, or narrow type.`;
+}
+
+function isTestRequestText(text: string): boolean {
+  const t = (text ?? "").trim();
+  if (!t) return false;
+  return (
+    /\brun the full test suite\b/i.test(t) ||
+    /\brun tests?\b/i.test(t) ||
+    /\brun lint\b/i.test(t) ||
+    /\bpnpm\s+test\b/i.test(t) ||
+    /\bpnpm\s+lint\b/i.test(t) ||
+    /\bpaste (?:the )?output\b/i.test(t)
+  );
+}
+
+export interface CanonicalCodeState {
+  operatingRules: string;
+  nextActions: string;
+  taskLine: string;
+  constraintsBlock: string;
+  latestFailureBlock: string;
+  focusFiles: string[];
+  recentToolOutputExcerpt: string;
+  testOverrideBanner: string;
+  tsHint: string;
+}
+
+function buildCanonicalCodeState(input: {
+  messages: ChatMessage[];
+  retainToolLogs: boolean;
+}): CanonicalCodeState {
+  const { messages, retainToolLogs } = input;
+
+  // Task (original scenario task): from first user message first line.
+  const pinnedTask = extractPinnedTaskFromPriorState(messages);
+  let firstUser: ChatMessage | null = null;
+  for (let j = 0; j < messages.length; j++) {
+    if (messages[j] && messages[j]!.role === "user") {
+      firstUser = messages[j]!;
+      break;
+    }
+  }
+  let firstUserLine = "";
+  if (firstUser && typeof firstUser.content === "string") {
+    firstUserLine = String(firstUser.content).trim().split(/\n/)[0].slice(0, 200);
+  }
+  const task = pinnedTask || firstUserLine || "Code task.";
+
+  // Latest user message determines test override behavior.
+  const lastUser = [...messages].reverse().find((m) => m.role === "user");
+  const lastUserText = (lastUser?.content ?? "").trim();
+  const isTestRequest = isTestRequestText(lastUserText);
+  const testOverrideBanner = isTestRequest
+    ? "MANDATORY FIRST ACTION: run_terminal_cmd now (do NOT read_file first).\n"
+    : "";
+
+  // Constraints (ordered, deduped, rule-like only).
+  const extracted = extractConstraints(messages);
+  const constraintsBlock = buildConstraintsBlock(extracted);
+
+  // Failures (latest + others deduped).
+  const failingSignalsRaw = retainToolLogs ? extractFailingSignals(messages) : [];
+  const latestSignal = failingSignalsRaw.length > 0 ? failingSignalsRaw[failingSignalsRaw.length - 1]! : null;
+  const restRaw = latestSignal ? failingSignalsRaw.slice(0, -1) : failingSignalsRaw;
+  const rest = dedupeFailingSignals(restRaw).slice(0, MAX_FAILING_SIGNALS_AFTER_LATEST);
+  const formatSignal = (s: { file?: string; line?: number; code?: string; message?: string; raw?: string }) => {
+    if (s.file != null && s.line != null) return `- ${s.file}:${s.line}`;
+    if (s.code != null && s.message != null) return `- ${s.code}: ${truncate(s.message, 60)}`;
+    return `- ${truncate(s.raw ?? "", 80)}`;
+  };
+  const latestLine = latestSignal ? formatSignal(latestSignal).replace(/^-\s*/, "") : "";
+  const restBlock = rest.map(formatSignal).join("\n");
+  const latestFailureBlock =
+    latestLine || restBlock
+      ? (latestLine ? `Latest: ${latestLine}\nOthers (deduped):\n${restBlock}` : restBlock).trim()
+      : "- (none)";
+
+  // Recent tool output excerpt (deterministic trim).
+  const latestToolFailure = retainToolLogs ? extractLatestToolFailure(messages) : null;
+  const rawOutput = latestToolFailure != null ? latestToolFailure.output : "";
+  const trimmedOutput =
+    rawOutput.length > 0
+      ? trimToolExcerptToErrorAndStack(rawOutput, MAX_STACK_LINES_IN_EXCERPT)
+      : "";
+  const recentToolOutputExcerpt =
+    latestToolFailure != null
+      ? (latestToolFailure.cmd ? `Command: ${latestToolFailure.cmd}\n` : "") +
+        "Output:\n" +
+        (trimmedOutput.length > MAX_LATEST_TOOL_EXCERPT_CHARS
+          ? trimmedOutput.slice(0, MAX_LATEST_TOOL_EXCERPT_CHARS - 1) + "…"
+          : trimmedOutput)
+      : "";
+
+  // Focus files (short, deterministic): latest failure file, top stack callsite, then one confirmed touched path.
+  const focusSet: string[] = [];
+  if (latestSignal?.file) focusSet.push(normalizePath(latestSignal.file));
+  const stackMatch = trimmedOutput.match(/\bat\s+\S+\s+\(([^)]+):(\d+):\d+\)/);
+  if (stackMatch) focusSet.push(normalizePath(stackMatch[1]!));
+  const confirmedTouched = extractConfirmedTouchedFiles(messages).map((p) => normalizePath(p));
+  for (const p of confirmedTouched) {
+    if (focusSet.length >= 3) break;
+    focusSet.push(p);
+  }
+  const focusFiles = dedupeOrdered(focusSet).slice(0, 3);
+
+  // Optional hint sections.
+  const tsHint = buildTs2345Hint(latestSignal, latestToolFailure);
+
+  return {
+    operatingRules: OPERATING_RULES,
+    nextActions: NEXT_ACTIONS,
+    taskLine: `Task: ${task}`,
+    constraintsBlock,
+    latestFailureBlock,
+    focusFiles,
+    recentToolOutputExcerpt,
+    testOverrideBanner,
+    tsHint,
+  };
+}
+
+function renderSpectyraStateCode(state: CanonicalCodeState): string {
+  // Fixed template, byte-stable given the same canonical state.
+  const lines: string[] = [];
+  if (state.testOverrideBanner) {
+    lines.push(state.testOverrideBanner.replace(/\n$/, ""));
+  }
+  lines.push(state.operatingRules);
+  lines.push("");
+  lines.push(state.nextActions);
+  lines.push("");
+  lines.push(state.taskLine);
+  lines.push("");
+  lines.push("Constraints (rule-like only):");
+  lines.push(state.constraintsBlock);
+  lines.push("");
+  lines.push("Latest failure:");
+  lines.push(state.latestFailureBlock);
+  lines.push("");
+  lines.push("Focus files:");
+  lines.push(state.focusFiles.length ? state.focusFiles.map((p) => `- ${p}`).join("\n") : "- (none)");
+  if (state.recentToolOutputExcerpt) {
+    lines.push("");
+    lines.push("Recent tool output excerpt:");
+    lines.push(state.recentToolOutputExcerpt);
+  }
+  if (state.tsHint) {
+    lines.push("");
+    lines.push(state.tsHint);
+  }
+  return lines.join("\n");
 }
 
 /** Build deduped constraint list; always include ES target + optional chaining bans if present. */
@@ -266,94 +436,8 @@ export function compileCodeState(input: CompileCodeStateInput): CompileCodeState
   const maxStateChars = Math.min(budgets.maxStateChars ?? 4000, 4000);
   const retainToolLogs = budgets.retainToolLogs !== false;
 
-  const firstUser = messages.find((m) => m.role === "user");
-  const task = firstUser?.content?.trim().split(/\n/)[0]?.slice(0, 200) ?? "Code task.";
-  const lastUser = [...messages].reverse().find((m) => m.role === "user");
-  const lastUserText = (lastUser?.content ?? "").trim();
-  const isTestRequest =
-    /\brun the full test suite\b/i.test(lastUserText) ||
-    /\brun tests?\b/i.test(lastUserText) ||
-    /\brun lint\b/i.test(lastUserText) ||
-    /\bpnpm\s+test\b/i.test(lastUserText) ||
-    /\bpnpm\s+lint\b/i.test(lastUserText) ||
-    /\bpaste (?:the )?output\b/i.test(lastUserText);
-  const testOverrideBanner = isTestRequest
-    ? "MANDATORY FIRST ACTION: run_terminal_cmd now (do NOT read_file first).\n"
-    : "";
-
-  const extracted = extractConstraints(messages);
-  const constraintsBlock = buildConstraintsBlock(extracted);
-
-  const failingSignalsRaw = retainToolLogs ? extractFailingSignals(messages) : [];
-  const latestSignal = failingSignalsRaw.length > 0 ? failingSignalsRaw[failingSignalsRaw.length - 1]! : null;
-  const restRaw = latestSignal ? failingSignalsRaw.slice(0, -1) : failingSignalsRaw;
-  const rest = dedupeFailingSignals(restRaw).slice(0, MAX_FAILING_SIGNALS_AFTER_LATEST);
-  const formatSignal = (s: { file?: string; line?: number; code?: string; message?: string; raw?: string }) => {
-    if (s.file != null && s.line != null) return `- ${s.file}:${s.line}`;
-    if (s.code != null && s.message != null) return `- ${s.code}: ${truncate(s.message, 60)}`;
-    return `- ${truncate(s.raw ?? "", 80)}`;
-  };
-  const latestLine = latestSignal ? formatSignal(latestSignal).replace(/^-\s*/, "") : "";
-  const restBlock = rest.map(formatSignal).join("\n");
-  const failingBlock =
-    latestLine || restBlock
-      ? (latestLine ? `Latest: ${latestLine}\nOthers (deduped):\n${restBlock}` : restBlock).trim()
-      : "- (none)";
-
-  const latestToolFailure = retainToolLogs ? extractLatestToolFailure(messages) : null;
-  const rawOutput = latestToolFailure != null ? latestToolFailure.output : "";
-  const trimmedOutput =
-    rawOutput.length > 0
-      ? trimToolExcerptToErrorAndStack(rawOutput, MAX_STACK_LINES_IN_EXCERPT)
-      : "";
-  const toolExcerpt =
-    latestToolFailure != null
-      ? (latestToolFailure.cmd ? `Command: ${latestToolFailure.cmd}\n` : "") +
-        "Output:\n" +
-        (trimmedOutput.length > MAX_LATEST_TOOL_EXCERPT_CHARS
-          ? trimmedOutput.slice(0, MAX_LATEST_TOOL_EXCERPT_CHARS - 1) + "…"
-          : trimmedOutput)
-      : "";
-
-  // Focus files: max 2–3, deduped. Prefer latest failure file + top stack callsite.
-  const focusSet: string[] = [];
-  if (latestSignal?.file) focusSet.push(normalizePath(latestSignal.file));
-  const stackMatch = trimmedOutput.match(/\bat\s+\S+\s+\(([^)]+):(\d+):\d+\)/);
-  if (stackMatch) focusSet.push(normalizePath(stackMatch[1]!));
-  const confirmedTouched = extractConfirmedTouchedFiles(messages).map((p) => normalizePath(p));
-  for (const p of confirmedTouched) {
-    if (focusSet.length >= 3) break;
-    focusSet.push(p);
-  }
-  const focusFiles = dedupeOrdered(focusSet).slice(0, 3);
-  const focusBlock =
-    focusFiles.length > 0 ? focusFiles.map((p) => `- ${p}`).join("\n") : "- (none)";
-
-  const nextActionsBlock = `Next actions:
-0) If asked to run tests/lint: run_terminal_cmd now.
-1) read_file the focus file at the failing line.
-2) identify the exact expression producing the error.
-3) apply the smallest fix; rerun lint/tests.`;
-
-  const ts2345Hint = buildTs2345Hint(latestSignal, latestToolFailure);
-
-  let stateBody = `${testOverrideBanner}${OPERATING_RULES}
-
-${nextActionsBlock}
-
-Task: ${task}
-
-Constraints (rule-like only):
-${constraintsBlock}
-
-Latest failure:
-${failingBlock}
-
-Focus files:
-${focusBlock}
-
-${toolExcerpt ? `\nRecent tool output excerpt:\n${toolExcerpt}\n` : ""}
-${ts2345Hint ? `\n${ts2345Hint}` : ""}`.trim();
+  const canonical = buildCanonicalCodeState({ messages, retainToolLogs });
+  let stateBody = renderSpectyraStateCode(canonical);
 
   stateBody = stripRefPackArtifacts(stateBody);
   if (stateBody.length > maxStateChars) {
@@ -368,7 +452,11 @@ ${stateBody}
   const kept = getLastUserPlusToolOutputs(messages);
   const keptMessages = [stateMsg, ...kept];
   const droppedCount = messages.length - keptMessages.length;
-  const failingSignalsCount = (latestSignal ? 1 : 0) + rest.length;
+  // For metrics: count failing signals deterministically from extraction.
+  const allSignals = retainToolLogs ? extractFailingSignals(messages) : [];
+  const latest = allSignals.length > 0 ? 1 : 0;
+  const restCount = allSignals.length > 0 ? dedupeFailingSignals(allSignals.slice(0, -1)).slice(0, MAX_FAILING_SIGNALS_AFTER_LATEST).length : 0;
+  const failingSignalsCount = latest + restCount;
 
   return {
     stateMsg,

@@ -251,6 +251,36 @@ describe("compileTalkState", () => {
 });
 
 describe("compileCodeState", () => {
+  it("pins Task from prior [SPECTYRA_STATE_CODE] system block when present", () => {
+    const messages: ChatMessage[] = [
+      {
+        role: "system",
+        content: `[SPECTYRA_STATE_CODE]
+Task: Fix failing tests in the optimizer lab.
+Constraints (rule-like only):
+- Do not use replaceAll.
+[/SPECTYRA_STATE_CODE]`,
+      },
+      { role: "user", content: "Add error handling to another area." },
+      { role: "tool", content: "ERROR in apps/web/src/main.ts:9\nTS2345: error." },
+    ];
+    const out = compileCodeState({
+      messages,
+      units: emptyUnits,
+      spectral: emptySpectral,
+      budgets: defaultBudgets,
+    });
+    const content = typeof out.stateMsg.content === "string" ? out.stateMsg.content : "";
+    assert.ok(
+      content.includes("Task: Fix failing tests in the optimizer lab."),
+      "must reuse Task from prior state block"
+    );
+    assert.ok(
+      !content.includes("Task: Add error handling to another area."),
+      "must not drift Task to first user line when pinned Task exists"
+    );
+  });
+
   it("dedupes failing signals and keeps focus files short", () => {
     const messages: ChatMessage[] = [
       { role: "user", content: "Fix the build." },
@@ -420,6 +450,17 @@ describe("compileCodeState", () => {
     assert.ok(bannerIdx >= 0, "must include test override banner");
     assert.ok(rulesIdx >= 0, "must include operating rules");
     assert.ok(bannerIdx < rulesIdx, "banner must be above operating rules");
+  });
+
+  it("is byte-stable for the same canonical state (deterministic render)", () => {
+    const messages: ChatMessage[] = [
+      { role: "user", content: "Fix the build." },
+      { role: "user", content: "Run the full test suite and paste the output." },
+      { role: "tool", content: "Command: pnpm test\nERROR in apps/web/src/main.ts:9\nTS2345: error.\n  at main (apps/web/src/main.ts:9:1)\n  at foo (apps/web/src/foo.ts:1:1)\n  at bar (apps/web/src/bar.ts:2:2)" },
+    ];
+    const a = compileCodeState({ messages, units: emptyUnits, spectral: emptySpectral, budgets: defaultBudgets }).stateMsg.content;
+    const b = compileCodeState({ messages, units: emptyUnits, spectral: emptySpectral, budgets: defaultBudgets }).stateMsg.content;
+    assert.strictEqual(a, b, "SCC output must be byte-stable given same inputs");
   });
 
   it("preserves fenced code blocks verbatim in kept messages", () => {
