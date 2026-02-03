@@ -17,6 +17,14 @@ import { AuthService } from '../../core/auth/auth.service';
 import { OwnerService } from '../../core/services/owner.service';
 import { SnackbarService } from '../../core/services/snackbar.service';
 
+interface StudioAdvancedOptions {
+  showToolCalls: boolean;
+  showPolicyEvaluation: boolean;
+  showTokenBreakdown: boolean;
+  // Scenario-specific optional knobs
+  rules?: string;
+}
+
 @Component({
   selector: 'app-studio',
   standalone: true,
@@ -42,7 +50,7 @@ export class StudioPage implements OnInit {
   primary = '';
   secondary = '';
   showAdvanced = false;
-  advanced: Record<string, any> = {
+  advanced: StudioAdvancedOptions = {
     showToolCalls: false,
     showPolicyEvaluation: false,
     showTokenBreakdown: true,
@@ -87,7 +95,8 @@ export class StudioPage implements OnInit {
     const def = this.selectedScenario;
     this.primary = def.defaultInputs.primary ?? '';
     this.secondary = def.defaultInputs.secondary ?? '';
-    this.advanced = { ...this.advanced, ...(def.defaultInputs.advanced ?? {}) };
+    const adv = (def.defaultInputs.advanced ?? {}) as Partial<StudioAdvancedOptions>;
+    this.advanced = { ...this.advanced, ...adv };
   }
 
   onScenarioChange() {
