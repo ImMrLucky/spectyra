@@ -336,6 +336,7 @@ describe("compileCodeState", () => {
     });
     const content = out.stateMsg.content;
     assert.ok(content.includes("Next actions"));
+    assert.ok(content.includes("0) If asked to run tests/lint") || content.includes("run_terminal_cmd now"));
     assert.ok(content.includes("read_file"));
     assert.ok(content.includes("apply the smallest fix") || content.includes("smallest fix"));
     assert.ok(content.includes("rerun lint/tests") || content.includes("rerun"));
@@ -357,7 +358,7 @@ describe("compileCodeState", () => {
     assert.ok(!/GLOSSARY[\s\S]*END_GLOSSARY/.test(content), "SCC must not contain glossary table markers");
   });
 
-  it("SCC output contains grounding guardrails", () => {
+  it("SCC output contains operating rules with run_terminal_cmd and read_file ordering", () => {
     const messages: ChatMessage[] = [
       { role: "user", content: "Fix the build." },
     ];
@@ -372,18 +373,32 @@ describe("compileCodeState", () => {
       content.includes("Operating rules") || content.includes("must follow"),
       "must include operating rules header"
     );
+    assert.ok(content.includes("run_terminal_cmd"), "must mention run_terminal_cmd");
+    assert.ok(/do NOT read_file first/i.test(content), "must say do NOT read_file first for tests");
     assert.ok(
-      /Do not propose patches/i.test(content) && /read_file/i.test(content),
-      "must instruct read_file before patches"
+      /Only propose code patches AFTER you read_file/i.test(content),
+      "must instruct: only propose patches after read_file"
     );
     assert.ok(
       /Treat\s+\.json\s+as\s+JSON/i.test(content),
       "must constrain JSON assumption"
     );
-    assert.ok(
-      /run the command tool/i.test(content) && /paste the full output/i.test(content),
-      "must instruct: run tests/lint then paste full output"
-    );
+  });
+
+  it("SCC output does not include verbatim transcript phrase", () => {
+    const messages: ChatMessage[] = [
+      { role: "user", content: "Run the full test suite and paste the output." },
+    ];
+    const out = compileCodeState({
+      messages,
+      units: emptyUnits,
+      spectral: emptySpectral,
+      budgets: defaultBudgets,
+    });
+    const content = typeof out.stateMsg.content === "string" ? out.stateMsg.content : "";
+    assert.ok(!content.includes("Recent context kept verbatim below"), "must not include verbatim transcript phrase");
+    assert.ok(content.includes("run_terminal_cmd"));
+    assert.ok(/do NOT read_file first/i.test(content));
   });
 
   it("SCC output contains TS2345 hint when latest error is TS2345 + string|undefined", () => {

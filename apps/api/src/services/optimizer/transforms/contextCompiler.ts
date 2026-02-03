@@ -63,10 +63,10 @@ const MAX_FAILING_SIGNALS_AFTER_LATEST = 6;
 /** Max stack lines to keep in latest tool excerpt (main error + up to this many "at ..." lines). */
 const MAX_STACK_LINES_IN_EXCERPT = 3;
 
-/** Operating rules: shorter, run-tests-first, same meaning. */
-const GROUNDING_GUARDRAILS = `Operating rules (must follow):
-- If user asks to run tests/lint: run the command tool and paste the full output.
-- Do not propose patches until you read_file the failing file + line.
+/** Operating rules: explicit tool mapping + priority (run_terminal_cmd for tests, no read_file first). */
+const OPERATING_RULES = `Operating rules (must follow):
+- If the user asks to run tests/lint: immediately call run_terminal_cmd (do NOT read_file first) and paste the full output.
+- Only propose code patches AFTER you read_file the failing file + line.
 - Treat .json as JSON (never assume TS/JS content).`;
 
 function truncate(s: string, max: number): string {
@@ -284,12 +284,16 @@ export function compileCodeState(input: CompileCodeStateInput): CompileCodeState
   const focusBlock =
     focusFiles.length > 0 ? focusFiles.map((p) => `- ${p}`).join("\n") : "- (none)";
 
-  const confirmedTouched = extractConfirmedTouchedFiles(messages)
-    .slice(0, MAX_CONFIRMED_FILES)
-    .map((p) => normalizePath(p));
-  const filesTouched = confirmedTouched.length > 0 ? confirmedTouched.join(", ") : "(none)";
+  const allTouched = extractConfirmedTouchedFiles(messages).map((p) => normalizePath(p));
+  const maxTouched = 5;
+  const confirmedTouched = allTouched.slice(0, maxTouched);
+  const filesTouched =
+    confirmedTouched.length > 0
+      ? confirmedTouched.join(", ") + (allTouched.length > maxTouched ? ` (+${allTouched.length - maxTouched} more)` : "")
+      : "(none)";
 
   const nextActionsBlock = `Next actions:
+0) If asked to run tests/lint: run_terminal_cmd now.
 1) read_file the focus file at the failing line.
 2) identify the exact expression producing the error.
 3) apply the smallest fix; rerun lint/tests.`;
@@ -313,10 +317,8 @@ Repo context:
 
 ${nextActionsBlock}
 
-${GROUNDING_GUARDRAILS}
-${ts2345Hint ? `\n${ts2345Hint}` : ""}
-
-Recent context kept verbatim below.`;
+${OPERATING_RULES}
+${ts2345Hint ? `\n${ts2345Hint}` : ""}`;
 
   stateBody = stripRefPackArtifacts(stateBody);
   if (stateBody.length > maxStateChars) {
