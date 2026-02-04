@@ -40,6 +40,10 @@ function countToolSignals(text: string): { run_terminal_cmd: number; read_file: 
   return { run_terminal_cmd: run, read_file: read, apply_patch: patch };
 }
 
+function asNumber(v: any): number | null {
+  return typeof v === "number" && isFinite(v) ? v : null;
+}
+
 function hasAnyTestRequest(messages: ChatMessage[]): boolean {
   const combined = messages
     .filter((m) => m.role === "user")
@@ -273,6 +277,11 @@ export async function runStudioScenario(
         totalTokensSaved: rawUsage.total_tokens - optUsage.total_tokens,
         costSavingsPct: Math.round(costSavingsPct * 100) / 100,
       },
+      appliedTransforms: (optimized as any).optimizationsApplied || [],
+      meta: {
+        estimated: false,
+        reverted: (optimized as any).optimizationReport ? !!(optimized as any).optimizationReport.reverted : undefined,
+      },
     };
   }
 
@@ -298,18 +307,26 @@ export async function runStudioScenario(
   );
   const t1 = Date.now();
 
+  // Prefer the optimizer's own dry-run token report (same logic as Optimizer Lab).
+  const tokensReport: any = (optimized as any).optimizationReport?.tokens || null;
+  const inputBefore = asNumber(tokensReport?.input_before);
+  const inputAfter = asNumber(tokensReport?.input_after);
+  const pctSaved = asNumber(tokensReport?.pct_saved);
+
+  // Fallback to coarse estimator if report is missing.
   const optimizedEstimate = estimateOptimizedTokens(optimized.promptFinal.messages, path, numericLevel, "openai", pricing);
 
-  const rawInput = baselineEstimate.input_tokens;
+  const rawInput = inputBefore != null ? inputBefore : baselineEstimate.input_tokens;
+  const optInput = inputAfter != null ? inputAfter : optimizedEstimate.input_tokens;
   const rawOutput = baselineEstimate.output_tokens;
-  const rawTotal = baselineEstimate.total_tokens;
-
-  const optInput = optimizedEstimate.input_tokens;
   const optOutput = optimizedEstimate.output_tokens;
-  const optTotal = optimizedEstimate.total_tokens;
 
-  const tokenSavingsPct = rawInput > 0 ? ((rawInput - optInput) / rawInput) * 100 : 0;
-  const costSavingsPct = baselineEstimate.cost_usd > 0 ? ((baselineEstimate.cost_usd - optimizedEstimate.cost_usd) / baselineEstimate.cost_usd) * 100 : 0;
+  const rawTotal = rawInput + rawOutput;
+  const optTotal = optInput + optOutput;
+
+  const tokenSavingsPct = pctSaved != null ? pctSaved : (rawInput > 0 ? ((rawInput - optInput) / rawInput) * 100 : 0);
+  const costSavingsPct =
+    baselineEstimate.cost_usd > 0 ? ((baselineEstimate.cost_usd - optimizedEstimate.cost_usd) / baselineEstimate.cost_usd) * 100 : 0;
 
   const rawRendered = renderMessages(messages);
   const spectyraRendered = renderMessages(optimized.promptFinal.messages as any);
@@ -351,6 +368,11 @@ export async function runStudioScenario(
       totalTokensSaved: rawTotal - optTotal,
       costSavingsPct: Math.round(costSavingsPct * 100) / 100,
       violationsPrevented,
+    },
+    appliedTransforms: (optimized as any).optimizationsApplied || [],
+    meta: {
+      estimated: true,
+      reverted: (optimized as any).optimizationReport ? !!(optimized as any).optimizationReport.reverted : undefined,
     },
   };
 }

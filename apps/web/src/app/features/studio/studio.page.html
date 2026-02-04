@@ -120,42 +120,96 @@
         </div>
 
         <div *ngIf="result" class="results">
-          <div class="metrics-row">
-            <div class="metric-card">
-              <div class="label">Raw prompt input tokens</div>
-              <div class="value">{{ result.raw.tokens.input }}</div>
-              <div class="sub">Total {{ result.raw.tokens.total }} • Output {{ result.raw.tokens.output }}</div>
-            </div>
-            <div class="metric-card">
-              <div class="label">Spectyra prompt input tokens</div>
-              <div class="value">{{ result.spectyra.tokens.input }}</div>
-              <div class="sub">Total {{ result.spectyra.tokens.total }} • Output {{ result.spectyra.tokens.output }}</div>
-            </div>
-            <div class="metric-card">
-              <div class="label">Input savings</div>
-              <div class="value">{{ result.metrics.tokenSavingsPct ?? 0 | number:'1.0-2' }}%</div>
-              <div class="sub">
-                {{ result.metrics.inputTokensSaved ?? 0 }} tokens • Total saved {{ result.metrics.totalTokensSaved ?? 0 }}
-              </div>
-            </div>
-            <div class="metric-card">
-              <div class="label">Latency</div>
-              <div class="value" *ngIf="result.raw.modelOutputText">{{ result.raw.latencyMs }}ms → {{ result.spectyra.latencyMs }}ms</div>
-              <div class="value" *ngIf="!result.raw.modelOutputText">{{ result.spectyra.latencyMs }}ms</div>
-              <div class="sub" *ngIf="result.raw.modelOutputText">Model latency (raw vs optimized)</div>
-              <div class="sub" *ngIf="!result.raw.modelOutputText">Optimization latency</div>
-            </div>
-            <div class="metric-card" *ngIf="result.metrics.violationsPrevented != null">
-              <div class="label">Violations prevented</div>
-              <div class="value">{{ result.metrics.violationsPrevented }}</div>
-              <div class="sub">Prompt-level governance checks</div>
-            </div>
+          <!-- Optimizer Lab-style tabs -->
+          <div class="results-tabs" role="tablist">
+            <button type="button" role="tab" class="tab-button" [class.active]="activeTab === 'metrics'" (click)="switchTab('metrics')">
+              <mat-icon class="tab-icon">insights</mat-icon>
+              Metrics
+            </button>
+            <button type="button" role="tab" class="tab-button" [class.active]="activeTab === 'before'" (click)="switchTab('before')">
+              <mat-icon class="tab-icon">radio_button_unchecked</mat-icon>
+              Before
+            </button>
+            <button type="button" role="tab" class="tab-button" [class.active]="activeTab === 'after'" (click)="switchTab('after')">
+              <mat-icon class="tab-icon">check_circle_outline</mat-icon>
+              After
+            </button>
+            <button type="button" role="tab" class="tab-button" [class.active]="activeTab === 'diff'" (click)="switchTab('diff')">
+              <mat-icon class="tab-icon">compare_arrows</mat-icon>
+              Diff
+            </button>
           </div>
 
-          <div class="compare-grid">
-            <div class="pane">
-              <div class="pane-header">Raw prompt (before)</div>
-              <pre class="pane-body">{{ result.raw.promptText }}</pre>
+          <div class="tab-content" role="tabpanel">
+            <!-- Metrics -->
+            <div *ngIf="activeTab === 'metrics'" class="tab-pane metrics-pane">
+              <div class="savings-hero" [class.no-savings]="!hasSavings">
+                <div class="savings-value">{{ savingsHeroValue }}</div>
+                <div class="savings-label">{{ savingsHeroLabel }}</div>
+              </div>
+
+              <div class="metrics-grid">
+                <div class="metric-card">
+                  <div class="metric-label">Input Tokens Before</div>
+                  <div class="metric-value">{{ result.raw.tokens.input }}</div>
+                </div>
+                <div class="metric-card">
+                  <div class="metric-label">Input Tokens After</div>
+                  <div class="metric-value success">{{ result.spectyra.tokens.input }}</div>
+                </div>
+                <div class="metric-card">
+                  <div class="metric-label">Tokens Saved</div>
+                  <div class="metric-value">{{ result.metrics.inputTokensSaved ?? 0 }}</div>
+                </div>
+                <div class="metric-card">
+                  <div class="metric-label">Est. Cost Change</div>
+                  <div class="metric-value">{{ (result.metrics.costSavingsPct ?? 0) | number:'1.0-2' }}%</div>
+                  <div class="metric-sub" *ngIf="result.meta?.estimated">Estimated</div>
+                </div>
+                <div class="metric-card">
+                  <div class="metric-label">Latency</div>
+                  <div class="metric-value" *ngIf="result.raw.modelOutputText">{{ result.raw.latencyMs }}ms → {{ result.spectyra.latencyMs }}ms</div>
+                  <div class="metric-value" *ngIf="!result.raw.modelOutputText">{{ result.spectyra.latencyMs }}ms</div>
+                </div>
+                <div class="metric-card">
+                  <div class="metric-label">Mode</div>
+                  <div class="metric-value">{{ result.meta?.estimated ? 'DRY-RUN' : 'LIVE' }}</div>
+                  <div class="metric-sub" *ngIf="result.meta?.reverted">Reverted</div>
+                </div>
+              </div>
+
+              <div class="transforms-section">
+                <div class="transforms-title">Applied Transforms</div>
+                <div class="transforms-list">
+                  <span *ngFor="let t of (result.appliedTransforms ?? [])" class="transform-badge">{{ t }}</span>
+                  <span *ngIf="!(result.appliedTransforms?.length)" class="no-transforms">No transforms applied</span>
+                </div>
+              </div>
+
+              <div class="why-savings-section" *ngIf="result.metrics.violationsPrevented != null || (showAdvanced && advanced.showTokenBreakdown)">
+                <div class="why-title">Governance & tool signals</div>
+                <ul class="why-savings-list">
+                  <li *ngIf="result.metrics.violationsPrevented != null"><strong>Violations prevented:</strong> {{ result.metrics.violationsPrevented }}</li>
+                  <li *ngIf="result.raw.toolSignals && result.spectyra.toolSignals">
+                    <strong>Tool signals (run/read/patch):</strong>
+                    {{ result.raw.toolSignals.run_terminal_cmd }}/{{ result.raw.toolSignals.read_file }}/{{ result.raw.toolSignals.apply_patch }}
+                    →
+                    {{ result.spectyra.toolSignals.run_terminal_cmd }}/{{ result.spectyra.toolSignals.read_file }}/{{ result.spectyra.toolSignals.apply_patch }}
+                  </li>
+                </ul>
+              </div>
+            </div>
+
+            <!-- Before -->
+            <div *ngIf="activeTab === 'before'" class="tab-pane content-pane">
+              <div class="content-header">
+                <h3>Original Prompt (Before)</h3>
+                <button class="btn-sm" (click)="copyToClipboard(result.raw.promptText)">
+                  <mat-icon class="btn-icon-sm">content_copy</mat-icon>
+                  Copy
+                </button>
+              </div>
+              <pre class="prompt-body">{{ result.raw.promptText }}</pre>
               <div class="details" *ngIf="showAdvanced && advanced.showPolicyEvaluation">
                 <div class="details-title">Policy evaluation</div>
                 <div class="details-empty" *ngIf="!result.raw.violations || result.raw.violations.length === 0">No violations detected.</div>
@@ -166,20 +220,18 @@
                   </li>
                 </ul>
               </div>
-              <div class="details" *ngIf="showAdvanced && result.raw.toolSignals">
-                <div class="details-title">Tool signals</div>
-                <div class="details-empty">
-                  run_terminal_cmd: {{ result.raw.toolSignals.run_terminal_cmd }} • read_file: {{ result.raw.toolSignals.read_file }} • apply_patch: {{ result.raw.toolSignals.apply_patch }}
-                </div>
-              </div>
-              <div class="details" *ngIf="showAdvanced && result.raw.modelOutputText">
-                <div class="details-title">Model output (raw)</div>
-                <pre class="pane-body">{{ result.raw.modelOutputText }}</pre>
-              </div>
             </div>
-            <div class="pane">
-              <div class="pane-header">Spectyra prompt (after)</div>
-              <pre class="pane-body">{{ result.spectyra.promptText }}</pre>
+
+            <!-- After -->
+            <div *ngIf="activeTab === 'after'" class="tab-pane content-pane">
+              <div class="content-header">
+                <h3>Optimized Prompt (After)</h3>
+                <button class="btn-sm" (click)="copyToClipboard(result.spectyra.promptText)">
+                  <mat-icon class="btn-icon-sm">content_copy</mat-icon>
+                  Copy
+                </button>
+              </div>
+              <pre class="prompt-body">{{ result.spectyra.promptText }}</pre>
               <div class="details" *ngIf="showAdvanced && advanced.showPolicyEvaluation">
                 <div class="details-title">Policy evaluation</div>
                 <div class="details-empty" *ngIf="!result.spectyra.violations || result.spectyra.violations.length === 0">No violations detected.</div>
@@ -190,15 +242,26 @@
                   </li>
                 </ul>
               </div>
-              <div class="details" *ngIf="showAdvanced && result.spectyra.toolSignals">
-                <div class="details-title">Tool signals</div>
-                <div class="details-empty">
-                  run_terminal_cmd: {{ result.spectyra.toolSignals.run_terminal_cmd }} • read_file: {{ result.spectyra.toolSignals.read_file }} • apply_patch: {{ result.spectyra.toolSignals.apply_patch }}
-                </div>
+            </div>
+
+            <!-- Diff -->
+            <div *ngIf="activeTab === 'diff'" class="tab-pane diff-pane">
+              <div class="content-header">
+                <h3>Diff Summary</h3>
               </div>
-              <div class="details" *ngIf="showAdvanced && result.spectyra.modelOutputText">
-                <div class="details-title">Model output (optimized)</div>
-                <pre class="pane-body">{{ result.spectyra.modelOutputText }}</pre>
+              <div class="diff-summary">
+                <div class="diff-row">
+                  <span class="diff-label">Input tokens:</span>
+                  <span class="diff-value">{{ result.raw.tokens.input }} → {{ result.spectyra.tokens.input }}</span>
+                </div>
+                <div class="diff-row">
+                  <span class="diff-label">Saved:</span>
+                  <span class="diff-value">{{ result.metrics.inputTokensSaved ?? 0 }} ({{ result.metrics.tokenSavingsPct ?? 0 | number:'1.0-2' }}%)</span>
+                </div>
+                <div class="diff-row" *ngIf="result.meta?.reverted">
+                  <span class="diff-label">Note:</span>
+                  <span class="diff-value">Optimized prompt exceeded baseline, so the pipeline reverted.</span>
+                </div>
               </div>
             </div>
           </div>

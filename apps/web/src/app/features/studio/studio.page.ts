@@ -17,6 +17,8 @@ import { AuthService } from '../../core/auth/auth.service';
 import { OwnerService } from '../../core/services/owner.service';
 import { SnackbarService } from '../../core/services/snackbar.service';
 
+type ResultTab = 'metrics' | 'before' | 'after' | 'diff';
+
 interface StudioAdvancedOptions {
   showToolCalls: boolean;
   showPolicyEvaluation: boolean;
@@ -80,6 +82,26 @@ export class StudioPage implements OnInit {
   running = false;
   result: StudioRunResult | null = null;
   runHistory: StudioRunResult[] = [];
+  activeTab: ResultTab = 'metrics';
+
+  get hasSavings(): boolean {
+    const pct = this.result?.metrics?.tokenSavingsPct;
+    return typeof pct === 'number' && pct > 0.001;
+  }
+
+  get savingsHeroValue(): string {
+    const pct = this.result?.metrics?.tokenSavingsPct;
+    if (pct == null || typeof pct !== 'number' || isNaN(pct)) return '—';
+    if (pct > 0) return `${pct.toFixed(1)}%`;
+    if (pct < 0) return 'No savings';
+    return '0%';
+  }
+
+  get savingsHeroLabel(): string {
+    if (!this.result) return 'Input tokens saved';
+    if (this.result.meta?.reverted) return 'Reverted (optimized larger)';
+    return 'Input tokens saved';
+  }
 
   constructor(
     private studio: StudioService,
@@ -142,7 +164,19 @@ export class StudioPage implements OnInit {
 
   restoreFromHistory(run: StudioRunResult) {
     this.result = run;
+    this.activeTab = 'metrics';
     this.snackbar.showSuccess('Restored previous run');
+  }
+
+  switchTab(tab: ResultTab) {
+    this.activeTab = tab;
+  }
+
+  copyToClipboard(text: string) {
+    navigator.clipboard.writeText(text).then(
+      () => this.snackbar.showSuccess('Copied to clipboard'),
+      () => this.snackbar.showError('Failed to copy')
+    );
   }
 
   runRawVsSpectyra() {
@@ -166,6 +200,7 @@ export class StudioPage implements OnInit {
     this.studio.runScenario(req).subscribe({
       next: (res) => {
         this.result = res;
+        this.activeTab = 'metrics';
         this.runHistory = [res, ...this.runHistory].slice(0, 5);
         this.running = false;
       },

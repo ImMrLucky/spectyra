@@ -41,6 +41,11 @@ export interface StudioRunResult {
   raw: StudioRunSide;
   spectyra: StudioRunSide;
   metrics: StudioRunMetrics;
+  appliedTransforms?: string[];
+  meta?: {
+    estimated: boolean;
+    reverted?: boolean;
+  };
 }
 
 @Injectable({ providedIn: 'root' })
