@@ -5,7 +5,7 @@
 
 [build.environment]
   NODE_VERSION = "20"
-  PNPM_VERSION = "8.15.0"
+  PNPM_VERSION = "9.12.3"
   # Set your Railway API URL here (or in Netlify dashboard)
   # API_URL = "https://your-api.railway.app/v1"
 

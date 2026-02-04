@@ -1,0 +1,19 @@
+providers = ["node"]
+
+# Railway / Nixpacks build behavior.
+# Nixpacks defaults to pnpm v8 + frozen lockfile, which can cause lockfile mismatch
+# when the repo uses a newer pnpm (see root package.json "packageManager").
+
+[phases.setup]
+cmds = [
+  "corepack enable",
+  "corepack prepare pnpm@9.12.3 --activate"
+]
+
+[phases.install]
+# Use prefer-offline for faster installs, but do NOT hard-fail on frozen-lockfile.
+# This avoids deployments getting stuck on stale build caches / lockfile drift.
+cmds = [
+  "pnpm install --no-frozen-lockfile --prefer-offline"
+]
+
