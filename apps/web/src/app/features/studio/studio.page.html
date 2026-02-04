@@ -59,6 +59,12 @@
 
         <div class="advanced" *ngIf="showAdvanced">
           <div class="checkbox-row">
+            <label>
+              <input type="checkbox" [(ngModel)]="advanced.showMoreScenarios" (ngModelChange)="onShowMoreScenariosChange()" />
+              More scenarios
+            </label>
+          </div>
+          <div class="checkbox-row">
             <label><input type="checkbox" [(ngModel)]="advanced.showToolCalls" /> Show tool calls</label>
           </div>
           <div class="checkbox-row">

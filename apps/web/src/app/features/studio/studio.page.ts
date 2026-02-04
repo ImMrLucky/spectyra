@@ -21,6 +21,7 @@ interface StudioAdvancedOptions {
   showToolCalls: boolean;
   showPolicyEvaluation: boolean;
   showTokenBreakdown: boolean;
+  showMoreScenarios: boolean;
   /**
    * When true, Studio will make real provider calls (incurs token cost)
    * and report real usage. When false, Studio uses dry-run estimates.
@@ -51,8 +52,11 @@ export class StudioPage implements OnInit {
   error: string | null = null;
 
   // Scenario
-  scenarios: StudioScenarioDef[] = STUDIO_SCENARIOS;
-  scenarioId: StudioScenarioId = STUDIO_SCENARIOS[0]?.id ?? 'token_chat';
+  private featuredScenarios: StudioScenarioDef[] = STUDIO_SCENARIOS.filter((s) =>
+    s.id === 'token_chat' || s.id === 'token_code' || s.id === 'agent_claude'
+  );
+  scenarios: StudioScenarioDef[] = this.featuredScenarios;
+  scenarioId: StudioScenarioId = this.featuredScenarios[0]?.id ?? 'token_chat';
   get selectedScenario(): StudioScenarioDef {
     return this.scenarios.find((s) => s.id === this.scenarioId) ?? this.scenarios[0]!;
   }
@@ -65,6 +69,7 @@ export class StudioPage implements OnInit {
     showToolCalls: false,
     showPolicyEvaluation: false,
     showTokenBreakdown: true,
+    showMoreScenarios: false,
     liveProviderRun: false,
     provider: 'anthropic',
     model: 'claude-3-5-sonnet-latest',
@@ -117,6 +122,17 @@ export class StudioPage implements OnInit {
   onScenarioChange() {
     this.result = null;
     this.applyDefaults();
+  }
+
+  onShowMoreScenariosChange() {
+    const next = this.advanced.showMoreScenarios ? STUDIO_SCENARIOS : this.featuredScenarios;
+    this.scenarios = next;
+    // If current scenario is no longer visible, snap back to the first featured scenario.
+    const stillExists = this.scenarios.some((s) => s.id === this.scenarioId);
+    if (!stillExists) {
+      this.scenarioId = this.scenarios[0]?.id ?? 'token_chat';
+    }
+    this.onScenarioChange();
   }
 
   useExample() {
