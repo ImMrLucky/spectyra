@@ -156,10 +156,6 @@ importers:
         version: 5.4.5
 
   packages/sdk:
-    dependencies:
-      '@spectyra/shared':
-        specifier: workspace:*
-        version: link:../shared
     devDependencies:
       '@types/node':
         specifier: ^20.0.0
