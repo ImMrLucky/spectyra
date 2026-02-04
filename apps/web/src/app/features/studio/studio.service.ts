@@ -15,8 +15,10 @@ export interface StudioRunRequest {
 }
 
 export interface StudioRunSide {
-  outputText: string;
+  promptText: string;
+  modelOutputText?: string;
   toolCalls?: Array<{ tool: string; args: any; resultPreview?: string }>;
+  toolSignals?: { run_terminal_cmd: number; read_file: number; apply_patch: number };
   tokens: { input: number; output: number; total: number };
   latencyMs: number;
   costUsd?: number;
@@ -25,6 +27,8 @@ export interface StudioRunSide {
 
 export interface StudioRunMetrics {
   tokenSavingsPct?: number;
+  inputTokensSaved?: number;
+  totalTokensSaved?: number;
   costSavingsPct?: number;
   retriesAvoided?: number;
   violationsPrevented?: number;

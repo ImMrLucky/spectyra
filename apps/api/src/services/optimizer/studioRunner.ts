@@ -32,6 +32,14 @@ function renderMessages(messages: ChatMessage[]): string {
     .join("\n\n");
 }
 
+function countToolSignals(text: string): { run_terminal_cmd: number; read_file: number; apply_patch: number } {
+  const t = String(text || "");
+  const run = (t.match(/\brun_terminal_cmd\b/g) || []).length;
+  const read = (t.match(/\bread_file\b/g) || []).length;
+  const patch = (t.match(/\bapply_patch\b/g) || []).length;
+  return { run_terminal_cmd: run, read_file: read, apply_patch: patch };
+}
+
 function hasAnyTestRequest(messages: ChatMessage[]): boolean {
   const combined = messages
     .filter((m) => m.role === "user")
@@ -235,23 +243,34 @@ export async function runStudioScenario(
       rawUsage.input_tokens > 0 ? ((rawUsage.input_tokens - optUsage.input_tokens) / rawUsage.input_tokens) * 100 : 0;
     const costSavingsPct = rawCost > 0 ? ((rawCost - optCost) / rawCost) * 100 : 0;
 
+    const rawPromptText = renderMessages(baseline.promptFinal.messages as any);
+    const specPromptText = renderMessages(optimized.promptFinal.messages as any);
+    const rawToolSignals = countToolSignals(rawPromptText);
+    const specToolSignals = countToolSignals(specPromptText);
+
     return {
       runId: crypto.randomUUID(),
       createdAt: new Date().toISOString(),
       raw: {
-        outputText: baseline.responseText,
+        promptText: rawPromptText,
+        modelOutputText: baseline.responseText,
+        toolSignals: rawToolSignals,
         tokens: { input: rawUsage.input_tokens, output: rawUsage.output_tokens, total: rawUsage.total_tokens },
         latencyMs: t1 - t0,
         costUsd: rawCost,
       },
       spectyra: {
-        outputText: optimized.responseText,
+        promptText: specPromptText,
+        modelOutputText: optimized.responseText,
+        toolSignals: specToolSignals,
         tokens: { input: optUsage.input_tokens, output: optUsage.output_tokens, total: optUsage.total_tokens },
         latencyMs: t3 - t2,
         costUsd: optCost,
       },
       metrics: {
         tokenSavingsPct: Math.round(tokenSavingsPct * 100) / 100,
+        inputTokensSaved: rawUsage.input_tokens - optUsage.input_tokens,
+        totalTokensSaved: rawUsage.total_tokens - optUsage.total_tokens,
         costSavingsPct: Math.round(costSavingsPct * 100) / 100,
       },
     };
@@ -294,6 +313,8 @@ export async function runStudioScenario(
 
   const rawRendered = renderMessages(messages);
   const spectyraRendered = renderMessages(optimized.promptFinal.messages as any);
+  const rawToolSignals = countToolSignals(rawRendered);
+  const specToolSignals = countToolSignals(spectyraRendered);
 
   const rawViolations =
     scenarioId === "agent_claude" ? evaluateAgentBehaviorPrompt(messages, rawRendered) : undefined;
@@ -309,14 +330,16 @@ export async function runStudioScenario(
     runId: crypto.randomUUID(),
     createdAt: new Date().toISOString(),
     raw: {
-      outputText: rawRendered,
+      promptText: rawRendered,
+      toolSignals: rawToolSignals,
       tokens: { input: rawInput, output: rawOutput, total: rawTotal },
       latencyMs: 0,
       costUsd: baselineEstimate.cost_usd,
       violations: rawViolations,
     },
     spectyra: {
-      outputText: spectyraRendered,
+      promptText: spectyraRendered,
+      toolSignals: specToolSignals,
       tokens: { input: optInput, output: optOutput, total: optTotal },
       latencyMs: t1 - t0,
       costUsd: optimizedEstimate.cost_usd,
@@ -324,6 +347,8 @@ export async function runStudioScenario(
     },
     metrics: {
       tokenSavingsPct: Math.round(tokenSavingsPct * 100) / 100,
+      inputTokensSaved: rawInput - optInput,
+      totalTokensSaved: rawTotal - optTotal,
       costSavingsPct: Math.round(costSavingsPct * 100) / 100,
       violationsPrevented,
     },

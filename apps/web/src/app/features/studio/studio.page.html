@@ -122,24 +122,28 @@
         <div *ngIf="result" class="results">
           <div class="metrics-row">
             <div class="metric-card">
-              <div class="label">Raw tokens</div>
-              <div class="value">{{ result.raw.tokens.total }}</div>
-              <div class="sub">Input {{ result.raw.tokens.input }} • Output {{ result.raw.tokens.output }}</div>
+              <div class="label">Raw prompt input tokens</div>
+              <div class="value">{{ result.raw.tokens.input }}</div>
+              <div class="sub">Total {{ result.raw.tokens.total }} • Output {{ result.raw.tokens.output }}</div>
             </div>
             <div class="metric-card">
-              <div class="label">Spectyra tokens</div>
-              <div class="value">{{ result.spectyra.tokens.total }}</div>
-              <div class="sub">Input {{ result.spectyra.tokens.input }} • Output {{ result.spectyra.tokens.output }}</div>
+              <div class="label">Spectyra prompt input tokens</div>
+              <div class="value">{{ result.spectyra.tokens.input }}</div>
+              <div class="sub">Total {{ result.spectyra.tokens.total }} • Output {{ result.spectyra.tokens.output }}</div>
             </div>
             <div class="metric-card">
-              <div class="label">Savings</div>
+              <div class="label">Input savings</div>
               <div class="value">{{ result.metrics.tokenSavingsPct ?? 0 | number:'1.0-2' }}%</div>
-              <div class="sub">Cost {{ result.metrics.costSavingsPct ?? 0 | number:'1.0-2' }}%</div>
+              <div class="sub">
+                {{ result.metrics.inputTokensSaved ?? 0 }} tokens • Total saved {{ result.metrics.totalTokensSaved ?? 0 }}
+              </div>
             </div>
             <div class="metric-card">
               <div class="label">Latency</div>
-              <div class="value">{{ result.raw.latencyMs }}ms → {{ result.spectyra.latencyMs }}ms</div>
-              <div class="sub">Raw vs Spectyra</div>
+              <div class="value" *ngIf="result.raw.modelOutputText">{{ result.raw.latencyMs }}ms → {{ result.spectyra.latencyMs }}ms</div>
+              <div class="value" *ngIf="!result.raw.modelOutputText">{{ result.spectyra.latencyMs }}ms</div>
+              <div class="sub" *ngIf="result.raw.modelOutputText">Model latency (raw vs optimized)</div>
+              <div class="sub" *ngIf="!result.raw.modelOutputText">Optimization latency</div>
             </div>
             <div class="metric-card" *ngIf="result.metrics.violationsPrevented != null">
               <div class="label">Violations prevented</div>
@@ -150,8 +154,8 @@
 
           <div class="compare-grid">
             <div class="pane">
-              <div class="pane-header">Raw output</div>
-              <pre class="pane-body">{{ result.raw.outputText }}</pre>
+              <div class="pane-header">Raw prompt (before)</div>
+              <pre class="pane-body">{{ result.raw.promptText }}</pre>
               <div class="details" *ngIf="showAdvanced && advanced.showPolicyEvaluation">
                 <div class="details-title">Policy evaluation</div>
                 <div class="details-empty" *ngIf="!result.raw.violations || result.raw.violations.length === 0">No violations detected.</div>
@@ -162,10 +166,20 @@
                   </li>
                 </ul>
               </div>
+              <div class="details" *ngIf="showAdvanced && result.raw.toolSignals">
+                <div class="details-title">Tool signals</div>
+                <div class="details-empty">
+                  run_terminal_cmd: {{ result.raw.toolSignals.run_terminal_cmd }} • read_file: {{ result.raw.toolSignals.read_file }} • apply_patch: {{ result.raw.toolSignals.apply_patch }}
+                </div>
+              </div>
+              <div class="details" *ngIf="showAdvanced && result.raw.modelOutputText">
+                <div class="details-title">Model output (raw)</div>
+                <pre class="pane-body">{{ result.raw.modelOutputText }}</pre>
+              </div>
             </div>
             <div class="pane">
-              <div class="pane-header">Spectyra output</div>
-              <pre class="pane-body">{{ result.spectyra.outputText }}</pre>
+              <div class="pane-header">Spectyra prompt (after)</div>
+              <pre class="pane-body">{{ result.spectyra.promptText }}</pre>
               <div class="details" *ngIf="showAdvanced && advanced.showPolicyEvaluation">
                 <div class="details-title">Policy evaluation</div>
                 <div class="details-empty" *ngIf="!result.spectyra.violations || result.spectyra.violations.length === 0">No violations detected.</div>
@@ -175,6 +189,16 @@
                     <span class="msg">{{ v.message }}</span>
                   </li>
                 </ul>
+              </div>
+              <div class="details" *ngIf="showAdvanced && result.spectyra.toolSignals">
+                <div class="details-title">Tool signals</div>
+                <div class="details-empty">
+                  run_terminal_cmd: {{ result.spectyra.toolSignals.run_terminal_cmd }} • read_file: {{ result.spectyra.toolSignals.read_file }} • apply_patch: {{ result.spectyra.toolSignals.apply_patch }}
+                </div>
+              </div>
+              <div class="details" *ngIf="showAdvanced && result.spectyra.modelOutputText">
+                <div class="details-title">Model output (optimized)</div>
+                <pre class="pane-body">{{ result.spectyra.modelOutputText }}</pre>
               </div>
             </div>
           </div>
@@ -188,7 +212,7 @@
                 (click)="restoreFromHistory(r)">
                 <span class="id">{{ r.runId.slice(0, 8) }}</span>
                 <span class="time">{{ r.createdAt }}</span>
-                <span class="meta">{{ r.metrics.tokenSavingsPct ?? 0 | number:'1.0-1' }}% saved</span>
+                <span class="meta">{{ r.metrics.tokenSavingsPct ?? 0 | number:'1.0-1' }}% input saved</span>
               </button>
             </div>
           </div>

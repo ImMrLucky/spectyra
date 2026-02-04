@@ -19,8 +19,12 @@ export interface StudioRunRequest {
 }
 
 export interface StudioRunSide {
-  outputText: string;
+  /** The prompt/messages that would be sent to the model (rendered). */
+  promptText: string;
+  /** Model output text (only present for live provider runs). */
+  modelOutputText?: string;
   toolCalls?: Array<{ tool: string; args: any; resultPreview?: string }>;
+  toolSignals?: { run_terminal_cmd: number; read_file: number; apply_patch: number };
   tokens: { input: number; output: number; total: number };
   latencyMs: number;
   costUsd?: number;
@@ -28,7 +32,10 @@ export interface StudioRunSide {
 }
 
 export interface StudioRunMetrics {
+  /** Input token savings (prompt tokens). */
   tokenSavingsPct?: number;
+  inputTokensSaved?: number;
+  totalTokensSaved?: number;
   costSavingsPct?: number;
   retriesAvoided?: number;
   violationsPrevented?: number;
