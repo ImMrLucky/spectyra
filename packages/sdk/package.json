@@ -1,6 +1,6 @@
 {
   "name": "@spectyra/sdk",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "description": "Spectyra SDK for real-time LLM optimization",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
@@ -30,9 +30,7 @@
     "url": "https://github.com/spectyra/spectyra.git",
     "directory": "packages/sdk"
   },
-  "dependencies": {
-    "@spectyra/shared": "workspace:*"
-  },
+  "dependencies": {},
   "devDependencies": {
     "@types/node": "^20.0.0",
     "typescript": "~5.4.0"

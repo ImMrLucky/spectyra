@@ -67,6 +67,34 @@
           <div class="checkbox-row">
             <label><input type="checkbox" [(ngModel)]="advanced.showTokenBreakdown" /> Show token breakdown</label>
           </div>
+          <div class="checkbox-row">
+            <label>
+              <input type="checkbox" [(ngModel)]="advanced.liveProviderRun" />
+              Use real provider tokens (live run)
+            </label>
+          </div>
+
+          <div class="hint" *ngIf="advanced.liveProviderRun">
+            This will make real provider calls (incurs cost). Requires a vaulted provider key or BYOK header.
+          </div>
+
+          <div class="form-row" *ngIf="advanced.liveProviderRun">
+            <label>Provider</label>
+            <select [(ngModel)]="advanced.provider">
+              <option value="anthropic">Anthropic (Claude)</option>
+              <option value="openai">OpenAI</option>
+            </select>
+          </div>
+
+          <div class="form-row" *ngIf="advanced.liveProviderRun">
+            <label>Model</label>
+            <input type="text" [(ngModel)]="advanced.model" placeholder="claude-3-5-sonnet-latest" />
+          </div>
+
+          <div class="form-row" *ngIf="advanced.liveProviderRun">
+            <label>Optimization level (0-4)</label>
+            <input type="number" min="0" max="4" [(ngModel)]="advanced.optimizationLevel" />
+          </div>
         </div>
 
         <button class="run-button" (click)="runRawVsSpectyra()" [disabled]="running">

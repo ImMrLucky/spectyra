@@ -139,7 +139,7 @@ export interface AgentEventResponse {
 // Legacy Types (for backwards compatibility)
 // ============================================================================
 
-import type { Path, Mode, ChatMessage, Usage, ClaudeAgentOptions, AgentDecision } from "@spectyra/shared";
+import type { Path, Mode, ChatMessage, Usage, ClaudeAgentOptions, AgentDecision } from "./sharedTypes.js";
 
 // Re-export canonical types
 export type { Path, Mode, ChatMessage, Usage, ClaudeAgentOptions, AgentDecision };

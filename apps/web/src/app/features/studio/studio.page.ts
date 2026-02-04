@@ -21,6 +21,17 @@ interface StudioAdvancedOptions {
   showToolCalls: boolean;
   showPolicyEvaluation: boolean;
   showTokenBreakdown: boolean;
+  /**
+   * When true, Studio will make real provider calls (incurs token cost)
+   * and report real usage. When false, Studio uses dry-run estimates.
+   */
+  liveProviderRun: boolean;
+  /** Provider to use for live runs (requires BYOK/vaulted key). */
+  provider: 'anthropic' | 'openai';
+  /** Model name for provider. */
+  model: string;
+  /** Optimization level (0-4). */
+  optimizationLevel: number;
   // Scenario-specific optional knobs
   rules?: string;
 }
@@ -54,6 +65,10 @@ export class StudioPage implements OnInit {
     showToolCalls: false,
     showPolicyEvaluation: false,
     showTokenBreakdown: true,
+    liveProviderRun: false,
+    provider: 'anthropic',
+    model: 'claude-3-5-sonnet-latest',
+    optimizationLevel: 2,
   };
 
   // Results
@@ -128,7 +143,7 @@ export class StudioPage implements OnInit {
       inputs: {
         primary: this.primary,
         secondary: this.selectedScenario.inputSchema.secondaryLabel ? this.secondary : undefined,
-        advanced: this.showAdvanced ? this.advanced : undefined,
+        advanced: this.advanced,
       },
     };
 

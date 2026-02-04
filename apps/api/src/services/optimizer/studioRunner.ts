@@ -8,6 +8,9 @@ import type { StudioRunRequest, StudioRunResult, StudioScenarioId } from "../../
 import { optimizationLevelToNumber } from "../../types/optimizerLab.js";
 import type { OptimizationLevel as NumericOptLevel } from "./optimizationLevel.js";
 import crypto from "node:crypto";
+import { resolveProvider } from "../llm/providerResolver.js";
+import { createOptimizerProvider } from "./providerAdapter.js";
+import { estimateCost } from "../../utils/costEstimator.js";
 
 type GovernanceViolation = { code: string; message: string };
 
@@ -125,15 +128,134 @@ function buildMessagesForScenario(scenarioId: StudioScenarioId, req: StudioRunRe
   return { path: "code", messages };
 }
 
-export async function runStudioScenario(req: StudioRunRequest): Promise<StudioRunResult> {
+function readAdvancedFlag(advanced: any, key: string): boolean {
+  return !!advanced && advanced[key] === true;
+}
+
+function readAdvancedString(advanced: any, key: string): string | undefined {
+  if (!advanced) return undefined;
+  const v = advanced[key];
+  return typeof v === "string" ? v : undefined;
+}
+
+function readAdvancedNumber(advanced: any, key: string): number | undefined {
+  if (!advanced) return undefined;
+  const v = advanced[key];
+  return typeof v === "number" ? v : undefined;
+}
+
+function defaultModelForProvider(provider: string): string {
+  const p = (provider || "").toLowerCase();
+  if (p === "anthropic" || p === "claude") return "claude-3-5-sonnet-latest";
+  return "gpt-4o-mini";
+}
+
+export async function runStudioScenario(
+  req: StudioRunRequest,
+  ctx?: { orgId?: string; projectId?: string | null; byokKey?: string }
+): Promise<StudioRunResult> {
   const scenarioId = req.scenarioId;
-  const embedder = await getEmbedder();
+  const embedder = getEmbedder("openai");
 
   // Use the same config mapping as Optimizer Lab, defaulting to balanced.
   const optimizationLevel = "balanced";
   const numericLevel = optimizationLevelToNumber(optimizationLevel) as NumericOptLevel;
 
   const { path, messages } = buildMessagesForScenario(scenarioId, req);
+  const adv: any = req.inputs?.advanced ?? {};
+  const liveProviderRun = readAdvancedFlag(adv, "liveProviderRun");
+  const providerName =
+    readAdvancedString(adv, "provider") || (scenarioId === "agent_claude" ? "anthropic" : "anthropic");
+  const model = readAdvancedString(adv, "model") || defaultModelForProvider(providerName);
+  const optLevelNum = readAdvancedNumber(adv, "optimizationLevel");
+  const optLevel = Math.max(0, Math.min(4, Math.floor(optLevelNum ?? 2))) as NumericOptLevel;
+
+  // === LIVE provider calls (real tokens/cost) ===
+  if (liveProviderRun) {
+    const orgId = ctx?.orgId;
+    const projectId = ctx?.projectId ?? null;
+    const byokKey = ctx?.byokKey;
+
+    const providerResolution = await resolveProvider({
+      orgId,
+      projectId,
+      byokKey,
+      providerName,
+    });
+
+    if (!providerResolution.provider) {
+      const err: any = new Error(providerResolution.error || "Provider key required");
+      err.statusCode = providerResolution.statusCode || 401;
+      throw err;
+    }
+
+    const optimizerProvider = createOptimizerProvider(providerResolution.provider);
+    const baseCfgLive = makeOptimizerConfig();
+    const cfgLive = mapOptimizationLevelToConfig(path, optLevel, baseCfgLive);
+
+    const t0 = Date.now();
+    const baseline = await runOptimizedOrBaseline(
+      {
+        mode: "baseline",
+        path,
+        model,
+        provider: optimizerProvider as any,
+        embedder,
+        messages,
+        turnIndex: Date.now(),
+      },
+      cfgLive
+    );
+    const t1 = Date.now();
+
+    const t2 = Date.now();
+    const optimized = await runOptimizedOrBaseline(
+      {
+        mode: "optimized",
+        path,
+        model,
+        provider: optimizerProvider as any,
+        embedder,
+        messages,
+        turnIndex: Date.now(),
+      },
+      cfgLive
+    );
+    const t3 = Date.now();
+
+    const rawUsage =
+      baseline.usage || ({ input_tokens: 0, output_tokens: 0, total_tokens: 0, estimated: true } as any);
+    const optUsage =
+      optimized.usage || ({ input_tokens: 0, output_tokens: 0, total_tokens: 0, estimated: true } as any);
+
+    const rawCost = estimateCost(rawUsage, providerName);
+    const optCost = estimateCost(optUsage, providerName);
+
+    const tokenSavingsPct =
+      rawUsage.input_tokens > 0 ? ((rawUsage.input_tokens - optUsage.input_tokens) / rawUsage.input_tokens) * 100 : 0;
+    const costSavingsPct = rawCost > 0 ? ((rawCost - optCost) / rawCost) * 100 : 0;
+
+    return {
+      runId: crypto.randomUUID(),
+      createdAt: new Date().toISOString(),
+      raw: {
+        outputText: baseline.responseText,
+        tokens: { input: rawUsage.input_tokens, output: rawUsage.output_tokens, total: rawUsage.total_tokens },
+        latencyMs: t1 - t0,
+        costUsd: rawCost,
+      },
+      spectyra: {
+        outputText: optimized.responseText,
+        tokens: { input: optUsage.input_tokens, output: optUsage.output_tokens, total: optUsage.total_tokens },
+        latencyMs: t3 - t2,
+        costUsd: optCost,
+      },
+      metrics: {
+        tokenSavingsPct: Math.round(tokenSavingsPct * 100) / 100,
+        costSavingsPct: Math.round(costSavingsPct * 100) / 100,
+      },
+    };
+  }
 
   const pricing = getPricingConfig("openai");
   const baselineEstimate = estimateBaselineTokens(messages, "openai", pricing);
