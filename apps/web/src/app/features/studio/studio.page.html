@@ -146,6 +146,9 @@
               <div class="savings-hero" [class.no-savings]="!hasSavings">
                 <div class="savings-value">{{ savingsHeroValue }}</div>
                 <div class="savings-label">{{ savingsHeroLabel }}</div>
+                <div class="metric-sub" style="margin-top:6px;">
+                  Tokens before/after: {{ tokensBeforeAfterLabel }}
+                </div>
               </div>
 
               <div class="metrics-grid">
@@ -158,8 +161,8 @@
                   <div class="metric-value success">{{ result.spectyra.tokens.input }}</div>
                 </div>
                 <div class="metric-card">
-                  <div class="metric-label">Tokens Saved</div>
-                  <div class="metric-value">{{ result.metrics.inputTokensSaved ?? 0 }}</div>
+                  <div class="metric-label">{{ hasSavings ? 'Tokens Saved' : 'Tokens Added' }}</div>
+                  <div class="metric-value">{{ hasSavings ? tokensSaved : tokensAdded }}</div>
                 </div>
                 <div class="metric-card">
                   <div class="metric-label">Est. Cost Change</div>

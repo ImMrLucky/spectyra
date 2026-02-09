@@ -84,22 +84,50 @@ export class StudioPage implements OnInit {
   runHistory: StudioRunResult[] = [];
   activeTab: ResultTab = 'metrics';
 
+  get inputTokensBefore(): number {
+    return this.result?.raw?.tokens?.input ?? 0;
+  }
+
+  get inputTokensAfter(): number {
+    return this.result?.spectyra?.tokens?.input ?? 0;
+  }
+
+  /** Positive means tokens increased (no savings). */
+  get inputTokensDelta(): number {
+    return this.inputTokensAfter - this.inputTokensBefore;
+  }
+
+  get tokensBeforeAfterLabel(): string {
+    return `${this.inputTokensBefore} → ${this.inputTokensAfter}`;
+  }
+
+  /** Clamped: never negative (we don't call negative "savings"). */
+  get tokensSaved(): number {
+    const saved = this.result?.metrics?.inputTokensSaved;
+    return typeof saved === 'number' && !isNaN(saved) ? Math.max(0, saved) : 0;
+  }
+
+  get tokensAdded(): number {
+    const d = this.inputTokensDelta;
+    return d > 0 ? d : 0;
+  }
+
   get hasSavings(): boolean {
-    const pct = this.result?.metrics?.tokenSavingsPct;
-    return typeof pct === 'number' && pct > 0.001;
+    return this.tokensSaved > 0;
   }
 
   get savingsHeroValue(): string {
     const pct = this.result?.metrics?.tokenSavingsPct;
     if (pct == null || typeof pct !== 'number' || isNaN(pct)) return '—';
-    if (pct > 0) return `${pct.toFixed(1)}%`;
-    if (pct < 0) return 'No savings';
+    const clamped = Math.max(0, pct);
+    if (clamped > 0) return `${clamped.toFixed(1)}%`;
     return '0%';
   }
 
   get savingsHeroLabel(): string {
     if (!this.result) return 'Input tokens saved';
     if (this.result.meta?.reverted) return 'Reverted (optimized larger)';
+    if (!this.hasSavings && this.tokensAdded > 0) return 'No savings (optimized larger)';
     return 'Input tokens saved';
   }
 

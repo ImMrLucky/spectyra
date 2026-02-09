@@ -243,9 +243,17 @@ export async function runStudioScenario(
     const rawCost = estimateCost(rawUsage, providerName);
     const optCost = estimateCost(optUsage, providerName);
 
-    const tokenSavingsPct =
+    const revertedFlag = (optimized as any).optimizationReport ? !!(optimized as any).optimizationReport.reverted : false;
+
+    const tokenSavingsPctRaw =
       rawUsage.input_tokens > 0 ? ((rawUsage.input_tokens - optUsage.input_tokens) / rawUsage.input_tokens) * 100 : 0;
-    const costSavingsPct = rawCost > 0 ? ((rawCost - optCost) / rawCost) * 100 : 0;
+    const tokenSavingsPct = revertedFlag ? 0 : Math.max(0, tokenSavingsPctRaw);
+
+    const inputTokensSaved = revertedFlag ? 0 : Math.max(0, rawUsage.input_tokens - optUsage.input_tokens);
+    const totalTokensSaved = revertedFlag ? 0 : Math.max(0, rawUsage.total_tokens - optUsage.total_tokens);
+
+    const costSavingsPctRaw = rawCost > 0 ? ((rawCost - optCost) / rawCost) * 100 : 0;
+    const costSavingsPct = revertedFlag ? 0 : Math.max(0, costSavingsPctRaw);
 
     const rawPromptText = renderMessages(baseline.promptFinal.messages as any);
     const specPromptText = renderMessages(optimized.promptFinal.messages as any);
@@ -273,14 +281,14 @@ export async function runStudioScenario(
       },
       metrics: {
         tokenSavingsPct: Math.round(tokenSavingsPct * 100) / 100,
-        inputTokensSaved: rawUsage.input_tokens - optUsage.input_tokens,
-        totalTokensSaved: rawUsage.total_tokens - optUsage.total_tokens,
+        inputTokensSaved,
+        totalTokensSaved,
         costSavingsPct: Math.round(costSavingsPct * 100) / 100,
       },
       appliedTransforms: (optimized as any).optimizationsApplied || [],
       meta: {
         estimated: false,
-        reverted: (optimized as any).optimizationReport ? !!(optimized as any).optimizationReport.reverted : undefined,
+        reverted: revertedFlag ? true : undefined,
       },
     };
   }
@@ -324,7 +332,10 @@ export async function runStudioScenario(
   const rawTotal = rawInput + rawOutput;
   const optTotal = optInput + optOutput;
 
-  const tokenSavingsPct = pctSaved != null ? pctSaved : (rawInput > 0 ? ((rawInput - optInput) / rawInput) * 100 : 0);
+  const revertedFlag = (optimized as any).optimizationReport ? !!(optimized as any).optimizationReport.reverted : false;
+  const tokenSavingsPctRaw =
+    pctSaved != null ? pctSaved : (rawInput > 0 ? ((rawInput - optInput) / rawInput) * 100 : 0);
+  const tokenSavingsPct = revertedFlag ? 0 : Math.max(0, tokenSavingsPctRaw);
   const costSavingsPct =
     baselineEstimate.cost_usd > 0 ? ((baselineEstimate.cost_usd - optimizedEstimate.cost_usd) / baselineEstimate.cost_usd) * 100 : 0;
 
@@ -364,15 +375,15 @@ export async function runStudioScenario(
     },
     metrics: {
       tokenSavingsPct: Math.round(tokenSavingsPct * 100) / 100,
-      inputTokensSaved: rawInput - optInput,
-      totalTokensSaved: rawTotal - optTotal,
+      inputTokensSaved: revertedFlag ? 0 : Math.max(0, rawInput - optInput),
+      totalTokensSaved: revertedFlag ? 0 : Math.max(0, rawTotal - optTotal),
       costSavingsPct: Math.round(costSavingsPct * 100) / 100,
       violationsPrevented,
     },
     appliedTransforms: (optimized as any).optimizationsApplied || [],
     meta: {
       estimated: true,
-      reverted: (optimized as any).optimizationReport ? !!(optimized as any).optimizationReport.reverted : undefined,
+      reverted: revertedFlag ? true : undefined,
     },
   };
 }
