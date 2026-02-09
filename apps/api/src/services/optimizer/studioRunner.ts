@@ -251,13 +251,26 @@ export async function runStudioScenario(
     const baseCfgLive = makeOptimizerConfig();
     const cfgLive = mapOptimizationLevelToConfig(path, optLevel, baseCfgLive);
 
+    // Fair comparison: ensure baseline and optimized share the same output token budget.
+    // Otherwise you can see "savings" purely because the optimized call uses a lower maxOutputTokens.
+    const baselineProvider: any =
+      cfgLive.maxOutputTokensOptimized != null
+        ? {
+            chat: (args: any) =>
+              optimizerProvider.chat({
+                ...args,
+                maxOutputTokens: args?.maxOutputTokens ?? cfgLive.maxOutputTokensOptimized,
+              }),
+          }
+        : optimizerProvider;
+
     const t0 = Date.now();
     const baseline = await runOptimizedOrBaseline(
       {
         mode: "baseline",
         path,
         model,
-        provider: optimizerProvider as any,
+        provider: baselineProvider as any,
         embedder,
         messages,
         turnIndex: Date.now(),
