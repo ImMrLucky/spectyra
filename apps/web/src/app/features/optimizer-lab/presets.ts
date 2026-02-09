@@ -1,8 +1,9 @@
 /**
  * Demo Presets for Optimizer Lab
- * 
- * These presets are designed to produce meaningful savings
- * and demonstrate Spectyra's optimization capabilities.
+ *
+ * These presets are tuned to look like realistic prompts a team might send,
+ * not "stress test" mega-prompts. Savings will vary based on how much history,
+ * tool output, and repeated context is included.
  */
 
 export interface DemoPreset {
@@ -16,76 +17,62 @@ export interface DemoPreset {
 
 /**
  * Chat Demo Preset
- * 
- * A long customer support conversation with:
- * - Repeated context and boilerplate
- * - Multiple turns with similar information
- * - Common phrases that can be encoded
- * 
- * Expected savings: 25-40%
+ *
+ * A realistic support thread (moderate repetition + policy boilerplate).
  */
 export const CHAT_DEMO_PRESET: DemoPreset = {
   name: 'Customer Support Conversation',
-  description: 'Long support chat with repeated context',
+  description: 'Realistic support chat (moderate repetition + policy boilerplate)',
   demoType: 'chat',
   optimizationLevel: 'balanced',
-  prompt: `You are a helpful customer support assistant for Acme Cloud Services. You help customers with billing, technical issues, and account management. Always be polite, professional, and thorough in your responses.
+  prompt: `You are a helpful customer support assistant for Acme Cloud Services.
 
-Previous conversation context:
+Account context (from CRM):
 - Customer: John Smith (john.smith@example.com)
 - Account ID: ACM-12345
 - Plan: Business Pro ($99/month)
-- Support Tier: Premium (24/7 support, priority response)
-- Account Status: Active since January 2023
-- Payment Method: Visa ending in 4242
-- Recent invoices: Jan $99, Feb $99, Mar $99
+- Payment method: Visa ending in 4242
+- Support tier: Premium
 
-Conversation History:
+Policy reminders (repeat as needed):
+- Do not request passwords or full card numbers.
+- Refunds typically appear in 5–7 business days.
+
+Conversation so far:
 
 [TURN 1]
-Customer: Hi, I'm having trouble with my billing. I was charged twice this month.
+Customer: Hi—my card shows two charges for $99 from Acme Cloud this month. Can you help?
 
-Support: Hello John! Thank you for reaching out to Acme Cloud Services support. I can see you're on our Business Pro plan ($99/month) with Premium support tier. I'm sorry to hear about the double charge - that's definitely not right. Let me look into your account (ACM-12345) right away.
+Support: Thanks for reaching out, John. I can help. I see account ACM-12345 on Business Pro ($99/month) with Visa ending in 4242. I’m going to check billing events for the duplicate charge. (Please don’t share full card details.)
 
 [TURN 2]
-Customer: Yes, please check. I see two charges of $99 on my credit card statement.
+Customer: It’s definitely two separate pending charges. I’m worried it’ll post twice.
 
-Support: I understand your concern about seeing two $99 charges, John. I'm reviewing your account ACM-12345 now. I can confirm you're on the Business Pro plan at $99/month. Looking at your recent invoices from January, February, and March - each showing $99. Let me check the payment processing logs to identify the duplicate charge.
+Support: Understood. I’m reviewing the last invoice and payment attempt logs for ACM-12345. If it posted twice, we’ll refund immediately. Refunds typically appear in 5–7 business days after processing.
 
 [TURN 3]
-Customer: Any updates? This is really frustrating.
+Customer: Any update? Also—why did this happen?
 
-Support: I completely understand your frustration, John. For a valued customer like yourself on our Business Pro plan with Premium support, we want to resolve this quickly. I've identified the issue in your account (ACM-12345) - there was indeed a duplicate charge of $99 on March 15th. I'm initiating a refund right now.
-
-[TURN 4]
-Customer: When will I see the refund?
-
-Support: Great question, John. For your account ACM-12345, the refund of $99 has been initiated. Since you're paying with your Visa ending in 4242, the refund typically takes 5-7 business days to appear on your statement. As a Business Pro customer with Premium support, you'll also receive an email confirmation within the next hour.
-
-[TURN 5]
-Customer: Thanks. Also, can you explain what happened so it doesn't happen again?
-
-Support: Absolutely, John. Here's what happened with your account ACM-12345: Our billing system experienced a brief glitch on March 15th that affected approximately 50 Business Pro customers. This caused duplicate $99 charges for that billing cycle. We've since implemented additional safeguards to prevent this from recurring. As a Premium support customer, you'll be notified proactively if we ever detect any billing anomalies. Is there anything else I can help you with today regarding your Acme Cloud Services account?
+Support: I found a duplicate authorization attempt tied to the March invoice. One charge is a pending authorization that should drop off automatically; the other is the actual capture for $99. I can also trigger a proactive refund if both post. Root cause looks like a transient payment gateway retry.
 
 [CURRENT TURN]
-Customer: No, that explains it. Thanks for the help!
+Customer: Ok. If both post, can you refund right away and email me confirmation?
 
-Please provide a closing response that summarizes the resolution and offers any additional assistance.`,
+Please write a concise closing response that:
+- Confirms what we found (authorization vs capture)
+- States what we’ll do if both post (refund + confirmation email)
+- Restates the 5–7 business day timeline
+- Offers next help`,
 };
 
 /**
  * Code Demo Preset
- * 
- * A coding agent prompt with:
- * - Repeated file contents across context
- * - Large code blocks that can be compressed
- * - Build logs and error messages
- * 
- * Expected savings: 30-50%
+ *
+ * A realistic “bug fix” prompt: error log + small set of relevant files.
  */
 export const CODE_DEMO_PRESET: DemoPreset = {
   name: 'Repository Bug Fix',
-  description: 'Coding agent with repo context and error logs',
+  description: 'Coding agent prompt with logs + relevant file excerpts',
   demoType: 'code',
   optimizationLevel: 'balanced',
   prompt: `Fix the authentication bug in the user service. Users are getting 401 errors when their JWT tokens should still be valid.
@@ -180,33 +167,6 @@ export function isTokenExpired(token: string): boolean {
 }
 \`\`\`
 
-File: src/services/auth/tokenGenerator.ts
-\`\`\`typescript
-import jwt from 'jsonwebtoken';
-import { JWTConfig } from '../../config/jwt.config';
-
-interface UserData {
-  userId: string;
-  email: string;
-}
-
-export function generateToken(user: UserData): string {
-  return jwt.sign(
-    { userId: user.userId, email: user.email },
-    JWTConfig.secret,
-    { expiresIn: JWTConfig.expiresIn }
-  );
-}
-
-export function generateRefreshToken(user: UserData): string {
-  return jwt.sign(
-    { userId: user.userId, email: user.email, type: 'refresh' },
-    JWTConfig.refreshSecret,
-    { expiresIn: JWTConfig.refreshExpiresIn }
-  );
-}
-\`\`\`
-
 File: src/config/jwt.config.ts
 \`\`\`typescript
 export const JWTConfig = {
@@ -248,42 +208,5 @@ export async function authenticate(
 }
 \`\`\`
 
-Previous context from this conversation:
-- We identified that the issue is in tokenValidator.ts
-- The validation is checking expiry but may have timezone issues
-- Date.now() returns milliseconds, jwt exp is in seconds
-- Server logs show discrepancy between expected and actual expiry
-
-Additional file context (repeated for reference):
-File: src/services/auth/tokenValidator.ts
-\`\`\`typescript
-import jwt from 'jsonwebtoken';
-import { JWTConfig } from '../../config/jwt.config';
-
-interface TokenPayload {
-  userId: string;
-  email: string;
-  iat: number;
-  exp: number;
-}
-
-export async function validateToken(token: string): Promise<TokenPayload> {
-  try {
-    const decoded = jwt.verify(token, JWTConfig.secret) as TokenPayload;
-    
-    // Check if token is expired
-    const now = Date.now() / 1000;
-    if (decoded.exp < now) {
-      throw new Error('JWT expired');
-    }
-    
-    return decoded;
-  } catch (error) {
-    console.error('[TokenValidator] Validation failed:', error);
-    throw error;
-  }
-}
-\`\`\`
-
-Note: The tokenValidator.ts file is doing redundant expiry checking since jwt.verify already handles expiry. This could be causing issues if there's clock skew.`,
+Note: jwt.verify() already validates expiry. A second manual expiry check can create false expirations when there is clock skew or time unit mismatch.`,
 };

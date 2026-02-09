@@ -177,6 +177,7 @@
                 <div class="metric-card">
                   <div class="metric-label">Mode</div>
                   <div class="metric-value">{{ result.meta?.estimated ? 'DRY-RUN' : 'LIVE' }}</div>
+                  <div class="metric-sub" *ngIf="result.meta?.estimated">Token/cost are estimated</div>
                   <div class="metric-sub" *ngIf="result.meta?.reverted">Reverted</div>
                 </div>
               </div>

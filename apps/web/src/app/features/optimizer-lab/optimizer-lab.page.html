@@ -19,7 +19,7 @@
   <div *ngIf="!loading && isOwner" class="lab-content">
     <header class="lab-header">
       <h1>Optimizer Lab</h1>
-      <p class="subtitle">Test Spectyra's optimization pipeline without making provider calls</p>
+      <p class="subtitle">Dry-run optimization (no provider calls). Token/cost numbers are estimates.</p>
       <div class="no-provider-badge">
         <mat-icon class="badge-icon" aria-hidden="true">lock</mat-icon>
         <span>No provider calls made • No API keys required</span>
@@ -119,13 +119,14 @@
             <div class="form-group">
               <label>Turn Count</label>
               <div class="turn-count-row">
-                <input type="number" [(ngModel)]="turnCount" class="form-input turn-input" min="1" max="500" placeholder="20">
+                <input type="number" [(ngModel)]="turnCount" class="form-input turn-input" min="1" max="500" placeholder="8">
                 <div class="quick-turns">
+                  <button type="button" class="btn-quick" (click)="turnCount = 8">8</button>
+                  <button type="button" class="btn-quick" (click)="turnCount = 12">12</button>
                   <button type="button" class="btn-quick" (click)="turnCount = 20">20</button>
-                  <button type="button" class="btn-quick" (click)="turnCount = 50">50</button>
-                  <button type="button" class="btn-quick" (click)="turnCount = 100">100</button>
                 </div>
               </div>
+              <small class="hint">8–12 turns is typical. Higher counts are stress tests and can exaggerate savings.</small>
             </div>
             <div class="form-group">
               <label>Seed</label>

@@ -70,11 +70,13 @@ export class OptimizerLabPage implements OnInit {
   viewMode: ViewMode = 'ADMIN_DEBUG';
 
   // Generate Test Data
-  turnCount = 20;
+  // Defaults are tuned for "typical" prompts (not stress tests).
+  // Large turn counts can exaggerate savings because there is more repetition to compress.
+  turnCount = 8;
   seed = 42;
   generatorScenario = CHAT_SCENARIO_OPTIONS[0] ?? '';
   includeSystemMessage = true;
-  includeToolTraces = true;
+  includeToolTraces = false;
   generatedSummary: string | null = null;
 
   // Advanced options (collapsed by default)

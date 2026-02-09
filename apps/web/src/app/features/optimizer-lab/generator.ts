@@ -2,7 +2,7 @@
  * Turn Generator for Optimizer Lab
  *
  * Algorithmically generates synthetic chat/code message histories with
- * seeded randomness. No LLM calls. Designed to trigger RefPack, PhraseBook, CodeMap.
+ * seeded randomness. No LLM calls. Useful for SCC/token-estimation demos and stress tests.
  */
 
 export type ChatMessage = { role: 'system' | 'user' | 'assistant' | 'tool'; content: string };
