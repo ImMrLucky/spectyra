@@ -289,6 +289,8 @@ export async function runStudioScenario(
         embedder,
         messages,
         turnIndex: Date.now(),
+        // Studio live comparisons must reflect real usage; cache hits return 0-usage placeholders.
+        disableCache: true,
       },
       cfgLive
     );

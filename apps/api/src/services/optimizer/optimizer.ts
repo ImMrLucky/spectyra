@@ -78,6 +78,12 @@ export interface OptimizeInput {
   
   // For dry-run mode (skip provider call, return estimates)
   dryRun?: boolean;
+
+  /**
+   * When true, bypass semantic cache lookup (always call provider).
+   * Useful for measurement flows (e.g. Studio live comparisons).
+   */
+  disableCache?: boolean;
 }
 
 export interface OptimizeOutput {
@@ -153,7 +159,7 @@ export async function runOptimizedOrBaseline(
   input: OptimizeInput,
   cfg: OptimizerConfig
 ): Promise<OptimizeOutput> {
-  const { mode, path, provider, embedder, model, messages, turnIndex, requiredChecks, dryRun, conversationId } = input;
+  const { mode, path, provider, embedder, model, messages, turnIndex, requiredChecks, dryRun, conversationId, disableCache } = input;
 
   // Baseline: forward as-is (still can be quality-checked in replay)
   if (mode === "baseline") {
@@ -610,7 +616,7 @@ export async function runOptimizedOrBaseline(
     let cachedResponse: string | null = null;
     const cacheStore = getCacheStore();
     
-    if (cacheStore && cacheKey) {
+    if (!disableCache && cacheStore && cacheKey) {
       try {
         cachedResponse = await cacheStore.get(cacheKey);
         if (cachedResponse) {
