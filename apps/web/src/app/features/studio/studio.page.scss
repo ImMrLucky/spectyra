@@ -234,6 +234,12 @@
   padding: 12px 16px 16px;
 }
 
+/* Guard against global tab CSS (e.g., Bootstrap) that hides .tab-pane unless .active */
+.tab-content .tab-pane {
+  display: block;
+  min-height: 240px;
+}
+
 .savings-hero {
   border: 1px solid var(--border, #e5e7eb);
   border-radius: 12px;
