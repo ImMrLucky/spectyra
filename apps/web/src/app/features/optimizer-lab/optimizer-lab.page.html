@@ -488,7 +488,7 @@
             <!-- Before Tab -->
             <div *ngIf="activeTab === 'before'" class="tab-pane content-pane">
               <div class="content-header">
-                <h3>Original Prompt</h3>
+                <h3>Before: Raw conversation history (what you’d send without Spectyra)</h3>
                 <button 
                   class="btn-sm"
                   (click)="copyToClipboard(getRenderedText(result.original?.renderedText ?? ''))">
@@ -496,6 +496,9 @@
                   Copy
                 </button>
               </div>
+              <p class="hint" style="margin: 0 0 10px 0;">
+                This is the full message list (user/assistant/tool) that many SDKs resend on each request to keep context.
+              </p>
               <div class="message-list">
                 <div 
                   *ngFor="let msg of (result.original?.messages ?? [])"
@@ -513,7 +516,7 @@
             <!-- After Tab -->
             <div *ngIf="activeTab === 'after'" class="tab-pane content-pane">
               <div class="content-header">
-                <h3>Optimized Prompt</h3>
+                <h3>After: Compiled next-call prompt (what Spectyra would send)</h3>
                 <button 
                   *ngIf="result.viewMode !== 'DEMO_VIEW'"
                   class="btn-sm"
@@ -525,6 +528,10 @@
                   Copy disabled (redacted)
                 </span>
               </div>
+              <p class="hint" style="margin: 0 0 10px 0;">
+                Spectyra compiles prior turns into a compact state (often inside the system message), so the optimized message list may shrink to just 1–2 messages.
+                This represents the prompt for the <b>next</b> model call, not a rewritten transcript of the entire chat.
+              </p>
               
               <div *ngIf="isRedacted(result.optimized?.messages)" class="redacted-notice">
                 <mat-icon class="redacted-icon" aria-hidden="true">lock</mat-icon>

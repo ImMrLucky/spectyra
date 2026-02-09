@@ -18,6 +18,7 @@ import { OwnerService } from '../../core/services/owner.service';
 import { SnackbarService } from '../../core/services/snackbar.service';
 
 type ResultTab = 'metrics' | 'before' | 'after' | 'diff';
+type StudioRunMode = 'scenario' | 'live';
 
 interface StudioAdvancedOptions {
   showToolCalls: boolean;
@@ -35,6 +36,11 @@ interface StudioAdvancedOptions {
   model: string;
   /** Optimization level (0-4). */
   optimizationLevel: number;
+  /**
+   * Optional BYOK provider key for live runs.
+   * Sent via `X-PROVIDER-KEY` header (never stored).
+   */
+  byokProviderKey?: string;
   // Scenario-specific optional knobs
   rules?: string;
 }
@@ -67,6 +73,7 @@ export class StudioPage implements OnInit {
   primary = '';
   secondary = '';
   showAdvanced = false;
+  runMode: StudioRunMode = 'scenario';
   advanced: StudioAdvancedOptions = {
     showToolCalls: false,
     showPolicyEvaluation: false,
@@ -76,6 +83,7 @@ export class StudioPage implements OnInit {
     provider: 'anthropic',
     model: 'claude-3-5-sonnet-latest',
     optimizationLevel: 2,
+    byokProviderKey: '',
   };
 
   // Results
@@ -167,6 +175,47 @@ export class StudioPage implements OnInit {
     this.secondary = def.defaultInputs.secondary ?? '';
     const adv = (def.defaultInputs.advanced ?? {}) as Partial<StudioAdvancedOptions>;
     this.advanced = { ...this.advanced, ...adv };
+    // Default mode is scenario unless the preset explicitly opts into live.
+    this.runMode = this.advanced.liveProviderRun ? 'live' : 'scenario';
+  }
+
+  onRunModeChange() {
+    // Single source of truth for backend: advanced.liveProviderRun
+    this.advanced.liveProviderRun = this.runMode === 'live';
+  }
+
+  copyRunAsFixture() {
+    if (!this.result) return;
+    const fixture = {
+      capturedAt: new Date().toISOString(),
+      scenarioId: this.scenarioId,
+      mode: this.result.meta?.estimated ? 'scenario_dry_run' : 'live_dual_call',
+      inputs: {
+        primary: this.primary,
+        secondary: this.selectedScenario.inputSchema.secondaryLabel ? this.secondary : undefined,
+        advanced: {
+          ...this.advanced,
+          // Never include raw provider keys in fixtures
+          byokProviderKey: undefined,
+        },
+      },
+      raw: {
+        promptText: this.result.raw.promptText,
+        tokens: this.result.raw.tokens,
+        latencyMs: this.result.raw.latencyMs,
+        costUsd: this.result.raw.costUsd,
+      },
+      spectyra: {
+        promptText: this.result.spectyra.promptText,
+        tokens: this.result.spectyra.tokens,
+        latencyMs: this.result.spectyra.latencyMs,
+        costUsd: this.result.spectyra.costUsd,
+      },
+      metrics: this.result.metrics,
+      appliedTransforms: this.result.appliedTransforms ?? [],
+      meta: this.result.meta ?? {},
+    };
+    this.copyToClipboard(JSON.stringify(fixture, null, 2));
   }
 
   onScenarioChange() {
@@ -225,7 +274,8 @@ export class StudioPage implements OnInit {
       },
     };
 
-    this.studio.runScenario(req).subscribe({
+    const byokKey = (this.advanced.byokProviderKey ?? '').trim();
+    this.studio.runScenario(req, byokKey || undefined).subscribe({
       next: (res) => {
         this.result = res;
         this.activeTab = 'metrics';

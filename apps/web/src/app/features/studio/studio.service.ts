@@ -1,5 +1,6 @@
 import { Injectable } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
+import { HttpHeaders } from '@angular/common/http';
 import { Observable } from 'rxjs';
 import { environment } from '../../../environments/environment';
 import type { StudioScenarioId } from './studio-scenarios.registry';
@@ -52,8 +53,10 @@ export interface StudioRunResult {
 export class StudioService {
   constructor(private http: HttpClient) {}
 
-  runScenario(req: StudioRunRequest): Observable<StudioRunResult> {
-    return this.http.post<StudioRunResult>(`${environment.apiUrl}/admin/studio/run`, req);
+  runScenario(req: StudioRunRequest, byokProviderKey?: string): Observable<StudioRunResult> {
+    const key = (byokProviderKey ?? '').trim();
+    const headers = key ? new HttpHeaders({ 'X-PROVIDER-KEY': key }) : undefined;
+    return this.http.post<StudioRunResult>(`${environment.apiUrl}/admin/studio/run`, req, { headers });
   }
 }
 
