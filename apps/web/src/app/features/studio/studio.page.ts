@@ -184,6 +184,22 @@ export class StudioPage implements OnInit {
     this.advanced.liveProviderRun = this.runMode === 'live';
   }
 
+  private defaultModelForProvider(provider: 'anthropic' | 'openai'): string {
+    return provider === 'openai' ? 'gpt-4o-mini' : 'claude-3-5-sonnet-latest';
+  }
+
+  onProviderChange() {
+    // If the user hasn't customized the model (or it's still the other provider's default),
+    // snap the model to the right default.
+    const current = (this.advanced.model ?? '').trim();
+    const nextDefault = this.defaultModelForProvider(this.advanced.provider);
+    const otherDefault = this.defaultModelForProvider(this.advanced.provider === 'openai' ? 'anthropic' : 'openai');
+
+    if (!current || current === otherDefault) {
+      this.advanced.model = nextDefault;
+    }
+  }
+
   copyRunAsFixture() {
     if (!this.result) return;
     const fixture = {

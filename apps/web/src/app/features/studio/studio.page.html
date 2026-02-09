@@ -91,7 +91,7 @@
 
           <div class="form-row" *ngIf="runMode === 'live'">
             <label>Provider</label>
-            <select [(ngModel)]="advanced.provider">
+            <select [(ngModel)]="advanced.provider" (ngModelChange)="onProviderChange()">
               <option value="anthropic">Anthropic (Claude)</option>
               <option value="openai">OpenAI</option>
             </select>
