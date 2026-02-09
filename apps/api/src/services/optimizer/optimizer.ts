@@ -84,6 +84,12 @@ export interface OptimizeInput {
    * Useful for measurement flows (e.g. Studio live comparisons).
    */
   disableCache?: boolean;
+
+  /**
+   * When true, bypass the ASK_CLARIFY short-circuit and continue the full pipeline,
+   * so we can measure real prompt/token impact in controlled comparisons.
+   */
+  disableAskClarifyShortCircuit?: boolean;
 }
 
 export interface OptimizeOutput {
@@ -159,7 +165,20 @@ export async function runOptimizedOrBaseline(
   input: OptimizeInput,
   cfg: OptimizerConfig
 ): Promise<OptimizeOutput> {
-  const { mode, path, provider, embedder, model, messages, turnIndex, requiredChecks, dryRun, conversationId, disableCache } = input;
+  const {
+    mode,
+    path,
+    provider,
+    embedder,
+    model,
+    messages,
+    turnIndex,
+    requiredChecks,
+    dryRun,
+    conversationId,
+    disableCache,
+    disableAskClarifyShortCircuit,
+  } = input;
 
   // Baseline: forward as-is (still can be quality-checked in replay)
   if (mode === "baseline") {
@@ -223,7 +242,7 @@ export async function runOptimizedOrBaseline(
 
   // 5) If unstable: clarify short-circuit (saves tokens and avoids wrong answers)
   // In dry-run (e.g. Optimizer Lab), skip short-circuit so we still run transforms and show real before/after.
-  if (spectral.recommendation === "ASK_CLARIFY" && !dryRun) {
+  if (spectral.recommendation === "ASK_CLARIFY" && !dryRun && !disableAskClarifyShortCircuit) {
     const qText = makeClarifyQuestion(path);
     const q = runQualityGuard({ text: qText, requiredChecks }); // usually passes if no checks
     

@@ -347,6 +347,8 @@ export async function runStudioScenario(
         turnIndex: Date.now(),
         // Studio live comparisons must reflect real usage; cache hits return 0-usage placeholders.
         disableCache: true,
+        // For measurement, don't short-circuit on ASK_CLARIFY (it returns 0-usage placeholders).
+        disableAskClarifyShortCircuit: true,
       },
       cfgLive
     );
