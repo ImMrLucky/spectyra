@@ -157,12 +157,61 @@ function buildMessagesForScenario(
   const messages: ChatMessage[] = [];
   const systemParts: string[] = [];
 
+  function parseTranscriptLikeText(text: string): ChatMessage[] {
+    // Supports simple "User:" / "Assistant:" / "Tool:" transcripts and the "[USER]" / "[ASSISTANT]" / "[TOOL]" format
+    // that our UI renderers use. This helps Studio scenarios better match real SDK payloads.
+    const lines = String(text || "").split(/\r?\n/);
+    let currentRole: "user" | "assistant" | "tool" | null = null;
+    let buf: string[] = [];
+    const out: ChatMessage[] = [];
+
+    function flush() {
+      if (!currentRole) return;
+      const content = buf.join("\n").trim();
+      if (content) out.push({ role: currentRole, content });
+      buf = [];
+    }
+
+    for (const rawLine of lines) {
+      const line = rawLine ?? "";
+      const m =
+        /^(?:\[(USER|ASSISTANT|TOOL)\]|(User|Assistant|Tool)\s*:)\s*(.*)$/i.exec(line.trim()) ??
+        null;
+      if (m) {
+        flush();
+        const roleToken = (m[1] || m[2] || "").toLowerCase();
+        currentRole = roleToken.startsWith("assist") ? "assistant" : roleToken.startsWith("tool") ? "tool" : "user";
+        const rest = (m[3] ?? "").trim();
+        if (rest) buf.push(rest);
+        continue;
+      }
+      if (!currentRole) {
+        // If the text doesn't start with an explicit role, treat it as a single user message.
+        return [];
+      }
+      buf.push(line);
+    }
+    flush();
+    return out;
+  }
+
   if (scenarioId === "token_chat") {
     systemParts.push(CHAT_ENVELOPE);
     if (rulesText) systemParts.push(rulesText);
     messages.push({ role: "system", content: systemParts.join("\n\n") });
-    messages.push({ role: "user", content: primary });
-    if (secondary && secondary.trim()) messages.push({ role: "user", content: secondary });
+
+    const transcriptMsgs = parseTranscriptLikeText(primary);
+    if (transcriptMsgs.length > 0) {
+      messages.push(...transcriptMsgs);
+    } else {
+      messages.push({ role: "user", content: primary });
+    }
+
+    if (secondary && secondary.trim()) {
+      const secMsgs = parseTranscriptLikeText(secondary);
+      if (secMsgs.length > 0) messages.push(...secMsgs);
+      else messages.push({ role: "user", content: secondary });
+    }
     return { path: "talk", messages };
   }
 
@@ -172,14 +221,21 @@ function buildMessagesForScenario(
   messages.push({ role: "system", content: systemParts.join("\n\n") });
 
   // Primary is the user's request/goal.
-  messages.push({ role: "user", content: primary });
+  const transcriptMsgs = parseTranscriptLikeText(primary);
+  if (transcriptMsgs.length > 0) {
+    messages.push(...transcriptMsgs);
+  } else {
+    messages.push({ role: "user", content: primary });
+  }
 
   // Secondary often contains tool schemas / logs / extra context.
   if (secondary && secondary.trim()) {
     if (looksLikeSystemBlock(secondary)) {
       messages.push({ role: "system", content: stripSystemLabel(secondary) });
     } else {
-      messages.push({ role: "user", content: secondary });
+      const secMsgs = parseTranscriptLikeText(secondary);
+      if (secMsgs.length > 0) messages.push(...secMsgs);
+      else messages.push({ role: "user", content: secondary });
     }
   }
 
