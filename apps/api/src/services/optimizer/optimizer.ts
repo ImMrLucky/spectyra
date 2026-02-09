@@ -507,11 +507,13 @@ export async function runOptimizedOrBaseline(
     }
 
     // Final safety: optimized prompt must never exceed baseline. Revert and mark reverted if so.
-    const optimizedTokenCount = estimateInputTokens(messagesFinal);
+    let optimizedTokenCount = estimateInputTokens(messagesFinal);
     let reverted = false;
     if (optimizedTokenCount > baselineTokenCount) {
       messagesFinal = pipelineMessages;
       reverted = true;
+      // Recompute after revert so reporting matches actual promptFinal.
+      optimizedTokenCount = estimateInputTokens(messagesFinal);
     }
 
     // Markov state carry: persist compiled state for next request
@@ -530,34 +532,38 @@ export async function runOptimizedOrBaseline(
     // If dry-run, skip provider call and return placeholder with optimization report
     if (dryRun) {
       const optimizationsAppliedDry: string[] = [];
-      if (lastSccDropped > 0) optimizationsAppliedDry.push("scc");
-      if (phraseBookMetrics.changed) optimizationsAppliedDry.push("phrasebook");
-      if (codeMapMetrics.changed) optimizationsAppliedDry.push("codemap");
+      if (!reverted) {
+        if (lastSccDropped > 0) optimizationsAppliedDry.push("scc");
+        if (phraseBookMetrics.changed) optimizationsAppliedDry.push("phrasebook");
+        if (codeMapMetrics.changed) optimizationsAppliedDry.push("codemap");
+      }
       const totalInputBeforeDry = baselineTokenCount;
       const totalInputAfterDry = optimizedTokenCount;
       const totalSavedDry = totalInputBeforeDry - totalInputAfterDry;
       const pctSavedDry = totalInputBeforeDry > 0 ? (totalSavedDry / totalInputBeforeDry) * 100 : 0;
       const tokenBreakdownDry: OptimizeOutput["tokenBreakdown"] = {};
-      if (refPackMetrics.entriesCount > 0) {
-        tokenBreakdownDry.refpack = {
-          before: refPackMetrics.tokensBefore,
-          after: refPackMetrics.tokensAfter,
-          saved: refPackMetrics.tokensBefore - refPackMetrics.tokensAfter,
-        };
-      }
-      if (phraseBookMetrics.changed) {
-        tokenBreakdownDry.phrasebook = {
-          before: phraseBookMetrics.tokensBefore,
-          after: phraseBookMetrics.tokensAfter,
-          saved: phraseBookMetrics.tokensBefore - phraseBookMetrics.tokensAfter,
-        };
-      }
-      if (codeMapMetrics.changed) {
-        tokenBreakdownDry.codemap = {
-          before: codeMapMetrics.tokensBefore,
-          after: codeMapMetrics.tokensAfter,
-          saved: codeMapMetrics.tokensBefore - codeMapMetrics.tokensAfter,
-        };
+      if (!reverted) {
+        if (refPackMetrics.entriesCount > 0) {
+          tokenBreakdownDry.refpack = {
+            before: refPackMetrics.tokensBefore,
+            after: refPackMetrics.tokensAfter,
+            saved: refPackMetrics.tokensBefore - refPackMetrics.tokensAfter,
+          };
+        }
+        if (phraseBookMetrics.changed) {
+          tokenBreakdownDry.phrasebook = {
+            before: phraseBookMetrics.tokensBefore,
+            after: phraseBookMetrics.tokensAfter,
+            saved: phraseBookMetrics.tokensBefore - phraseBookMetrics.tokensAfter,
+          };
+        }
+        if (codeMapMetrics.changed) {
+          tokenBreakdownDry.codemap = {
+            before: codeMapMetrics.tokensBefore,
+            after: codeMapMetrics.tokensAfter,
+            saved: codeMapMetrics.tokensBefore - codeMapMetrics.tokensAfter,
+          };
+        }
       }
       return {
         promptFinal: { messages: messagesFinal },
@@ -578,13 +584,13 @@ export async function runOptimizedOrBaseline(
         tokenBreakdown: tokenBreakdownDry,
         optimizationReport: {
           layers: {
-            refpack: refPackMetrics.entriesCount > 0,
-            phrasebook: phraseBookMetrics.changed,
-            codemap: codeMapMetrics.changed,
+            refpack: !reverted && refPackMetrics.entriesCount > 0,
+            phrasebook: !reverted && phraseBookMetrics.changed,
+            codemap: !reverted && codeMapMetrics.changed,
             semantic_cache: false,
             cache_hit: false,
-            context_compiler: lastSccDropped > 0,
-            profit_gated: optimizationSteps.some((s) => !s.useAfter),
+            context_compiler: !reverted && lastSccDropped > 0,
+            profit_gated: !reverted && optimizationSteps.some((s) => !s.useAfter),
           },
           tokens: {
             estimated: true,
