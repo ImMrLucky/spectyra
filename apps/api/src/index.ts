@@ -11,7 +11,7 @@ import { runsRouter } from "./routes/runs.js";
 import { savingsRouter } from "./routes/savings.js";
 import { adminRouter } from "./routes/admin.js";
 import { optimizerLabHealthRouter, optimizerLabRouter } from "./routes/optimizerLab.js";
-import { studioRouter } from "./routes/studio.js";
+import { studioPublicRouter, studioRouter } from "./routes/studio.js";
 import { proofRouter } from "./routes/proof.js";
 import { replaySimulateRouter } from "./routes/replaySimulate.js";
 import { billingRouter } from "./routes/billing.js";
@@ -102,6 +102,7 @@ app.use("/v1/admin", adminRouter);
 app.use("/v1/admin", optimizerLabHealthRouter); // GET /optimize/health (public, no auth)
 app.use("/v1/admin", optimizerLabRouter); // Optimizer Lab POST /optimize (any authenticated user)
 app.use("/v1/admin", studioRouter); // Spectyra Studio POST /studio/run (owner only)
+app.use("/v1", studioPublicRouter); // Spectyra Studio POST /studio/run (public)
 app.use("/v1/proof", proofRouter);
 app.use("/v1/replay/simulate", replaySimulateRouter);
 app.use("/v1/billing", billingRouter);

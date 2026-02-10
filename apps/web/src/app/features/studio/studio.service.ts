@@ -56,7 +56,7 @@ export class StudioService {
   runScenario(req: StudioRunRequest, byokProviderKey?: string): Observable<StudioRunResult> {
     const key = (byokProviderKey ?? '').trim();
     const headers = key ? new HttpHeaders({ 'X-PROVIDER-KEY': key }) : undefined;
-    return this.http.post<StudioRunResult>(`${environment.apiUrl}/admin/studio/run`, req, { headers });
+    return this.http.post<StudioRunResult>(`${environment.apiUrl}/studio/run`, req, { headers });
   }
 }
 
