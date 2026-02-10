@@ -760,6 +760,7 @@ export async function runOptimizedOrBaseline(
 
     // Build optimizations_applied array for API response
     const optimizationsApplied: string[] = [];
+    if (!reverted && lastSccDropped > 0) optimizationsApplied.push("scc");
     if (refPackMetrics.entriesCount > 0) optimizationsApplied.push("refpack");
     if (phraseBookMetrics.changed) optimizationsApplied.push("phrasebook");
     if (codeMapMetrics.changed) optimizationsApplied.push("codemap");

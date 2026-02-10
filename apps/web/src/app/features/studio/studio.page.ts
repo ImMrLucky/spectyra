@@ -124,6 +124,39 @@ export class StudioPage implements OnInit {
     return this.tokensSaved > 0;
   }
 
+  get costBeforeUsd(): number {
+    return this.result?.raw?.costUsd ?? 0;
+  }
+
+  get costAfterUsd(): number {
+    return this.result?.spectyra?.costUsd ?? 0;
+  }
+
+  /** Positive means cost increased (no savings). */
+  get costDeltaUsd(): number {
+    return this.costAfterUsd - this.costBeforeUsd;
+  }
+
+  get costDeltaPct(): number {
+    const before = this.costBeforeUsd;
+    if (!before || before <= 0) return 0;
+    return (this.costDeltaUsd / before) * 100;
+  }
+
+  get hasCostSavings(): boolean {
+    return this.costAfterUsd > 0 && this.costBeforeUsd > 0 && this.costDeltaUsd < 0;
+  }
+
+  get costChangeLabel(): string {
+    // In dry-run, the cost is estimated, but the delta is still meaningful as an estimate.
+    return this.hasCostSavings ? 'Cost saved' : 'Cost added';
+  }
+
+  get costChangePctLabel(): string {
+    const pct = Math.abs(this.costDeltaPct);
+    return `${pct.toFixed(2)}%`;
+  }
+
   get savingsHeroValue(): string {
     const pct = this.result?.metrics?.tokenSavingsPct;
     if (pct == null || typeof pct !== 'number' || isNaN(pct)) return '—';
