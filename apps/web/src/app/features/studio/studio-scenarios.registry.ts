@@ -26,6 +26,45 @@ export interface StudioScenarioDef {
   };
 }
 
+/**
+ * Realistic multi-turn coding agent transcript (~2,500 tokens).
+ * This is what a real Claude Code / Cursor session looks like after several turns:
+ * system rules + user task + tool outputs (test logs, file reads) + assistant analysis.
+ *
+ * SCC should be able to drop older turns and compile a compact state, producing
+ * meaningful input-token savings on payloads this size and larger.
+ */
+const CODE_SCENARIO_TRANSCRIPT = [
+  'User: You are an on-call coding agent. The Angular build is failing in CI. Fix the build and make the minimal safe change.',
+  '',
+  'User: Hard requirements:',
+  '- Run the build first and paste full output.',
+  '- Do not propose code patches until you read_file the failing file at the failing line.',
+  '- Target ES2019; no optional chaining; do not use replaceAll.',
+  '- Keep changes minimal; do not refactor unrelated files.',
+  '- Treat .json as JSON (never assume TS/JS content).',
+  '',
+  'Assistant: Understood. I will run the build first to capture the full error output, then read the failing file at the failing line before proposing any patch.',
+  '',
+  // --- Tool output: build failure (one large tool message) ---
+  'Tool: run_terminal_cmd("pnpm --filter web exec ng build")\nexitCode=1\nstdout:\n> web@0.1.0 build /Users/dev/spectyra/apps/web\n> ng build\n\nNode.js version v23.5.0 detected.\nOdd numbered Node.js versions will not enter LTS status and should not be used for production.\n- Building...\n\nApplication bundle generation failed. [14.240 seconds]\n\nX [ERROR] TS2345: Argument of type \'string | undefined\' is not assignable to parameter of type \'string\'.\n  Type \'undefined\' is not assignable to type \'string\'. [plugin angular-compiler]\n\n    src/app/features/integrations/integrations.page.ts:87:42:\n      87 |     this.integrationService.deleteIntegration(integration.id)\n         |                                               ~~~~~~~~~~~~~~\n\nX [ERROR] TS2345: Argument of type \'string | undefined\' is not assignable to parameter of type \'string\'.\n  Type \'undefined\' is not assignable to type \'string\'. [plugin angular-compiler]\n\n    src/app/features/integrations/integrations.page.ts:94:40:\n      94 |     this.integrationService.toggleIntegration(integration.id, !integration.enabled)\n         |                                               ~~~~~~~~~~~~~~\n\nX [ERROR] TS2345: Argument of type \'string | undefined\' is not assignable to parameter of type \'string\'.\n  Type \'undefined\' is not assignable to type \'string\'. [plugin angular-compiler]\n\n    src/app/features/integrations/integrations.page.ts:101:42:\n      101 |     this.integrationService.refreshIntegration(integration.id)\n          |                                                ~~~~~~~~~~~~~~\n\nW [WARNING] NG8107: The left side of this optional chain operation does not include \'null\' or \'undefined\'\n    src/app/features/optimizer-lab/optimizer-lab.page.html:335:73\nW [WARNING] NG8107: The left side of this optional chain operation does not include \'null\' or \'undefined\'\n    src/app/features/optimizer-lab/optimizer-lab.page.html:339:81\nW [WARNING] NG8107: The left side of this optional chain operation does not include \'null\' or \'undefined\'\n    src/app/features/optimizer-lab/optimizer-lab.page.html:343:75\nW [WARNING] NG8107: The left side of this optional chain operation does not include \'null\' or \'undefined\'\n    src/app/features/optimizer-lab/optimizer-lab.page.html:347:84\nW [WARNING] NG8107: The left side of this optional chain operation does not include \'null\' or \'undefined\'\n    src/app/features/optimizer-lab/optimizer-lab.page.html:351:60\nW [WARNING] NG8102: The left side of this nullish coalescing operation does not include \'null\' or \'undefined\'\n    src/app/features/optimizer-lab/optimizer-lab.page.html:355:47',
+  '',
+  'Assistant: The build has 3 TS2345 errors, all in integrations.page.ts at lines 87, 94, 101. The issue is that integration.id is typed as string | undefined but the service methods expect string. I need to read that file to see the exact code before proposing a fix.',
+  '',
+  // --- Tool output: read the failing file (one large tool message) ---
+  'Tool: read_file("apps/web/src/app/features/integrations/integrations.page.ts")\ncontent:\nimport { Component, OnInit } from \'@angular/core\';\nimport { CommonModule } from \'@angular/common\';\nimport { FormsModule } from \'@angular/forms\';\nimport { MatIconModule } from \'@angular/material/icon\';\nimport { IntegrationService, Integration } from \'../../core/api/integration.service\';\nimport { SnackbarService } from \'../../core/services/snackbar.service\';\n\n@Component({\n  selector: \'app-integrations\',\n  standalone: true,\n  imports: [CommonModule, FormsModule, MatIconModule],\n  templateUrl: \'./integrations.page.html\',\n  styleUrls: [\'./integrations.page.scss\'],\n})\nexport class IntegrationsPage implements OnInit {\n  integrations: Integration[] = [];\n  loading = true;\n  error: string | null = null;\n\n  constructor(\n    private integrationService: IntegrationService,\n    private snackbar: SnackbarService\n  ) {}\n\n  ngOnInit() {\n    this.loadIntegrations();\n  }\n\n  loadIntegrations() {\n    this.loading = true;\n    this.integrationService.getIntegrations().subscribe({\n      next: (data) => {\n        this.integrations = data;\n        this.loading = false;\n      },\n      error: (err) => {\n        this.error = err?.message || \'Failed to load integrations\';\n        this.loading = false;\n      },\n    });\n  }\n\n  deleteIntegration(integration: Integration) {\n    this.integrationService.deleteIntegration(integration.id)\n      .subscribe({\n        next: () => {\n          this.snackbar.showSuccess(\'Integration deleted\');\n          this.loadIntegrations();\n        },\n        error: (err) => this.snackbar.showError(err?.message || \'Delete failed\'),\n      });\n  }\n\n  toggleIntegration(integration: Integration) {\n    this.integrationService.toggleIntegration(integration.id, !integration.enabled)\n      .subscribe({\n        next: () => {\n          this.snackbar.showSuccess(integration.enabled ? \'Disabled\' : \'Enabled\');\n          this.loadIntegrations();\n        },\n        error: (err) => this.snackbar.showError(err?.message || \'Toggle failed\'),\n      });\n  }\n\n  refreshIntegration(integration: Integration) {\n    this.integrationService.refreshIntegration(integration.id)\n      .subscribe({\n        next: () => {\n          this.snackbar.showSuccess(\'Refreshed\');\n          this.loadIntegrations();\n        },\n        error: (err) => this.snackbar.showError(err?.message || \'Refresh failed\'),\n      });\n  }\n}',
+  '',
+  // --- Tool output: read the service type ---
+  'Tool: read_file("apps/web/src/app/core/api/integration.service.ts")\ncontent:\nimport { Injectable } from \'@angular/core\';\nimport { HttpClient } from \'@angular/common/http\';\nimport { Observable } from \'rxjs\';\nimport { environment } from \'../../../environments/environment\';\n\nexport interface Integration {\n  id?: string;\n  name: string;\n  provider: string;\n  enabled: boolean;\n  config: Record<string, any>;\n  createdAt?: string;\n}\n\n@Injectable({ providedIn: \'root\' })\nexport class IntegrationService {\n  constructor(private http: HttpClient) {}\n\n  getIntegrations(): Observable<Integration[]> {\n    return this.http.get<Integration[]>(environment.apiUrl + \'/integrations\');\n  }\n\n  deleteIntegration(id: string): Observable<void> {\n    return this.http.delete<void>(environment.apiUrl + \'/integrations/\' + id);\n  }\n\n  toggleIntegration(id: string, enabled: boolean): Observable<Integration> {\n    return this.http.patch<Integration>(environment.apiUrl + \'/integrations/\' + id, { enabled });\n  }\n\n  refreshIntegration(id: string): Observable<void> {\n    return this.http.post<void>(environment.apiUrl + \'/integrations/\' + id + \'/refresh\', {});\n  }\n}',
+  '',
+  // --- Tool output: run lint for additional context ---
+  'Tool: run_terminal_cmd("pnpm --filter web exec ng lint")\nexitCode=1\nstdout:\n\n/Users/dev/spectyra/apps/web/src/app/features/integrations/integrations.page.ts\n  87:46  error  Argument of type \'string | undefined\' is not assignable to parameter of type \'string\'  @typescript-eslint/no-unsafe-argument\n  94:44  error  Argument of type \'string | undefined\' is not assignable to parameter of type \'string\'  @typescript-eslint/no-unsafe-argument\n  101:46 error  Argument of type \'string | undefined\' is not assignable to parameter of type \'string\'  @typescript-eslint/no-unsafe-argument\n\n/Users/dev/spectyra/apps/web/src/app/features/optimizer-lab/optimizer-lab.page.ts\n  156:5  warning  Unexpected console statement  no-console\n  298:5  warning  Unexpected console statement  no-console\n\n/Users/dev/spectyra/apps/web/src/app/features/studio/studio.page.ts\n  112:7  warning  Unexpected console statement  no-console\n  145:7  warning  Unexpected console statement  no-console\n  201:7  warning  Unexpected console statement  no-console\n\n7 problems (3 errors, 4 warnings)',
+  '',
+  'Assistant: Both build and lint confirm the same 3 errors in integrations.page.ts. The Integration interface defines id as optional (id?: string), but deleteIntegration, toggleIntegration, and refreshIntegration all require a non-optional string parameter. I also see the lint runs surface 4 console.log warnings in other files but those are unrelated. The fix is to guard the calls with an early return if id is undefined. This is the minimal change that does not alter the interface.',
+  '',
+  'User: That sounds right. Apply the fix to integrations.page.ts only. Then re-run the build and paste the output to confirm it passes.',
+].join('\n');
+
 export const STUDIO_SCENARIOS: StudioScenarioDef[] = [
   {
     id: 'token_chat',
@@ -59,91 +98,19 @@ export const STUDIO_SCENARIOS: StudioScenarioDef[] = [
   {
     id: 'token_code',
     title: 'Token Savings (Code)',
-    description: 'Compare raw vs Spectyra SCC for realistic multi-turn coding agent payloads (user/assistant/tool).',
+    description: 'Realistic multi-turn coding agent session (~2k+ tokens). Shows SCC compaction on real-sized payloads.',
     inputSchema: {
       primaryLabel: 'Agent transcript',
-      primaryPlaceholder: 'Paste a transcript using "User:" / "Assistant:" / "Tool:" turns (recommended).',
+      primaryPlaceholder: 'Paste a transcript using "User:" / "Assistant:" / "Tool:" turns.',
       secondaryLabel: 'Extra context (optional)',
-      secondaryPlaceholder: 'Optional extra logs/snippets (or additional Tool: blocks).',
+      secondaryPlaceholder: 'Optional extra logs/snippets.',
       hasAdvanced: true,
     },
     defaultInputs: {
-      primary:
-        [
-          'User: You are an on-call coding agent inside a CI failure triage loop. Fix the failing build and make the minimal safe change.',
-          'User: Output constraint: Your final answer must be concise (max 8 bullet points). Do not paste full files unless asked.',
-          '',
-          'User: Hard requirements:',
-          '- Run tests first and paste full output.',
-          '- Do not propose code patches until you read_file the failing file at the failing line.',
-          '- Target ES2019; no optional chaining; do not use replaceAll.',
-          '- Keep changes minimal; do not refactor unrelated files.',
-          '',
-          'Assistant: Acknowledged. I will run tests first, then inspect the failing file+line before proposing patches.',
-          '',
-          'Tool: run_terminal_cmd("pnpm -w install --frozen-lockfile --prefer-offline")',
-          'Tool: exitCode=1',
-          'Tool: stderr:',
-          'ERR_PNPM_OUTDATED_LOCKFILE Cannot install with "frozen-lockfile" because pnpm-lock.yaml is not up to date with <ROOT>/packages/sdk/package.json',
-          'Failure reason: specifiers in the lockfile ({"@spectyra/shared":"workspace:*","@types/node":"^20.0.0","typescript":"~5.4.0"}) do not match specs in package.json ({"@types/node":"^20.0.0","typescript":"~5.4.0"})',
-          'Tool: note: this error repeats on every CI attempt and is pasted into every ticket.',
-          '',
-          'Assistant: The lockfile still references @spectyra/shared. Next I need to inspect the actual package.json and the lockfile specifiers block.',
-          '',
-          'Tool: read_file("packages/sdk/package.json")',
-          'Tool: content:',
-          '{',
-          '  "name": "@spectyra/sdk",',
-          '  "version": "0.1.2",',
-          '  "type": "module",',
-          '  "files": ["dist", "README.md"],',
-          '  "scripts": { "build": "tsc", "prepublishOnly": "npm run build" },',
-          '  "dependencies": {},',
-          '  "devDependencies": { "@types/node": "^20.0.0", "typescript": "~5.4.0" }',
-          '}',
-          '',
-          'Assistant: Next I will inspect the lockfile specifiers section and confirm if @spectyra/shared is still referenced.',
-          '',
-          'Tool: read_file("pnpm-lock.yaml")',
-          'Tool: content:',
-          '# (excerpt 1/3) lockfile header',
-          'lockfileVersion: "9.0"',
-          'settings:',
-          '  autoInstallPeers: true',
-          '  excludeLinksFromLockfile: false',
-          '',
-          '# (excerpt 2/3) specifiers',
-          'specifiers:',
-          '  "@spectyra/shared": "workspace:*"',
-          '  "@types/node": "^20.0.0"',
-          '  "typescript": "~5.4.0"',
-          '',
-          '# (excerpt 3/3) repeated specifiers block (appears in multiple importers)',
-          'importers:',
-          '  packages/sdk:',
-          '    specifiers:',
-          '      "@spectyra/shared": "workspace:*"',
-          '      "@types/node": "^20.0.0"',
-          '      "typescript": "~5.4.0"',
-          '  apps/api:',
-          '    specifiers:',
-          '      "@types/node": "^20.0.0"',
-          '      "typescript": "~5.4.0"',
-          '',
-          'Tool: read_file("apps/api/package.json")',
-          'Tool: content:',
-          '{',
-          '  "name": "api",',
-          '  "devDependencies": { "@types/node": "^20.0.0", "typescript": "~5.4.0" }',
-          '}',
-          '',
-          'User: Fix it so CI passes with frozen lockfile. Keep the change minimal and explain what to commit.',
-          'User: Reminder: do not add dependencies. If you need to update the lockfile, explain why it changed.',
-        ].join('\n'),
+      primary: CODE_SCENARIO_TRANSCRIPT,
       secondary: '',
       advanced: {
         showTokenBreakdown: true,
-        // Use the built-in code envelope rules; avoid duplicating operating rules in the prompt.
         optimizationLevel: 3,
       },
     },
