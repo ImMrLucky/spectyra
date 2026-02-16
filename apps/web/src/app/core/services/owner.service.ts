@@ -1,8 +1,8 @@
 /**
  * Owner Service
  * 
- * Checks if the current user is the owner (gkh1974@gmail.com)
- * Used to control admin panel visibility
+ * Checks if the current user is an owner by probing an owner-only endpoint.
+ * Owner access is enforced server-side (configured via OWNER_EMAIL).
  */
 
 import { Injectable } from '@angular/core';

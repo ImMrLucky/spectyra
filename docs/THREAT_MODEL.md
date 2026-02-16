@@ -239,7 +239,7 @@ This document outlines the threat model for Spectyra, identifying potential secu
 
 ## Reporting Security Issues
 
-See [SECURITY.md](../SECURITY.md) for vulnerability reporting process.
+See the [Security Policy](../.github/SECURITY.md) for vulnerability reporting.
 
 ## References
 

@@ -7,14 +7,14 @@ This document describes the owner-based admin panel and SDK access control syste
 ## Owner-Based Admin Access
 
 ### Owner Email
-- **Owner Email**: `gkh1974@gmail.com` (configurable via `OWNER_EMAIL` env var)
+- **Owner Email**: `<your-owner-email>` (set via `OWNER_EMAIL` env var)
 - Only this user can access the admin panel
 - Admin access is verified server-side using Supabase user email
 
 ### How It Works
 
-1. **Frontend**: Admin link only shows if user email matches owner email
-2. **Backend**: `requireOwner` middleware checks user email from Supabase JWT
+1. **Frontend**: Admin UI can be hidden unless explicitly enabled (do not hardcode personal emails client-side)
+2. **Backend**: `requireOwner` middleware checks user email from Supabase JWT against `OWNER_EMAIL`
 3. **Access**: If email matches, user can access all admin endpoints
 
 ### Admin Endpoints
@@ -81,7 +81,7 @@ When `sdk_access_enabled = false`, these endpoints return 403:
 
 ### Access Control
 
-- Admin link only visible to owner (`gkh1974@gmail.com`)
+- Admin link only visible to the configured owner (`OWNER_EMAIL`)
 - Admin page shows "Access denied" if non-owner tries to access
 - All admin operations require owner authentication
 
@@ -118,7 +118,7 @@ When `sdk_access_enabled = false`, these endpoints return 403:
 
 ### For Owner (Admin)
 
-1. **Login**: As `gkh1974@gmail.com`
+1. **Login**: As the configured owner (`OWNER_EMAIL`)
 2. **Access Admin**: Click "Admin" in sidebar (only visible to owner)
 3. **Manage Organizations**:
    - View all orgs
@@ -136,7 +136,7 @@ When `sdk_access_enabled = false`, these endpoints return 403:
 Required for owner check:
 - `SUPABASE_URL` - Supabase project URL
 - `SUPABASE_SERVICE_ROLE_KEY` - Service role key for admin API access
-- `OWNER_EMAIL` - Owner email (defaults to `gkh1974@gmail.com`)
+- `OWNER_EMAIL` - Owner email (required)
 
 ## Database Migration
 
@@ -153,7 +153,7 @@ This adds:
 ## Testing Checklist
 
 ### Owner Access
-- [ ] Login as `gkh1974@gmail.com`
+- [ ] Login as the configured owner (`OWNER_EMAIL`)
 - [ ] Admin link appears in sidebar
 - [ ] Can access `/admin` page
 - [ ] Can list organizations

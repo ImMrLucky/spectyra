@@ -415,4 +415,4 @@ SDK packages are published with npm Trusted Publishing (OIDC) for provenance.
 
 For security questions or concerns:
 - **Email**: security@spectyra.com
-- **Documentation**: [SECURITY.md](../SECURITY.md)
+- **Documentation**: [Security Policy](../.github/SECURITY.md)

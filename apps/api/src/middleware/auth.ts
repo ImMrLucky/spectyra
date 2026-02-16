@@ -653,7 +653,7 @@ export async function requireOrgMembership(
 
 /**
  * Owner check middleware
- * Validates that the authenticated user is the owner (gkh1974@gmail.com)
+ * Validates that the authenticated user matches OWNER_EMAIL
  * Must be used after requireUserSession
  */
 export async function requireOwner(
@@ -667,7 +667,12 @@ export async function requireOwner(
       return;
     }
 
-    const ownerEmail = process.env.OWNER_EMAIL || "gkh1974@gmail.com";
+    const ownerEmail = process.env.OWNER_EMAIL;
+    if (!ownerEmail) {
+      safeLog("warn", "OWNER_EMAIL not configured; owner endpoints disabled");
+      res.status(503).json({ error: "Owner verification not configured" });
+      return;
+    }
     
     // Get user email from Supabase
     const supabaseUrl = process.env.SUPABASE_URL;

@@ -97,7 +97,6 @@ export class AppComponent implements OnInit, OnDestroy, AfterViewInit {
         // Get email from Supabase user
         this.supabase.getUser().subscribe(user => {
           this.userEmail = user?.email || null;
-          // Check if user is owner (gkh1974@gmail.com) to show admin link
           this.updateAdminVisibility(user?.email);
         });
       } else if (hasApiKey && authState.user) {
@@ -113,9 +112,9 @@ export class AppComponent implements OnInit, OnDestroy, AfterViewInit {
   }
 
   private updateAdminVisibility(email: string | null | undefined) {
-    // Show admin link only if user email is gkh1974@gmail.com
-    const ownerEmail = 'gkh1974@gmail.com';
-    this.showAdminLink = email?.toLowerCase() === ownerEmail.toLowerCase();
+    // Do not hardcode personal identifiers in the client. Owner access is enforced server-side.
+    // If you want to show an admin link, derive it from an authenticated backend signal.
+    this.showAdminLink = false;
   }
 
   ngAfterViewInit() {

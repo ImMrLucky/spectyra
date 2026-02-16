@@ -77,7 +77,7 @@ export class AdminPage implements OnInit {
         this.isOwner = false;
         this.loading = false;
         if (err.status === 403) {
-          this.error = 'Access denied: Owner only. You must be logged in as gkh1974@gmail.com';
+          this.error = 'Access denied: Owner only.';
         } else {
           this.error = err.error?.error || 'Failed to verify owner status';
         }

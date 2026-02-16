@@ -1,6 +1,10 @@
 # Spectyra — Spectral Token & Cost Reduction Engine
 
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](./LICENSE)
+
 A middleware + dashboard that reduces token usage and cost by preventing semantic recomputation.
+
+**Open source**: Spectyra is released under the **MIT License**. See [`LICENSE`](./LICENSE).
 
 ## Quick Start
 
@@ -9,9 +13,9 @@ A middleware + dashboard that reduces token usage and cost by preventing semanti
 pnpm install
 ```
 
-2. Copy `.env.example` to `.env` and fill in your API keys:
+2. Configure the API env:
 ```bash
-cp .env.example .env
+cp apps/api/.env.example apps/api/.env
 ```
 
 3. Start the API server:
@@ -26,21 +30,31 @@ pnpm dev:web
 
 5. Open http://localhost:4200
 
+**Tip:** Run both in parallel with:
+
+```bash
+pnpm dev
+```
+
 ## Architecture
 
 - **apps/api**: Express backend with provider adapters, spectral core, optimizer
-- **apps/web**: Angular frontend with scenarios, replay, and runs history
-- **packages/shared**: Shared types and utilities
-- **tools/proxy**: Local OpenAI-compatible proxy
-- **tools/cli**: CLI wrapper for code workflows
+- **apps/web**: Angular frontend (Spectyra Studio, Optimizer Lab, replay, runs)
+- **packages/sdk**: `@spectyra/sdk` — SDK for app + agent integrations
+- **packages/shared**: `@spectyra/shared` — shared types/utilities used across the monorepo
+- **packages/spectyra-agents**: `@spectyra/agents` — agent wrappers and helpers built on top of the SDK
+- **tools/proxy**: `spectyra-proxy` — local OpenAI-compatible proxy for IDE tools (Cursor, Claude Code, etc.)
+- **tools/cli**: `@spectyra/cli` — CLI wrapper for workflows
 
 ## Features
 
 - **Multi-provider support**: OpenAI, Anthropic, Gemini, Grok
 - **Spectral Core v1**: Multi-operator graph-based stability analysis for intelligent context reuse
 - **Talk & Code paths**: Different optimization policies for chat vs coding
+- **Spectyra Studio**: Scenario mode (dry-run estimates) + Live mode (BYOK, real provider tokens)
+- **Optimizer Lab**: Dry-run optimization + before/after prompt views
 - **Replay mode**: Compare baseline vs optimized on benchmark scenarios
-- **Proof mode**: Paste conversations to estimate savings without LLM calls
+- **Proof mode**: Paste conversations to estimate savings without provider calls
 - **Quality guards**: Ensure savings don't come from missing required outputs
 - **Browser Extension**: Automatic optimization for web-based LLM tools
 - **SDK**: Easy integration for applications and coding workflows
@@ -75,10 +89,14 @@ Please email security@spectyra.com for any security concerns. See [SECURITY.md](
 
 ## Quick Links
 
-- **[User Guide](USER_GUIDE.md)** - How to use Spectyra (browser extension, SDK, API)
-- **[Application Description](APPLICATION_DESCRIPTION.md)** - Complete technical documentation
+- **[User Guide](docs/USER_GUIDE.md)** - How to use Spectyra (browser extension, SDK, API)
+- **[Application Description](docs/APPLICATION_DESCRIPTION.md)** - Complete technical documentation
 - **[Browser Extension Deployment](extensions/browser-extension/DEPLOYMENT.md)** - How to deploy the extension
 - **[SDK Documentation](packages/sdk/README.md)** - SDK usage and examples
+
+## License
+
+Spectyra is open source software licensed under the **MIT License**. See [`LICENSE`](./LICENSE).
 
 ## Integration Options
 
