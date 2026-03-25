@@ -1,5 +1,6 @@
-# Builds installable Desktop artifacts (DMG / zip / Squirrel) without requiring users to
-# clone the repo. Attach outputs to a GitHub Release when you push a matching tag.
+# Builds installable Desktop artifacts (DMG / zip / Squirrel) for upload to YOUR
+# distribution channel (website, CDN, customer portal). Public GitHub Releases
+# are optional — download the workflow Artifacts and host wherever you ship software.
 #
 # Usage:
 #   git tag desktop-v1.0.0

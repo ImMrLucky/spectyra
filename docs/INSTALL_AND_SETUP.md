@@ -16,14 +16,29 @@ This guide is for **end users** who should not need to clone the repo or run `pn
 
 ## Desktop app (download)
 
-**Goal:** Double-click an installer — no Node, no clone.
+**Goal:** A normal **desktop installer** — no Node, no SDK, no repo clone. This is for users who **aren’t** wiring the npm SDK into an app (e.g. they want a window, keys, and local analytics only).
 
-1. Open **[GitHub Releases](https://github.com/spectyra/spectyra/releases)** for this repository.
-2. Download the latest **`Spectyra-*.dmg`** (macOS) or **`.exe` / zip** (Windows) attached to the release.
-3. Install like any normal app.
-4. On first launch, the app walks you through **provider API keys** (BYOK) and optional **license** activation.
+### End users
 
-> **Maintainers:** Push a tag `desktop-v*` (e.g. `desktop-v1.0.0`) to run [`.github/workflows/release-desktop.yml`](../.github/workflows/release-desktop.yml), then attach the **Artifacts** from the workflow to [GitHub Releases](https://github.com/spectyra/spectyra/releases) (or extend the workflow with `softprops/action-gh-release`). Until assets are published, users can rely on [Local Companion](#local-companion-one-command) (no GUI).
+1. **Signed in on the web app:** Open **[spectyra.netlify.app/download](https://spectyra.netlify.app/download)** (after login) — **Desktop app** is also in the sidebar. Download links appear when your team has configured installer URLs on the API server.
+2. **Or** use your **product download page** — for example **[spectyra.netlify.app](https://spectyra.netlify.app/)** (or the link your team emails after purchase or trial). The canonical production site may change later; use whatever URL your team publishes.
+3. Open **`Spectyra-*.dmg`** (macOS) or **`.exe` / installer** (Windows) and install like any other app.
+4. On first launch, the app guides you through **provider API keys** (BYOK) and optional **license** activation.
+
+Shipping the app does **not** require publishing source code on GitHub. You only ship **signed binaries** (DMG, MSI, exe, etc.) from **your** website, CDN, or customer portal.
+
+### If no desktop download is available yet
+
+Use **[Local Companion](#local-companion-one-command)** (terminal + `localhost`) — same optimization engine, no GUI — until a packaged build is hosted for download.
+
+### Maintainers (building & hosting installers)
+
+1. **Build** the app in private CI or locally: `pnpm --filter @spectyra/desktop run make` → outputs under `apps/desktop/out/` (DMG, zip, Squirrel, etc.).
+2. **Sign & notarize** (Apple / Microsoft) per your release process.
+3. **Upload** the artifacts to wherever customers download software — e.g. **S3 + CloudFront**, Netlify **large media**, **Stripe / customer portal**, or an **internal bucket** — not necessarily a public Git repo.
+4. On the **API** host (e.g. Railway), set **`DESKTOP_DOWNLOAD_MAC_URL`** and **`DESKTOP_DOWNLOAD_WINDOWS_URL`** to the public HTTPS URLs of those files. Logged-in users then see download buttons on **[spectyra.netlify.app/download](https://spectyra.netlify.app/download)** (sidebar: **Desktop app**).
+
+Optional: a private CI pipeline can still produce the same `out/` folder (see [`.github/workflows/release-desktop.yml`](../.github/workflows/release-desktop.yml) as a template); you then upload those files to **your** distribution channel.
 
 ---
 

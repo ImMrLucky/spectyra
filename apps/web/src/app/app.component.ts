@@ -59,6 +59,7 @@ export class AppComponent implements OnInit, OnDestroy, AfterViewInit {
     { label: 'Studio', route: '/studio', icon: 'auto_awesome', requiresAuth: true },
     { label: 'Observe', route: '/observe', icon: 'visibility', requiresAuth: true },
     { label: 'Integrations', route: '/integrations', icon: 'extension', requiresAuth: true },
+    { label: 'Desktop app', route: '/download', icon: 'laptop_mac', requiresAuth: true },
 
     // Analytics & management
     { label: 'Overview', route: '/overview', icon: 'dashboard', requiresAuth: true },

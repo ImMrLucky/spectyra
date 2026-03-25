@@ -1,0 +1,76 @@
+<div class="container">
+  <div class="page-header">
+    <h1>Desktop app</h1>
+    <p class="subtitle">
+      Install Spectyra on your Mac or PC — same account as this site, local dashboard, and embedded companion. No SDK required.
+    </p>
+  </div>
+
+  <div *ngIf="loading" class="loading">
+    <p>Loading…</p>
+  </div>
+
+  <div *ngIf="!loading && error" class="error-box">
+    <p>{{ error }}</p>
+  </div>
+
+  <div *ngIf="!loading && !error" class="download-body">
+    <div class="card" *ngIf="hasAnyDownload">
+      <div class="card-header">
+        <h2>Download installers</h2>
+      </div>
+      <p class="lead">
+        Use the links below to install the latest build. Sign in with the same email you use here.
+      </p>
+      <div class="download-actions">
+        <a
+          *ngIf="macUrl"
+          class="btn btn-primary"
+          [href]="macUrl"
+          rel="noopener noreferrer"
+        >
+          Download for macOS (.dmg)
+        </a>
+        <a
+          *ngIf="windowsUrl"
+          class="btn btn-primary"
+          [href]="windowsUrl"
+          rel="noopener noreferrer"
+        >
+          Download for Windows
+        </a>
+      </div>
+    </div>
+
+    <div class="card muted-card" *ngIf="!hasAnyDownload">
+      <div class="card-header">
+        <h2>Installers not configured yet</h2>
+      </div>
+      <p>
+        Desktop download URLs are not set on the API yet. Your team can add them by setting
+        <code>DESKTOP_DOWNLOAD_MAC_URL</code> and <code>DESKTOP_DOWNLOAD_WINDOWS_URL</code>
+        on the Spectyra API server (e.g. Railway), pointing at your hosted <code>.dmg</code> and Windows installer.
+      </p>
+      <p>
+        Until then, use the <strong>Local Companion</strong> (terminal) with the same account — see
+        <a routerLink="/integrations">Integrations</a> for setup.
+      </p>
+    </div>
+
+    <div class="card">
+      <div class="card-header">
+        <h2>Other ways to run Spectyra</h2>
+      </div>
+      <ul class="bullets">
+        <li>
+          <a routerLink="/integrations">Integrations</a> — SDK, browser extension, OpenClaw-style base URL, and companion.
+        </li>
+        <li>
+          <strong>Local Companion:</strong>
+          <code>npx &#64;spectyra/local-companion</code>
+          then set <code>OPENAI_BASE_URL=http://127.0.0.1:4111/v1</code>.
+        </li>
+      </ul>
+    </div>
+  </div>
+</div>

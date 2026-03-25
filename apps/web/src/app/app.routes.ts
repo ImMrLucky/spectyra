@@ -16,6 +16,7 @@ import { AuditPage } from './features/audit/audit.page';
 import { SecuritySettingsPage } from './features/settings/security.page';
 import { ProviderKeysPage } from './features/settings/provider-keys.page';
 import { BillingPage } from './features/billing/billing.page';
+import { DownloadPage } from './features/download/download.page';
 import { authGuard } from './core/guards/auth.guard';
 
 export const appRoutes: Routes = [
@@ -28,6 +29,7 @@ export const appRoutes: Routes = [
   { path: 'studio', component: StudioPage, canActivate: [authGuard] },
   { path: 'observe', component: OptimizerLabPage, canActivate: [authGuard] },
   { path: 'integrations', component: IntegrationsPage, canActivate: [authGuard] },
+  { path: 'download', component: DownloadPage, canActivate: [authGuard] },
 
   // Dashboard & analytics
   { path: 'overview', component: OverviewPage, canActivate: [authGuard] },

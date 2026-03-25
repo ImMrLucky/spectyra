@@ -35,6 +35,41 @@
   color: #721c24;
 }
 
+.download-banner {
+  background: linear-gradient(135deg, #f0f7ff 0%, #fff 100%);
+  border: 1px solid #cfe2ff;
+
+  .download-banner-inner {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+  }
+
+  .download-banner-text {
+    flex: 1;
+    min-width: 200px;
+
+    h2 {
+      margin: 0 0 6px 0;
+      font-size: 18px;
+      font-weight: 600;
+    }
+
+    p {
+      margin: 0;
+      color: #555;
+      font-size: 14px;
+      line-height: 1.45;
+    }
+  }
+
+  .btn-primary {
+    flex-shrink: 0;
+  }
+}
+
 .card {
   background: white;
   border-radius: 8px;

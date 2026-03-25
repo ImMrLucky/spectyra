@@ -8,7 +8,7 @@
 
 ### 1. Create Your Account
 
-1. Go to [Spectyra](https://your-spectyra-app.netlify.app)
+1. Go to [Spectyra](https://spectyra.netlify.app/)
 2. Click "Sign Up"
 3. Enter your email address
 4. **Save your API key** - it's shown only once!

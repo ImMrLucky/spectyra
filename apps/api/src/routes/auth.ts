@@ -30,6 +30,19 @@ import type { SupabaseAdminUser } from "../types/supabase.js";
 
 export const authRouter = Router();
 
+/** Desktop installer URLs for the web app Download page (set on API host, e.g. Railway). */
+function desktopDownloadsPayload(): {
+  mac_url: string | null;
+  windows_url: string | null;
+} {
+  const mac = process.env.DESKTOP_DOWNLOAD_MAC_URL?.trim();
+  const windows = process.env.DESKTOP_DOWNLOAD_WINDOWS_URL?.trim();
+  return {
+    mac_url: mac || null,
+    windows_url: windows || null,
+  };
+}
+
 /**
  * POST /v1/auth/bootstrap
  * 
@@ -342,6 +355,7 @@ authRouter.get("/me", async (req: AuthenticatedRequest, res) => {
               projects: projects,
               has_access: hasAccess,
               trial_active: isTrialActive,
+              desktop_downloads: desktopDownloadsPayload(),
             });
             resolve();
           } catch (error: any) {
@@ -394,6 +408,7 @@ authRouter.get("/me", async (req: AuthenticatedRequest, res) => {
             project: req.context.project,
             has_access: hasAccess,
             trial_active: isTrialActive,
+            desktop_downloads: desktopDownloadsPayload(),
           });
           resolve();
         } catch (error: any) {

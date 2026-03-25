@@ -343,7 +343,7 @@ Spectyra uses `helmet` middleware to set security headers:
 
 ```bash
 # Environment variable
-ALLOWED_ORIGINS=https://app.spectyra.com,https://spectyra.com
+ALLOWED_ORIGINS=https://app.spectyra.com,https://spectyra.com,https://spectyra.netlify.app
 ```
 
 ## CI Security Gates

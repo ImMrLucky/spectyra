@@ -13,6 +13,17 @@
   </div>
 
   <div *ngIf="!loading && !error">
+    <!-- Desktop app (logged-in users) -->
+    <div class="card download-banner">
+      <div class="download-banner-inner">
+        <div class="download-banner-text">
+          <h2>Desktop app</h2>
+          <p>Install Spectyra on your computer — no code, same account as the web app.</p>
+        </div>
+        <a routerLink="/download" class="btn btn-primary">Download</a>
+      </div>
+    </div>
+
     <!-- Integration Status Card -->
     <div class="card">
       <div class="card-header">

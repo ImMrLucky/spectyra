@@ -114,8 +114,8 @@ billingRouter.post("/checkout", async (req: AuthenticatedRequest, res) => {
           spectyra_org_id: org.id,
         },
       },
-      success_url: success_url || `${req.headers.origin || "https://spectyra.com"}/billing/success?session_id={CHECKOUT_SESSION_ID}`,
-      cancel_url: cancel_url || `${req.headers.origin || "https://spectyra.com"}/billing/cancel`,
+      success_url: success_url || `${req.headers.origin || "https://spectyra.netlify.app"}/billing/success?session_id={CHECKOUT_SESSION_ID}`,
+      cancel_url: cancel_url || `${req.headers.origin || "https://spectyra.netlify.app"}/billing/cancel`,
       metadata: {
         spectyra_org_id: org.id,
       },

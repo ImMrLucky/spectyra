@@ -23,6 +23,11 @@ export interface MeResponse {
   } | null;
   has_access: boolean;
   trial_active: boolean;
+  /** Installer URLs from API (DESKTOP_DOWNLOAD_* env). Optional for older servers. */
+  desktop_downloads?: {
+    mac_url: string | null;
+    windows_url: string | null;
+  };
 }
 
 @Injectable({

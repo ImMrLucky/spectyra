@@ -14,7 +14,7 @@ leave your environment unless you explicitly opt in.
 
 | What you want | What to do |
 |---------------|------------|
-| **Desktop app** (GUI, keys, analytics) | Download **`.dmg` / installer** from [**GitHub Releases**](https://github.com/spectyra/spectyra/releases) (built by CI), or see [docs/INSTALL_AND_SETUP.md](docs/INSTALL_AND_SETUP.md). |
+| **Desktop app** (GUI, keys, analytics — **no SDK in your code**) | Download the **installer** from the **[production site](https://spectyra.netlify.app/)** (current: Netlify). See [docs/INSTALL_AND_SETUP.md](docs/INSTALL_AND_SETUP.md#desktop-app-download). |
 | **OpenClaw / agents / “custom API URL”** | One command: `npx @spectyra/local-companion` then set `OPENAI_BASE_URL=http://127.0.0.1:4111/v1` — [full guide](docs/INSTALL_AND_SETUP.md#local-companion-one-command). |
 | **npm SDK** in your app | `npm install @spectyra/sdk` — [SDK README](packages/sdk/README.md). |
 
@@ -122,6 +122,9 @@ directly to your provider using your API key.
 
 The Desktop App wraps the Local Companion in an Electron GUI with built-in
 provider key management, license activation, and a local analytics dashboard.
+**End users** install from your **product download page** (e.g. [spectyra.netlify.app](https://spectyra.netlify.app/)) — no SDK or repo required.
+
+**Build from source** (release engineering / contributors):
 
 ```bash
 cd apps/desktop
@@ -131,7 +134,7 @@ pnpm make         # build distributable (DMG, zip, or Squirrel installer)
 ```
 
 The built app appears in `apps/desktop/out/`. It embeds the companion server
-in-process — no separate install needed.
+in-process — no separate install needed. See [docs/INSTALL_AND_SETUP.md](docs/INSTALL_AND_SETUP.md).
 
 ---
 
