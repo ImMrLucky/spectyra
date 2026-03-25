@@ -86,16 +86,40 @@ console.log(result.savingsReport);
 
 ```bash
 npx @spectyra/local-companion
-# Starts on 127.0.0.1:4111
+# Starts on http://127.0.0.1:4111
+```
 
-# Point your app at it as an OpenAI-compatible proxy:
+Any app that lets you set a custom API base URL can use the Companion.
+In your LLM app's settings, change the API endpoint to:
+
+```
+http://127.0.0.1:4111/v1
+```
+
+For example, if you use OpenAI's library or a tool like OpenClaw, set the
+environment variable:
+
+```bash
 export OPENAI_BASE_URL=http://127.0.0.1:4111/v1
 ```
 
+The Companion intercepts the request, optimizes it locally, then forwards it
+directly to your provider using your API key.
+
 ### Desktop App
 
-Download from the [Releases page](https://github.com/spectyra/spectyra/releases).
-The Desktop App bundles the Local Companion with a GUI for non-developers.
+The Desktop App wraps the Local Companion in an Electron GUI with built-in
+provider key management, license activation, and a local analytics dashboard.
+
+```bash
+cd apps/desktop
+pnpm install
+pnpm dev          # run in development
+pnpm make         # build distributable (DMG, zip, or Squirrel installer)
+```
+
+The built app appears in `apps/desktop/out/`. It embeds the companion server
+in-process — no separate install needed.
 
 ---
 

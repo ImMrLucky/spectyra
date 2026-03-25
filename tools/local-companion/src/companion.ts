@@ -250,5 +250,5 @@ app.listen(cfg.port, cfg.bindHost, () => {
   console.log(`  Snapshots: ${cfg.promptSnapshots}`);
   console.log(`  Inference: direct to provider (no Spectyra cloud relay)`);
   console.log(`  Billing:   customer account`);
-  console.log(`\nPoint your LLM tool to: http://localhost:${cfg.port}/v1\n`);
+  console.log(`\nSet your LLM app's API base URL to: http://localhost:${cfg.port}/v1\n`);
 });

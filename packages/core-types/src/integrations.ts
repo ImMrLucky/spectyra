@@ -67,7 +67,7 @@ export const INTEGRATION_CARDS: readonly IntegrationCardMeta[] = [
       "Download and install the Spectyra Desktop App",
       "Enter your provider API key (stored locally, never uploaded)",
       "Choose run mode (observe recommended to start)",
-      "Point your LLM tool (e.g. OpenClaw) to http://127.0.0.1:4111",
+      "In your LLM app's settings, change the API endpoint to http://127.0.0.1:4111/v1",
       "Run a test and verify savings",
     ],
     verificationSteps: [
