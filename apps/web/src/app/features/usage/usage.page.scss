@@ -4,6 +4,67 @@
   padding: 20px;
 }
 
+.savings-hero {
+  background: linear-gradient(135deg, #f0fdf4 0%, #ecfdf5 100%);
+  border: 1px solid #bbf7d0;
+  margin-bottom: 20px;
+
+  h2 { margin: 0 0 16px; font-size: 20px; }
+}
+
+.savings-hero-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 16px;
+}
+
+.savings-hero-item {
+  text-align: center;
+}
+
+.savings-hero-label {
+  display: block;
+  font-size: 12px;
+  color: #666;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin-bottom: 4px;
+}
+
+.savings-hero-value {
+  display: block;
+  font-size: 28px;
+  font-weight: 700;
+  color: #333;
+
+  &.green { color: #059669; }
+  &.highlight { color: #2563eb; }
+}
+
+.savings-hero-meta {
+  display: flex;
+  gap: 8px;
+  margin-top: 16px;
+}
+
+.security-badge-sm {
+  display: inline-flex;
+  align-items: center;
+  background: rgba(52, 211, 153, 0.15);
+  color: #059669;
+  padding: 2px 8px;
+  border-radius: 4px;
+  font-size: 11px;
+  font-weight: 500;
+}
+
+.savings-hero-note {
+  margin-top: 12px;
+  color: #666;
+  font-size: 13px;
+  font-style: italic;
+}
+
 .page-header {
   margin-bottom: 30px;
 

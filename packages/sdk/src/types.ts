@@ -1,44 +1,90 @@
 /**
  * Spectyra SDK Types
- * 
- * Core types for SDK-first agentic integration
+ *
+ * Core types for SDK-first agentic integration.
+ * Uses shared platform types from @spectyra/core-types.
  */
 
+import type {
+  SpectyraRunMode,
+  TelemetryMode,
+  PromptSnapshotMode,
+  InferencePath,
+  ProviderBillingOwner,
+  IntegrationType,
+  SavingsReport,
+  PromptComparison,
+  SecurityLabels,
+} from "@spectyra/core-types";
+
+// Re-export core-types so downstream consumers only need @spectyra/sdk
+export type {
+  SpectyraRunMode,
+  TelemetryMode,
+  PromptSnapshotMode,
+  InferencePath,
+  ProviderBillingOwner,
+  IntegrationType,
+  SavingsReport,
+  PromptComparison,
+  SecurityLabels,
+};
+
 // ============================================================================
-// Core Configuration Types
+// New unified configuration (local-first, direct-provider)
 // ============================================================================
 
+/**
+ * @deprecated Use SpectyraRunMode instead
+ */
 export type SpectyraMode = "local" | "api";
 
 export interface SpectyraConfig {
   /**
-   * SDK mode: "local" (default, no proxy) or "api" (remote control plane)
+   * Run mode: off | observe | on
+   * Default: "observe"
+   */
+  runMode?: SpectyraRunMode;
+
+  /**
+   * Telemetry settings
+   */
+  telemetry?: { mode: TelemetryMode };
+
+  /**
+   * Prompt snapshot storage mode
+   */
+  promptSnapshots?: PromptSnapshotMode;
+
+  /**
+   * Spectyra license key for entitlement checks and optional cloud sync.
+   * NOT a provider key — provider keys are supplied per-call or via env.
+   */
+  licenseKey?: string;
+
+  // --- Legacy fields (deprecated, kept for backward compat) ---
+
+  /**
+   * @deprecated Use runMode instead.
+   * "local" maps to runMode "observe", "api" maps to legacy remote gateway.
    */
   mode?: SpectyraMode;
-  
+
   /**
-   * Spectyra API endpoint (required for "api" mode, optional for "local")
-   * Example: "https://spectyra.up.railway.app/v1"
+   * @deprecated Spectyra API endpoint (only for legacy remote gateway mode)
    */
   endpoint?: string;
-  
+
   /**
-   * Spectyra API key (required for "api" mode, optional for "local")
+   * @deprecated Spectyra API key (only for legacy remote gateway mode)
    */
   apiKey?: string;
-  
+
   /**
-   * Default settings
+   * Default settings for agent decision engine (legacy)
    */
   defaults?: {
-    /**
-     * Default budget in USD per agent run
-     */
     budgetUsd?: number;
-    
-    /**
-     * Model preferences by tier
-     */
     models?: {
       small?: string;
       medium?: string;
@@ -47,68 +93,85 @@ export interface SpectyraConfig {
   };
 }
 
+// ============================================================================
+// New complete() API types
+// ============================================================================
+
+/**
+ * Input to spectyra.complete() — wraps a provider call with optimization.
+ */
+export interface SpectyraCompleteInput<TClient = unknown> {
+  provider: string;
+  client: TClient;
+  model: string;
+  messages: ChatMessage[];
+  maxTokens?: number;
+  temperature?: number;
+  runContext?: {
+    appType?: string;
+    appName?: string;
+    workflowType?: string;
+  };
+}
+
+/**
+ * Output from spectyra.complete() — provider result + Spectyra metadata.
+ */
+export interface SpectyraCompleteResult<TProviderResult = unknown> {
+  providerResult?: TProviderResult;
+  report: SavingsReport;
+  promptComparison?: PromptComparison;
+  security: {
+    inferencePath: InferencePath;
+    providerBillingOwner: ProviderBillingOwner;
+    telemetryMode: TelemetryMode;
+    promptSnapshotMode: PromptSnapshotMode;
+    cloudRelay: "none" | "analytics_only";
+  };
+}
+
+/**
+ * A provider adapter that knows how to call a specific provider SDK.
+ * Implemented for OpenAI, Anthropic, Groq, etc.
+ */
+export interface ProviderAdapter<TClient = unknown, TResult = unknown> {
+  readonly providerName: string;
+  call(args: {
+    client: TClient;
+    model: string;
+    messages: ChatMessage[];
+    maxTokens?: number;
+    temperature?: number;
+  }): Promise<{
+    result: TResult;
+    text: string;
+    usage: { inputTokens: number; outputTokens: number };
+  }>;
+}
+
+// ============================================================================
+// Legacy context / meta types (still used by agentOptions)
+// ============================================================================
+
 export interface SpectyraCtx {
-  /**
-   * Organization ID (optional; in API mode server derives from API key)
-   */
   orgId?: string;
-  
-  /**
-   * Project ID (optional)
-   */
   projectId?: string;
-  
-  /**
-   * Run ID for tracking this agent session
-   */
   runId?: string;
-  
-  /**
-   * Budget in USD for this run
-   */
   budgetUsd?: number;
-  
-  /**
-   * Tags for filtering/analytics
-   */
   tags?: Record<string, string>;
 }
 
 export interface PromptMeta {
-  /**
-   * Prompt character count (to avoid sending full prompt by default)
-   */
   promptChars: number;
-  
-  /**
-   * Path: "code" for coding, "talk" for chat/Q&A
-   */
   path?: "code" | "talk";
-  
-  /**
-   * Repository identifier (optional)
-   */
   repoId?: string;
-  
-  /**
-   * Programming language (optional)
-   */
   language?: string;
-  
-  /**
-   * Number of files changed (optional)
-   */
   filesChanged?: number;
-  
-  /**
-   * Test command (optional)
-   */
   testCommand?: string;
 }
 
 // ============================================================================
-// ============================================================================
-// Remote API Types
+// Remote API Types (legacy)
 // ============================================================================
 
 export interface AgentOptionsRequest {
@@ -128,7 +191,7 @@ export interface AgentOptionsResponse {
 
 export interface AgentEventRequest {
   run_id: string;
-  event: any; // Raw SDK event (JSONB)
+  event: unknown;
 }
 
 export interface AgentEventResponse {
@@ -141,7 +204,6 @@ export interface AgentEventResponse {
 
 import type { Path, Mode, ChatMessage, Usage, ClaudeAgentOptions, AgentDecision } from "./sharedTypes.js";
 
-// Re-export canonical types
 export type { Path, Mode, ChatMessage, Usage, ClaudeAgentOptions, AgentDecision };
 
 export interface ChatResponse {
@@ -168,58 +230,21 @@ export interface ChatResponse {
   };
 }
 
+/**
+ * @deprecated Use createSpectyra() with the new config shape instead
+ */
 export interface SpectyraClientConfig {
-  /**
-   * Spectyra API base URL (e.g., "https://spectyra.up.railway.app/v1")
-   */
   apiUrl: string;
-  
-  /**
-   * Your Spectyra API key
-   */
   spectyraKey: string;
-  
-  /**
-   * LLM provider (e.g., "openai", "anthropic", "gemini", "grok")
-   */
   provider: string;
-  
-  /**
-   * Your provider API key (BYOK - Bring Your Own Key)
-   * This is sent to Spectyra but never stored server-side.
-   */
   providerKey: string;
 }
 
 export interface ChatOptions {
-  /**
-   * Model name (e.g., "gpt-4o-mini", "claude-3-5-sonnet")
-   */
   model: string;
-  
-  /**
-   * Conversation messages
-   */
   messages: ChatMessage[];
-  
-  /**
-   * Path: "talk" for chat/Q&A, "code" for coding workflows
-   */
   path: Path;
-  
-  /**
-   * Optimization level (0-4)
-   * 0 = Minimal, 1 = Conservative, 2 = Balanced, 3 = Aggressive, 4 = Maximum
-   */
   optimization_level?: number;
-  
-  /**
-   * Conversation ID for state tracking (optional)
-   */
   conversation_id?: string;
-  
-  /**
-   * Dry-run mode: estimate savings without making real LLM calls
-   */
   dry_run?: boolean;
 }

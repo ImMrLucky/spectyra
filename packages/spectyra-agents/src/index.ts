@@ -1,18 +1,25 @@
 /**
  * @spectyra/agents
- * 
- * Coding agent wrappers for Spectyra Core Moat v1 optimizations.
- * 
- * Provides drop-in optimizers for Claude SDK, OpenAI, and generic agent frameworks.
+ *
+ * Agent wrappers for Spectyra optimization.
+ * Local-first, direct-provider. Works without Spectyra cloud.
+ *
+ * Supports off / observe / on modes via the `runMode` parameter.
  */
 
 // Types
 export type {
   RepoContext,
   OptimizationReportPublic,
+  AgentOptimizationResult,
   ClaudeLikeMessage,
   OpenAILikeMessage,
   GenericMessage,
+  SpectyraRunMode,
+  TelemetryMode,
+  PromptSnapshotMode,
+  SavingsReport,
+  PromptComparison,
 } from "./types";
 
 // Claude wrapper

@@ -39,8 +39,9 @@ import {
   demoTypeToPath,
 } from "../types/optimizerLab.js";
 
-/** Public health check (no auth) for uptime/monitoring and GET from browser */
+/** Health check (authenticated) */
 export const optimizerLabHealthRouter = Router();
+optimizerLabHealthRouter.use(requireUserSession);
 optimizerLabHealthRouter.get("/optimize/health", (_req, res) => {
   res.json({ status: "ok", timestamp: new Date().toISOString() });
 });
@@ -499,3 +500,5 @@ optimizerLabRouter.post("/optimize", async (req: AuthenticatedRequest, res) => {
     });
   }
 });
+
+// Note: No unauthenticated Optimizer Lab endpoints.

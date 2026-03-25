@@ -29,7 +29,9 @@ export type AuditAction =
   | "MEMBER_ADDED"
   | "MEMBER_REMOVED"
   | "ROLE_CHANGED"
-  | "SDK_ACCESS_TOGGLED";
+  | "SDK_ACCESS_TOGGLED"
+  | "LICENSE_KEY_CREATED"
+  | "LICENSE_KEY_REVOKED";
 
 export type AuditTargetType =
   | "API_KEY"
@@ -39,7 +41,8 @@ export type AuditTargetType =
   | "ORG_SETTINGS"
   | "PROJECT_SETTINGS"
   | "ORG_MEMBERSHIP"
-  | "AUDIT_LOG";
+  | "AUDIT_LOG"
+  | "LICENSE_KEY";
 
 export interface AuditOptions {
   projectId?: string | null;

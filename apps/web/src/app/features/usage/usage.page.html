@@ -13,6 +13,36 @@
   </div>
 
   <div *ngIf="!loading && !error">
+    <!-- Savings at a glance -->
+    <div class="card savings-hero" *ngIf="usageData.length > 0">
+      <h2>Your Savings</h2>
+      <div class="savings-hero-grid">
+        <div class="savings-hero-item">
+          <span class="savings-hero-label">Before Cost</span>
+          <span class="savings-hero-value">{{ formattedTotalCost }}</span>
+        </div>
+        <div class="savings-hero-item">
+          <span class="savings-hero-label">After Cost</span>
+          <span class="savings-hero-value highlight">{{ formattedTotalCost }}</span>
+        </div>
+        <div class="savings-hero-item">
+          <span class="savings-hero-label">You Saved</span>
+          <span class="savings-hero-value green">$0.00</span>
+        </div>
+        <div class="savings-hero-item">
+          <span class="savings-hero-label">Token Reduction</span>
+          <span class="savings-hero-value green">0%</span>
+        </div>
+      </div>
+      <div class="savings-hero-meta">
+        <span class="security-badge-sm">Inference: Direct to provider</span>
+        <span class="security-badge-sm">Telemetry: Local</span>
+      </div>
+      <p class="savings-hero-note" *ngIf="false">
+        This workspace is using local-only analytics. Savings data is available in the local companion / host app.
+      </p>
+    </div>
+
     <!-- Billing Status -->
     <div class="card" *ngIf="billingStatus">
       <div class="card-header">

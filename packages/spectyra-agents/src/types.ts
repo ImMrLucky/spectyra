@@ -2,15 +2,32 @@
  * Types for Spectyra Agent Wrappers
  */
 
+import type {
+  SpectyraRunMode,
+  TelemetryMode,
+  PromptSnapshotMode,
+  SavingsReport,
+  PromptComparison,
+} from "@spectyra/core-types";
+
+// Re-export core-types for convenience
+export type {
+  SpectyraRunMode,
+  TelemetryMode,
+  PromptSnapshotMode,
+  SavingsReport,
+  PromptComparison,
+};
+
 /**
  * RepoContext for CodeMap optimization
  */
 export type RepoContext = {
-  rootPath?: string;          // For local VM use
-  files?: Array<{ path: string; content: string }>; // For hosted usage
-  changedFiles?: string[];    // Helps focus CodeMap
-  entrypoints?: string[];     // e.g. ["apps/api/src/index.ts"]
-  languageHint?: string;      // ts/python/etc
+  rootPath?: string;
+  files?: Array<{ path: string; content: string }>;
+  changedFiles?: string[];
+  entrypoints?: string[];
+  languageHint?: string;
 };
 
 /**
@@ -40,6 +57,15 @@ export interface OptimizationReportPublic {
 }
 
 /**
+ * Extended result that includes both legacy report and new shared report.
+ */
+export interface AgentOptimizationResult {
+  optimizationReport: OptimizationReportPublic;
+  savingsReport?: SavingsReport;
+  promptComparison?: PromptComparison;
+}
+
+/**
  * Claude-like message format
  */
 export type ClaudeLikeMessage =
@@ -61,5 +87,5 @@ export type OpenAILikeMessage =
 export interface GenericMessage {
   role: string;
   content: string;
-  meta?: any; // Framework-specific metadata
+  meta?: any;
 }

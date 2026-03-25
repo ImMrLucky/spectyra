@@ -1,38 +1,56 @@
 /**
  * Spectyra SDK
- * 
- * SDK-first agent runtime control: routing, budgets, tool gating, telemetry
- * 
+ *
+ * Local-first LLM optimization. Your provider call, your key, your data.
+ *
  * @example
  * ```ts
- * // Local mode (default, no API required)
- * import { createSpectyra } from '@spectyra/sdk';
- * 
- * const spectyra = createSpectyra({ mode: "local" });
- * 
- * // Use with Claude Agent SDK
- * const options = spectyra.agentOptions(ctx, prompt);
- * const result = await agent.query({ prompt, options });
- * ```
- * 
- * @example
- * ```ts
- * // API mode (enterprise control plane)
+ * import { createSpectyra, createOpenAIAdapter } from '@spectyra/sdk';
+ *
  * const spectyra = createSpectyra({
- *   mode: "api",
- *   endpoint: "https://spectyra.up.railway.app/v1",
- *   apiKey: process.env.SPECTYRA_API_KEY,
+ *   runMode: "observe",
+ *   licenseKey: process.env.SPECTYRA_LICENSE_KEY,
  * });
- * 
- * const response = await spectyra.agentOptionsRemote(ctx, promptMeta);
+ *
+ * const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+ *
+ * const { providerResult, report } = await spectyra.complete(
+ *   { provider: "openai", client: openai, model: "gpt-4.1-mini", messages },
+ *   createOpenAIAdapter(),
+ * );
+ *
+ * console.log(`Saved ${report.estimatedSavingsPct.toFixed(1)}%`);
  * ```
  */
 
-// New SDK-first API
+// Primary API
 export { createSpectyra } from "./createSpectyra.js";
+export type { SpectyraInstance } from "./createSpectyra.js";
+
+// Provider adapters (direct-provider, no Spectyra cloud)
+export { createOpenAIAdapter } from "./adapters/openai.js";
+export { createAnthropicAdapter } from "./adapters/anthropic.js";
+export { createGroqAdapter } from "./adapters/groq.js";
+
+// Shared platform types (re-exported from @spectyra/core-types)
+export type {
+  SpectyraRunMode,
+  TelemetryMode,
+  PromptSnapshotMode,
+  InferencePath,
+  ProviderBillingOwner,
+  IntegrationType,
+  SavingsReport,
+  PromptComparison,
+  SecurityLabels,
+} from "./types.js";
+
+// SDK-specific types
 export type {
   SpectyraConfig,
-  SpectyraMode,
+  SpectyraCompleteInput,
+  SpectyraCompleteResult,
+  ProviderAdapter,
   SpectyraCtx,
   PromptMeta,
   ClaudeAgentOptions,

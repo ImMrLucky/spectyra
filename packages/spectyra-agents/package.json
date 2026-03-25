@@ -10,7 +10,8 @@
   },
   "dependencies": {
     "@spectyra/sdk": "workspace:*",
-    "@spectyra/shared": "workspace:*"
+    "@spectyra/shared": "workspace:*",
+    "@spectyra/core-types": "workspace:*"
   },
   "devDependencies": {
     "@types/node": "^20.11.0",

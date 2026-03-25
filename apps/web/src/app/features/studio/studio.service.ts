@@ -13,6 +13,8 @@ export interface StudioRunRequest {
     advanced?: Record<string, any>;
   };
   mode: 'raw_vs_spectyra';
+  /** off | observe | on — maps to the universal mode model */
+  runMode?: 'off' | 'observe' | 'on';
 }
 
 export interface StudioRunSide {
@@ -47,6 +49,13 @@ export interface StudioRunResult {
     estimated: boolean;
     reverted?: boolean;
   };
+  security?: {
+    inferencePath: string;
+    providerBillingOwner: string;
+    telemetryMode: string;
+    promptSnapshotMode: string;
+    cloudRelay: string;
+  };
 }
 
 @Injectable({ providedIn: 'root' })
@@ -59,4 +68,3 @@ export class StudioService {
     return this.http.post<StudioRunResult>(`${environment.apiUrl}/studio/run`, req, { headers });
   }
 }
-

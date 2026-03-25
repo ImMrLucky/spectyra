@@ -1,13 +1,8 @@
 /**
  * Optimizer Lab Page
  * 
- * Admin tool for testing the optimization pipeline and running customer demos.
+ * Public tool for testing the optimization pipeline and running customer demos.
  * Shows before/after comparison, token savings, and trust indicators.
- * 
- * Security:
- * - Owner/admin only access
- * - Server-enforced view mode and redaction
- * - No raw prompt storage
  */
 
 import { Component, OnInit, ChangeDetectorRef } from '@angular/core';
@@ -24,8 +19,6 @@ import {
   ViewMode,
   ChatMessage,
 } from '../../core/api/optimizer-lab.service';
-import { SupabaseService } from '../../services/supabase.service';
-import { AuthService } from '../../core/auth/auth.service';
 import { SnackbarService } from '../../core/services/snackbar.service';
 import { CHAT_DEMO_PRESET, CODE_DEMO_PRESET } from './presets';
 import {
@@ -45,9 +38,6 @@ type ResultTab = 'before' | 'after' | 'diff' | 'metrics' | 'trust' | 'debug';
   styleUrls: ['./optimizer-lab.page.scss'],
 })
 export class OptimizerLabPage implements OnInit {
-  // Auth state
-  isOwner = false;
-  isAuthenticated = false;
   loading = true;
   error: string | null = null;
 
@@ -66,8 +56,8 @@ export class OptimizerLabPage implements OnInit {
   optimizationLevel: OptimizationLevel = 'balanced';
   prompt = '';
   repoContext = '';
-  includeDebug = true;
-  viewMode: ViewMode = 'ADMIN_DEBUG';
+  includeDebug = false;
+  viewMode: ViewMode = 'DEMO_VIEW';
 
   // Generate Test Data
   // Defaults are tuned for "typical" prompts (not stress tests).
@@ -120,59 +110,14 @@ export class OptimizerLabPage implements OnInit {
 
   constructor(
     private optimizerLab: OptimizerLabService,
-    private supabase: SupabaseService,
-    private authService: AuthService,
     private snackbar: SnackbarService,
     private router: Router,
     private cdr: ChangeDetectorRef
   ) {}
 
   ngOnInit() {
-    // Same auth as rest of app: if you have a Supabase session, you're in. No extra login.
-    this.supabase.getSession().subscribe(async (session) => {
-      if (session) {
-        this.isAuthenticated = true;
-        this.loading = false;
-        this.error = null;
-        this.isOwner = true; // Show page; API will enforce owner on first run
-        this.verifyAdminInBackground();
-        return;
-      }
-      const token = await this.supabase.getAccessToken();
-      if (token) {
-        this.isAuthenticated = true;
-        this.loading = false;
-        this.error = null;
-        this.isOwner = true;
-        this.verifyAdminInBackground();
-        return;
-      }
-      this.loading = false;
-      const hasApiKey = !!this.authService.currentApiKey;
-      if (hasApiKey) {
-        this.error = 'Optimizer Lab requires signing in with your account (email/password).';
-      } else {
-        this.error = 'Please log in to access the Optimizer Lab';
-      }
-    });
-  }
-
-  /** Optional background check: if not owner, show Access denied. No extra login. */
-  verifyAdminInBackground() {
-    this.optimizerLab.checkHealth().subscribe({
-      next: () => {
-        this.error = null;
-      },
-      error: (err) => {
-        if (err.status === 403) {
-          this.isOwner = false;
-          this.error = 'Access denied: Admin only. This page is for organization owners.';
-        } else if (err.status === 401) {
-          this.error = 'Session expired. Please log out and log in again.';
-        }
-        // Other errors (network etc.): leave page usable, API will fail on Run
-      },
-    });
+    this.loading = false;
+    this.error = null;
   }
 
   loadPreset(type: 'chat' | 'code') {

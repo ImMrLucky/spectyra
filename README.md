@@ -1,168 +1,177 @@
-# Spectyra — Spectral Token & Cost Reduction Engine
+# Spectyra — Local-First LLM Cost Optimization
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](./LICENSE)
 
-A middleware + dashboard that reduces token usage and cost by preventing semantic recomputation.
+Spectyra reduces LLM token usage and cost **without proxying your data**.
+Optimization runs locally — your prompts, responses, and provider keys never
+leave your environment unless you explicitly opt in.
 
-**Open source**: Spectyra is released under the **MIT License**. See [`LICENSE`](./LICENSE).
-
-## Quick Start
-
-1. Install dependencies:
-```bash
-pnpm install
-```
-
-2. Configure the API env:
-```bash
-cp apps/api/.env.example apps/api/.env
-```
-
-3. Start the API server:
-```bash
-pnpm dev:api
-```
-
-4. Start the Angular UI (in another terminal):
-```bash
-pnpm dev:web
-```
-
-5. Open http://localhost:4200
-
-**Tip:** Run both in parallel with:
-
-```bash
-pnpm dev
-```
-
-## Architecture
-
-- **apps/api**: Express backend with provider adapters, spectral core, optimizer
-- **apps/web**: Angular frontend (Spectyra Studio, Optimizer Lab, replay, runs)
-- **packages/sdk**: `@spectyra/sdk` — SDK for app + agent integrations
-- **packages/shared**: `@spectyra/shared` — shared types/utilities used across the monorepo
-- **packages/spectyra-agents**: `@spectyra/agents` — agent wrappers and helpers built on top of the SDK
-- **tools/proxy**: `spectyra-proxy` — local OpenAI-compatible proxy for IDE tools (Cursor, Claude Code, etc.)
-- **tools/cli**: `@spectyra/cli` — CLI wrapper for workflows
-
-## Features
-
-- **Multi-provider support**: OpenAI, Anthropic, Gemini, Grok
-- **Spectral Core v1**: Multi-operator graph-based stability analysis for intelligent context reuse
-- **Talk & Code paths**: Different optimization policies for chat vs coding
-- **Spectyra Studio**: Scenario mode (dry-run estimates) + Live mode (BYOK, real provider tokens)
-- **Optimizer Lab**: Dry-run optimization + before/after prompt views
-- **Replay mode**: Compare baseline vs optimized on benchmark scenarios
-- **Proof mode**: Paste conversations to estimate savings without provider calls
-- **Quality guards**: Ensure savings don't come from missing required outputs
-- **Browser Extension**: Automatic optimization for web-based LLM tools
-- **SDK**: Easy integration for applications and coding workflows
-- **BYOK**: Bring Your Own Key - use your existing provider accounts
-
-## Security
-
-Spectyra implements enterprise-grade security controls:
-
-- **🔐 Strong Tenant Isolation**: Every request is scoped to organization/project and enforced server-side
-- **🛡️ RBAC + Scopes**: Role-based access control for humans (JWT) and fine-grained scopes for API keys
-- **📋 Audit Logging**: Complete audit trail for all security-relevant events with export capability
-- **🔑 Provider Key Management**: Encrypted storage (vaulted keys) or BYOK (Bring Your Own Key) mode
-- **🗄️ Data Retention Controls**: Configurable retention policies, "no prompt storage" by default
-- **⚡ Rate Limiting**: Per-organization/project/API key rate limiting to prevent abuse
-- **🔒 Security Headers**: Hardened CORS, CSP, and security headers
-- **🔍 CI Security Gates**: Automated dependency scanning, CodeQL, secret scanning, SBOM generation
-
-**Security Documentation:**
-- [SECURITY.md](SECURITY.md) - Vulnerability disclosure and security reporting
-- [docs/DATA_HANDLING.md](docs/DATA_HANDLING.md) - What data is stored and how
-- [docs/RETENTION.md](docs/RETENTION.md) - Data retention policies
-- [docs/ENTERPRISE_SECURITY.md](docs/ENTERPRISE_SECURITY.md) - Complete enterprise security guide
-
-**Provenance:**
-- SDK packages are published with npm Trusted Publishing (OIDC)
-- SBOM (Software Bill of Materials) generated for all releases
-- Security scans run on every PR and release
-
-**Reporting Security Issues:**
-Please email security@spectyra.com for any security concerns. See [SECURITY.md](SECURITY.md) for details.
-
-## Quick Links
-
-- **[User Guide](docs/USER_GUIDE.md)** - How to use Spectyra (browser extension, SDK, API)
-- **[Application Description](docs/APPLICATION_DESCRIPTION.md)** - Complete technical documentation
-- **[Browser Extension Deployment](extensions/browser-extension/DEPLOYMENT.md)** - How to deploy the extension
-- **[SDK Documentation](packages/sdk/README.md)** - SDK usage and examples
-
-## License
-
-Spectyra is open source software licensed under the **MIT License**. See [`LICENSE`](./LICENSE).
-
-## Integration Options
-
-### 🖥️ For Web Tools (ChatGPT, Claude Web, etc.)
-👉 **Use Browser Extension** - Automatic optimization, zero code changes
-
-**When to use:**
-- Using ChatGPT, Claude Web, or other web-based LLM tools
-- General chat/Q&A work
-- Quick code questions in browser
-- Want zero setup, just works
-
-**Setup:**
-1. Install from Chrome Web Store / Edge Add-ons
-2. Configure API keys once
-3. Works automatically on all LLM calls
-
-**See:** [User Guide - Browser Extension](USER_GUIDE.md#option-a-browser-extension-recommended-for-web-tools)
+**Open source** under the **MIT License**. See [`LICENSE`](./LICENSE).
 
 ---
 
-### 💻 For Coding Workflows (Recommended)
-👉 **Use SDK + API** - Best for code integration
+## How It Works
 
-**When to use:**
-- Building applications that use LLMs
-- Serious coding work (bug fixes, refactoring)
-- Integrating into development tools
-- Need code-specific optimizations
+1. **Your app calls the LLM provider directly** — Spectyra never sits in the
+   inference path by default.
+2. **Before the call**, the SDK (or Local Companion) applies lightweight,
+   local optimizations to your messages (whitespace normalization, deduplication,
+   context window trimming).
+3. **After the call**, a local `SavingsReport` tells you exactly what was saved.
+4. **Optionally**, redacted analytics can be synced to the Spectyra cloud
+   dashboard (off by default).
 
-**Why SDK for coding:**
-- ✅ AST-aware code slicing (extracts function signatures)
-- ✅ Patch mode (unified diffs, huge savings)
-- ✅ Better code context detection
-- ✅ Full programmatic control
-- ✅ Integrates with your codebase
+```
+┌─────────────┐    direct    ┌─────────────────┐
+│  Your Code  │ ──────────── │  LLM Provider   │
+│  + Spectyra │              │  (OpenAI, etc.)  │
+│    SDK      │              └─────────────────┘
+└─────┬───────┘
+      │ local analytics
+      ▼
+┌─────────────┐   opt-in    ┌─────────────────┐
+│  Local      │ ──────────► │  Spectyra Cloud  │
+│  Storage    │  (redacted)  │  Dashboard       │
+└─────────────┘              └─────────────────┘
+```
 
-**Setup:**
+---
+
+## Quick Start
+
+```bash
+pnpm install
+pnpm dev        # starts API + Angular UI in parallel
+```
+
+Open http://localhost:4200.
+
+---
+
+## Integration Options
+
+| Path | Code Changes? | Prompts Leave Your Machine? | Best For |
+|------|---------------|-----------------------------|----------|
+| **Desktop App / Local Companion** | None | No | Non-developers, OpenClaw |
+| **SDK Wrapper** | Minimal | No | Developers building LLM apps |
+| **Observe / Preview** | None | No | Evaluating savings (dry-run) |
+
+### SDK (recommended for developers)
+
 ```bash
 npm install @spectyra/sdk
 ```
 
-**See:** [User Guide - SDK](USER_GUIDE.md#option-b-sdk--api-recommended-for-code-integration) | [SDK Docs](packages/sdk/README.md)
+```ts
+import { createSpectyra } from "@spectyra/sdk";
+import { createOpenAIAdapter } from "@spectyra/sdk/adapters/openai";
+import OpenAI from "openai";
+
+const spectyra = createSpectyra({ runMode: "on" });
+const openai = new OpenAI();
+
+const result = await spectyra.complete(
+  {
+    client: openai,
+    model: "gpt-4o-mini",
+    messages: [{ role: "user", content: "Hello" }],
+  },
+  createOpenAIAdapter(openai)
+);
+
+console.log(result.savingsReport);
+```
+
+### Local Companion (no code changes)
+
+```bash
+npx @spectyra/local-companion
+# Starts on 127.0.0.1:4111
+
+# Point your app at it as an OpenAI-compatible proxy:
+export OPENAI_BASE_URL=http://127.0.0.1:4111/v1
+```
+
+### Desktop App
+
+Download from the [Releases page](https://github.com/spectyra/spectyra/releases).
+The Desktop App bundles the Local Companion with a GUI for non-developers.
 
 ---
 
-### 🔧 For Custom Integrations
-👉 **Use Direct API** - Maximum flexibility
+## Universal Mode Model
 
-**When to use:**
-- Non-JavaScript environments
-- Custom HTTP clients
-- Maximum control
+Every Spectyra surface (SDK, Companion, Desktop App, Web) uses the same
+three-state mode:
 
-**See:** [User Guide - Direct API](USER_GUIDE.md#option-c-direct-api-calls-for-custom-integrations)
+| Mode | What Happens | Provider Call | Cost |
+|------|-------------|---------------|------|
+| `off` | Pass-through, minimal analytics | Direct | Full provider price |
+| `observe` | Local dry-run, projected savings | **None** | Free |
+| `on` | Optimization applied, then direct call | Direct | Reduced provider price |
+
+Default for new integrations: **`observe`** (safe onboarding, no mutation).
 
 ---
 
-## Quick Decision Guide
+## Architecture
 
-| Your Situation | Use This | Why |
-|---------------|----------|-----|
-| Using ChatGPT/Claude web | Browser Extension | Zero setup, automatic |
-| Building an app with LLMs | SDK + API | Full control, better features |
-| Coding workflows (bugs, refactoring) | **SDK + API** | Code-specific optimizations |
-| General chat/Q&A | Browser Extension | Easiest |
-| Custom/Non-JS integration | Direct API | Maximum flexibility |
+```
+packages/
+  core-types/    — Shared types: modes, reports, security labels, entitlements
+  sdk/           — @spectyra/sdk — SDK for in-code integration
+  spectyra-agents/ — @spectyra/agents — Agent framework wrappers
+  shared/        — Legacy shared types (being migrated to core-types)
 
-**💡 Pro Tip:** For coding, SDK gives you AST-aware slicing and patch mode that can save 50-70% on code-related LLM calls!
+apps/
+  api/           — Express backend (dashboard APIs, billing, audit)
+  web/           — Angular frontend (Studio, Observe, Integrations, Usage)
+  desktop/       — Electron desktop app (bundles Local Companion)
+
+tools/
+  local-companion/ — Standalone OpenAI/Anthropic-compatible local server
+  proxy/           — Local proxy for IDE tools (Cursor, Claude Code)
+  cli/             — CLI wrapper
+```
+
+---
+
+## Security Posture
+
+| Concern | Default |
+|---------|---------|
+| Inference path | **Direct to provider** (never proxied through Spectyra) |
+| Provider keys | **Customer-owned** (BYOK) |
+| Prompt storage | **Local only** |
+| Telemetry | **Local** (cloud sync is opt-in, redacted) |
+| Billing for LLM usage | **Customer's provider account** |
+
+See [SECURITY.md](SECURITY.md) and [docs/ENTERPRISE_SECURITY.md](docs/ENTERPRISE_SECURITY.md).
+
+---
+
+## Features
+
+- **Multi-provider**: OpenAI, Anthropic, Groq (more coming)
+- **Spectyra Studio**: Scenario-based comparison (dry-run + live BYOK)
+- **Observe Mode**: Dry-run optimization with before/after prompt views
+- **SavingsReport**: Structured JSON showing before/after tokens, cost, techniques applied
+- **Entitlement model**: Free tier with generous limits, observe always free
+- **License keys**: Offline-capable validation for Desktop App / Companion
+- **Audit logging**: Complete trail for all security events
+- **Enterprise controls**: RBAC, domain allowlists, SSO enforcement, data retention
+
+---
+
+## Quick Links
+
+- [SDK Documentation](packages/sdk/README.md)
+- [User Guide](docs/USER_GUIDE.md)
+- [Integrations Page](apps/web/src/app/features/integrations/)
+- [Security](SECURITY.md)
+
+---
+
+## License
+
+MIT

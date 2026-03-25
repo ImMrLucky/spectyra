@@ -5,7 +5,7 @@
  * Supports CodeMap, RefPack, and PhraseBook optimizations.
  */
 
-import type { ClaudeLikeMessage, RepoContext, OptimizationReportPublic } from "./types";
+import type { ClaudeLikeMessage, RepoContext, OptimizationReportPublic, SpectyraRunMode, SavingsReport, PromptComparison } from "./types";
 import { optimizeAgentMessages, type ChatMessage } from "./core/optimizeAgentMessages";
 
 /**
@@ -23,6 +23,7 @@ export interface WrapClaudeRequestInput {
   messages: ClaudeLikeMessage[];
   repoContext?: RepoContext;
   mode?: "auto" | "code" | "chat";
+  runMode?: SpectyraRunMode;
   runId?: string;
   config?: ClaudeWrapperConfig;
 }
@@ -33,6 +34,8 @@ export interface WrapClaudeRequestInput {
 export interface WrapClaudeRequestOutput {
   messages: ClaudeLikeMessage[];
   optimizationReport: OptimizationReportPublic;
+  savingsReport?: SavingsReport;
+  promptComparison?: PromptComparison;
   cacheKey?: string;
   cacheHit?: boolean;
 }
@@ -127,27 +130,27 @@ function fromChatMessages(chatMessages: ChatMessage[], originalMessages: ClaudeL
 export async function wrapClaudeRequest(
   input: WrapClaudeRequestInput
 ): Promise<WrapClaudeRequestOutput> {
-  const { messages, repoContext, mode = "auto", runId, config } = input;
-  
-  // Convert to internal format
+  const { messages, repoContext, mode = "auto", runMode, runId, config } = input;
+
   const chatMessages = toChatMessages(messages);
-  
-  // Optimize messages
+
   const optimized = await optimizeAgentMessages({
     messages: chatMessages,
     repoContext,
     mode,
+    runMode,
     runId,
     apiEndpoint: config?.apiEndpoint,
     apiKey: config?.apiKey,
   });
-  
-  // Convert back to Claude format
+
   const optimizedClaudeMessages = fromChatMessages(optimized.messages, messages);
-  
+
   return {
     messages: optimizedClaudeMessages,
     optimizationReport: optimized.optimizationReport,
+    savingsReport: optimized.savingsReport,
+    promptComparison: optimized.promptComparison,
     cacheKey: optimized.cacheKey,
     cacheHit: optimized.cacheHit,
   };

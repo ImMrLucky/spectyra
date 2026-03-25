@@ -1,0 +1,260 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; connect-src http://127.0.0.1:*; style-src 'self' 'unsafe-inline'; script-src 'self' 'unsafe-inline'">
+  <title>Spectyra</title>
+  <style>
+    :root {
+      --bg: #0f1117; --surface: #1a1d27; --border: #2a2d3a;
+      --text: #e4e6eb; --muted: #8b8fa3; --accent: #5b6cf7;
+      --green: #34d399; --red: #f87171; --yellow: #fbbf24;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: var(--bg); color: var(--text); }
+    .app { display: flex; height: 100vh; }
+    .sidebar { width: 220px; background: var(--surface); border-right: 1px solid var(--border); padding: 20px 0; display: flex; flex-direction: column; }
+    .sidebar h1 { font-size: 18px; padding: 0 20px 20px; border-bottom: 1px solid var(--border); }
+    .nav-item { padding: 10px 20px; cursor: pointer; color: var(--muted); font-size: 14px; }
+    .nav-item:hover, .nav-item.active { color: var(--text); background: rgba(91,108,247,0.1); }
+    .main { flex: 1; overflow-y: auto; padding: 32px; }
+    .card { background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 24px; margin-bottom: 16px; }
+    .card h2 { font-size: 16px; margin-bottom: 12px; }
+    .status-dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; margin-right: 8px; }
+    .status-dot.ok { background: var(--green); }
+    .status-dot.off { background: var(--red); }
+    .label { font-size: 12px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 4px; }
+    .value { font-size: 24px; font-weight: 600; }
+    .value.green { color: var(--green); }
+    .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 16px; }
+    .security-badge { display: inline-flex; align-items: center; background: rgba(52,211,153,0.1); color: var(--green); padding: 4px 10px; border-radius: 4px; font-size: 12px; margin: 2px; }
+    button { background: var(--accent); color: white; border: none; padding: 8px 16px; border-radius: 6px; cursor: pointer; font-size: 14px; }
+    button:hover { opacity: 0.9; }
+    button.secondary { background: transparent; border: 1px solid var(--border); color: var(--text); }
+    select, input { background: var(--bg); color: var(--text); border: 1px solid var(--border); padding: 8px 12px; border-radius: 6px; font-size: 14px; }
+    .page { display: none; }
+    .page.active { display: block; }
+    .steps { counter-reset: step; }
+    .steps li { counter-increment: step; list-style: none; padding: 8px 0; padding-left: 32px; position: relative; color: var(--muted); }
+    .steps li::before { content: counter(step); position: absolute; left: 0; width: 22px; height: 22px; background: var(--border); color: var(--text); border-radius: 50%; text-align: center; line-height: 22px; font-size: 12px; }
+  </style>
+</head>
+<body>
+<div class="app">
+  <div class="sidebar">
+    <h1>Spectyra</h1>
+    <div class="nav-item active" data-page="dashboard">Dashboard</div>
+    <div class="nav-item" data-page="runs">Runs</div>
+    <div class="nav-item" data-page="savings">Savings</div>
+    <div class="nav-item" data-page="security">Security</div>
+    <div class="nav-item" data-page="openclaw">OpenClaw Setup</div>
+    <div class="nav-item" data-page="onboarding">Onboarding</div>
+    <div class="nav-item" data-page="license">License</div>
+    <div style="flex:1"></div>
+    <div class="nav-item" id="companion-status-nav">
+      <span class="status-dot off" id="status-dot"></span>
+      <span id="status-text">Companion: Starting...</span>
+    </div>
+  </div>
+
+  <div class="main">
+    <!-- Dashboard -->
+    <div class="page active" id="page-dashboard">
+      <h2 style="margin-bottom:20px">Dashboard</h2>
+      <div class="grid">
+        <div class="card"><div class="label">Status</div><div class="value" id="dash-status">Connecting...</div></div>
+        <div class="card"><div class="label">Run Mode</div><div class="value" id="dash-mode">-</div></div>
+        <div class="card"><div class="label">Total Runs</div><div class="value" id="dash-runs">0</div></div>
+        <div class="card"><div class="label">Tokens Saved</div><div class="value green" id="dash-tokens">0</div></div>
+      </div>
+      <div class="card" style="margin-top:16px">
+        <h2>Security Posture</h2>
+        <div style="margin-top:8px">
+          <span class="security-badge">Inference: Direct to provider</span>
+          <span class="security-badge">Billing: Customer account</span>
+          <span class="security-badge" id="badge-telemetry">Telemetry: Local</span>
+          <span class="security-badge" id="badge-snapshots">Snapshots: Local only</span>
+          <span class="security-badge">Cloud relay: None</span>
+        </div>
+      </div>
+      <div style="margin-top:16px">
+        <button id="btn-start">Start Companion</button>
+        <button id="btn-stop" class="secondary" style="margin-left:8px">Stop</button>
+        <button id="btn-test" class="secondary" style="margin-left:8px">Test Connection</button>
+      </div>
+    </div>
+
+    <!-- Runs -->
+    <div class="page" id="page-runs">
+      <h2 style="margin-bottom:20px">Recent Runs</h2>
+      <div id="runs-list"><p style="color:var(--muted)">Loading...</p></div>
+    </div>
+
+    <!-- Savings -->
+    <div class="page" id="page-savings">
+      <h2 style="margin-bottom:20px">Savings Summary</h2>
+      <div class="grid">
+        <div class="card"><div class="label">Total Runs</div><div class="value" id="sav-runs">-</div></div>
+        <div class="card"><div class="label">Tokens Saved</div><div class="value green" id="sav-tokens">-</div></div>
+        <div class="card"><div class="label">Avg Savings</div><div class="value green" id="sav-pct">-</div></div>
+        <div class="card"><div class="label">Cost Saved</div><div class="value green" id="sav-cost">-</div></div>
+      </div>
+    </div>
+
+    <!-- Security -->
+    <div class="page" id="page-security">
+      <h2 style="margin-bottom:20px">Security &amp; Data Handling</h2>
+      <div class="card"><h2>Inference Path</h2><p>Direct to provider. Spectyra never proxies your prompts or responses through Spectyra servers.</p></div>
+      <div class="card"><h2>Provider Billing</h2><p>Your provider account. Spectyra does not pay for or intercept provider usage.</p></div>
+      <div class="card"><h2>Telemetry</h2><p>Local only by default. Aggregated analytics can optionally be synced to Spectyra cloud.</p></div>
+      <div class="card"><h2>Prompt Storage</h2><p>Before/after prompt snapshots are stored locally. They are never uploaded unless you explicitly opt in.</p></div>
+      <div class="card"><h2>Cloud Relay</h2><p>None. No live inference traffic is routed through Spectyra servers.</p></div>
+    </div>
+
+    <!-- OpenClaw Setup -->
+    <div class="page" id="page-openclaw">
+      <h2 style="margin-bottom:20px">OpenClaw Setup</h2>
+      <div class="card">
+        <h2>No code integration required</h2>
+        <p style="margin-top:8px;color:var(--muted)">Spectyra Local Companion runs beside OpenClaw on your machine. Point OpenClaw to the local companion endpoint.</p>
+        <ol class="steps" style="margin-top:16px">
+          <li>Start the Spectyra Local Companion (it's running now if you see the green dot)</li>
+          <li>In your OpenClaw configuration, set the API base URL to:<br><code style="color:var(--accent)">http://127.0.0.1:4111/v1</code></li>
+          <li>Set your provider API key in OpenClaw as normal (it stays on your machine)</li>
+          <li>Choose run mode: <strong>observe</strong> (recommended to start) or <strong>on</strong></li>
+          <li>Run a task and check the Savings page for results</li>
+        </ol>
+      </div>
+      <div class="card">
+        <h2>What stays local</h2>
+        <ul style="margin-top:8px;color:var(--muted);list-style:disc;padding-left:20px">
+          <li>All prompts and responses</li>
+          <li>Your provider API key</li>
+          <li>Before/after prompt comparisons</li>
+          <li>Run analytics</li>
+        </ul>
+      </div>
+    </div>
+
+    <!-- Onboarding -->
+    <div class="page" id="page-onboarding">
+      <h2 style="margin-bottom:20px">Get Started</h2>
+      <div class="card">
+        <h2>1. Choose Integration</h2>
+        <div style="margin-top:8px">
+          <select id="onb-integration">
+            <option value="local-companion">Desktop App / Local Companion (no code)</option>
+            <option value="sdk-wrapper">SDK (developer integration)</option>
+          </select>
+        </div>
+      </div>
+      <div class="card">
+        <h2>2. Choose Provider</h2>
+        <select id="onb-provider"><option>openai</option><option>anthropic</option><option>groq</option></select>
+      </div>
+      <div class="card">
+        <h2>3. Run Mode</h2>
+        <select id="onb-mode">
+          <option value="observe">Observe (recommended — no mutation, projected savings)</option>
+          <option value="on">On (optimize before provider call)</option>
+          <option value="off">Off (pass-through)</option>
+        </select>
+      </div>
+      <div class="card">
+        <h2>4. Telemetry</h2>
+        <select id="onb-telemetry">
+          <option value="local">Local only (default)</option>
+          <option value="off">Off</option>
+          <option value="cloud_redacted">Cloud (redacted analytics)</option>
+        </select>
+      </div>
+      <div class="card">
+        <h2>5. Prompt Snapshots</h2>
+        <select id="onb-snapshots">
+          <option value="local_only">Local only (default)</option>
+          <option value="none">None (disable entirely)</option>
+          <option value="cloud_opt_in">Cloud opt-in</option>
+        </select>
+      </div>
+      <button style="margin-top:16px">Apply &amp; Start Companion</button>
+    </div>
+
+    <!-- License -->
+    <div class="page" id="page-license">
+      <h2 style="margin-bottom:20px">License &amp; Trial</h2>
+      <div class="card">
+        <h2>License Key</h2>
+        <input type="text" placeholder="Enter your Spectyra license key" style="width:100%;margin-top:8px">
+        <button style="margin-top:12px">Activate</button>
+      </div>
+      <div class="card">
+        <h2>Plan</h2>
+        <p style="color:var(--muted)">Free tier — observe mode is always free. Upgrade for unlimited optimized runs.</p>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+  const BASE = 'http://127.0.0.1:4111';
+
+  document.querySelectorAll('.nav-item[data-page]').forEach(el => {
+    el.addEventListener('click', () => {
+      document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+      document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+      el.classList.add('active');
+      document.getElementById('page-' + el.dataset.page).classList.add('active');
+    });
+  });
+
+  async function refresh() {
+    try {
+      const h = await (await fetch(BASE + '/health')).json();
+      document.getElementById('status-dot').className = 'status-dot ok';
+      document.getElementById('status-text').textContent = 'Companion: Running';
+      document.getElementById('dash-status').textContent = 'Connected';
+      document.getElementById('dash-mode').textContent = h.runMode || '-';
+      document.getElementById('badge-telemetry').textContent = 'Telemetry: ' + (h.telemetryMode || 'local');
+      document.getElementById('badge-snapshots').textContent = 'Snapshots: ' + (h.promptSnapshots || 'local_only');
+    } catch {
+      document.getElementById('status-dot').className = 'status-dot off';
+      document.getElementById('status-text').textContent = 'Companion: Offline';
+      document.getElementById('dash-status').textContent = 'Offline';
+    }
+
+    try {
+      const s = await (await fetch(BASE + '/v1/savings/summary')).json();
+      document.getElementById('dash-runs').textContent = s.totalRuns;
+      document.getElementById('dash-tokens').textContent = s.totalTokensSaved.toLocaleString();
+      document.getElementById('sav-runs').textContent = s.totalRuns;
+      document.getElementById('sav-tokens').textContent = s.totalTokensSaved.toLocaleString();
+      document.getElementById('sav-pct').textContent = s.avgSavingsPct.toFixed(1) + '%';
+      document.getElementById('sav-cost').textContent = '$' + s.totalCostSaved.toFixed(4);
+    } catch {}
+
+    try {
+      const runs = await (await fetch(BASE + '/v1/runs?limit=20')).json();
+      const list = document.getElementById('runs-list');
+      if (runs.length === 0) { list.innerHTML = '<p style="color:var(--muted)">No runs yet.</p>'; return; }
+      list.innerHTML = runs.map(r =>
+        `<div class="card" style="padding:12px 16px">
+          <div style="display:flex;justify-content:space-between;align-items:center">
+            <span>${r.provider}/${r.model} — <strong>${r.mode}</strong></span>
+            <span class="value green" style="font-size:16px">${Math.max(0,r.inputTokensBefore-r.inputTokensAfter)} tokens saved</span>
+          </div>
+          <div style="font-size:12px;color:var(--muted);margin-top:4px">${r.createdAt || ''}</div>
+        </div>`
+      ).join('');
+    } catch {}
+  }
+
+  document.getElementById('btn-start').addEventListener('click', () => { window.spectyra?.companion.start(); setTimeout(refresh, 2000); });
+  document.getElementById('btn-stop').addEventListener('click', () => { window.spectyra?.companion.stop(); setTimeout(refresh, 1000); });
+  document.getElementById('btn-test').addEventListener('click', refresh);
+
+  refresh();
+  setInterval(refresh, 10000);
+</script>
+</body>
+</html>

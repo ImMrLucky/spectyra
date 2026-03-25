@@ -3,18 +3,29 @@
     <p>Loading Spectyra Studio...</p>
   </div>
 
-  <div *ngIf="!loading && (!isAuthenticated || !isOwner)" class="access-denied">
-    <h2>Spectyra Studio</h2>
-    <div class="error-card">
-      <p>{{ error || 'Access denied' }}</p>
-      <a routerLink="/login" [queryParams]="{ returnUrl: '/admin/studio' }" class="login-link">Log in</a>
-    </div>
-  </div>
-
-  <div *ngIf="!loading && isAuthenticated && isOwner" class="studio-content">
+  <div *ngIf="!loading" class="studio-content">
     <header class="studio-header">
       <h1>Spectyra Studio</h1>
-      <p class="subtitle">Run Raw vs Spectyra side-by-side across common scenarios</p>
+      <p class="subtitle">Before/after savings, prompt comparison, and security visibility</p>
+
+      <!-- Mode selector -->
+      <div class="mode-selector">
+        <label>Mode:</label>
+        <select class="form-select mode-select" [(ngModel)]="spectyraMode">
+          <option value="off">Off — pass-through, no optimization</option>
+          <option value="observe">Observe — projected savings, no mutation</option>
+          <option value="on">On — local optimization applied</option>
+        </select>
+      </div>
+
+      <!-- Security panel -->
+      <div class="security-panel">
+        <span class="security-badge">Inference: Direct to provider</span>
+        <span class="security-badge">Billing: Customer account</span>
+        <span class="security-badge">Telemetry: Local</span>
+        <span class="security-badge">Prompt storage: {{ advanced.liveProviderRun ? 'Local only' : 'None (dry-run)' }}</span>
+        <span class="security-badge">Cloud relay: None</span>
+      </div>
     </header>
 
     <div class="studio-layout">

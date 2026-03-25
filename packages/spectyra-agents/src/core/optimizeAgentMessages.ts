@@ -1,56 +1,48 @@
 /**
  * Core Agent Message Optimizer
- * 
- * Internal function that applies Core Moat v1 optimizations to agent messages.
- * This calls the Spectyra API endpoint for optimization.
+ *
+ * Applies Core Moat v1 optimizations to agent messages.
+ * Works fully local-first — no Spectyra cloud dependency for the primary path.
+ * Optionally calls the Spectyra API for deeper server-side optimizations.
  */
 
-import type { RepoContext, OptimizationReportPublic } from "../types";
+import type { RepoContext, OptimizationReportPublic, SpectyraRunMode, SavingsReport, PromptComparison } from "../types";
 import type { ChatMessage } from "@spectyra/shared";
 
-// Re-export canonical type
 export type { ChatMessage };
 
-/**
- * Input for agent message optimization
- */
 export interface OptimizeAgentMessagesInput {
   messages: ChatMessage[];
   repoContext?: RepoContext;
   mode: "auto" | "code" | "chat";
+  runMode?: SpectyraRunMode;
   runId?: string;
   turnIndex?: number;
+  /** @deprecated Use local-first mode instead. Optional API endpoint for server-side optimization. */
   apiEndpoint?: string;
+  /** @deprecated Use local-first mode instead. */
   apiKey?: string;
 }
 
-/**
- * Output from agent message optimization
- */
 export interface OptimizeAgentMessagesOutput {
   messages: ChatMessage[];
   optimizationReport: OptimizationReportPublic;
+  savingsReport?: SavingsReport;
+  promptComparison?: PromptComparison;
   cacheKey?: string;
   cacheHit?: boolean;
-  debugInternal?: any; // For internal debugging only
+  debugInternal?: unknown;
 }
 
-/**
- * Determine path (code vs chat) from mode and context
- */
 function determinePath(mode: "auto" | "code" | "chat", repoContext?: RepoContext): "code" | "talk" {
   if (mode === "code") return "code";
   if (mode === "chat") return "talk";
-  // Auto mode: use code if repoContext provided
   return repoContext ? "code" : "talk";
 }
 
-/**
- * Build CodeMap from repo context and inject into messages
- */
 function injectCodeMap(messages: ChatMessage[], repoContext: RepoContext): ChatMessage[] {
   const lines: string[] = [];
-  
+
   if (repoContext.files && repoContext.files.length > 0) {
     lines.push("CODEMAP v1.1");
     lines.push("MODE: code");
@@ -61,18 +53,18 @@ function injectCodeMap(messages: ChatMessage[], repoContext: RepoContext): ChatM
     lines.push("  imports: []");
     lines.push("  dependencies: []");
     lines.push("  snippets_meta: [");
-    
+
     repoContext.files.forEach((file, idx) => {
       const lang = repoContext.languageHint || detectLanguage(file.path);
       const linesCount = file.content.split("\n").length;
       lines.push(`    {id: "snippet_${idx + 1}", lang: "${lang}", lines: ${linesCount}}`);
     });
-    
+
     lines.push("  ]");
     lines.push("}");
     lines.push("");
     lines.push("SNIPPETS {");
-    
+
     repoContext.files.forEach((file, idx) => {
       const lang = repoContext.languageHint || detectLanguage(file.path);
       lines.push(`  snippet_${idx + 1}:`);
@@ -81,17 +73,15 @@ function injectCodeMap(messages: ChatMessage[], repoContext: RepoContext): ChatM
       lines.push("```");
       lines.push("");
     });
-    
+
     lines.push("}");
     lines.push("");
     lines.push("RULES:");
     lines.push("  - Treat [[CODEMAP:snippet_id]] as dereferenceable aliases to SNIPPETS.");
     lines.push("  - Do NOT invent code not present.");
     lines.push("  - If required code is missing, request it.");
-    
+
     const codeMapContent = lines.join("\n");
-    
-    // Insert CodeMap as first system message
     const systemMsgs = messages.filter(m => m.role === "system");
     const nonSystemMsgs = messages.filter(m => m.role !== "system");
     return [
@@ -100,161 +90,281 @@ function injectCodeMap(messages: ChatMessage[], repoContext: RepoContext): ChatM
       ...nonSystemMsgs,
     ];
   }
-  
+
   return messages;
 }
 
-/**
- * Detect language from file path
- */
-function detectLanguage(path: string): string {
-  const ext = path.split(".").pop()?.toLowerCase();
+function detectLanguage(filePath: string): string {
+  const ext = filePath.split(".").pop()?.toLowerCase();
   const langMap: Record<string, string> = {
-    ts: "typescript",
-    js: "javascript",
-    py: "python",
-    go: "go",
-    rs: "rust",
-    java: "java",
-    cpp: "cpp",
-    c: "c",
-    html: "html",
-    css: "css",
-    scss: "scss",
-    json: "json",
-    yaml: "yaml",
-    yml: "yaml",
-    md: "markdown",
+    ts: "typescript", js: "javascript", py: "python", go: "go",
+    rs: "rust", java: "java", cpp: "cpp", c: "c",
+    html: "html", css: "css", scss: "scss", json: "json",
+    yaml: "yaml", yml: "yaml", md: "markdown",
   };
   return langMap[ext || ""] || "text";
 }
 
 /**
- * Optimize agent messages using Core Moat v1 via API
- * 
- * This function applies:
- * - CodeMap (if repoContext provided and mode is code)
- * - RefPack (for tool outputs and repeated content)
- * - PhraseBook (for repeated phrases in prose)
- * - Semantic cache (if enabled)
- * 
- * NOTE: This calls the /v1/chat endpoint in dry-run mode to get optimized messages
- * without making the actual LLM call. The agent framework then uses these optimized
- * messages to make its own LLM call.
+ * Lightweight local optimizations (no API required).
+ */
+function applyLocalOptimizations(messages: ChatMessage[]): { messages: ChatMessage[]; transforms: string[] } {
+  const transforms: string[] = [];
+  let optimized = [...messages];
+
+  // Normalize whitespace
+  optimized = optimized.map(m => ({
+    ...m,
+    content: m.content.replace(/[ \t]+/g, " ").replace(/\n{3,}/g, "\n\n").trim(),
+  }));
+  transforms.push("whitespace_normalize");
+
+  // Deduplicate consecutive identical messages
+  const deduped: ChatMessage[] = [];
+  for (const msg of optimized) {
+    const prev = deduped[deduped.length - 1];
+    if (prev && prev.role === msg.role && prev.content === msg.content) continue;
+    deduped.push(msg);
+  }
+  if (deduped.length < optimized.length) transforms.push("dedup_consecutive");
+  optimized = deduped;
+
+  // Truncate very long tool outputs
+  optimized = optimized.map(m => {
+    if (m.role === "tool" && m.content.length > 2000) {
+      const head = m.content.slice(0, 500);
+      const tail = m.content.slice(-500);
+      transforms.push("tool_output_truncate");
+      return { ...m, content: `${head}\n...[truncated ${m.content.length - 1000} chars]...\n${tail}` };
+    }
+    return m;
+  });
+
+  // Drop old turns if conversation is very long
+  if (optimized.length > 20) {
+    const systemMsgs = optimized.filter(m => m.role === "system");
+    const nonSystem = optimized.filter(m => m.role !== "system");
+    optimized = [...systemMsgs, ...nonSystem.slice(-16)];
+    transforms.push("context_window_trim");
+  }
+
+  return { messages: optimized, transforms };
+}
+
+function estimateTokens(messages: ChatMessage[]): number {
+  let chars = 0;
+  for (const m of messages) chars += m.role.length + m.content.length + 4;
+  return Math.ceil(chars / 4);
+}
+
+function buildSavingsReport(
+  runId: string | undefined,
+  runMode: SpectyraRunMode,
+  inputTokensBefore: number,
+  inputTokensAfter: number,
+  transforms: string[],
+): SavingsReport {
+  const saved = inputTokensBefore - inputTokensAfter;
+  const pct = inputTokensBefore > 0 ? (saved / inputTokensBefore) * 100 : 0;
+  return {
+    runId: runId ?? crypto.randomUUID(),
+    mode: runMode,
+    integrationType: "sdk-wrapper",
+    provider: "unknown",
+    model: "unknown",
+    inputTokensBefore,
+    inputTokensAfter,
+    outputTokens: 0,
+    estimatedCostBefore: 0,
+    estimatedCostAfter: 0,
+    estimatedSavings: 0,
+    estimatedSavingsPct: pct,
+    contextReductionPct: pct > 0 ? pct : undefined,
+    telemetryMode: "local",
+    promptSnapshotMode: "local_only",
+    inferencePath: "direct_provider",
+    providerBillingOwner: "customer",
+    transformsApplied: transforms,
+    success: true,
+    createdAt: new Date().toISOString(),
+  };
+}
+
+/**
+ * Optimize agent messages.
+ *
+ * When `runMode` is `off`, returns messages unchanged.
+ * When `runMode` is `observe`, computes projected savings without mutating.
+ * When `runMode` is `on` (default for backward compat), applies optimizations.
+ *
+ * Works fully local without API. If apiEndpoint/apiKey are provided,
+ * optionally calls server for deeper optimization (legacy/advanced).
  */
 export async function optimizeAgentMessages(
   input: OptimizeAgentMessagesInput
 ): Promise<OptimizeAgentMessagesOutput> {
-  const { messages, repoContext, mode, runId, turnIndex = 0, apiEndpoint, apiKey } = input;
+  const { messages, repoContext, mode, runMode = "on", runId, apiEndpoint, apiKey } = input;
   const path = determinePath(mode, repoContext);
-  
-  // If no API endpoint/key provided, apply CodeMap only (local optimization)
-  if (!apiEndpoint || !apiKey) {
-    let optimizedMessages = [...messages];
-    
-    // Apply CodeMap if repoContext provided
-    if (repoContext && path === "code") {
-      optimizedMessages = injectCodeMap(optimizedMessages, repoContext);
-    }
-    
+
+  // off → pass through
+  if (runMode === "off") {
     return {
-      messages: optimizedMessages,
+      messages: [...messages],
       optimizationReport: {
-        layers: {
-          refpack: false,
-          phrasebook: false,
-          codemap: !!repoContext && path === "code",
-          semantic_cache: false,
-          cache_hit: false,
-        },
-        tokens: {
-          estimated: false,
-        },
+        layers: { refpack: false, phrasebook: false, codemap: false, semantic_cache: false, cache_hit: false },
+        tokens: { estimated: false },
       },
+      savingsReport: buildSavingsReport(runId, "off", estimateTokens(messages), estimateTokens(messages), []),
     };
   }
-  
-  // Inject CodeMap if repoContext provided (before API call)
-  let messagesWithCodeMap = messages;
+
+  // Local optimization (works without API)
+  let optimizedMessages = [...messages];
+  const transforms: string[] = [];
+
+  // CodeMap injection
   if (repoContext && path === "code") {
-    messagesWithCodeMap = injectCodeMap(messages, repoContext);
+    optimizedMessages = injectCodeMap(optimizedMessages, repoContext);
+    transforms.push("codemap");
   }
-  
-  // Call API endpoint for full optimization
-  // Use dry-run mode to get optimized messages without LLM call
-  try {
-    const response = await fetch(`${apiEndpoint}/chat`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "X-SPECTYRA-API-KEY": apiKey,
-      },
-      body: JSON.stringify({
-        path,
-        provider: "openai", // Placeholder - not used in dry-run
-        model: "gpt-4o-mini", // Placeholder - not used in dry-run
-        messages: messagesWithCodeMap.map(m => ({
-          role: m.role,
-          content: m.content,
-        })),
-        mode: "optimized",
-        conversation_id: runId,
-        optimization_level: 2, // Balanced optimization
-        dry_run: true, // Get optimized messages without LLM call
-      }),
-    });
-    
-    if (!response.ok) {
-      throw new Error(`API error: ${response.statusText}`);
+
+  // Apply local transforms
+  const localResult = applyLocalOptimizations(optimizedMessages);
+  optimizedMessages = localResult.messages;
+  transforms.push(...localResult.transforms);
+
+  const inputTokensBefore = estimateTokens(messages);
+  const inputTokensAfter = estimateTokens(optimizedMessages);
+
+  const report: OptimizationReportPublic = {
+    layers: {
+      refpack: false,
+      phrasebook: false,
+      codemap: transforms.includes("codemap"),
+      semantic_cache: false,
+      cache_hit: false,
+    },
+    tokens: {
+      estimated: true,
+      input_before: inputTokensBefore,
+      input_after: inputTokensAfter,
+      saved: inputTokensBefore - inputTokensAfter > 0 ? inputTokensBefore - inputTokensAfter : 0,
+      pct_saved: inputTokensBefore > 0 ? ((inputTokensBefore - inputTokensAfter) / inputTokensBefore) * 100 : 0,
+    },
+  };
+
+  const savingsReport = buildSavingsReport(runId, runMode, inputTokensBefore, inputTokensAfter, transforms);
+
+  const promptComparison: PromptComparison = {
+    originalMessagesSummary: messages.map(m => ({ role: m.role, contentLength: m.content.length })),
+    optimizedMessagesSummary: optimizedMessages.map(m => ({ role: m.role, contentLength: m.content.length })),
+    diffSummary: {
+      inputTokensBefore,
+      inputTokensAfter,
+      tokensSaved: Math.max(0, inputTokensBefore - inputTokensAfter),
+      pctSaved: report.tokens.pct_saved ?? 0,
+      transformsApplied: transforms,
+    },
+    storageMode: "local_only",
+    localOnly: true,
+  };
+
+  // observe → return original messages but include projected savings
+  if (runMode === "observe") {
+    return {
+      messages: [...messages],
+      optimizationReport: report,
+      savingsReport,
+      promptComparison,
+    };
+  }
+
+  // on → return optimized messages
+  // Optionally try server-side optimization for deeper transforms
+  if (apiEndpoint && apiKey) {
+    try {
+      const serverResult = await callServerOptimization(optimizedMessages, path, runId, apiEndpoint, apiKey);
+      if (serverResult) {
+        return serverResult;
+      }
+    } catch {
+      // Fall through to local result
     }
-    
-    const result = await response.json();
-    
-    // Extract optimized messages from response
-    // In dry-run mode, the API doesn't return optimized messages directly
-    // We need to use the messages we sent (which may have been optimized server-side)
-    // For now, if we don't get optimized messages back, use CodeMap-injected messages
-    // TODO: Add a dedicated /v1/optimize endpoint that returns optimized messages without LLM call
-    let optimizedChatMessages: ChatMessage[] = messagesWithCodeMap;
-    
-    // If API returns optimized messages (future endpoint), use them
-    if (result.prompt_final?.messages) {
-      optimizedChatMessages = result.prompt_final.messages.map((m: any) => ({
-        role: m.role as "system" | "user" | "assistant" | "tool",
-        content: m.content,
-      }));
-    }
-    
-    // Build optimization report from API response
-    // The API returns optimizations_applied and token_breakdown in the response
-    const optimizationsApplied = result.optimizations_applied || [];
-    const tokenBreakdown = result.token_breakdown || {};
-    
-    const totalSaved = (tokenBreakdown.refpack?.saved || 0) +
-                      (tokenBreakdown.phrasebook?.saved || 0) +
-                      (tokenBreakdown.codemap?.saved || 0);
-    const totalBefore = tokenBreakdown.refpack?.before ||
-                       tokenBreakdown.phrasebook?.before ||
-                       tokenBreakdown.codemap?.before || 0;
-    const pctSaved = totalBefore > 0 ? (totalSaved / totalBefore) * 100 : undefined;
-    
-    const optimizationReport: OptimizationReportPublic = {
+  }
+
+  return {
+    messages: optimizedMessages,
+    optimizationReport: report,
+    savingsReport,
+    promptComparison,
+  };
+}
+
+/**
+ * @deprecated Server-side optimization via API. Use local mode instead.
+ */
+async function callServerOptimization(
+  messages: ChatMessage[],
+  path: string,
+  runId: string | undefined,
+  apiEndpoint: string,
+  apiKey: string,
+): Promise<OptimizeAgentMessagesOutput | null> {
+  const response = await fetch(`${apiEndpoint}/chat`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "X-SPECTYRA-API-KEY": apiKey,
+    },
+    body: JSON.stringify({
+      path,
+      provider: "openai",
+      model: "gpt-4o-mini",
+      messages: messages.map(m => ({ role: m.role, content: m.content })),
+      mode: "optimized",
+      conversation_id: runId,
+      optimization_level: 2,
+      dry_run: true,
+    }),
+  });
+
+  if (!response.ok) return null;
+
+  const result = await response.json() as Record<string, any>;
+  let optimizedChatMessages: ChatMessage[] = messages;
+  if (result.prompt_final?.messages) {
+    optimizedChatMessages = result.prompt_final.messages.map((m: any) => ({
+      role: m.role as "system" | "user" | "assistant" | "tool",
+      content: m.content,
+    }));
+  }
+
+  const optimizationsApplied: string[] = result.optimizations_applied || [];
+  const tokenBreakdown = result.token_breakdown || {};
+  const totalSaved = (tokenBreakdown.refpack?.saved || 0) +
+    (tokenBreakdown.phrasebook?.saved || 0) +
+    (tokenBreakdown.codemap?.saved || 0);
+  const totalBefore = tokenBreakdown.refpack?.before ||
+    tokenBreakdown.phrasebook?.before ||
+    tokenBreakdown.codemap?.before || 0;
+
+  return {
+    messages: optimizedChatMessages,
+    optimizationReport: {
       layers: {
         refpack: optimizationsApplied.includes("refpack"),
         phrasebook: optimizationsApplied.includes("phrasebook"),
-        codemap: optimizationsApplied.includes("codemap") || (!!repoContext && path === "code"),
-        semantic_cache: optimizationsApplied.includes("semantic_cache") || 
-                        optimizationsApplied.includes("semantic_cache_hit"),
+        codemap: optimizationsApplied.includes("codemap"),
+        semantic_cache: optimizationsApplied.includes("semantic_cache") ||
+          optimizationsApplied.includes("semantic_cache_hit"),
         cache_hit: optimizationsApplied.includes("semantic_cache_hit"),
       },
       tokens: {
         estimated: result.usage?.estimated || result.mode === "optimized",
         input_before: totalBefore > 0 ? totalBefore : undefined,
-        input_after: (tokenBreakdown.refpack?.after ||
-                     tokenBreakdown.phrasebook?.after ||
-                     tokenBreakdown.codemap?.after) || undefined,
+        input_after: (tokenBreakdown.refpack?.after || tokenBreakdown.phrasebook?.after || tokenBreakdown.codemap?.after) || undefined,
         saved: totalSaved > 0 ? totalSaved : undefined,
-        pct_saved: pctSaved,
+        pct_saved: totalBefore > 0 ? (totalSaved / totalBefore) * 100 : undefined,
       },
       spectral: result.spectral_debug ? {
         nNodes: result.spectral_debug.nNodes,
@@ -262,38 +372,9 @@ export async function optimizeAgentMessages(
         stabilityIndex: result.spectral_debug.stabilityIndex,
         lambda2: result.spectral_debug.lambda2,
       } : undefined,
-    };
-    
-    return {
-      messages: optimizedChatMessages,
-      optimizationReport,
-      cacheKey: result.debug_internal?.cache?.key,
-      cacheHit: result.debug_internal?.cache?.hit || false,
-      debugInternal: result.debug_internal,
-    };
-  } catch (error) {
-    // Fallback to local CodeMap-only optimization
-    console.warn("API optimization failed, using local CodeMap only:", error);
-    
-    let optimizedMessages = [...messages];
-    if (repoContext && path === "code") {
-      optimizedMessages = injectCodeMap(optimizedMessages, repoContext);
-    }
-    
-    return {
-      messages: optimizedMessages,
-      optimizationReport: {
-        layers: {
-          refpack: false,
-          phrasebook: false,
-          codemap: !!repoContext && path === "code",
-          semantic_cache: false,
-          cache_hit: false,
-        },
-        tokens: {
-          estimated: false,
-        },
-      },
-    };
-  }
+    },
+    cacheKey: result.debug_internal?.cache?.key,
+    cacheHit: result.debug_internal?.cache?.hit || false,
+    debugInternal: result.debug_internal,
+  };
 }

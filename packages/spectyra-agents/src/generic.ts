@@ -5,7 +5,7 @@
  * Provides a generic wrapper that works with any message format.
  */
 
-import type { GenericMessage, RepoContext, OptimizationReportPublic } from "./types";
+import type { GenericMessage, RepoContext, OptimizationReportPublic, SpectyraRunMode } from "./types";
 import { optimizeAgentMessages, type ChatMessage } from "./core/optimizeAgentMessages";
 
 /**
@@ -54,7 +54,12 @@ export interface WrapGenericAgentLoopConfig<TReq, TRes> {
    * Mode: auto (detect from context), code, or chat
    */
   mode?: "auto" | "code" | "chat";
-  
+
+  /**
+   * Run mode: off | observe | on
+   */
+  runMode?: SpectyraRunMode;
+
   /**
    * Run ID for tracking
    */
@@ -151,34 +156,27 @@ export async function wrapGenericAgentLoop<TReq, TRes>(
     callProvider,
     repoContext,
     mode = "auto",
+    runMode,
     runId,
     spectyraConfig,
   } = cfg;
-  
+
   return async (req: TReq): Promise<TRes> => {
-    // Extract messages from request
     const originalMessages = toMessages(req);
-    
-    // Convert to internal format
     const chatMessages = toChatMessages(originalMessages);
-    
-    // Optimize messages
+
     const optimized = await optimizeAgentMessages({
       messages: chatMessages,
       repoContext,
       mode,
+      runMode,
       runId,
       apiEndpoint: spectyraConfig?.apiEndpoint,
       apiKey: spectyraConfig?.apiKey,
     });
-    
-    // Convert back to generic format
+
     const optimizedMessages = fromChatMessages(optimized.messages, originalMessages);
-    
-    // Reconstruct request with optimized messages
     const optimizedReq = fromMessages(optimizedMessages, req);
-    
-    // Call provider with optimized request
     return await callProvider(optimizedReq);
   };
 }

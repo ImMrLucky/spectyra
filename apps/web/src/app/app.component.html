@@ -37,7 +37,6 @@
     <mat-sidenav-container class="sidenav-container">
       <!-- Sidebar Navigation -->
       <mat-sidenav
-        *ngIf="isAuthenticated"
         #sidenav
         [(opened)]="sidebarOpen"
         mode="side"
@@ -49,7 +48,7 @@
           <ng-container *ngFor="let item of navItems">
             <a
               mat-list-item
-              *ngIf="!item.adminOnly || showAdminLink"
+              *ngIf="(!item.requiresAuth || isAuthenticated) && (!item.adminOnly || showAdminLink)"
               [routerLink]="item.route"
               routerLinkActive="active"
               [routerLinkActiveOptions]="{ exact: item.route === '/overview' }"

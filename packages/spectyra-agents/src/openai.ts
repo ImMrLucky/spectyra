@@ -5,7 +5,7 @@
  * Supports both chat.completions and newer Agents API patterns.
  */
 
-import type { OpenAILikeMessage, RepoContext, OptimizationReportPublic } from "./types";
+import type { OpenAILikeMessage, RepoContext, OptimizationReportPublic, SpectyraRunMode, SavingsReport, PromptComparison } from "./types";
 import { optimizeAgentMessages, type ChatMessage } from "./core/optimizeAgentMessages";
 
 /**
@@ -23,6 +23,7 @@ export interface WrapOpenAIInputInput {
   messages: OpenAILikeMessage[];
   repoContext?: RepoContext;
   mode?: "auto" | "code" | "chat";
+  runMode?: SpectyraRunMode;
   runId?: string;
   config?: OpenAIWrapperConfig;
 }
@@ -33,6 +34,8 @@ export interface WrapOpenAIInputInput {
 export interface WrapOpenAIInputOutput {
   messages: OpenAILikeMessage[];
   optimizationReport: OptimizationReportPublic;
+  savingsReport?: SavingsReport;
+  promptComparison?: PromptComparison;
   cacheKey?: string;
   cacheHit?: boolean;
 }
@@ -126,27 +129,27 @@ function fromChatMessages(chatMessages: ChatMessage[], originalMessages: OpenAIL
 export async function wrapOpenAIInput(
   input: WrapOpenAIInputInput
 ): Promise<WrapOpenAIInputOutput> {
-  const { messages, repoContext, mode = "auto", runId, config } = input;
-  
-  // Convert to internal format
+  const { messages, repoContext, mode = "auto", runMode, runId, config } = input;
+
   const chatMessages = toChatMessages(messages);
-  
-  // Optimize messages
+
   const optimized = await optimizeAgentMessages({
     messages: chatMessages,
     repoContext,
     mode,
+    runMode,
     runId,
     apiEndpoint: config?.apiEndpoint,
     apiKey: config?.apiKey,
   });
-  
-  // Convert back to OpenAI format
+
   const optimizedOpenAIMessages = fromChatMessages(optimized.messages, messages);
-  
+
   return {
     messages: optimizedOpenAIMessages,
     optimizationReport: optimized.optimizationReport,
+    savingsReport: optimized.savingsReport,
+    promptComparison: optimized.promptComparison,
     cacheKey: optimized.cacheKey,
     cacheHit: optimized.cacheHit,
   };

@@ -1,105 +1,104 @@
 <div class="container">
   <div class="page-header">
     <h1>Integrations</h1>
-    <p class="subtitle">Choose your architecture and get started in minutes</p>
+    <p class="subtitle">Choose how to integrate Spectyra. All paths keep inference direct to your provider.</p>
   </div>
 
-  <!-- Scenario Cards -->
-  <div class="scenarios-section">
-    <h2>Pick Your Architecture</h2>
-    <div class="scenarios-grid">
-      <div
-        *ngFor="let scenario of scenarios"
-        class="scenario-card"
-        [class.selected]="selectedScenario?.id === scenario.id"
-        (click)="selectScenario(scenario)"
-      >
-        <div class="scenario-header">
-          <h3>{{ scenario.name }}</h3>
-          <span class="scenario-badge" *ngIf="scenario.id === 'claude-agent-sdk-vm'">Recommended</span>
-        </div>
-        <p class="scenario-description">{{ scenario.description }}</p>
-        <div class="scenario-meta">
-          <div class="meta-item">
-            <strong>When to use:</strong>
-            <p>{{ scenario.when_to_use }}</p>
-          </div>
-        </div>
+  <!-- Integration Cards -->
+  <div class="scenarios-grid">
+    <div
+      *ngFor="let card of cards"
+      class="scenario-card"
+      [class.selected]="selectedCard?.id === card.id"
+      [class.deprecated]="card.id === 'legacy-remote-gateway'"
+      (click)="selectCard(card)"
+    >
+      <div class="scenario-header">
+        <h3>{{ card.name }}</h3>
+        <span class="scenario-badge" *ngIf="card.recommended">Recommended</span>
+        <span class="scenario-badge deprecated-badge" *ngIf="card.id === 'legacy-remote-gateway'">Deprecated</span>
+      </div>
+      <p class="scenario-description">{{ card.category }}</p>
+
+      <!-- At-a-glance labels -->
+      <div class="glance-labels">
+        <span class="glance-label" [class.safe]="!card.requiresCodeChanges" [class.warn]="card.requiresCodeChanges">
+          {{ card.requiresCodeChanges ? 'Code changes required' : 'No code changes' }}
+        </span>
+        <span class="glance-label" [class.safe]="!card.promptLeavesEnvironment" [class.warn]="card.promptLeavesEnvironment">
+          {{ card.promptLeavesEnvironment ? 'Prompts leave environment' : 'Prompts stay local' }}
+        </span>
+        <span class="glance-label safe">{{ card.providerCallPath }}</span>
+        <span class="glance-label safe">Telemetry: {{ card.telemetryDefault }}</span>
+        <span class="glance-label safe">Best first mode: {{ card.recommendedFirstMode }}</span>
       </div>
     </div>
   </div>
 
-  <!-- Selected Scenario Details -->
-  <div *ngIf="selectedScenario" class="scenario-details">
+  <!-- Selected Card Detail -->
+  <div *ngIf="selectedCard" class="scenario-details">
     <div class="card">
       <div class="card-header">
-        <h2>{{ selectedScenario.name }}</h2>
-        <div class="card-actions">
-          <button class="btn btn-sm btn-secondary" (click)="toggleDetailed()">
-            {{ showDetailed ? 'Hide' : 'Show' }} Detailed Guide
-          </button>
-          <button class="btn btn-sm btn-primary" (click)="verifyIntegration(selectedScenario)">
-            Verify Integration
-          </button>
-        </div>
+        <h2>{{ selectedCard.name }}</h2>
       </div>
 
-      <!-- What Spectyra Controls -->
+      <!-- Security -->
       <div class="section">
-        <h3>What Spectyra Controls</h3>
+        <h3>Security &amp; Data Handling</h3>
         <ul class="controls-list">
-          <li *ngFor="let control of selectedScenario.what_spectyra_controls">{{ control }}</li>
+          <li *ngFor="let note of selectedCard.securityNotes">{{ note }}</li>
         </ul>
       </div>
 
-      <!-- Quickstart -->
+      <!-- Setup -->
       <div class="section">
+        <h3>Setup Steps</h3>
+        <ol class="setup-steps">
+          <li *ngFor="let step of selectedCard.setupSteps">{{ step }}</li>
+        </ol>
+      </div>
+
+      <!-- Quickstart code -->
+      <div class="section" *ngIf="selectedCard.quickstart">
         <div class="section-header">
-          <h3>{{ selectedScenario.quickstart.title }}</h3>
-          <button
-            class="btn btn-sm btn-secondary"
-            (click)="copyCode(selectedScenario.quickstart.code, selectedScenario.id + '-quickstart')"
-          >
-            {{ copiedCode === selectedScenario.id + '-quickstart' ? '✓ Copied' : 'Copy' }}
-          </button>
+          <h3>Quick Start</h3>
+          <button class="btn btn-sm btn-secondary" (click)="copyCode(selectedCard.quickstart.code)">Copy</button>
         </div>
         <div class="code-block">
-          <pre><code [class]="'language-' + selectedScenario.quickstart.language">{{ selectedScenario.quickstart.code }}</code></pre>
+          <pre><code>{{ selectedCard.quickstart.code }}</code></pre>
         </div>
       </div>
 
-      <!-- Detailed Guide (Expandable) -->
-      <div class="section" *ngIf="showDetailed && selectedScenario.detailed_guide">
-        <h3>Detailed Guide</h3>
+      <!-- Verification -->
+      <div class="section">
+        <h3>How to Verify</h3>
+        <ul class="controls-list">
+          <li *ngFor="let step of selectedCard.verificationSteps">{{ step }}</li>
+        </ul>
+      </div>
+
+      <!-- OpenClaw specific -->
+      <div class="section" *ngIf="selectedCard.id === 'local-companion'">
+        <h3>OpenClaw / Local Companion</h3>
         <div class="guide-content">
           <div class="guide-item">
-            <strong>Where does Spectyra run?</strong>
-            <p>{{ selectedScenario.detailed_guide.where_runs }}</p>
+            <strong>No code integration required</strong>
+            <p>Spectyra runs locally beside OpenClaw-like tools. Point your tool to the Local Companion endpoint.</p>
           </div>
           <div class="guide-item">
-            <strong>What changes in code?</strong>
-            <p>{{ selectedScenario.detailed_guide.code_changes }}</p>
+            <strong>Localhost endpoint</strong>
+            <p>http://127.0.0.1:4111/v1</p>
           </div>
           <div class="guide-item">
-            <strong>What data is sent to Spectyra?</strong>
-            <p>{{ selectedScenario.detailed_guide.data_sent }}</p>
+            <strong>Provider key stays on your machine</strong>
+            <p>Set your provider key as an environment variable. It is never uploaded to Spectyra cloud.</p>
           </div>
           <div class="guide-item">
-            <strong>How does auth work?</strong>
-            <p>{{ selectedScenario.detailed_guide.auth_works }}</p>
-          </div>
-          <div class="guide-item">
-            <strong>How to verify it works?</strong>
-            <p>{{ selectedScenario.detailed_guide.verify_works }}</p>
+            <strong>Observe first, then on</strong>
+            <p>Start in observe mode to see projected savings without modifying prompts. Switch to on when ready.</p>
           </div>
         </div>
       </div>
     </div>
-  </div>
-
-  <!-- Empty State -->
-  <div *ngIf="!selectedScenario" class="empty-state">
-    <h3>Select an integration scenario to get started</h3>
-    <p>Choose from the cards above to see quickstart code and detailed guides.</p>
   </div>
 </div>

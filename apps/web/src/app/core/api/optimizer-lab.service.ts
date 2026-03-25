@@ -144,17 +144,14 @@ export class OptimizerLabService {
    */
   runOptimization(request: OptimizeLabRequest): Observable<OptimizeLabResponse> {
     return this.http.post<OptimizeLabResponse>(
-      `${this.apiUrl}/admin/optimize`,
+      `${this.apiUrl}/observe/optimize`,
       request
     );
   }
 
-  /**
-   * Check health of the optimizer lab endpoint
-   */
   checkHealth(): Observable<{ status: string; timestamp: string }> {
     return this.http.get<{ status: string; timestamp: string }>(
-      `${this.apiUrl}/admin/optimize/health`
+      `${this.apiUrl}/observe/optimize/health`
     );
   }
 }

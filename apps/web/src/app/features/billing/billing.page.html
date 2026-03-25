@@ -1,56 +1,148 @@
 <div class="container">
-  <h1>Billing</h1>
-  <p class="subtitle">Manage your organization's subscription and billing</p>
-  
+  <h1>Plan &amp; Licensing</h1>
+  <p class="subtitle">Manage your plan, trial status, and Desktop / Companion license keys</p>
+
   <div *ngIf="loading" class="loading">
-    <p>Loading billing information...</p>
+    <p>Loading...</p>
   </div>
-  
-  <div *ngIf="!loading && status" class="billing-content">
-    <!-- Trial Status -->
-    <div class="card" *ngIf="status.trial_active">
-      <h2>Trial Active</h2>
-      <p class="trial-info">
-        Your 7-day trial ends on <strong>{{ formatDate(status.trial_ends_at) }}</strong>
-      </p>
-      <p class="trial-days" *ngIf="daysRemaining >= 0">
-        <span class="days-badge">{{ daysRemaining }}</span> day{{ daysRemaining !== 1 ? 's' : '' }} remaining
-      </p>
-      <button class="btn-primary" (click)="upgrade()" [disabled]="upgrading">
-        {{ upgrading ? 'Processing...' : 'Upgrade to Subscription' }}
+
+  <div *ngIf="!loading && entitlement" class="billing-content">
+
+    <!-- Plan & Trial -->
+    <div class="card" [ngClass]="{
+      'active': entitlement.licenseStatus === 'valid',
+      'expired': entitlement.licenseStatus === 'expired'
+    }">
+      <h2>{{ entitlement.plan | titlecase }} Plan</h2>
+
+      <div *ngIf="entitlement.trialState === 'active'" class="trial-info">
+        <p>
+          Trial active — <span class="days-badge">{{ daysRemaining }}</span>
+          day{{ daysRemaining !== 1 ? 's' : '' }} remaining
+          (ends {{ formatDate(entitlement.trialEndsAt) }})
+        </p>
+      </div>
+
+      <div *ngIf="entitlement.trialState === 'expired' && entitlement.plan === 'free'" class="error-message">
+        Your trial has ended. Subscribe to unlock unlimited optimized runs.
+      </div>
+
+      <div *ngIf="entitlement.licenseStatus === 'valid' && entitlement.trialState !== 'active'" class="success-message">
+        Active subscription — all features enabled.
+      </div>
+
+      <!-- Optimized Run Usage -->
+      <div class="run-usage" *ngIf="entitlement.optimizedRunsLimit !== null">
+        <h3>Optimized Runs (mode = on)</h3>
+        <div class="usage-bar-wrapper">
+          <div class="usage-bar">
+            <div class="usage-bar-fill"
+                 [style.width.%]="runUsagePercent"
+                 [ngClass]="{ 'warn': runUsagePercent > 80, 'critical': runUsagePercent >= 100 }">
+            </div>
+          </div>
+          <span class="usage-text">
+            {{ entitlement.optimizedRunsUsed }} / {{ entitlement.optimizedRunsLimit }}
+          </span>
+        </div>
+        <p class="usage-note">
+          Observe mode and pass-through are always free.
+          Only "on" runs count toward your limit.
+        </p>
+      </div>
+
+      <div *ngIf="entitlement.optimizedRunsLimit === null" class="success-message">
+        Unlimited optimized runs
+      </div>
+
+      <button class="btn-primary"
+              *ngIf="entitlement.plan === 'free'"
+              (click)="upgrade()"
+              [disabled]="upgrading">
+        {{ upgrading ? 'Processing...' : 'Upgrade' }}
       </button>
     </div>
-    
-    <!-- Trial Expired -->
-    <div class="card expired" *ngIf="!status.trial_active && !status.subscription_active">
-      <h2>Trial Expired</h2>
-      <p class="error-message">
-        Your trial has ended. Subscribe to continue using Spectyra's runtime control plane.
-      </p>
-      <button class="btn-primary" (click)="upgrade()" [disabled]="upgrading">
-        {{ upgrading ? 'Processing...' : 'Subscribe Now' }}
-      </button>
-    </div>
-    
-    <!-- Active Subscription -->
-    <div class="card active" *ngIf="status.subscription_active">
-      <h2>Active Subscription</h2>
-      <p class="success-message">
-        Your organization has an active subscription.
-      </p>
-      <p class="subscription-status">
-        Status: <strong>{{ status.subscription_status }}</strong>
-      </p>
-    </div>
-    
-    <!-- Organization Info -->
+
+    <!-- Feature Access -->
     <div class="card info">
+      <h3>Feature Access</h3>
+      <div class="feature-grid">
+        <div class="feature-item">
+          <span class="feature-icon" [class.enabled]="entitlement.sdkEnabled">●</span>
+          SDK Integration
+        </div>
+        <div class="feature-item">
+          <span class="feature-icon" [class.enabled]="entitlement.desktopAppEnabled">●</span>
+          Desktop App
+        </div>
+        <div class="feature-item">
+          <span class="feature-icon" [class.enabled]="entitlement.cloudAnalyticsEnabled">●</span>
+          Cloud Analytics Sync
+        </div>
+        <div class="feature-item">
+          <span class="feature-icon enabled">●</span>
+          Observe Mode (always free)
+        </div>
+      </div>
+    </div>
+
+    <!-- License Keys -->
+    <div class="card">
+      <h2>Desktop / Companion License Keys</h2>
+      <p class="section-desc">
+        License keys let the Desktop App and Local Companion validate your
+        entitlement offline. Generate one per device.
+      </p>
+
+      <!-- New key banner -->
+      <div class="new-key-banner" *ngIf="newLicenseKey">
+        <p><strong>Save this key — it will not be shown again.</strong></p>
+        <code class="license-key-display">{{ newLicenseKey }}</code>
+        <button class="btn-secondary" (click)="copyKey()">Copy</button>
+      </div>
+
+      <!-- Generate form -->
+      <div class="generate-form">
+        <input type="text"
+               [(ngModel)]="newDeviceName"
+               placeholder="Device name (optional)"
+               class="input" />
+        <button class="btn-primary"
+                (click)="generateKey()"
+                [disabled]="generatingKey">
+          {{ generatingKey ? 'Generating...' : 'Generate License Key' }}
+        </button>
+      </div>
+
+      <!-- Active keys -->
+      <div *ngIf="activeKeys.length > 0" class="key-list">
+        <h3>Active Keys</h3>
+        <div class="key-row" *ngFor="let key of activeKeys">
+          <div class="key-info">
+            <span class="key-prefix">{{ key.key_prefix }}…</span>
+            <span class="key-device" *ngIf="key.device_name">{{ key.device_name }}</span>
+            <span class="key-meta">Created {{ formatDate(key.created_at) }}</span>
+            <span class="key-meta" *ngIf="key.last_validated_at">
+              Last validated {{ formatDate(key.last_validated_at) }}
+            </span>
+          </div>
+          <button class="btn-danger-sm" (click)="revokeKey(key.id)">Revoke</button>
+        </div>
+      </div>
+
+      <p *ngIf="activeKeys.length === 0" class="empty-state">
+        No active license keys. Generate one to use with the Desktop App.
+      </p>
+    </div>
+
+    <!-- Organization Info -->
+    <div class="card info" *ngIf="billingStatus?.org">
       <h3>Organization</h3>
-      <p><strong>Name:</strong> {{ status.org.name }}</p>
-      <p><strong>ID:</strong> {{ status.org.id }}</p>
+      <p><strong>Name:</strong> {{ billingStatus.org.name }}</p>
+      <p><strong>ID:</strong> {{ billingStatus.org.id }}</p>
     </div>
   </div>
-  
+
   <div *ngIf="error" class="error">
     <p>{{ error }}</p>
   </div>

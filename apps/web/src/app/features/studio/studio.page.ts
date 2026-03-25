@@ -1,7 +1,7 @@
 /**
  * Spectyra Studio (Scenarios v1)
  *
- * Owner/admin demo UI for running Raw vs Spectyra side-by-side.
+ * Public demo UI for running Raw vs Spectyra side-by-side.
  * Reuses the Optimizer Lab visual pattern (metrics + compare panes).
  */
 
@@ -12,13 +12,11 @@ import { RouterLink } from '@angular/router';
 import { MatIconModule } from '@angular/material/icon';
 import { StudioService, StudioRunResult, StudioRunRequest } from './studio.service';
 import { STUDIO_SCENARIOS, StudioScenarioDef, StudioScenarioId } from './studio-scenarios.registry';
-import { SupabaseService } from '../../services/supabase.service';
-import { AuthService } from '../../core/auth/auth.service';
-import { OwnerService } from '../../core/services/owner.service';
 import { SnackbarService } from '../../core/services/snackbar.service';
 
 type ResultTab = 'metrics' | 'before' | 'after' | 'diff';
 type StudioRunMode = 'scenario' | 'live';
+type SpectyraRunMode = 'off' | 'observe' | 'on';
 
 interface StudioAdvancedOptions {
   showToolCalls: boolean;
@@ -53,10 +51,8 @@ interface StudioAdvancedOptions {
   styleUrls: ['./studio.page.scss'],
 })
 export class StudioPage implements OnInit {
-  // Auth
+  // Loading state (Studio itself is public)
   loading = true;
-  isAuthenticated = false;
-  isOwner = false;
   error: string | null = null;
 
   // Scenario
@@ -74,6 +70,7 @@ export class StudioPage implements OnInit {
   secondary = '';
   showAdvanced = false;
   runMode: StudioRunMode = 'scenario';
+  spectyraMode: SpectyraRunMode = 'observe';
   advanced: StudioAdvancedOptions = {
     showToolCalls: false,
     showPolicyEvaluation: false,
@@ -174,32 +171,12 @@ export class StudioPage implements OnInit {
 
   constructor(
     private studio: StudioService,
-    private supabase: SupabaseService,
-    private auth: AuthService,
-    private owner: OwnerService,
     private snackbar: SnackbarService
   ) {}
 
   ngOnInit() {
     this.applyDefaults();
-    this.supabase.getSession().subscribe(async (session) => {
-      const token = await this.supabase.getAccessToken();
-      const hasApiKey = !!this.auth.currentApiKey;
-      this.isAuthenticated = !!session || !!token || hasApiKey;
-      this.loading = false;
-      if (!this.isAuthenticated) {
-        this.error = 'Please log in to access Spectyra Studio';
-        return;
-      }
-      this.owner.getIsOwner().subscribe((isOwner) => {
-        this.isOwner = isOwner;
-        if (!isOwner) {
-          this.error = 'Access denied: Admin only. This page is for organization owners.';
-        } else {
-          this.error = null;
-        }
-      });
-    });
+    this.loading = false;
   }
 
   applyDefaults() {

@@ -239,4 +239,22 @@ export class ApiClientService {
       cancel_url: cancelUrl,
     });
   }
+
+  getEntitlement(): Observable<any> {
+    return this.dashboardCall<any>('GET', `${this.baseUrl}/auth/entitlement`);
+  }
+
+  getLicenseKeys(): Observable<any[]> {
+    return this.dashboardCall<any[]>('GET', `${this.baseUrl}/license/keys`);
+  }
+
+  generateLicenseKey(deviceName?: string): Observable<any> {
+    return this.dashboardCall<any>('POST', `${this.baseUrl}/license/generate`, {
+      device_name: deviceName || null,
+    });
+  }
+
+  revokeLicenseKey(id: string): Observable<any> {
+    return this.dashboardCall<any>('DELETE', `${this.baseUrl}/license/keys/${id}`);
+  }
 }

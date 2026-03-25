@@ -19,6 +19,7 @@ interface NavItem {
   route: string;
   icon: string;
   adminOnly?: boolean;
+  requiresAuth?: boolean;
 }
 
 @Component({
@@ -54,17 +55,25 @@ export class AppComponent implements OnInit, OnDestroy, AfterViewInit {
   private supabaseSub?: Subscription;
 
   navItems: NavItem[] = [
-    { label: 'Overview', route: '/overview', icon: 'dashboard' },
-    { label: 'Runs', route: '/runs', icon: 'play_circle' },
-    { label: 'Policies', route: '/policies', icon: 'security' },
-    { label: 'Integrations', route: '/integrations', icon: 'extension' },
-    { label: 'Projects', route: '/projects', icon: 'folder' },
-    { label: 'Usage & Billing', route: '/usage', icon: 'account_balance' },
-    { label: 'Audit Logs', route: '/audit', icon: 'history' },
-    { label: 'Settings', route: '/settings', icon: 'settings' },
-    { label: 'Admin', route: '/admin', icon: 'admin_panel_settings', adminOnly: true },
-    { label: 'Optimizer Lab', route: '/admin/optimizer-lab', icon: 'science', adminOnly: true },
-    { label: 'Spectyra Studio', route: '/admin/studio', icon: 'auto_awesome', adminOnly: true },
+    // Product features — visible to all authenticated users
+    { label: 'Studio', route: '/studio', icon: 'auto_awesome', requiresAuth: true },
+    { label: 'Observe', route: '/observe', icon: 'visibility', requiresAuth: true },
+    { label: 'Integrations', route: '/integrations', icon: 'extension', requiresAuth: true },
+
+    // Analytics & management
+    { label: 'Overview', route: '/overview', icon: 'dashboard', requiresAuth: true },
+    { label: 'Runs', route: '/runs', icon: 'play_circle', requiresAuth: true },
+    { label: 'Usage', route: '/usage', icon: 'account_balance', requiresAuth: true },
+    { label: 'Plan & Licensing', route: '/billing', icon: 'verified', requiresAuth: true },
+
+    // Settings
+    { label: 'Projects', route: '/projects', icon: 'folder', requiresAuth: true },
+    { label: 'Policies', route: '/policies', icon: 'security', requiresAuth: true },
+    { label: 'Audit Logs', route: '/audit', icon: 'history', requiresAuth: true },
+    { label: 'Settings', route: '/settings', icon: 'settings', requiresAuth: true },
+
+    // Admin (actual admin only — server enforced)
+    { label: 'Admin', route: '/admin', icon: 'admin_panel_settings', adminOnly: true, requiresAuth: true },
   ];
 
   constructor(

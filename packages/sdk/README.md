@@ -1,277 +1,227 @@
-# Spectyra SDK (`@spectyra/sdk`)
+# @spectyra/sdk
 
-SDK-first agent runtime control for **routing**, **budgets**, **tool gating**, and **telemetry**.
-
-This package is designed for **agent frameworks** (including Claude Agent SDK patterns) and for teams who want:
-
-- **Better first actions** (e.g. “run tests first” becomes a strict tool action)
-- **Less looping / file thrashing** in coding flows
-- **Budget + tool policy control** without rewriting your agent
-- Optional **API control plane** mode for centralized governance and telemetry
+Local-first LLM cost optimization SDK.
+Wrap your existing provider calls — Spectyra optimizes messages locally
+and your code calls the provider directly. No proxy, no cloud dependency.
 
 ---
 
-## Requirements
-
-- **Node.js 18+**
-- ESM environment (this package ships as ESM)
-
----
-
-## Installation
+## Install
 
 ```bash
 npm install @spectyra/sdk
-# or
-pnpm add @spectyra/sdk
-# or
-yarn add @spectyra/sdk
 ```
 
----
-
-## What Spectyra does (and does not do)
-
-- **Does**: return an options object (model/budget/tools/permissions) and/or call Spectyra API to get them
-- **Does**: provide a “behavior kernel” (operating rules) that keeps agents grounded (especially for coding)
-- **Does not**: replace your LLM provider call by default
-- **Does not**: require a proxy (proxy is a separate product for IDE-level routing)
-
-If you’re using an agent framework, the integration is:
-
-> **Where you would pass agent options, get them from Spectyra instead.**
+**Requirements:** Node.js 18+, ESM environment.
 
 ---
 
-## Quick Start (Local Mode)
-
-Local mode is synchronous and requires **no API**.
+## Quick Start
 
 ```ts
 import { createSpectyra } from "@spectyra/sdk";
+import { createOpenAIAdapter } from "@spectyra/sdk/adapters/openai";
+import OpenAI from "openai";
 
-const spectyra = createSpectyra({ mode: "local" });
+const spectyra = createSpectyra({ runMode: "on" });
+const openai = new OpenAI(); // uses your OPENAI_API_KEY
 
-const ctx = {
-  runId: crypto.randomUUID(),
-  budgetUsd: 2.5,
-  tags: { project: "my-app" },
-};
+const result = await spectyra.complete(
+  {
+    client: openai,
+    model: "gpt-4o-mini",
+    messages: [{ role: "user", content: "Summarize this document..." }],
+  },
+  createOpenAIAdapter(openai),
+);
 
-const prompt = "Fix the failing tests. Run tests first and paste output.";
-const options = spectyra.agentOptions(ctx, prompt);
-
-// Pass options into your agent framework
-// agent.query({ prompt, options })
-console.log(options);
+console.log(result.response);          // provider response
+console.log(result.savingsReport);     // { beforeTokens, afterTokens, estimatedSavingsUsd, ... }
+console.log(result.promptComparison);  // before/after messages for debugging
 ```
 
 ---
 
-## Quick Start (API Mode / Control Plane)
+## How It Works
 
-API mode fetches options from your Spectyra deployment and can stream events for telemetry.
+1. **You create a Spectyra instance** with a run mode (`off`, `observe`, `on`).
+2. **You call `spectyra.complete()`**, passing your provider client, model,
+   and messages plus a provider adapter.
+3. **Spectyra optimizes messages locally** (whitespace normalization,
+   deduplication, context trimming) — nothing leaves your machine.
+4. **The adapter calls the provider directly** with your API key.
+5. **You get back** the provider response plus a `SavingsReport`.
+
+```
+Your code → spectyra.complete() → local optimization → provider adapter → LLM provider
+                                                                              ↓
+                                                        SavingsReport ← response
+```
+
+---
+
+## Run Modes
+
+| Mode | Optimization | Provider Call | Use Case |
+|------|-------------|---------------|----------|
+| `off` | None | Direct | Pass-through / debugging |
+| `observe` | Applied locally | **None** | Estimate savings without spending tokens |
+| `on` | Applied locally | Direct (optimized messages) | Production — real savings |
 
 ```ts
-import { createSpectyra } from "@spectyra/sdk";
-
-const spectyra = createSpectyra({
-  mode: "api",
-  endpoint: process.env.SPECTYRA_ENDPOINT || "https://spectyra.up.railway.app/v1",
-  apiKey: process.env.SPECTYRA_API_KEY,
-});
-
-const ctx = { runId: crypto.randomUUID(), budgetUsd: 5.0 };
-
-const promptMeta = {
-  promptChars: 10000,
-  path: "code",
-  repoId: "my-repo",
-  language: "typescript",
-};
-
-const response = await spectyra.agentOptionsRemote(ctx, promptMeta);
-// response.options is safe to pass into your agent
+const spectyra = createSpectyra({ runMode: "observe" }); // safe default
 ```
 
-**Required env vars (API mode):**
-
-- `SPECTYRA_API_KEY`
-- `SPECTYRA_ENDPOINT` (optional; defaults to Spectyra hosted URL)
-
 ---
 
-## “Run tests first” behavior (coding flows)
+## Provider Adapters
 
-Spectyra’s coding flow state compiler is designed to turn “run tests/lint” into an unambiguous first action.
-
-If the user asks:
-
-> “Run the full test suite and paste output”
-
-Spectyra’s generated operating rules require:
-
-- **Call the tool immediately** (`run_terminal_cmd`)
-- **Do NOT read_file first**
-- **Do not narrate** (“Checking …” autopilot stops)
-
-This behavior is enforced in the SCC compiler and is measurable in Spectyra Studio / governance metrics.
-
----
-
-## Claude Agent SDK integration pattern (options injection)
-
-Spectyra does not replace the agent; it produces options that guide it.
+### OpenAI
 
 ```ts
-import { createSpectyra } from "@spectyra/sdk";
-// import { Agent } from "@anthropic-ai/sdk/agent";
+import { createOpenAIAdapter } from "@spectyra/sdk/adapters/openai";
+import OpenAI from "openai";
 
-const spectyra = createSpectyra({ mode: "local" });
+const openai = new OpenAI();
+const adapter = createOpenAIAdapter(openai);
+```
 
-const ctx = { runId: crypto.randomUUID(), budgetUsd: 2.5 };
-const prompt = "Fix the build; run tests first.";
+### Anthropic
 
-const options = spectyra.agentOptions(ctx, prompt);
+```ts
+import { createAnthropicAdapter } from "@spectyra/sdk/adapters/anthropic";
+import Anthropic from "@anthropic-ai/sdk";
 
-// const agent = new Agent({ apiKey: process.env.ANTHROPIC_API_KEY, ...options });
-// const result = await agent.query({ prompt });
+const anthropic = new Anthropic();
+const adapter = createAnthropicAdapter(anthropic);
+```
+
+### Groq (OpenAI-compatible)
+
+```ts
+import { createGroqAdapter } from "@spectyra/sdk/adapters/groq";
+import Groq from "groq-sdk";
+
+const groq = new Groq();
+const adapter = createGroqAdapter(groq);
 ```
 
 ---
 
-## API Reference (high-signal)
+## API Reference
 
-### `createSpectyra(config?: SpectyraConfig)`
+### `createSpectyra(config?)`
 
 Creates a Spectyra instance.
 
-- `mode?: "local" | "api"` (default `"local"`)
-- `endpoint?: string` (required for `"api"`)
-- `apiKey?: string` (required for `"api"`)
-- `defaults?: { budgetUsd?: number; models?: { small?: string; medium?: string; large?: string } }`
+```ts
+const spectyra = createSpectyra({
+  runMode: "on",          // "off" | "observe" | "on" (default: "on")
+  telemetry: "local",     // "off" | "local" | "cloud_redacted"
+  promptSnapshots: "local_only", // "none" | "local_only" | "cloud_opt_in"
+});
+```
 
-### `agentOptions(ctx: SpectyraCtx, prompt: string | PromptMeta): ClaudeAgentOptions`
+### `spectyra.complete(input, adapter)`
 
-Returns agent options synchronously (local heuristics).
+The primary API. Optimizes messages locally, then calls the provider.
 
-### `agentOptionsRemote(ctx: SpectyraCtx, promptMeta: PromptMeta): Promise<AgentOptionsResponse>`
+**Parameters:**
+- `input.client` — Your provider SDK client instance
+- `input.model` — Model name (e.g. `"gpt-4o-mini"`)
+- `input.messages` — Array of `{ role, content }` messages
+- `adapter` — Provider adapter from `createOpenAIAdapter()` etc.
 
-Fetches agent options from Spectyra API.
+**Returns:** `SpectyraCompleteResult`
+- `response` — The raw provider response (or `null` in observe mode)
+- `savingsReport` — `SavingsReport` with token/cost breakdown
+- `promptComparison` — Before/after messages for debugging
+- `mode` — The run mode that was used
 
-### `sendAgentEvent(ctx: SpectyraCtx, event: any): Promise<void>`
+### `spectyra.agentOptions(ctx, prompt)` *(local mode)*
 
-Best-effort telemetry event.
+Returns agent framework options (model selection, tool gating, budget).
+Synchronous, no API call.
 
-### `observeAgentStream(ctx: SpectyraCtx, stream: AsyncIterable<any>): Promise<void>`
+### `spectyra.agentOptionsRemote(ctx, promptMeta)` *(deprecated)*
 
-Observes an agent stream and forwards events automatically.
+Fetches options from Spectyra API. Deprecated — prefer `complete()`.
 
 ---
 
-## Agent options shape (what you pass to the agent)
+## SavingsReport
 
 ```ts
-interface ClaudeAgentOptions {
-  model?: string;
-  maxBudgetUsd?: number;
-  allowedTools?: string[];
-  permissionMode?: "acceptEdits";
-  canUseTool?: (tool: string, input: any) => boolean;
+interface SavingsReport {
+  runMode: SpectyraRunMode;
+  provider: string;
+  model: string;
+  beforeTokens: number;
+  afterTokens: number;
+  tokenReduction: number;       // 0–1 ratio
+  estimatedBeforeCostUsd: number;
+  estimatedAfterCostUsd: number;
+  estimatedSavingsUsd: number;
+  techniquesApplied: string[];  // e.g. ["whitespace_normalize", "dedup_consecutive"]
+  inferencePath: InferencePath;
+  timestamp: string;
 }
 ```
 
 ---
 
-## Local mode decision logic (defaults)
+## Security Defaults
 
-Local mode uses conservative heuristics:
-
-- **Prompt length < 6k chars** → `claude-3-5-haiku-latest`
-- **Prompt length < 20k chars** → `claude-3-5-sonnet-latest`
-- **Prompt length ≥ 20k chars** → `claude-3-7-sonnet-latest`
-
-Defaults:
-
-- Budget: `$2.5`
-- Tools: `["Read", "Edit", "Bash", "Glob"]`
-- Permissions: `"acceptEdits"`
+| Concern | Default |
+|---------|---------|
+| Inference path | Direct to provider |
+| Provider keys | Your key, never stored by Spectyra |
+| Prompt storage | Local only (never uploaded) |
+| Telemetry | Local (no cloud sync) |
+| Cloud relay | None |
 
 ---
 
-## Tool gating (local)
+## Agent Wrappers
 
-The default `canUseTool` gate:
-
-- Allows: Read/Edit/Glob and safe Bash
-- Blocks obvious exfiltration/networking commands (e.g. `curl`, `wget`, `ssh`, `scp`, `nc`, `telnet`)
-
-You can override tool gating by replacing `canUseTool` in your agent options.
-
----
-
-## Legacy: Remote chat optimization (`SpectyraClient`)
-
-`SpectyraClient` exists for legacy chat-style integration. It is **deprecated** for agentic usage; prefer `createSpectyra()`.
+For agent framework integration, see `@spectyra/agents`:
 
 ```ts
-import { SpectyraClient } from "@spectyra/sdk";
+import { wrapOpenAIInput } from "@spectyra/agents";
 
-const client = new SpectyraClient({
-  apiUrl: "https://spectyra.up.railway.app/v1",
-  spectyraKey: process.env.SPECTYRA_API_KEY,
-  provider: "openai",
-  providerKey: process.env.OPENAI_API_KEY,
-});
-
-const response = await client.chat({
-  model: "gpt-4o-mini",
-  messages: [{ role: "user", content: "Hello" }],
-  path: "talk",
-  optimization_level: 3,
+const result = await wrapOpenAIInput({
+  messages,
+  runMode: "observe",
+  apiEndpoint: undefined, // fully local
 });
 ```
 
 ---
 
-## Testing your install (what we recommend)
+## Legacy: `SpectyraClient`
 
-Local mode can be validated without any API keys:
+`SpectyraClient` is deprecated. It routed calls through the Spectyra cloud
+gateway. Prefer `createSpectyra().complete()` for direct-to-provider calls.
 
-```bash
-node -e "import('@spectyra/sdk').then(m=>console.log('✅ exports:',Object.keys(m)))"
+```ts
+// DEPRECATED — routes through Spectyra cloud
+import { SpectyraClient } from "@spectyra/sdk";
+const client = new SpectyraClient({ ... });
 ```
-
-For deeper tests, see `TESTING.md` in the repo.
 
 ---
 
 ## Troubleshooting
 
-### NPM page says “No README”
-
-NPM displays the README from the published tarball. If your currently published version shows no README, publish a new version where `README.md` is included at the package root.
-
-You can verify packaging locally:
+### Verify installation
 
 ```bash
-cd packages/sdk
-npm pack --dry-run
+node -e "import('@spectyra/sdk').then(m => console.log('exports:', Object.keys(m)))"
 ```
 
-Look for `README.md` in the tarball contents.
+### "SDK access is disabled"
 
-### API mode returns 403 “SDK access is disabled”
-
-Your org’s SDK access is controlled by admin settings. Enable SDK access for the org in Spectyra Admin.
-
----
-
-## BYOK (Bring Your Own Key)
-
-- Provider keys are never stored server-side
-- Used only for the duration of a request
-- You control provider billing
+Your org's SDK access is controlled in Settings. An admin can enable it.
 
 ---
 

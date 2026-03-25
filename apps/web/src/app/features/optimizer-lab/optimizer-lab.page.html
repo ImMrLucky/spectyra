@@ -4,25 +4,20 @@
     <p>Loading Optimizer Lab...</p>
   </div>
 
-  <!-- Access denied / not logged in -->
-  <div *ngIf="!loading && !isOwner" class="access-denied">
-    <h2>Optimizer Lab</h2>
-    <div class="error-card">
-      <p>{{ error || 'Access denied' }}</p>
-      <p class="hint" *ngIf="!error?.includes('API key')">This tool requires dashboard login (email/password).</p>
-      <p class="hint" *ngIf="error?.includes('API key')">Sign in with your account to use Optimizer Lab.</p>
-      <a routerLink="/login" [queryParams]="{ returnUrl: '/admin/optimizer-lab' }" class="login-link">Log in</a>
-    </div>
-  </div>
-
   <!-- Main content -->
-  <div *ngIf="!loading && isOwner" class="lab-content">
+  <div *ngIf="!loading" class="lab-content">
     <header class="lab-header">
-      <h1>Optimizer Lab</h1>
-      <p class="subtitle">Dry-run optimization (no provider calls). Token/cost numbers are estimates.</p>
+      <h1>Observe Mode</h1>
+      <p class="subtitle">Preview projected savings without making provider calls. No API keys required.</p>
       <div class="no-provider-badge">
-        <mat-icon class="badge-icon" aria-hidden="true">lock</mat-icon>
-        <span>No provider calls made • No API keys required</span>
+        <mat-icon class="badge-icon" aria-hidden="true">visibility</mat-icon>
+        <span>No provider call made • No prompt uploaded to Spectyra cloud • Savings are projected</span>
+      </div>
+      <div class="security-badges" style="display:flex;flex-wrap:wrap;gap:6px;margin-top:10px">
+        <span style="display:inline-flex;align-items:center;background:rgba(52,211,153,.1);color:#059669;padding:3px 10px;border-radius:4px;font-size:12px;font-weight:500">Inference: None (dry-run)</span>
+        <span style="display:inline-flex;align-items:center;background:rgba(52,211,153,.1);color:#059669;padding:3px 10px;border-radius:4px;font-size:12px;font-weight:500">Telemetry: Local</span>
+        <span style="display:inline-flex;align-items:center;background:rgba(52,211,153,.1);color:#059669;padding:3px 10px;border-radius:4px;font-size:12px;font-weight:500">Billing: Not applicable</span>
+        <span style="display:inline-flex;align-items:center;background:rgba(52,211,153,.1);color:#059669;padding:3px 10px;border-radius:4px;font-size:12px;font-weight:500">Cloud relay: None</span>
       </div>
     </header>
 

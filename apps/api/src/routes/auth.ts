@@ -25,6 +25,7 @@ import { query, queryOne } from "../services/storage/db.js";
 import { safeLog } from "../utils/redaction.js";
 import { audit } from "../services/audit/audit.js";
 import { requireOrgRole } from "../middleware/requireRole.js";
+import { getEntitlement } from "../services/entitlement.js";
 import type { SupabaseAdminUser } from "../types/supabase.js";
 
 export const authRouter = Router();
@@ -882,5 +883,53 @@ authRouter.delete("/org", requireSpectyraApiKey, optionalProviderKey, async (req
       error: "Internal server error",
       message: error.message || "An unexpected error occurred while deleting the organization"
     });
+  }
+});
+
+/**
+ * GET /v1/auth/entitlement
+ *
+ * Returns the current org's entitlement info (plan, trial, limits).
+ * Supports both Supabase JWT and API key auth.
+ */
+authRouter.get("/entitlement", async (req: AuthenticatedRequest, res) => {
+  try {
+    let orgId: string | null = null;
+
+    const authHeader = req.headers.authorization;
+    if (authHeader && authHeader.startsWith("Bearer ")) {
+      await new Promise<void>((resolve) => {
+        requireUserSession(req, res, async () => {
+          if (req.auth?.userId) {
+            const membership = await queryOne<{ org_id: string }>(`
+              SELECT org_id FROM org_memberships WHERE user_id = $1 LIMIT 1
+            `, [req.auth.userId]);
+            if (membership) orgId = membership.org_id;
+          }
+          resolve();
+        }).catch(() => resolve());
+      });
+      if (res.headersSent) return;
+    }
+
+    if (!orgId) {
+      await new Promise<void>((resolve) => {
+        requireSpectyraApiKey(req, res, () => {
+          if (req.context) orgId = req.context.org.id;
+          resolve();
+        }).catch(() => resolve());
+      });
+      if (res.headersSent) return;
+    }
+
+    if (!orgId) {
+      return res.status(401).json({ error: "Not authenticated" });
+    }
+
+    const entitlement = await getEntitlement(orgId);
+    res.json(entitlement);
+  } catch (error: any) {
+    safeLog("error", "Entitlement endpoint error", { error: error.message });
+    res.status(500).json({ error: "Internal server error" });
   }
 });

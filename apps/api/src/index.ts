@@ -11,11 +11,12 @@ import { runsRouter } from "./routes/runs.js";
 import { savingsRouter } from "./routes/savings.js";
 import { adminRouter } from "./routes/admin.js";
 import { optimizerLabHealthRouter, optimizerLabRouter } from "./routes/optimizerLab.js";
-import { studioPublicRouter, studioRouter } from "./routes/studio.js";
+import { studioRouter } from "./routes/studio.js";
 import { proofRouter } from "./routes/proof.js";
 import { replaySimulateRouter } from "./routes/replaySimulate.js";
 import { billingRouter } from "./routes/billing.js";
 import { authRouter } from "./routes/auth.js";
+import { licenseRouter } from "./routes/license.js";
 import { integrationsRouter } from "./routes/integrations.js";
 import { agentRouter } from "./routes/agent.js";
 import { policiesRouter } from "./routes/policies.js";
@@ -99,14 +100,16 @@ app.use("/v1/replay", replayRouter);
 app.use("/v1/runs", runsRouter);
 app.use("/v1/savings", savingsRouter);
 app.use("/v1/admin", adminRouter);
-app.use("/v1/admin", optimizerLabHealthRouter); // GET /optimize/health (public, no auth)
-app.use("/v1/admin", optimizerLabRouter); // Optimizer Lab POST /optimize (any authenticated user)
-app.use("/v1/admin", studioRouter); // Spectyra Studio POST /studio/run (owner only)
-app.use("/v1", studioPublicRouter); // Spectyra Studio POST /studio/run (public)
+app.use("/v1/admin", optimizerLabHealthRouter); // Legacy: GET /optimize/health
+app.use("/v1/admin", optimizerLabRouter); // Legacy: POST /optimize
+app.use("/v1/observe", optimizerLabHealthRouter); // New: GET /v1/observe/health
+app.use("/v1/observe", optimizerLabRouter); // New: POST /v1/observe/optimize
+app.use("/v1", studioRouter); // POST /v1/studio/run (authenticated)
 app.use("/v1/proof", proofRouter);
 app.use("/v1/replay/simulate", replaySimulateRouter);
 app.use("/v1/billing", billingRouter);
 app.use("/v1/auth", authRouter);
+app.use("/v1/license", licenseRouter);
 app.use("/v1/integrations", integrationsRouter);
 app.use("/v1/agent", agentRouter);
 app.use("/v1/policies", policiesRouter);
