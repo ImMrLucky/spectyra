@@ -2,6 +2,8 @@
   base = "apps/web"
   command = "cd ../.. && pnpm install && cd apps/web && pnpm build --configuration production"
   publish = "dist/web/browser"
+  # Desktop installers: place DMG/EXE in src/assets/downloads/ (see .gitignore there).
+  # They are published as /assets/downloads/... — Netlify serves static files before SPA fallback.
 
 [build.environment]
   NODE_VERSION = "20"

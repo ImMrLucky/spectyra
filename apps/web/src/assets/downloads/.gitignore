@@ -1,0 +1,6 @@
+# Drop built installers here; they ship with the Netlify deploy under /assets/downloads/
+*.dmg
+*.exe
+*.msi
+*.zip
+!.gitkeep

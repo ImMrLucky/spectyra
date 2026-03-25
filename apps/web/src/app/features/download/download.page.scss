@@ -33,6 +33,35 @@
   color: #842029;
 }
 
+.platform-row {
+  margin-bottom: 24px;
+
+  &:last-child {
+    margin-bottom: 0;
+  }
+}
+
+.platform-label {
+  margin: 0 0 10px 0;
+  font-size: 15px;
+  font-weight: 600;
+  color: #333;
+}
+
+.platform-hint {
+  margin: 12px 0 0 0;
+  font-size: 13px;
+  color: #666;
+  line-height: 1.5;
+
+  code {
+    font-size: 12px;
+    background: #f1f3f5;
+    padding: 2px 6px;
+    border-radius: 4px;
+  }
+}
+
 .card {
   border: 1px solid #e0e0e0;
   border-radius: 8px;
@@ -77,6 +106,17 @@
   &:hover {
     background: #0069d9;
     color: #fff;
+  }
+}
+
+.btn-secondary {
+  background: #fff;
+  color: #333;
+  border: 1px solid #ccc;
+
+  &:hover {
+    background: #f8f9fa;
+    color: #111;
   }
 }
 

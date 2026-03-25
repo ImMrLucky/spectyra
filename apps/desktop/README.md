@@ -26,10 +26,18 @@ pnpm --filter @spectyra/desktop dev
 
 ## Build installers (for release engineering)
 
+Electron Forge + this pnpm monorepo needs an **isolated deploy** so dependencies resolve correctly. From the **repository root**:
+
 ```bash
-pnpm --filter @spectyra/desktop make
+pnpm desktop:make
 ```
 
-Output: `apps/desktop/out/` (DMG, zip, Squirrel per `forge.config.cjs`).
+This runs `pnpm deploy` into `apps/desktop/deploy-out/` (gitignored), then `electron-forge make` there. Artifacts: `apps/desktop/deploy-out/out/make/` (e.g. `Spectyra.dmg`, zip).
 
-Upload those artifacts to **your** download location (website, S3, license portal). Optional CI template: [`.github/workflows/release-desktop.yml`](../../.github/workflows/release-desktop.yml) — can run in **private** infrastructure; outputs are still uploaded to **your** hosting, not GitHub Releases.
+**Windows portable from macOS:** `pnpm desktop:make:win32` → copy the zip to `apps/web/src/assets/downloads/Spectyra-windows.zip`.
+
+**When to rebuild installers:** [RELEASING.md](./RELEASING.md).
+
+To ship with the Netlify Angular UI, copy artifacts into `apps/web/src/assets/downloads/` (see `desktopDownloadsSameOrigin` in the web `environment`), then deploy the web app.
+
+CI: [`.github/workflows/release-desktop.yml`](../../.github/workflows/release-desktop.yml) (macOS + Windows).

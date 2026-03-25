@@ -1,19 +1,15 @@
-# Builds installable Desktop artifacts (DMG / zip / Squirrel) for upload to YOUR
-# distribution channel (website, CDN, customer portal). Public GitHub Releases
-# are optional — download the workflow Artifacts and host wherever you ship software.
+# Builds Desktop artifacts for your distribution channel (Netlify, CDN, etc.).
 #
 # Usage:
-#   git tag desktop-v1.0.0
-#   git push origin desktop-v1.0.0
-#
-# Or: Actions → "Release Desktop" → Run workflow
+#   git tag desktop-v1.0.0 && git push origin desktop-v1.0.0
+#   Or: Actions → "Release Desktop" → Run workflow
 
 name: Release Desktop
 
 on:
   push:
     tags:
-      - "desktop-v*" # e.g. desktop-v1.0.0 — avoids clashing with generic lib tags
+      - "desktop-v*"
   workflow_dispatch:
 
 concurrency:
@@ -42,32 +38,43 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
-      - name: Build desktop installers
-        run: pnpm --filter @spectyra/desktop run make
+      - name: Build desktop (DMG + zip)
+        run: pnpm desktop:make
 
       - name: Upload artifacts
         uses: actions/upload-artifact@v4
         with:
           name: spectyra-desktop-macos
-          path: apps/desktop/out/
+          path: apps/desktop/deploy-out/out/make/
           if-no-files-found: error
 
-  # Uncomment when you want Windows installers from CI (requires signing setup for production).
-  # build-windows:
-  #   name: Build (Windows)
-  #   runs-on: windows-latest
-  #   steps:
-  #     - uses: actions/checkout@v4
-  #     - uses: pnpm/action-setup@v4
-  #       with:
-  #         version: 9
-  #     - uses: actions/setup-node@v4
-  #       with:
-  #         node-version: "20"
-  #         cache: "pnpm"
-  #     - run: pnpm install --frozen-lockfile
-  #     - run: pnpm --filter @spectyra/desktop run make
-  #     - uses: actions/upload-artifact@v4
-  #       with:
-  #         name: spectyra-desktop-windows
-  #         path: apps/desktop/out/
+  build-windows:
+    name: Build (Windows — Squirrel + zip)
+    runs-on: windows-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 9
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "pnpm"
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Build desktop (Squirrel installer + zip)
+        run: pnpm --filter @spectyra/desktop deploy apps/desktop/deploy-out && pnpm --dir apps/desktop/deploy-out run make
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: spectyra-desktop-windows
+          path: apps/desktop/deploy-out/out/make/
+          if-no-files-found: error
