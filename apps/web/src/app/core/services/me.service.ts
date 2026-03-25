@@ -27,6 +27,7 @@ export interface MeResponse {
   desktop_downloads?: {
     mac_url: string | null;
     windows_url: string | null;
+    windows_zip_url?: string | null;
   };
 }
 

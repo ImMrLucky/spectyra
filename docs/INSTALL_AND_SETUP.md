@@ -33,12 +33,12 @@ Use **[Local Companion](#local-companion-one-command)** (terminal + `localhost`)
 
 ### Maintainers (building & hosting installers)
 
-1. **Build** the app in private CI or locally: `pnpm --filter @spectyra/desktop run make` → outputs under `apps/desktop/out/` (DMG, zip, Squirrel, etc.).
+1. **Build** the app: from the repo root run **`pnpm desktop:make`** (uses `pnpm deploy` + Electron Forge; see `apps/desktop/README.md`). Artifacts land under **`apps/desktop/deploy-out/out/make/`** (e.g. `Spectyra.dmg`).
 2. **Sign & notarize** (Apple / Microsoft) per your release process.
-3. **Upload** the artifacts to wherever customers download software — e.g. **S3 + CloudFront**, Netlify **large media**, **Stripe / customer portal**, or an **internal bucket** — not necessarily a public Git repo.
-4. On the **API** host (e.g. Railway), set **`DESKTOP_DOWNLOAD_MAC_URL`** and **`DESKTOP_DOWNLOAD_WINDOWS_URL`** to the public HTTPS URLs of those files. Logged-in users then see download buttons on **[spectyra.netlify.app/download](https://spectyra.netlify.app/download)** (sidebar: **Desktop app**).
+3. **Netlify (same deploy as the Angular UI):** Copy into **`apps/web/src/assets/downloads/`** per `desktopDownloadsSameOrigin`: **`Spectyra-mac.dmg`**, **`Spectyra-windows.exe`** (installer from a Windows build), **`Spectyra-windows.zip`** (optional portable). See **[apps/desktop/RELEASING.md](../apps/desktop/RELEASING.md)**. Use `git add -f` for gitignored binaries; redeploy Netlify.
+4. **Optional override:** To host installers elsewhere (CDN, S3) without changing the web build, set **`DESKTOP_DOWNLOAD_MAC_URL`** and **`DESKTOP_DOWNLOAD_WINDOWS_URL`** on the **API** (Railway). The `/download` page prefers those URLs over same-origin assets.
 
-Optional: a private CI pipeline can still produce the same `out/` folder (see [`.github/workflows/release-desktop.yml`](../.github/workflows/release-desktop.yml) as a template); you then upload those files to **your** distribution channel.
+Optional: a private CI pipeline can still produce the same `out/` folder (see [`.github/workflows/release-desktop.yml`](../.github/workflows/release-desktop.yml) as a template).
 
 ---
 

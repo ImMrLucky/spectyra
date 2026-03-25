@@ -16,7 +16,10 @@ export class DownloadPage implements OnInit {
   loading = true;
   error: string | null = null;
   macUrl: string | null = null;
-  windowsUrl: string | null = null;
+  /** Squirrel / NSIS-style installer */
+  windowsInstallerUrl: string | null = null;
+  /** Extract-and-run zip (no installer) */
+  windowsPortableUrl: string | null = null;
 
   constructor(private meService: MeService) {}
 
@@ -24,17 +27,43 @@ export class DownloadPage implements OnInit {
     try {
       const me = await firstValueFrom(this.meService.getMe());
       const d = me?.desktop_downloads;
-      const fb = environment.desktopDownloadsFallback;
-      this.macUrl = d?.mac_url || fb.macUrl || null;
-      this.windowsUrl = d?.windows_url || fb.windowsUrl || null;
-    } catch (e: unknown) {
-      this.error = e instanceof Error ? e.message : 'Could not load download links.';
-    } finally {
-      this.loading = false;
+      this.macUrl = d?.mac_url || null;
+      this.windowsInstallerUrl = d?.windows_url || null;
+      this.windowsPortableUrl = d?.windows_zip_url || null;
+    } catch {
+      // Static asset URLs still work without /me
     }
+
+    const fb = environment.desktopDownloadsFallback;
+    const so = environment.desktopDownloadsSameOrigin;
+    const origin =
+      typeof window !== 'undefined' && window.location?.origin
+        ? window.location.origin
+        : '';
+
+    if (!this.macUrl) {
+      this.macUrl =
+        fb.macUrl || (so?.macPath && so.macPath.length > 0 && origin ? origin + so.macPath : null);
+    }
+    if (!this.windowsInstallerUrl) {
+      this.windowsInstallerUrl =
+        fb.windowsUrl ||
+        (so?.windowsInstallerPath && so.windowsInstallerPath.length > 0 && origin
+          ? origin + so.windowsInstallerPath
+          : null);
+    }
+    if (!this.windowsPortableUrl) {
+      this.windowsPortableUrl =
+        fb.windowsZipUrl ||
+        (so?.windowsPortablePath && so.windowsPortablePath.length > 0 && origin
+          ? origin + so.windowsPortablePath
+          : null);
+    }
+
+    this.loading = false;
   }
 
   get hasAnyDownload(): boolean {
-    return !!(this.macUrl || this.windowsUrl);
+    return !!(this.macUrl || this.windowsInstallerUrl || this.windowsPortableUrl);
   }
 }

@@ -33,13 +33,18 @@ export const authRouter = Router();
 /** Desktop installer URLs for the web app Download page (set on API host, e.g. Railway). */
 function desktopDownloadsPayload(): {
   mac_url: string | null;
+  /** Squirrel / NSIS-style Windows installer (.exe). */
   windows_url: string | null;
+  /** Optional portable zip (no installer). */
+  windows_zip_url: string | null;
 } {
   const mac = process.env.DESKTOP_DOWNLOAD_MAC_URL?.trim();
   const windows = process.env.DESKTOP_DOWNLOAD_WINDOWS_URL?.trim();
+  const windowsZip = process.env.DESKTOP_DOWNLOAD_WINDOWS_ZIP_URL?.trim();
   return {
     mac_url: mac || null,
     windows_url: windows || null,
+    windows_zip_url: windowsZip || null,
   };
 }
 
