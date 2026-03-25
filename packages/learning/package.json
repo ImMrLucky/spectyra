@@ -1,0 +1,15 @@
+{
+  "name": "@spectyra/learning",
+  "version": "0.1.0",
+  "description": "Local and global learning system. Per-app learning stays local; global aggregate learning uses non-sensitive metrics only.",
+  "type": "module",
+  "main": "./src/index.ts",
+  "types": "./src/index.ts",
+  "files": ["src"],
+  "scripts": { "typecheck": "tsc --noEmit" },
+  "dependencies": {
+    "@spectyra/canonical-model": "workspace:*"
+  },
+  "devDependencies": { "typescript": "~5.4.0" },
+  "license": "MIT"
+}

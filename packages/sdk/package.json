@@ -31,7 +31,10 @@
     "directory": "packages/sdk"
   },
   "dependencies": {
-    "@spectyra/core-types": "workspace:*"
+    "@spectyra/core-types": "workspace:*",
+    "@spectyra/canonical-model": "workspace:*",
+    "@spectyra/feature-detection": "workspace:*",
+    "@spectyra/optimization-engine": "workspace:*"
   },
   "devDependencies": {
     "@types/node": "^20.0.0",

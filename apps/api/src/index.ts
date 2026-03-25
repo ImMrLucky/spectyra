@@ -26,6 +26,7 @@ import { providerKeysRouter } from "./routes/providerKeys.js";
 import { retentionRouter } from "./routes/retention.js";
 import { settingsRouter } from "./routes/settings.js";
 import { scimRouter } from "./routes/scim.js";
+import { serverOptimizeRouter } from "./routes/serverOptimize.js";
 import { rateLimit } from "./middleware/rateLimit.js";
 import { initDb } from "./services/storage/db.js";
 
@@ -120,6 +121,7 @@ app.use("/v1/orgs", settingsRouter); // Settings management
 app.use("/v1/projects", settingsRouter); // Project settings
 app.use("/scim", scimRouter); // SCIM endpoints (501 for now)
 app.use("/internal/retention", retentionRouter); // Retention worker (internal)
+app.use("/v1", serverOptimizeRouter); // POST /v1/optimize — full pipeline (SDK/desktop/companion)
 
 app.listen(config.port, "0.0.0.0", () => {
   console.log(`Spectyra API listening on port ${config.port}`);

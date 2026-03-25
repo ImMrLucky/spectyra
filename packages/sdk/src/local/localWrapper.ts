@@ -1,11 +1,16 @@
 /**
  * Local direct-provider wrapper.
  *
- * This is the primary SDK path: optimization runs in-process,
- * the provider call goes directly from the customer environment
- * to the provider using the customer's own SDK client.
+ * ALL optimization runs in-process on the customer's machine.
+ * ZERO customer data leaves the customer's environment.
+ * Provider calls go directly to the provider using the customer's own key.
  *
- * No Spectyra cloud dependency.
+ * License model:
+ *   - Valid trial or paid license → full optimization applied, all efficiencies
+ *   - No valid license → observe-only: full pipeline runs so the user can SEE
+ *     what they'd save, but zero optimization is applied. Original unoptimized
+ *     messages go to the provider. The result includes licenseLimited = true
+ *     so the caller can show an activation prompt.
  */
 
 import type { ChatMessage } from "../sharedTypes.js";
@@ -22,14 +27,19 @@ import type {
   SavingsReport,
   PromptComparison,
 } from "@spectyra/core-types";
-import { estimateTokens, estimateCost } from "./tokenEstimator.js";
+import type {
+  CanonicalRequest,
+  CanonicalMessage,
+  FlowSignals,
+  LicenseStatus,
+} from "@spectyra/canonical-model";
+import { detectFeatures } from "@spectyra/feature-detection";
+import { optimize, activateLicense } from "@spectyra/optimization-engine";
+import { estimateCost } from "./tokenEstimator.js";
 
 /**
  * Run a provider call wrapped with Spectyra optimization logic.
- *
- * - `off`     → pass-through, no mutation
- * - `observe` → pass-through, compute projected savings
- * - `on`      → optimize messages locally, call provider with optimized messages
+ * Everything runs locally in-process. No data leaves the customer environment.
  */
 export async function localComplete<TClient, TResult>(
   config: SpectyraConfig,
@@ -40,12 +50,15 @@ export async function localComplete<TClient, TResult>(
   const telemetryMode: TelemetryMode = config.telemetry?.mode ?? "local";
   const promptSnapshotMode: PromptSnapshotMode = config.promptSnapshots ?? "local_only";
   const runId = crypto.randomUUID();
-
   const originalMessages = input.messages;
-  const inputTokensBefore = estimateTokens(originalMessages);
 
-  if (runMode === "off") {
-    const { result, text, usage } = await adapter.call({
+  // Activate license if provided — determines full vs observe-only
+  const licenseStatus: LicenseStatus = config.licenseKey
+    ? (activateLicense(config.licenseKey) ? "active" : "observe_only")
+    : "observe_only";
+
+  if (runMode === "off" && licenseStatus === "active") {
+    const { result, usage } = await adapter.call({
       client: input.client,
       model: input.model,
       messages: originalMessages,
@@ -54,133 +67,102 @@ export async function localComplete<TClient, TResult>(
     });
 
     return buildResult({
-      runId,
-      runMode,
-      provider: input.provider,
-      model: input.model,
-      inputTokensBefore,
-      inputTokensAfter: inputTokensBefore,
+      runId, runMode, provider: input.provider, model: input.model,
+      inputTokensBefore: charEstimate(originalMessages),
+      inputTokensAfter: charEstimate(originalMessages),
       outputTokens: usage.outputTokens,
       transformsApplied: [],
-      telemetryMode,
-      promptSnapshotMode,
+      telemetryMode, promptSnapshotMode,
       providerResult: result,
+      flowSignals: null,
+      licenseLimited: false,
+      licenseStatus: "active",
     });
   }
 
-  if (runMode === "observe") {
-    const { result, text, usage } = await adapter.call({
-      client: input.client,
-      model: input.model,
-      messages: originalMessages,
-      maxTokens: input.maxTokens,
-      temperature: input.temperature,
-    });
+  // Run the full pipeline — the engine handles license gating internally:
+  // licensed = real optimizations applied, unlicensed = observe-only
+  const canonicalReq = toCanonical(runId, runMode, input, telemetryMode, promptSnapshotMode);
+  const features = detectFeatures(canonicalReq);
+  const pipeline = optimize({
+    request: canonicalReq,
+    features,
+    licenseStatus,
+  });
 
-    const { optimizedMessages, transforms } = applyLocalOptimizations(originalMessages);
-    const inputTokensAfter = estimateTokens(optimizedMessages);
+  // The engine already enforces: unlicensed → optimizedRequest === originalRequest
+  const messagesToSend = fromCanonicalMessages(pipeline.optimizedRequest.messages);
 
-    return buildResult({
-      runId,
-      runMode,
-      provider: input.provider,
-      model: input.model,
-      inputTokensBefore,
-      inputTokensAfter,
-      outputTokens: usage.outputTokens,
-      transformsApplied: transforms,
-      telemetryMode,
-      promptSnapshotMode,
-      providerResult: result,
-      originalMessages,
-      optimizedMessages,
-    });
-  }
-
-  // runMode === "on"
-  const { optimizedMessages, transforms } = applyLocalOptimizations(originalMessages);
-  const inputTokensAfter = estimateTokens(optimizedMessages);
-
-  const { result, text, usage } = await adapter.call({
+  const { result, usage } = await adapter.call({
     client: input.client,
     model: input.model,
-    messages: optimizedMessages,
+    messages: messagesToSend,
     maxTokens: input.maxTokens,
     temperature: input.temperature,
   });
 
   return buildResult({
-    runId,
-    runMode,
-    provider: input.provider,
-    model: input.model,
-    inputTokensBefore,
-    inputTokensAfter,
+    runId, runMode, provider: input.provider, model: input.model,
+    inputTokensBefore: charEstimate(originalMessages),
+    inputTokensAfter: charEstimate(messagesToSend),
     outputTokens: usage.outputTokens,
-    transformsApplied: transforms,
-    telemetryMode,
-    promptSnapshotMode,
+    transformsApplied: pipeline.transformsApplied,
+    telemetryMode, promptSnapshotMode,
     providerResult: result,
     originalMessages,
-    optimizedMessages,
+    optimizedMessages: messagesToSend,
+    flowSignals: pipeline.flowSignals,
+    licenseLimited: pipeline.licenseLimited,
+    licenseStatus: pipeline.licenseStatus,
+    projectedSavingsIfActivated: pipeline.projectedSavingsIfActivated,
   });
 }
 
 // ---------------------------------------------------------------------------
-// Lightweight local optimizations (context dedup, trim whitespace, drop stale)
+// Canonical model bridge
 // ---------------------------------------------------------------------------
 
-interface OptimizationResult {
-  optimizedMessages: ChatMessage[];
-  transforms: string[];
+function toCanonical(
+  runId: string,
+  mode: SpectyraRunMode,
+  input: SpectyraCompleteInput,
+  telemetryMode: TelemetryMode,
+  promptSnapshotMode: PromptSnapshotMode,
+): CanonicalRequest {
+  return {
+    requestId: `req_${runId}`,
+    runId,
+    mode,
+    integrationType: "sdk-wrapper",
+    provider: { vendor: input.provider, model: input.model },
+    messages: input.messages.map(m => ({
+      role: m.role as CanonicalMessage["role"],
+      text: m.content,
+    })),
+    execution: {
+      appName: input.runContext?.appName,
+      workflowType: input.runContext?.workflowType,
+    },
+    security: {
+      telemetryMode,
+      promptSnapshotMode,
+      localOnly: true,
+      contentExfiltration: "never",
+    },
+  };
 }
 
-function applyLocalOptimizations(messages: ChatMessage[]): OptimizationResult {
-  const transforms: string[] = [];
-  let optimized = [...messages];
-
-  // 1. Trim excessive whitespace
-  optimized = optimized.map((m) => ({
-    ...m,
-    content: m.content.replace(/[ \t]+/g, " ").replace(/\n{3,}/g, "\n\n").trim(),
+function fromCanonicalMessages(msgs: CanonicalMessage[]): ChatMessage[] {
+  return msgs.map(m => ({
+    role: m.role as ChatMessage["role"],
+    content: m.text ?? "",
   }));
-  transforms.push("whitespace_normalize");
+}
 
-  // 2. Deduplicate consecutive identical messages
-  const deduped: ChatMessage[] = [];
-  for (const msg of optimized) {
-    const prev = deduped[deduped.length - 1];
-    if (prev && prev.role === msg.role && prev.content === msg.content) {
-      continue;
-    }
-    deduped.push(msg);
-  }
-  if (deduped.length < optimized.length) {
-    transforms.push("dedup_consecutive");
-  }
-  optimized = deduped;
-
-  // 3. Truncate very long tool outputs (keep first/last 500 chars)
-  optimized = optimized.map((m) => {
-    if (m.role === "tool" && m.content.length > 2000) {
-      const head = m.content.slice(0, 500);
-      const tail = m.content.slice(-500);
-      transforms.push("tool_output_truncate");
-      return { ...m, content: `${head}\n...[truncated ${m.content.length - 1000} chars]...\n${tail}` };
-    }
-    return m;
-  });
-
-  // 4. Drop old turns if conversation is very long (keep system + last N turns)
-  if (optimized.length > 20) {
-    const systemMessages = optimized.filter((m) => m.role === "system");
-    const nonSystem = optimized.filter((m) => m.role !== "system");
-    const kept = nonSystem.slice(-16);
-    optimized = [...systemMessages, ...kept];
-    transforms.push("context_window_trim");
-  }
-
-  return { optimizedMessages: optimized, transforms };
+function charEstimate(messages: ChatMessage[]): number {
+  let n = 0;
+  for (const m of messages) n += Math.ceil(m.content.length / 4);
+  return n;
 }
 
 // ---------------------------------------------------------------------------
@@ -201,6 +183,10 @@ interface BuildResultInput<TResult> {
   providerResult: TResult;
   originalMessages?: ChatMessage[];
   optimizedMessages?: ChatMessage[];
+  flowSignals?: FlowSignals | null;
+  licenseLimited: boolean;
+  licenseStatus: LicenseStatus;
+  projectedSavingsIfActivated?: number;
 }
 
 function buildResult<TResult>(input: BuildResultInput<TResult>): SpectyraCompleteResult<TResult> {
@@ -224,9 +210,9 @@ function buildResult<TResult>(input: BuildResultInput<TResult>): SpectyraComplet
     outputTokens: input.outputTokens,
     estimatedCostBefore: costBefore,
     estimatedCostAfter: costAfter,
-    estimatedSavings: savings,
-    estimatedSavingsPct: savingsPct,
-    contextReductionPct: pctTokensSaved > 0 ? pctTokensSaved : undefined,
+    estimatedSavings: input.licenseLimited ? 0 : savings,
+    estimatedSavingsPct: input.licenseLimited ? 0 : savingsPct,
+    contextReductionPct: input.licenseLimited ? undefined : (pctTokensSaved > 0 ? pctTokensSaved : undefined),
     telemetryMode: input.telemetryMode,
     promptSnapshotMode: input.promptSnapshotMode,
     inferencePath: "direct_provider",
@@ -257,6 +243,10 @@ function buildResult<TResult>(input: BuildResultInput<TResult>): SpectyraComplet
     providerResult: input.providerResult,
     report,
     promptComparison,
+    flowSignals: input.flowSignals ?? null,
+    licenseLimited: input.licenseLimited,
+    licenseStatus: input.licenseStatus,
+    projectedSavingsIfActivated: input.projectedSavingsIfActivated,
     security: {
       inferencePath: "direct_provider",
       providerBillingOwner: "customer",

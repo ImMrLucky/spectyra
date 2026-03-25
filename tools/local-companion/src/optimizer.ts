@@ -1,11 +1,18 @@
 /**
  * Local optimization engine.
  *
- * Applies lightweight optimization transforms in-process.
- * No Spectyra cloud dependency.
+ * ALL optimization runs in-process. ZERO customer data leaves the environment.
+ *
+ * License model:
+ *   - Valid trial or paid → full optimization applied, all efficiencies
+ *   - No valid license → observe-only: full pipeline runs so user SEES
+ *     projected savings, but zero optimization applied.
  */
 
 import type { SpectyraRunMode } from "@spectyra/core-types";
+import type { CanonicalRequest, CanonicalMessage, FlowSignals, LicenseStatus } from "@spectyra/canonical-model";
+import { detectFeatures } from "@spectyra/feature-detection";
+import { optimize as runPipeline, activateLicense } from "@spectyra/optimization-engine";
 
 export interface ChatMessage {
   role: string;
@@ -17,6 +24,9 @@ export interface OptimizeResult {
   inputTokensBefore: number;
   inputTokensAfter: number;
   transforms: string[];
+  flowSignals: FlowSignals | null;
+  licenseLimited: boolean;
+  projectedSavingsIfActivated?: number;
 }
 
 function estimateTokens(messages: ChatMessage[]): number {
@@ -25,58 +35,55 @@ function estimateTokens(messages: ChatMessage[]): number {
   return Math.ceil(chars / 4);
 }
 
-function applyOptimizations(messages: ChatMessage[]): { messages: ChatMessage[]; transforms: string[] } {
-  const transforms: string[] = [];
-  let optimized = messages.map((m) => ({
-    ...m,
-    content: m.content.replace(/[ \t]+/g, " ").replace(/\n{3,}/g, "\n\n").trim(),
-  }));
-  transforms.push("whitespace_normalize");
-
-  const deduped: ChatMessage[] = [];
-  for (const msg of optimized) {
-    const prev = deduped[deduped.length - 1];
-    if (prev && prev.role === msg.role && prev.content === msg.content) continue;
-    deduped.push(msg);
-  }
-  if (deduped.length < optimized.length) transforms.push("dedup_consecutive");
-  optimized = deduped;
-
-  optimized = optimized.map((m) => {
-    if (m.role === "tool" && m.content.length > 2000) {
-      transforms.push("tool_output_truncate");
-      return {
-        ...m,
-        content: `${m.content.slice(0, 500)}\n...[truncated]...\n${m.content.slice(-500)}`,
-      };
-    }
-    return m;
-  });
-
-  if (optimized.length > 20) {
-    const sys = optimized.filter((m) => m.role === "system");
-    const rest = optimized.filter((m) => m.role !== "system");
-    optimized = [...sys, ...rest.slice(-16)];
-    transforms.push("context_window_trim");
-  }
-
-  return { messages: optimized, transforms };
+function toCanonical(messages: ChatMessage[], mode: SpectyraRunMode): CanonicalRequest {
+  return {
+    requestId: `comp_${Date.now().toString(36)}`,
+    runId: `run_${Date.now().toString(36)}`,
+    mode,
+    integrationType: "local-companion",
+    messages: messages.map(m => ({
+      role: m.role as CanonicalMessage["role"],
+      text: m.content,
+    })),
+    execution: {},
+    security: {
+      telemetryMode: "local",
+      promptSnapshotMode: "local_only",
+      localOnly: true,
+      contentExfiltration: "never",
+    },
+  };
 }
 
-export function optimize(messages: ChatMessage[], runMode: SpectyraRunMode): OptimizeResult {
+function fromCanonical(msgs: CanonicalMessage[]): ChatMessage[] {
+  return msgs.map(m => ({ role: m.role, content: m.text ?? "" }));
+}
+
+export function optimize(messages: ChatMessage[], runMode: SpectyraRunMode, licenseKey?: string): OptimizeResult {
   const inputTokensBefore = estimateTokens(messages);
 
-  if (runMode === "off") {
-    return { messages: [...messages], inputTokensBefore, inputTokensAfter: inputTokensBefore, transforms: [] };
+  const licenseStatus: LicenseStatus = licenseKey
+    ? (activateLicense(licenseKey) ? "active" : "observe_only")
+    : "observe_only";
+
+  if (runMode === "off" && licenseStatus === "active") {
+    return { messages: [...messages], inputTokensBefore, inputTokensAfter: inputTokensBefore, transforms: [], flowSignals: null, licenseLimited: false };
   }
 
-  const { messages: optimized, transforms } = applyOptimizations(messages);
-  const inputTokensAfter = estimateTokens(optimized);
+  const canonical = toCanonical(messages, runMode);
+  const features = detectFeatures(canonical);
+  const pipeline = runPipeline({ request: canonical, features, licenseStatus });
 
-  if (runMode === "observe") {
-    return { messages: [...messages], inputTokensBefore, inputTokensAfter, transforms };
-  }
+  const resultMessages = fromCanonical(pipeline.optimizedRequest.messages);
+  const inputTokensAfter = estimateTokens(resultMessages);
 
-  // on
-  return { messages: optimized, inputTokensBefore, inputTokensAfter, transforms };
+  return {
+    messages: resultMessages,
+    inputTokensBefore,
+    inputTokensAfter,
+    transforms: pipeline.transformsApplied,
+    flowSignals: pipeline.flowSignals,
+    licenseLimited: pipeline.licenseLimited,
+    projectedSavingsIfActivated: pipeline.projectedSavingsIfActivated,
+  };
 }

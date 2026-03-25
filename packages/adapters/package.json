@@ -1,0 +1,20 @@
+{
+  "name": "@spectyra/adapters",
+  "version": "0.1.0",
+  "description": "Integration adapters that translate external request/response formats into Spectyra's canonical model. Adapters may normalize; adapters must not optimize.",
+  "type": "module",
+  "main": "./src/index.ts",
+  "types": "./src/index.ts",
+  "files": ["src"],
+  "scripts": {
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@spectyra/core-types": "workspace:*",
+    "@spectyra/canonical-model": "workspace:*"
+  },
+  "devDependencies": {
+    "typescript": "~5.4.0"
+  },
+  "license": "MIT"
+}

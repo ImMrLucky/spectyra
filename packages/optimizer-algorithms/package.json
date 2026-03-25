@@ -1,0 +1,20 @@
+{
+  "name": "@spectyra/optimizer-algorithms",
+  "private": true,
+  "version": "0.1.0",
+  "description": "Core Spectyra optimization algorithms: unitization, spectral analysis, PG-SCC, RefPack, PhraseBook, CodeMap, budgets, profit gate. Pure functions — no external I/O. Distributed as compiled JS only.",
+  "type": "module",
+  "main": "./src/index.ts",
+  "types": "./src/index.ts",
+  "files": ["src"],
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "build": "tsc --outDir dist --declaration",
+    "build:minify": "tsc --outDir dist --declaration && node -e \"/* minification step — add terser/esbuild in CI */\""
+  },
+  "dependencies": {
+    "@spectyra/canonical-model": "workspace:*"
+  },
+  "devDependencies": { "typescript": "~5.4.0" },
+  "license": "UNLICENSED"
+}

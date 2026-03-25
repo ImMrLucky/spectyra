@@ -1,0 +1,15 @@
+{
+  "name": "@spectyra/feature-detection",
+  "version": "0.1.0",
+  "description": "Structural and behavioral pattern detection on canonical requests. Detectors use structure, not vendor names.",
+  "type": "module",
+  "main": "./src/index.ts",
+  "types": "./src/index.ts",
+  "files": ["src"],
+  "scripts": { "typecheck": "tsc --noEmit" },
+  "dependencies": {
+    "@spectyra/canonical-model": "workspace:*"
+  },
+  "devDependencies": { "typescript": "~5.4.0" },
+  "license": "MIT"
+}

@@ -121,6 +121,27 @@ export interface SpectyraCompleteResult<TProviderResult = unknown> {
   providerResult?: TProviderResult;
   report: SavingsReport;
   promptComparison?: PromptComparison;
+
+  /**
+   * Flow optimization signals from the spectral analysis pipeline.
+   * Contains: stability index, contradiction detection, stuck-loop
+   * detection, clarification suggestions, path detection.
+   */
+  flowSignals?: import("@spectyra/canonical-model").FlowSignals | null;
+
+  /**
+   * True when the user has no valid trial or paid license.
+   * The full pipeline ran so the user can SEE projected savings,
+   * but zero optimization was applied. Show an activation prompt.
+   */
+  licenseLimited?: boolean;
+
+  /** Current license status: "active", "observe_only", or "unknown". */
+  licenseStatus?: import("@spectyra/canonical-model").LicenseStatus;
+
+  /** Token savings the user would get if they activated. Set when licenseLimited = true. */
+  projectedSavingsIfActivated?: number;
+
   security: {
     inferencePath: InferencePath;
     providerBillingOwner: ProviderBillingOwner;

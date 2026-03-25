@@ -99,7 +99,11 @@ async function getSavingsSummary() {
   return { totalRuns: runs.length, totalTokensSaved, totalCostSaved, avgSavingsPct: totalPct / runs.length };
 }
 
-// ── Optimizer (same logic as standalone companion) ───────────────────────────
+// ── Optimizer (canonical pipeline) ───────────────────────────────────────────
+
+import type { CanonicalRequest, CanonicalMessage, FlowSignals, LicenseStatus } from "@spectyra/canonical-model";
+import { detectFeatures } from "@spectyra/feature-detection";
+import { optimize as runPipeline, activateLicense } from "@spectyra/optimization-engine";
 
 interface ChatMessage { role: string; content: string; }
 
@@ -109,52 +113,63 @@ function estimateTokens(messages: ChatMessage[]): number {
   return Math.ceil(chars / 4);
 }
 
-function applyOptimizations(messages: ChatMessage[]) {
-  const transforms: string[] = [];
-  let optimized = messages.map(m => ({
-    ...m,
-    content: m.content.replace(/[ \t]+/g, " ").replace(/\n{3,}/g, "\n\n").trim(),
-  }));
-  transforms.push("whitespace_normalize");
-
-  const deduped: ChatMessage[] = [];
-  for (const msg of optimized) {
-    const prev = deduped[deduped.length - 1];
-    if (prev && prev.role === msg.role && prev.content === msg.content) continue;
-    deduped.push(msg);
-  }
-  if (deduped.length < optimized.length) transforms.push("dedup_consecutive");
-  optimized = deduped;
-
-  optimized = optimized.map(m => {
-    if (m.role === "tool" && m.content.length > 2000) {
-      transforms.push("tool_output_truncate");
-      return { ...m, content: `${m.content.slice(0, 500)}\n...[truncated]...\n${m.content.slice(-500)}` };
-    }
-    return m;
-  });
-
-  if (optimized.length > 20) {
-    const sys = optimized.filter(m => m.role === "system");
-    const rest = optimized.filter(m => m.role !== "system");
-    optimized = [...sys, ...rest.slice(-16)];
-    transforms.push("context_window_trim");
-  }
-
-  return { messages: optimized, transforms };
+function toCanonical(messages: ChatMessage[], mode: SpectyraRunMode): CanonicalRequest {
+  return {
+    requestId: `desk_${Date.now().toString(36)}`,
+    runId: `run_${Date.now().toString(36)}`,
+    mode,
+    integrationType: "local-companion",
+    messages: messages.map(m => ({
+      role: m.role as CanonicalMessage["role"],
+      text: m.content,
+    })),
+    execution: {},
+    security: { telemetryMode: "local", promptSnapshotMode: "local_only", localOnly: true, contentExfiltration: "never" },
+  };
 }
 
-function optimize(messages: ChatMessage[], runMode: SpectyraRunMode) {
+function fromCanonical(msgs: CanonicalMessage[]): ChatMessage[] {
+  return msgs.map(m => ({ role: m.role, content: m.text ?? "" }));
+}
+
+interface OptimizeResult {
+  messages: ChatMessage[];
+  inputTokensBefore: number;
+  inputTokensAfter: number;
+  transforms: string[];
+  flowSignals: FlowSignals | null;
+  licenseLimited: boolean;
+  projectedSavingsIfActivated?: number;
+}
+
+function optimize(messages: ChatMessage[], runMode: SpectyraRunMode): OptimizeResult {
   const inputTokensBefore = estimateTokens(messages);
-  if (runMode === "off") {
-    return { messages: [...messages], inputTokensBefore, inputTokensAfter: inputTokensBefore, transforms: [] as string[] };
+
+  const licenseStatus: LicenseStatus = config.licenseKey
+    ? (activateLicense(config.licenseKey) ? "active" : "observe_only")
+    : "observe_only";
+
+  if (runMode === "off" && licenseStatus === "active") {
+    return { messages: [...messages], inputTokensBefore, inputTokensAfter: inputTokensBefore, transforms: [], flowSignals: null, licenseLimited: false };
   }
-  const { messages: optimized, transforms } = applyOptimizations(messages);
-  const inputTokensAfter = estimateTokens(optimized);
-  if (runMode === "observe") {
-    return { messages: [...messages], inputTokensBefore, inputTokensAfter, transforms };
-  }
-  return { messages: optimized, inputTokensBefore, inputTokensAfter, transforms };
+
+  const canonical = toCanonical(messages, runMode);
+  const features = detectFeatures(canonical);
+  const pipeline = runPipeline({ request: canonical, features, licenseStatus });
+
+  // Engine already enforces: unlicensed → optimizedRequest === originalRequest
+  const resultMessages = fromCanonical(pipeline.optimizedRequest.messages);
+  const inputTokensAfter = estimateTokens(resultMessages);
+
+  return {
+    messages: resultMessages,
+    inputTokensBefore,
+    inputTokensAfter,
+    transforms: pipeline.transformsApplied,
+    flowSignals: pipeline.flowSignals,
+    licenseLimited: pipeline.licenseLimited,
+    projectedSavingsIfActivated: pipeline.projectedSavingsIfActivated,
+  };
 }
 
 // ── Provider callers ─────────────────────────────────────────────────────────
@@ -263,7 +278,14 @@ function startCompanionServer(): void {
         id: `chatcmpl-${runId}`, object: "chat.completion", created: Math.floor(Date.now() / 1000), model,
         choices: [{ index: 0, message: { role: "assistant", content: providerResult.text }, finish_reason: "stop" }],
         usage: { prompt_tokens: providerResult.usage.inputTokens, completion_tokens: providerResult.usage.outputTokens, total_tokens: providerResult.usage.inputTokens + providerResult.usage.outputTokens },
-        spectyra: { runId, mode: config.runMode, inputTokensBefore: optResult.inputTokensBefore, inputTokensAfter: optResult.inputTokensAfter, tokensSaved: Math.max(0, optResult.inputTokensBefore - optResult.inputTokensAfter), transforms: optResult.transforms, inferencePath: "direct_provider" },
+        spectyra: {
+          runId, mode: config.runMode,
+          inputTokensBefore: optResult.inputTokensBefore, inputTokensAfter: optResult.inputTokensAfter,
+          tokensSaved: Math.max(0, optResult.inputTokensBefore - optResult.inputTokensAfter),
+          transforms: optResult.transforms, inferencePath: "direct_provider",
+          licenseLimited: optResult.licenseLimited,
+          projectedSavingsIfActivated: optResult.projectedSavingsIfActivated,
+        },
       });
     } catch (err: any) {
       res.status(500).json({ error: { message: err.message, type: "companion_error" } });
@@ -291,7 +313,13 @@ function startCompanionServer(): void {
         content: [{ type: "text", text: providerResult.text }],
         model, stop_reason: "end_turn",
         usage: { input_tokens: providerResult.usage.inputTokens, output_tokens: providerResult.usage.outputTokens },
-        spectyra: { runId, mode: config.runMode, tokensSaved: Math.max(0, optResult.inputTokensBefore - optResult.inputTokensAfter), inferencePath: "direct_provider" },
+        spectyra: {
+          runId, mode: config.runMode,
+          tokensSaved: Math.max(0, optResult.inputTokensBefore - optResult.inputTokensAfter),
+          inferencePath: "direct_provider",
+          licenseLimited: optResult.licenseLimited,
+          projectedSavingsIfActivated: optResult.projectedSavingsIfActivated,
+        },
       });
     } catch (err: any) {
       res.status(500).json({ error: { message: err.message, type: "companion_error" } });

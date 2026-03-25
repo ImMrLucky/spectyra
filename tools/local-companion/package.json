@@ -19,6 +19,9 @@
   },
   "dependencies": {
     "@spectyra/core-types": "workspace:*",
+    "@spectyra/canonical-model": "workspace:*",
+    "@spectyra/feature-detection": "workspace:*",
+    "@spectyra/optimization-engine": "workspace:*",
     "express": "^4.18.2",
     "cors": "^2.8.5"
   },

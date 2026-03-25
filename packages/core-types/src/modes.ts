@@ -60,4 +60,7 @@ export type IntegrationType =
   | "sdk-wrapper"
   | "local-companion"
   | "observe-preview"
-  | "legacy-remote-gateway";
+  | "agent-harness"
+  | "provider-direct"
+  | "legacy-remote-gateway"
+  | "unknown";
