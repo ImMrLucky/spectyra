@@ -2,6 +2,7 @@ export type StudioScenarioId =
   | 'token_chat'
   | 'token_code'
   | 'agent_claude'
+  | 'openclaw_local'
   | 'langchain_rag'
   | 'multi_agent_loop'
   | 'chatbot_governance'
@@ -63,6 +64,56 @@ const CODE_SCENARIO_TRANSCRIPT = [
   'Assistant: Both build and lint confirm the same 3 errors in integrations.page.ts. The Integration interface defines id as optional (id?: string), but deleteIntegration, toggleIntegration, and refreshIntegration all require a non-optional string parameter. I also see the lint runs surface 4 console.log warnings in other files but those are unrelated. The fix is to guard the calls with an early return if id is undefined. This is the minimal change that does not alter the interface.',
   '',
   'User: That sounds right. Apply the fix to integrations.page.ts only. Then re-run the build and paste the output to confirm it passes.',
+  ].join('\n');
+
+/**
+ * OpenClaw-style flow: tool/agent frames requests, Spectyra Local Companion
+ * exposes OpenAI-compatible POST /v1/chat/completions on localhost, optimization
+ * runs before the request is forwarded to the real provider (direct billing).
+ */
+const OPENCLAW_LOCAL_TRANSCRIPT = [
+  'User: [session via OpenClaw → Spectyra companion @ http://127.0.0.1:4111/v1/chat/completions]',
+  '',
+  'Goal: Fix the failing unit test in `packages/sdk/src/local/localWrapper.ts` — the test expects `licenseLimited` but the mock returns undefined.',
+  '',
+  'Constraints:',
+  '- Run tests first (pnpm --filter @spectyra/sdk test).',
+  '- Read the failing file before patching.',
+  '- Minimal change; do not refactor unrelated files.',
+  '',
+  'Assistant: I will run the SDK tests first to capture the exact assertion failure, then open the file at the reported line.',
+  '',
+  'Tool: run_terminal_cmd',
+  '{"command":"pnpm --filter @spectyra/sdk exec vitest run --reporter=verbose 2>&1","cwd":"/home/dev/spectyra"}',
+  'stdout:',
+  ' FAIL  src/local/localWrapper.spec.ts > localComplete > returns licenseLimited when pipeline reports observe_only',
+  'AssertionError: expected undefined to be true',
+  '  at localWrapper.spec.ts:42:5',
+  '',
+  'Assistant: The failure is in localWrapper.spec.ts line 42. I will read localWrapper.ts and the spec side-by-side.',
+  '',
+  'Tool: read_file',
+  '{"path":"packages/sdk/src/local/localWrapper.ts","startLine":1,"endLine":120}',
+  'content: (truncated in real logs — multi-hundred line file with imports + localComplete implementation)',
+  '',
+  'Tool: read_file',
+  '{"path":"packages/sdk/src/local/localWrapper.spec.ts","startLine":30,"endLine":55}',
+  'content:',
+  "describe('localComplete', () => {",
+  "  it('returns licenseLimited when pipeline reports observe_only', async () => {",
+  '    const res = await localComplete(mockConfig, input, adapter);',
+  '    expect(res.licenseLimited).toBe(true);',
+  '  });',
+  '});',
+  '',
+  'User: Companion metadata from OpenClaw (for debugging):',
+  'spectyra: { runId, mode, tokensSaved, transforms, inferencePath: direct_provider, licenseLimited: true }',
+  '',
+  'Assistant: The spec expects `licenseLimited` on the result object. I will align the mock pipeline return with `licenseLimited: true` for the observe_only case, then re-run tests.',
+  '',
+  'Tool: run_terminal_cmd',
+  '{"command":"pnpm --filter @spectyra/sdk exec vitest run src/local/localWrapper.spec.ts 2>&1","cwd":"/home/dev/spectyra"}',
+  'stdout: PASS src/local/localWrapper.spec.ts (1 test)',
 ].join('\n');
 
 export const STUDIO_SCENARIOS: StudioScenarioDef[] = [
@@ -181,6 +232,39 @@ export const STUDIO_SCENARIOS: StudioScenarioDef[] = [
           ].join('\n'),
         showPolicyEvaluation: true,
         showToolCalls: true,
+      },
+    },
+  },
+  {
+    id: 'openclaw_local',
+    title: 'OpenClaw → Local Companion',
+    description:
+      'Typical payload when OpenClaw (or similar) sends chat to Spectyra’s OpenAI-compatible companion on localhost — multi-turn tools, direct-provider billing, optimization in front of the model.',
+    inputSchema: {
+      primaryLabel: 'OpenClaw / agent transcript',
+      primaryPlaceholder:
+        'Paste a User / Assistant / Tool transcript. Default models the companion proxy + OpenClaw session header.',
+      secondaryLabel: 'Companion & routing notes (optional)',
+      secondaryPlaceholder:
+        'e.g. base URL http://127.0.0.1:4111, model id, inferencePath: direct_provider.',
+      hasAdvanced: true,
+    },
+    defaultInputs: {
+      primary: OPENCLAW_LOCAL_TRANSCRIPT,
+      secondary: [
+        'OpenClaw → Spectyra Local Companion (OpenAI-compatible)',
+        '',
+        '- Base URL: http://127.0.0.1:4111/v1/chat/completions (Desktop app or `spectyra-companion` CLI).',
+        '- Headers: Authorization: Bearer <your provider key> (BYOK); Spectyra does not see raw keys if you use vault/BYOK per your setup.',
+        '- Response may include `spectyra: { runId, tokensSaved, transforms, licenseLimited, ... }` extension on the JSON body.',
+        '- Inference path: direct to provider; customer-owned API key; optimization runs locally in the companion process.',
+        '',
+        'This example is representative of token-heavy tool + agent loops that benefit from SCC / RefPack when licensed.',
+      ].join('\n'),
+      advanced: {
+        showTokenBreakdown: true,
+        showToolCalls: true,
+        optimizationLevel: 3,
       },
     },
   },

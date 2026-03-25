@@ -2,6 +2,7 @@ export type StudioScenarioId =
   | "token_chat"
   | "token_code"
   | "agent_claude"
+  | "openclaw_local"
   | "langchain_rag"
   | "multi_agent_loop"
   | "chatbot_governance"

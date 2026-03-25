@@ -167,11 +167,31 @@
               <div class="savings-hero" [class.no-savings]="!hasSavings">
                 <div class="savings-value">{{ savingsHeroValue }}</div>
                 <div class="savings-label">{{ savingsHeroLabel }}</div>
-                <div class="metric-sub" style="margin-top:6px;">
-                  Tokens before/after: {{ tokensBeforeAfterLabel }}
-                </div>
-                <div class="metric-sub" style="margin-top:4px;">
-                  Total tokens before/after: {{ result.raw.tokens.total }} → {{ result.spectyra.tokens.total }}
+                <div class="token-breakdown" role="table" aria-label="Token estimates before and after">
+                  <div class="token-breakdown-hint">
+                    All counts are estimates. <strong>Prompt</strong> = tokens you send to the model;
+                    <strong>Completion</strong> = estimated reply length; <strong>Total</strong> = prompt + completion.
+                  </div>
+                  <div class="token-breakdown-row token-breakdown-head">
+                    <span></span>
+                    <span>Before (raw)</span>
+                    <span>After (Spectyra)</span>
+                  </div>
+                  <div class="token-breakdown-row">
+                    <span class="token-breakdown-k">Prompt (input)</span>
+                    <span>{{ inputTokensBefore }}</span>
+                    <span>{{ inputTokensAfter }}</span>
+                  </div>
+                  <div class="token-breakdown-row">
+                    <span class="token-breakdown-k">Completion (output)</span>
+                    <span>{{ outputTokensBefore }}</span>
+                    <span>{{ outputTokensAfter }}</span>
+                  </div>
+                  <div class="token-breakdown-row token-breakdown-total">
+                    <span class="token-breakdown-k">Total</span>
+                    <span>{{ totalTokensBefore }}</span>
+                    <span>{{ totalTokensAfter }}</span>
+                  </div>
                 </div>
               </div>
 
@@ -184,16 +204,14 @@
 
               <div class="metrics-grid">
                 <div class="metric-card">
-                  <div class="metric-label">Input Tokens Before</div>
-                  <div class="metric-value">{{ result.raw.tokens.input }}</div>
-                </div>
-                <div class="metric-card">
-                  <div class="metric-label">Input Tokens After</div>
-                  <div class="metric-value success">{{ result.spectyra.tokens.input }}</div>
-                </div>
-                <div class="metric-card">
-                  <div class="metric-label">{{ hasSavings ? 'Tokens Saved' : 'Tokens Added' }}</div>
+                  <div class="metric-label">{{ hasSavings ? 'Prompt tokens saved' : 'Prompt tokens added' }}</div>
                   <div class="metric-value">{{ hasSavings ? tokensSaved : tokensAdded }}</div>
+                  <div class="metric-sub" *ngIf="hasSavings && tokensSaved === 0 && totalTokensSaved > 0">No prompt reduction; see total row above</div>
+                </div>
+                <div class="metric-card">
+                  <div class="metric-label">{{ hasSavings ? 'Total tokens saved' : 'Total tokens added' }}</div>
+                  <div class="metric-value">{{ hasSavings ? totalTokensSaved : totalTokensAdded }}</div>
+                  <div class="metric-sub" *ngIf="tokensSaved === 0 && totalTokensSaved > 0">Savings are in total (e.g. completion estimate), not prompt</div>
                 </div>
                 <div class="metric-card">
                   <div class="metric-label">{{ result.meta?.estimated ? 'Est. cost change' : 'Cost change' }}</div>
@@ -202,10 +220,6 @@
                     ${{ costBeforeUsd | number:'1.3-6' }} → ${{ costAfterUsd | number:'1.3-6' }}
                   </div>
                   <div class="metric-sub" *ngIf="result.meta?.estimated">Estimated</div>
-                </div>
-                <div class="metric-card">
-                  <div class="metric-label">Total Tokens Saved</div>
-                  <div class="metric-value">{{ result.metrics.totalTokensSaved ?? 0 }}</div>
                 </div>
                 <div class="metric-card">
                   <div class="metric-label">Latency</div>

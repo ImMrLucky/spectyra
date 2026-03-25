@@ -57,7 +57,10 @@ export class StudioPage implements OnInit {
 
   // Scenario
   private featuredScenarios: StudioScenarioDef[] = STUDIO_SCENARIOS.filter((s) =>
-    s.id === 'token_chat' || s.id === 'token_code' || s.id === 'agent_claude'
+    s.id === 'token_chat' ||
+    s.id === 'token_code' ||
+    s.id === 'agent_claude' ||
+    s.id === 'openclaw_local'
   );
   scenarios: StudioScenarioDef[] = this.featuredScenarios;
   scenarioId: StudioScenarioId = this.featuredScenarios[0]?.id ?? 'token_chat';
@@ -89,12 +92,32 @@ export class StudioPage implements OnInit {
   runHistory: StudioRunResult[] = [];
   activeTab: ResultTab = 'metrics';
 
+  /** Prompt / message tokens billed on the input side (before optimization). */
   get inputTokensBefore(): number {
     return this.result?.raw?.tokens?.input ?? 0;
   }
 
+  /** Prompt / message tokens after Spectyra optimization. */
   get inputTokensAfter(): number {
     return this.result?.spectyra?.tokens?.input ?? 0;
+  }
+
+  /** Estimated completion tokens (raw path). */
+  get outputTokensBefore(): number {
+    return this.result?.raw?.tokens?.output ?? 0;
+  }
+
+  /** Estimated completion tokens (Spectyra path). */
+  get outputTokensAfter(): number {
+    return this.result?.spectyra?.tokens?.output ?? 0;
+  }
+
+  get totalTokensBefore(): number {
+    return this.result?.raw?.tokens?.total ?? 0;
+  }
+
+  get totalTokensAfter(): number {
+    return this.result?.spectyra?.tokens?.total ?? 0;
   }
 
   /** Positive means tokens increased (no savings). */
@@ -102,13 +125,47 @@ export class StudioPage implements OnInit {
     return this.inputTokensAfter - this.inputTokensBefore;
   }
 
+  /** Shown in hero: prefer total-based % when prompt tokens are unchanged but total still drops (completion estimate). */
+  get displaySavingsPct(): number {
+    const m = this.result?.metrics;
+    const promptPct = m?.tokenSavingsPct;
+    const inputSaved = m?.inputTokensSaved ?? 0;
+    const totalSaved = m?.totalTokensSaved ?? 0;
+    const rawT = this.totalTokensBefore;
+    const specT = this.totalTokensAfter;
+    if (rawT > 0 && totalSaved > 0 && inputSaved === 0) {
+      return Math.round(((rawT - specT) / rawT) * 10000) / 100;
+    }
+    if (typeof promptPct === 'number' && !isNaN(promptPct)) return promptPct;
+    return 0;
+  }
+
+  get displaySavingsHeroLabel(): string {
+    const m = this.result?.metrics;
+    const inputSaved = m?.inputTokensSaved ?? 0;
+    const totalSaved = m?.totalTokensSaved ?? 0;
+    if (!this.result) return 'Token savings';
+    if (this.result.meta?.reverted) return 'Reverted (optimized larger)';
+    if (totalSaved > 0 && inputSaved === 0) {
+      return 'Total token reduction (prompt unchanged; savings from total bill estimate)';
+    }
+    if (!this.hasSavings && this.tokensAdded > 0) return 'No savings (optimized larger)';
+    return 'Prompt (input) token savings';
+  }
+
   get tokensBeforeAfterLabel(): string {
     return `${this.inputTokensBefore} → ${this.inputTokensAfter}`;
   }
 
-  /** Clamped: never negative (we don't call negative "savings"). */
+  /** Prompt-side tokens saved (input). */
   get tokensSaved(): number {
     const saved = this.result?.metrics?.inputTokensSaved;
+    return typeof saved === 'number' && !isNaN(saved) ? Math.max(0, saved) : 0;
+  }
+
+  /** Total tokens saved (prompt + completion estimate). */
+  get totalTokensSaved(): number {
+    const saved = this.result?.metrics?.totalTokensSaved;
     return typeof saved === 'number' && !isNaN(saved) ? Math.max(0, saved) : 0;
   }
 
@@ -117,8 +174,17 @@ export class StudioPage implements OnInit {
     return d > 0 ? d : 0;
   }
 
+  get totalTokensDelta(): number {
+    return this.totalTokensAfter - this.totalTokensBefore;
+  }
+
+  get totalTokensAdded(): number {
+    const d = this.totalTokensDelta;
+    return d > 0 ? d : 0;
+  }
+
   get hasSavings(): boolean {
-    return this.tokensSaved > 0;
+    return this.tokensSaved > 0 || this.totalTokensSaved > 0;
   }
 
   get costBeforeUsd(): number {
@@ -155,7 +221,7 @@ export class StudioPage implements OnInit {
   }
 
   get savingsHeroValue(): string {
-    const pct = this.result?.metrics?.tokenSavingsPct;
+    const pct = this.displaySavingsPct;
     if (pct == null || typeof pct !== 'number' || isNaN(pct)) return '—';
     const clamped = Math.max(0, pct);
     if (clamped > 0) return `${clamped.toFixed(1)}%`;
@@ -163,10 +229,7 @@ export class StudioPage implements OnInit {
   }
 
   get savingsHeroLabel(): string {
-    if (!this.result) return 'Input tokens saved';
-    if (this.result.meta?.reverted) return 'Reverted (optimized larger)';
-    if (!this.hasSavings && this.tokensAdded > 0) return 'No savings (optimized larger)';
-    return 'Input tokens saved';
+    return this.displaySavingsHeroLabel;
   }
 
   constructor(
