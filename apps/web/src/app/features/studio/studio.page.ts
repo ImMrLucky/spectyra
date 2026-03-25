@@ -232,6 +232,19 @@ export class StudioPage implements OnInit {
     return this.displaySavingsHeroLabel;
   }
 
+  flowRecommendationLabel(fs: { recommendation: string }): string {
+    switch (fs.recommendation) {
+      case 'REUSE':
+        return 'Reuse / compress — context looks stable';
+      case 'EXPAND':
+        return 'Expand — add or refine context';
+      case 'ASK_CLARIFY':
+        return 'Ask to clarify — contradictions or ambiguity';
+      default:
+        return fs.recommendation;
+    }
+  }
+
   constructor(
     private studio: StudioService,
     private snackbar: SnackbarService

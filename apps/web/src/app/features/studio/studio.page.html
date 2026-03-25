@@ -193,6 +193,41 @@
                     <span>{{ totalTokensAfter }}</span>
                   </div>
                 </div>
+
+                <div class="flow-panel" *ngIf="result.flowSummary as fs">
+                  <div class="flow-panel-title">Flow intelligence (spectral graph)</div>
+                  <p class="flow-panel-hint">
+                    Computed from your transcript in this dry-run — same spectral engine as the Desktop app / SDK.
+                    You do <strong>not</strong> need OpenClaw, the companion, or any local apps running for these numbers;
+                    they describe how “settled” or contradictory the conversation looks to the optimizer.
+                  </p>
+                  <div class="flow-panel-grid">
+                    <div>
+                      <span class="flow-k">Recommendation</span>
+                      <span class="flow-v">{{ flowRecommendationLabel(fs) }}</span>
+                    </div>
+                    <div>
+                      <span class="flow-k">Stability index</span>
+                      <span class="flow-v">{{ fs.stabilityIndex | number:'1.2-3' }}</span>
+                    </div>
+                    <div>
+                      <span class="flow-k">λ₂ (connectivity)</span>
+                      <span class="flow-v">{{ fs.lambda2 | number:'1.3-4' }}</span>
+                    </div>
+                    <div>
+                      <span class="flow-k">Contradiction energy</span>
+                      <span class="flow-v">{{ fs.contradictionEnergy | number:'1.2-3' }}</span>
+                    </div>
+                    <div *ngIf="fs.nNodes != null">
+                      <span class="flow-k">Graph nodes</span>
+                      <span class="flow-v">{{ fs.nNodes }}</span>
+                    </div>
+                    <div *ngIf="fs.nEdges != null">
+                      <span class="flow-k">Graph edges</span>
+                      <span class="flow-v">{{ fs.nEdges }}</span>
+                    </div>
+                  </div>
+                </div>
               </div>
 
               <div style="margin: 10px 0 2px 0;">

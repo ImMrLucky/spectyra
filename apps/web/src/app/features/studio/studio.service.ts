@@ -38,6 +38,16 @@ export interface StudioRunMetrics {
   toolCallsReduced?: number;
 }
 
+/** Spectral flow intelligence (same engine as local runs; computed from transcript text). */
+export interface StudioFlowSummary {
+  recommendation: 'REUSE' | 'EXPAND' | 'ASK_CLARIFY';
+  stabilityIndex: number;
+  lambda2: number;
+  contradictionEnergy: number;
+  nNodes?: number;
+  nEdges?: number;
+}
+
 export interface StudioRunResult {
   runId: string;
   createdAt: string;
@@ -45,6 +55,8 @@ export interface StudioRunResult {
   spectyra: StudioRunSide;
   metrics: StudioRunMetrics;
   appliedTransforms?: string[];
+  /** Present when the API returns spectral analysis for the optimized path. */
+  flowSummary?: StudioFlowSummary;
   meta?: {
     estimated: boolean;
     reverted?: boolean;

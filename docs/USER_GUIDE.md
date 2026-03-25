@@ -1,5 +1,9 @@
 # Spectyra User Guide
 
+**New:** Step-by-step install without building from source — [INSTALL_AND_SETUP.md](./INSTALL_AND_SETUP.md) (Desktop download, `npx` companion, OpenClaw base URL, SDK).
+
+---
+
 ## Getting Started
 
 ### 1. Create Your Account

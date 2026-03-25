@@ -3,6 +3,17 @@
   "version": "1.0.0",
   "type": "module",
   "description": "Spectyra Local Companion — local-first LLM optimization runtime for OpenClaw and other tools",
+  "keywords": [
+    "spectyra",
+    "openai",
+    "openai-compatible",
+    "openclaw",
+    "llm",
+    "local",
+    "proxy",
+    "anthropic",
+    "optimization"
+  ],
   "main": "dist/companion.js",
   "bin": {
     "spectyra-companion": "./dist/companion.js"

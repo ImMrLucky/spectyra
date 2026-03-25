@@ -43,6 +43,22 @@ export interface StudioRunMetrics {
   toolCallsReduced?: number;
 }
 
+/**
+ * Spectral / flow intelligence for the optimized path (same engine as Desktop/SDK).
+ * Computed from the message graph in-process — does not require OpenClaw, apps, or live provider calls.
+ */
+export interface StudioFlowSummary {
+  recommendation: "REUSE" | "EXPAND" | "ASK_CLARIFY";
+  /** Context stability [0, 1]. */
+  stabilityIndex: number;
+  /** Algebraic connectivity (Fiedler). */
+  lambda2: number;
+  /** Contradiction mass in the semantic graph [0, 1]. */
+  contradictionEnergy: number;
+  nNodes?: number;
+  nEdges?: number;
+}
+
 export interface StudioRunResult {
   runId: string;
   createdAt: string;
@@ -50,6 +66,11 @@ export interface StudioRunResult {
   spectyra: StudioRunSide;
   metrics: StudioRunMetrics;
   appliedTransforms?: string[];
+  /**
+   * Flow signals from spectral analysis on the Spectyra-optimized prompt (dry-run or live).
+   * Present when the optimizer produced a spectral result — independent of token rows above.
+   */
+  flowSummary?: StudioFlowSummary;
   meta?: {
     estimated: boolean;
     reverted?: boolean;

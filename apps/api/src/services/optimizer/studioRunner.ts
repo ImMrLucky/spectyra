@@ -4,7 +4,7 @@ import { runOptimizedOrBaseline } from "./optimizer.js";
 import { makeOptimizerConfig } from "./config.js";
 import { mapOptimizationLevelToConfig } from "./optimizationLevel.js";
 import { estimateBaselineTokens, estimateOptimizedTokens, getPricingConfig } from "../proof/tokenEstimator.js";
-import type { StudioRunRequest, StudioRunResult, StudioScenarioId } from "../../types/studio.js";
+import type { StudioFlowSummary, StudioRunRequest, StudioRunResult, StudioScenarioId } from "../../types/studio.js";
 import { optimizationLevelToNumber } from "../../types/optimizerLab.js";
 import type { OptimizationLevel as NumericOptLevel } from "./optimizationLevel.js";
 import crypto from "node:crypto";
@@ -20,6 +20,22 @@ function createDryRunProvider() {
       text: "DRY_RUN: No provider call made",
       usage: { input_tokens: 0, output_tokens: 0, total_tokens: 0, estimated: true },
     }),
+  };
+}
+
+/** Spectral / flow fields from the optimizer run (same graph analysis as SDK/Desktop). */
+function extractFlowSummary(optimized: any): StudioFlowSummary | undefined {
+  const s = optimized?.spectral;
+  if (!s || typeof s !== "object") return undefined;
+  const rec = s.recommendation;
+  if (rec !== "REUSE" && rec !== "EXPAND" && rec !== "ASK_CLARIFY") return undefined;
+  return {
+    recommendation: rec,
+    stabilityIndex: typeof s.stabilityIndex === "number" ? s.stabilityIndex : 0,
+    lambda2: typeof s.lambda2 === "number" ? s.lambda2 : 0,
+    contradictionEnergy: typeof s.contradictionEnergy === "number" ? s.contradictionEnergy : 0,
+    nNodes: typeof s.nNodes === "number" ? s.nNodes : undefined,
+    nEdges: typeof s.nEdges === "number" ? s.nEdges : undefined,
   };
 }
 
@@ -405,6 +421,7 @@ export async function runStudioScenario(
         costSavingsPct: Math.round(costSavingsPct * 100) / 100,
       },
       appliedTransforms: (optimized as any).optimizationsApplied || [],
+      flowSummary: extractFlowSummary(optimized),
       meta: {
         estimated: false,
         reverted: revertedFlag ? true : undefined,
@@ -500,6 +517,7 @@ export async function runStudioScenario(
       violationsPrevented,
     },
     appliedTransforms: (optimized as any).optimizationsApplied || [],
+    flowSummary: extractFlowSummary(optimized),
     meta: {
       estimated: true,
       reverted: revertedFlag ? true : undefined,

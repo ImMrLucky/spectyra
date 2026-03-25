@@ -10,6 +10,18 @@ leave your environment unless you explicitly opt in.
 
 ---
 
+## Install (end users — no clone, no build)
+
+| What you want | What to do |
+|---------------|------------|
+| **Desktop app** (GUI, keys, analytics) | Download **`.dmg` / installer** from [**GitHub Releases**](https://github.com/spectyra/spectyra/releases) (built by CI), or see [docs/INSTALL_AND_SETUP.md](docs/INSTALL_AND_SETUP.md). |
+| **OpenClaw / agents / “custom API URL”** | One command: `npx @spectyra/local-companion` then set `OPENAI_BASE_URL=http://127.0.0.1:4111/v1` — [full guide](docs/INSTALL_AND_SETUP.md#local-companion-one-command). |
+| **npm SDK** in your app | `npm install @spectyra/sdk` — [SDK README](packages/sdk/README.md). |
+
+**Detailed setup (OpenClaw, companion, troubleshooting):** [docs/INSTALL_AND_SETUP.md](docs/INSTALL_AND_SETUP.md)
+
+---
+
 ## How It Works
 
 1. **Your app calls the LLM provider directly** — Spectyra never sits in the
@@ -37,7 +49,7 @@ leave your environment unless you explicitly opt in.
 
 ---
 
-## Quick Start
+## Quick Start (developing Spectyra itself)
 
 ```bash
 pnpm install
@@ -189,7 +201,9 @@ See [SECURITY.md](SECURITY.md) and [docs/ENTERPRISE_SECURITY.md](docs/ENTERPRISE
 
 ## Quick Links
 
+- **[Install & setup (download, npx, OpenClaw)](docs/INSTALL_AND_SETUP.md)**
 - [SDK Documentation](packages/sdk/README.md)
+- [Local Companion (OpenAI-compatible server)](tools/local-companion/README.md)
 - [User Guide](docs/USER_GUIDE.md)
 - [Integrations Page](apps/web/src/app/features/integrations/)
 - [Security](SECURITY.md)

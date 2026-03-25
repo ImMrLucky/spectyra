@@ -345,6 +345,54 @@
   margin-top: 4px;
 }
 
+.flow-panel {
+  margin-top: 14px;
+  padding-top: 12px;
+  border-top: 1px dashed var(--border, #e5e7eb);
+}
+
+.flow-panel-title {
+  font-size: 12px;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--text-secondary, #6b7280);
+  margin-bottom: 6px;
+}
+
+.flow-panel-hint {
+  font-size: 12px;
+  line-height: 1.45;
+  color: var(--text-secondary, #6b7280);
+  margin: 0 0 10px;
+}
+
+.flow-panel-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: 10px 16px;
+  font-size: 13px;
+}
+
+.flow-panel-grid > div {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.flow-k {
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--text-secondary, #6b7280);
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+
+.flow-v {
+  font-weight: 700;
+  color: var(--text-primary, #111827);
+}
+
 .metrics-grid {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
