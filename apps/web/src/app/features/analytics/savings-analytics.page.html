@@ -1,0 +1,36 @@
+<div class="wrap">
+  <h1>Savings &amp; analytics</h1>
+  <p class="lede">
+    When you <strong>sign in</strong> and <strong>enable sync</strong> from the Spectyra desktop app or SDK, aggregated session
+    summaries (tokens, costs, transforms — <em>not</em> raw prompts) can appear here. Local-only usage stays on your machine.
+  </p>
+
+  <div class="callout" *ngIf="!loading && !error">
+    <p>
+      <strong>Local-first:</strong> SDK and Local Companion store full run analytics on disk by default.
+      This page shows <strong>cloud-synced summaries</strong> only after you opt in.
+    </p>
+  </div>
+
+  <div *ngIf="loading" class="muted">Loading…</div>
+  <div *ngIf="error" class="err">{{ error }}</div>
+
+  <section *ngIf="summary && !loading" class="grid">
+    <div class="card">
+      <h3>Sessions synced</h3>
+      <p class="big">{{ summary.total_sessions }}</p>
+    </div>
+    <div class="card">
+      <h3>Estimated lifetime savings (USD)</h3>
+      <p class="big">{{ summary.lifetime_savings_usd | number : '1.2-4' }}</p>
+    </div>
+    <div class="card">
+      <h3>Avg. input token reduction</h3>
+      <p class="big">{{ summary.avg_token_reduction_pct | number : '1.1-1' }}%</p>
+    </div>
+  </section>
+
+  <p class="muted small" *ngIf="summary && summary.total_sessions === 0 && !loading">
+    No synced sessions yet. Use the desktop app or SDK with sync enabled, or continue with local-only analytics on your device.
+  </p>
+</div>

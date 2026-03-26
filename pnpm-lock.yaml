@@ -302,6 +302,9 @@ importers:
 
   packages/sdk:
     dependencies:
+      '@spectyra/analytics-core':
+        specifier: workspace:*
+        version: link:../analytics-core
       '@spectyra/canonical-model':
         specifier: workspace:*
         version: link:../canonical-model
@@ -378,6 +381,9 @@ importers:
 
   tools/local-companion:
     dependencies:
+      '@spectyra/analytics-core':
+        specifier: workspace:*
+        version: link:../../packages/analytics-core
       '@spectyra/canonical-model':
         specifier: workspace:*
         version: link:../../packages/canonical-model

@@ -68,6 +68,7 @@ export class AppComponent implements OnInit, OnDestroy, AfterViewInit {
     { label: 'Overview', route: '/overview', icon: 'dashboard', requiresAuth: true },
     { label: 'Runs', route: '/runs', icon: 'play_circle', requiresAuth: true },
     { label: 'Usage', route: '/usage', icon: 'account_balance', requiresAuth: true },
+    { label: 'Savings', route: '/analytics', icon: 'savings', requiresAuth: true },
     { label: 'Plan & Licensing', route: '/billing', icon: 'verified', requiresAuth: true },
 
     // Settings

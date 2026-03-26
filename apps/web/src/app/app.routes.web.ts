@@ -12,6 +12,7 @@ import { HomePage } from './features/home/home.page';
 import { OverviewPage } from './features/overview/overview.page';
 import { PoliciesPage } from './features/policies/policies.page';
 import { UsagePage } from './features/usage/usage.page';
+import { SavingsAnalyticsPage } from './features/analytics/savings-analytics.page';
 import { AuditPage } from './features/audit/audit.page';
 import { SecuritySettingsPage } from './features/settings/security.page';
 import { ProviderKeysPage } from './features/settings/provider-keys.page';
@@ -33,6 +34,7 @@ export const webRoutes: Routes = [
   { path: 'runs', component: RunsPage, canActivate: [authGuard] },
   { path: 'runs/:id', component: RunsPage, canActivate: [authGuard] },
   { path: 'usage', component: UsagePage, canActivate: [authGuard] },
+  { path: 'analytics', component: SavingsAnalyticsPage, canActivate: [authGuard] },
 
   { path: 'billing', component: BillingPage, canActivate: [authGuard] },
   { path: 'policies', component: PoliciesPage, canActivate: [authGuard] },

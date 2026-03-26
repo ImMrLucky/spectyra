@@ -22,6 +22,7 @@ import { agentRouter } from "./routes/agent.js";
 import { policiesRouter } from "./routes/policies.js";
 import { auditRouter } from "./routes/audit.js";
 import { usageRouter } from "./routes/usage.js";
+import { analyticsSyncRouter } from "./routes/analyticsSync.js";
 import { providerKeysRouter } from "./routes/providerKeys.js";
 import { retentionRouter } from "./routes/retention.js";
 import { settingsRouter } from "./routes/settings.js";
@@ -116,6 +117,7 @@ app.use("/v1/agent", agentRouter);
 app.use("/v1/policies", policiesRouter);
 app.use("/v1/audit", auditRouter);
 app.use("/v1/usage", usageRouter);
+app.use("/v1/analytics", analyticsSyncRouter);
 app.use("/v1/orgs", providerKeysRouter); // Provider keys management
 app.use("/v1/orgs", settingsRouter); // Settings management
 app.use("/v1/projects", settingsRouter); // Project settings
