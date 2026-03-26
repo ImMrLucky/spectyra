@@ -31,7 +31,7 @@ export class HomePage implements OnInit {
       .pipe(
         take(1),
         switchMap((session) => {
-          const hasApiKey = !!this.authService.authState.apiKey;
+          const hasApiKey = !!this.authService.currentApiKey;
           if (hasApiKey) return of({ kind: 'org' as const });
 
           if (!session?.access_token) return of({ kind: 'public' as const });
