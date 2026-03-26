@@ -9,6 +9,8 @@
  */
 export const environment = {
   production: true,
+  /** Production web origin — used for auth email links when origin is not http(s) (e.g. desktop file://). */
+  publicSiteUrl: 'https://spectyra.netlify.app',
   isDesktop: false,
   companionBaseUrl: 'http://127.0.0.1:4111',
   apiUrl: 'https://spectyra.up.railway.app/v1',

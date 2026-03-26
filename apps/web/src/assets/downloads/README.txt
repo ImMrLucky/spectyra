@@ -1,0 +1,17 @@
+Desktop installers for the /download page (same-origin URLs in environment.*)
+
+Expected filenames (see desktopDownloadsSameOrigin):
+  Spectyra-mac.dmg
+  Spectyra-windows.exe
+  Spectyra-windows.zip   (optional portable)
+
+These files are listed in .gitignore (*.dmg, *.exe, *.zip) so they are NOT committed to git.
+Add them locally before a Netlify deploy, or host elsewhere and set DESKTOP_DOWNLOAD_* on the API.
+
+Windows .exe:
+  1) On Windows (or CI windows-latest): pnpm desktop:dist:win  from repo root
+  2) From apps/desktop/release/ copy the NSIS file (e.g. Spectyra-1.0.0-win-x64.exe)
+     into THIS folder and rename to:  Spectyra-windows.exe
+  3) Deploy the web app so the file ends up at /assets/downloads/Spectyra-windows.exe
+
+macOS .dmg: same idea — rename build output to Spectyra-mac.dmg here before deploy.

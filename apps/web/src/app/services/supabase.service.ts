@@ -13,6 +13,7 @@ import { SupabaseClient, AuthSession } from '@supabase/supabase-js';
 import { Observable } from 'rxjs';
 import { supabase } from '../core/supabase/supabase.client';
 import { AuthSessionService, SupabaseUser } from '../core/auth/authSession.service';
+import { environment } from '../../environments/environment';
 
 // Re-export for backward compatibility
 export type { SupabaseUser } from '../core/auth/authSession.service';
@@ -22,6 +23,21 @@ export type { SupabaseUser } from '../core/auth/authSession.service';
 })
 export class SupabaseService {
   constructor(private authSession: AuthSessionService) {}
+
+  /**
+   * Redirect target for confirmation / magic-link emails. Must be listed under
+   * Supabase Dashboard → Authentication → URL Configuration → Redirect URLs.
+   */
+  private authEmailRedirectUrl(): string {
+    if (typeof window !== 'undefined' && window.location?.origin) {
+      const o = window.location.origin;
+      if (o.startsWith('http')) {
+        return `${o.replace(/\/$/, '')}/`;
+      }
+    }
+    const base = environment.publicSiteUrl?.trim();
+    return base ? `${base.replace(/\/$/, '')}/` : '';
+  }
 
   /**
    * Get current session as Observable
@@ -59,8 +75,10 @@ export class SupabaseService {
       return { error };
     } else {
       // Magic link
+      const redirectTo = this.authEmailRedirectUrl();
       const { error } = await supabase.auth.signInWithOtp({
         email,
+        options: redirectTo ? { emailRedirectTo: redirectTo } : undefined,
       });
       return { error };
     }
@@ -70,9 +88,11 @@ export class SupabaseService {
    * Sign up with email
    */
   async signUp(email: string, password: string): Promise<{ error: Error | null; session: AuthSession | null; user: any }> {
+    const redirectTo = this.authEmailRedirectUrl();
     const { data, error } = await supabase.auth.signUp({
       email,
       password,
+      options: redirectTo ? { emailRedirectTo: redirectTo } : undefined,
     });
     
     // Session will be updated automatically by AuthSessionService listener
