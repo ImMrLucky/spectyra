@@ -167,12 +167,15 @@ export class LoginPage implements OnInit, OnDestroy {
       this.bootstrapApiKey = response.api_key;
       this.userEmail = response.org.name;
       this.trialEndsAt = response.org.trial_ends_at;
-      
+
+      // Drop any cached /auth/me result from before org existed (e.g. 404 needs_bootstrap).
+      this.meService.clearCache();
+
       // Store API key for gateway usage
       if (response.api_key) {
         this.authService.setApiKey(response.api_key);
       }
-      
+
       this.bootstrapLoading = false;
     } catch (err: any) {
       this.error = err.error?.error || 'Failed to create organization';
