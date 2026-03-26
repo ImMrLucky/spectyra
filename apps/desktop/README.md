@@ -40,6 +40,8 @@ pnpm desktop:dist
 
 Artifacts: `apps/desktop/release/` (`.dmg`, `.zip`, NSIS `.exe`, etc., per platform).
 
+**Windows zip:** To force a fresh `*-win-x64.zip` (electron-builder can skip re-zipping if an old zip looks “up to date”), use **`pnpm desktop:dist:win`** from the repo root instead of `pnpm desktop:dist` when cross-building Windows.
+
 Prerequisites: `pnpm install`, local-companion built, Angular desktop build, and `resources/companion` (the `dist` script runs `build` which includes `prepare:companion`).
 
 ## Security notes

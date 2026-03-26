@@ -35,7 +35,8 @@ Do not commit large installers to git. Prefer CDN / object storage / GitHub Rele
 - The desktop build sets **`electronLanguages`** (English-only) to drop most Chromium locale packs.
 - **Windows** uses **`win.compression: maximum`** so the **`.zip`** (and NSIS intermediates) compress harder; macOS dmg/zip stay on default compression so local/CI mac builds stay faster.
 - **Angular desktop** uses **`sourceMap: false`** (no `.map` in `dist/renderer`), **`files` excludes `*.map`**, and the companion script strips **`*.map`** plus **test/docs markdown** under `node_modules` after `pnpm deploy`.
-- The **NSIS `.exe`** is often **smaller than the `.zip`** of the same app. If the zip is still tight on a **~100 MB** limit, ship the **installer** via **GitHub Releases** or add a **`7z`** target (often a few percent smaller than zip; users need 7-Zip to extract).
+- The **NSIS `.exe`** is often **smaller than the `.zip`** of the same app. If the zip is still tight on a **~100 MB** limit, prefer shipping the **installer** via **GitHub Releases** (or another CDN) instead of the portable zip.
+- **Stale zip:** electron-builder may skip re-zipping when an existing `*-win-x64.zip` looks newer than `win-unpacked`. From `apps/desktop`, run **`pnpm run dist:win`** (or delete that zip, then run `electron-builder --win`) so the zip always matches the latest build.
 
 ## When to rebuild
 
