@@ -1,11 +1,10 @@
 import { Component, OnInit, OnDestroy } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { RouterModule } from '@angular/router';
+import { NavigationEnd, Router, RouterModule } from '@angular/router';
 import { SupabaseService } from '../services/supabase.service';
-import { HttpClient, HttpHeaders } from '@angular/common/http';
 import { environment } from '../../environments/environment';
-import { Subscription } from 'rxjs';
-import { debounceTime, distinctUntilChanged } from 'rxjs/operators';
+import { Subscription, merge } from 'rxjs';
+import { debounceTime, distinctUntilChanged, filter, take } from 'rxjs/operators';
 import { firstValueFrom } from 'rxjs';
 import {MeService} from "../core/services/me.service";
 import type { OrgDisplay, ProjectDisplay } from '@spectyra/shared';
@@ -28,32 +27,50 @@ export class OrgSwitcherComponent implements OnInit, OnDestroy {
 
   constructor(
     private supabase: SupabaseService,
-    private http: HttpClient,
-    private meService: MeService
+    private meService: MeService,
+    private router: Router
   ) {}
 
   ngOnInit() {
+    const onSessionOrRoute = () => this.applySessionToOrgSwitcher();
+
     // Debounce session changes to prevent multiple rapid calls
-    // Also add distinctUntilChanged to prevent duplicate calls
-    this.sessionSub = this.supabase.getSession().pipe(
-      debounceTime(500), // Wait 500ms after last emission
+    const session$ = this.supabase.getSession().pipe(
+      debounceTime(500),
       distinctUntilChanged((prev, curr) => {
-        // Only reload if session actually changed (was null, now exists, or vice versa)
-        // Also check if access_token changed
         const prevToken = prev?.access_token || null;
         const currToken = curr?.access_token || null;
         return prevToken === currToken;
       })
-    ).subscribe(session => {
-      if (session?.access_token) {
-        // Only load if we have a valid token
+    );
+
+    // When leaving /login or /register with the same token, session$ may not re-emit — reload org after navigation.
+    const nav$ = this.router.events.pipe(
+      filter((e): e is NavigationEnd => e instanceof NavigationEnd)
+    );
+
+    this.sessionSub = merge(session$, nav$).subscribe(onSessionOrRoute);
+  }
+
+  /** Load org/projects for the shell, but not on auth pages (login/register already call /auth/me). */
+  private applySessionToOrgSwitcher(): void {
+    this.supabase
+      .getSession()
+      .pipe(take(1))
+      .subscribe((session) => {
+        if (!session?.access_token) {
+          this.org = null;
+          this.projects = [];
+          return;
+        }
+        const path = this.router.url.split('?')[0] || '';
+        if (path === '/login' || path === '/register') {
+          this.org = null;
+          this.projects = [];
+          return;
+        }
         this.loadOrgInfo();
-      } else {
-        // Clear org info when session is lost
-        this.org = null;
-        this.projects = [];
-      }
-    });
+      });
   }
 
   ngOnDestroy() {

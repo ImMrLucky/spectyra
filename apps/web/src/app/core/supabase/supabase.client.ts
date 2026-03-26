@@ -95,6 +95,9 @@ export function getSupabaseClient(): SupabaseClient {
             detectSessionInUrl: true,
             // Use a consistent storage key to reduce lock contention
             storageKey: `sb-${projectRef}-auth-token`,
+            // Avoid Navigator LockManager (exclusive lock failures / noisy console in some browsers).
+            // Single-tab dashboard use does not need cross-tab lock coordination.
+            lock: async <R>(_name: string, _acquireTimeout: number, fn: () => Promise<R>) => fn(),
           },
         }
       );
