@@ -5,6 +5,16 @@ copyright: Copyright © Spectyra
 # Pinned for electron-builder + pnpm (resolves even when Electron is not hoisted to this package).
 electronVersion: 28.3.3
 
+# Default compression is "normal" (faster CI). For slightly smaller zips:
+#   pnpm --filter @spectyra/desktop run dist -- -c.compression=maximum
+# (Much slower builds; biggest savings come from electronLanguages below.)
+
+# Keep only English Chromium/Electron UI strings (~tens of MB saved vs all locales).
+# Windows uses *.pak names like en-US; macOS uses *.lproj dirs like en.
+electronLanguages:
+  - en
+  - en-US
+
 # Predictable filenames for hosting (CDN / Netlify / GitHub Releases)
 artifactName: ${productName}-${version}-${os}-${arch}.${ext}
 
@@ -22,6 +32,7 @@ extraResources:
     to: companion
     filter:
       - "**/*"
+      - "!**/*.map"
 
 asar: true
 
