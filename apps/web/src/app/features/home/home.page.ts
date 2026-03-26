@@ -39,12 +39,17 @@ export class HomePage implements OnInit {
           return this.meService.getMe().pipe(
             take(1),
             map((me) => ({ kind: me?.org ? ('org' as const) : ('needs-bootstrap' as const) })),
-            catchError((err) => {
-              if (err?.status === 404 && err?.error?.needs_bootstrap) {
+            catchError((err: any) => {
+              // Any 404 from /auth/me for a Bearer session means no org context yet (or missing org).
+              // Do not assume a JSON body (proxies may return HTML); `needs_bootstrap` is optional.
+              if (err?.status === 404) {
                 return of({ kind: 'needs-bootstrap' as const });
               }
-              // Unknown error: don't strand the user on `/` — go to overview.
-              return of({ kind: 'org' as const });
+              if (err?.status === 401) {
+                return of({ kind: 'public' as const });
+              }
+              // Offline / 5xx: stay on home instead of sending to overview (avoids error loops).
+              return of({ kind: 'unknown' as const });
             })
           );
         })
