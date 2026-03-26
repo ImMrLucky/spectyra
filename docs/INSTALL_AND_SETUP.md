@@ -126,6 +126,26 @@ Full API: [`packages/sdk/README.md`](../packages/sdk/README.md).
 
 ---
 
+## Maintainer: Supabase auth (sign-up links & email branding)
+
+The Angular app passes **`emailRedirectTo`** on **sign-up** and **magic-link** sign-in so confirmation links use the **current browser origin** (e.g. `https://spectyra.netlify.app/`). If there is no `http(s)` origin (unusual), it falls back to **`publicSiteUrl`** in `apps/web/src/environments/environment*.ts`.
+
+You must align the **Supabase project** with your real URLs and (optionally) your own email delivery:
+
+1. **Authentication → URL Configuration**
+   - **Site URL:** set to your production site (e.g. `https://spectyra.netlify.app`), **not** `http://localhost:3000` — that default is why confirmation links used to send users to localhost.
+   - **Redirect URLs:** allow the origins users actually use, for example:
+     - `https://spectyra.netlify.app/**`
+     - `https://*.netlify.app/**` (preview deploys)
+     - `http://localhost:4200/**` (local `ng serve`)
+
+2. **Emails from Spectyra instead of a generic Supabase sender**  
+   By default, mail is sent through Supabase’s infrastructure and looks like “from Supabase.” To use **your domain and branding**:
+   - **Project Settings → Authentication → SMTP Settings** — enable **Custom SMTP** (SendGrid, Postmark, AWS SES, Resend, etc.) and set **sender name** and **from address** (e.g. `Spectyra <noreply@yourdomain.com>`). Add the DNS records (SPF/DKIM) your provider requires.
+   - **Authentication → Email Templates** — edit “Confirm signup”, “Magic link”, etc., for product copy and layout.
+
+---
+
 ## Troubleshooting
 
 - **Companion won’t start:** Check port `4111` is free; change port in companion config if needed.

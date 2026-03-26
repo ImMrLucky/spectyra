@@ -1,9 +1,10 @@
 import { Component, OnInit } from '@angular/core';
 import { firstValueFrom } from 'rxjs';
 import { CommonModule } from '@angular/common';
-import { RouterModule } from '@angular/router';
+import { Router, RouterModule } from '@angular/router';
 import { HttpClient } from '@angular/common/http';
 import { environment } from '../../../environments/environment';
+import { MeService } from '../../core/services/me.service';
 
 interface IntegrationStatus {
   sdk_local: boolean;
@@ -62,13 +63,30 @@ export class OverviewPage implements OnInit {
   hasIntegrations = false;
   hasRuns = false;
 
-  constructor(private http: HttpClient) {}
+  constructor(
+    private http: HttpClient,
+    private meService: MeService,
+    private router: Router
+  ) {}
 
   async ngOnInit() {
     await this.loadData();
   }
 
   async loadData() {
+    // Brand-new users can be authenticated by Supabase but not yet bootstrapped
+    // into an org (no org_memberships row). In that case, /auth/me returns
+    // 404 { needs_bootstrap: true }. Redirect to /login instead of calling
+    // /usage/* and /integrations/status (they require org context).
+    try {
+      await firstValueFrom(this.meService.getMe());
+    } catch (err: any) {
+      if (err?.status === 404 && err?.error?.needs_bootstrap) {
+        this.router.navigate(['/login']);
+        return;
+      }
+    }
+
     this.loading = true;
     this.error = null;
 

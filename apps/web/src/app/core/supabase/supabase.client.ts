@@ -52,6 +52,8 @@ export function getSupabaseClient(): SupabaseClient {
     // Suppress LockManager warnings during initialization (they're harmless)
     const originalWarn = console.warn;
     const suppressedWarnings: string[] = [];
+    const originalError = console.error;
+    const suppressedErrors: string[] = [];
     console.warn = (...args: any[]) => {
       const message = args.join(' ');
       // Suppress LockManager warnings (they're non-critical browser API warnings)
@@ -64,6 +66,22 @@ export function getSupabaseClient(): SupabaseClient {
         return;
       }
       originalWarn.apply(console, args);
+    };
+
+    console.error = (...args: any[]) => {
+      const message = args.join(' ');
+      // Supabase sometimes logs lock acquisition failures as console.error; it's safe.
+      if (
+        (message.includes('Navigator LockManager') || message.includes('LockManager')) &&
+        message.includes('lock:sb-')
+      ) {
+        suppressedErrors.push(message);
+        if (suppressedErrors.length === 1) {
+          console.debug('[supabase] LockManager error suppressed (non-critical)');
+        }
+        return;
+      }
+      originalError.apply(console, args);
     };
     
     try {
@@ -83,6 +101,7 @@ export function getSupabaseClient(): SupabaseClient {
     } finally {
       // Restore original console.warn
       console.warn = originalWarn;
+      console.error = originalError;
     }
 
     // Store in global for HMR/dev scenarios

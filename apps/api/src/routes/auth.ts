@@ -915,16 +915,20 @@ authRouter.delete("/org", requireSpectyraApiKey, optionalProviderKey, async (req
 authRouter.get("/entitlement", async (req: AuthenticatedRequest, res) => {
   try {
     let orgId: string | null = null;
+    let jwtAuthenticated = false;
 
     const authHeader = req.headers.authorization;
     if (authHeader && authHeader.startsWith("Bearer ")) {
       await new Promise<void>((resolve) => {
         requireUserSession(req, res, async () => {
           if (req.auth?.userId) {
+            jwtAuthenticated = true;
             const membership = await queryOne<{ org_id: string }>(`
               SELECT org_id FROM org_memberships WHERE user_id = $1 LIMIT 1
             `, [req.auth.userId]);
-            if (membership) orgId = membership.org_id;
+            if (membership) {
+              orgId = membership.org_id;
+            }
           }
           resolve();
         }).catch(() => resolve());
@@ -933,6 +937,23 @@ authRouter.get("/entitlement", async (req: AuthenticatedRequest, res) => {
     }
 
     if (!orgId) {
+      // If the caller has a valid Supabase JWT but hasn't been bootstrapped into
+      // an org yet (no org_memberships row), return a safe default entitlement.
+      // This prevents the billing page from failing for brand-new users.
+      if (jwtAuthenticated) {
+        return res.json({
+          plan: "free",
+          trialState: null,
+          trialEndsAt: null,
+          licenseStatus: "missing",
+          optimizedRunsLimit: 0,
+          optimizedRunsUsed: 0,
+          cloudAnalyticsEnabled: false,
+          desktopAppEnabled: false,
+          sdkEnabled: false,
+        });
+      }
+
       await new Promise<void>((resolve) => {
         requireSpectyraApiKey(req, res, () => {
           if (req.context) orgId = req.context.org.id;

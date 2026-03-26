@@ -1,5 +1,7 @@
 export const environment = {
   production: false,
+  /** Fallback for auth email links when `window` has no http(s) origin (e.g. file://). */
+  publicSiteUrl: 'http://localhost:4200',
   /** Set true only in environment.desktop.ts — Electron renderer. */
   isDesktop: false,
   /** Local Companion (same host as Electron main). */

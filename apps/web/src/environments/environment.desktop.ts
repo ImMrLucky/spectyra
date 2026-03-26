@@ -3,6 +3,7 @@
  */
 export const environment = {
   production: true,
+  publicSiteUrl: 'https://spectyra.netlify.app',
   isDesktop: true,
   companionBaseUrl: 'http://127.0.0.1:4111',
   apiUrl: 'https://spectyra.up.railway.app/v1',
