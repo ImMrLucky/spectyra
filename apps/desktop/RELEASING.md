@@ -29,6 +29,14 @@ The web app’s `desktopDownloadsSameOrigin` paths expect **stable** names: **`S
 
 Do not commit large installers to git. Prefer CDN / object storage / GitHub Release assets and (if used) API env vars such as `DESKTOP_DOWNLOAD_*` documented elsewhere.
 
+### Size (GitHub & uploads)
+
+- **Electron + Chromium dominate** the Windows/macOS packages; the Angular UI and companion add relatively little.
+- The desktop build sets **`electronLanguages`** (English-only) to drop most Chromium locale packs, and excludes **`*.map`** from the bundled companion — meaningful savings without changing runtime behavior for English users.
+- Optional: pass **`-c.compression=maximum`** to electron-builder for a bit smaller archives (much slower builds; often only a few percent vs locale trimming).
+- The **NSIS `.exe`** is often **smaller than the `.zip`** of the same app (compressed installer vs archiving the folder). If a **`.zip` is still over ~100 MB** (e.g. strict git limits), ship the **installer** via **GitHub Releases** instead of committing binaries to the repo.
+- Optional: add a **`7z`** target in `electron-builder.yml` if you want a smaller archive than zip for manual distribution (users need 7-Zip or `tar`/`bsdtar` to extract).
+
 ## When to rebuild
 
 - Changes under `apps/desktop/electron/**`, `apps/desktop/package.json`, `electron-builder.yml`
