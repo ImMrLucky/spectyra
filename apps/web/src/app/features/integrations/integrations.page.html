@@ -1,7 +1,7 @@
 <div class="container">
   <div class="page-header">
     <h1>Integrations</h1>
-    <p class="subtitle">Choose how to integrate Spectyra. All paths keep inference direct to your provider.</p>
+    <p class="subtitle">Choose how to integrate Spectyra. Local paths keep inference direct to your provider; Spectyra does not proxy live inference through Spectyra servers by default.</p>
   </div>
 
   <!-- Integration Cards -->
@@ -25,10 +25,23 @@
         <span class="glance-label" [class.safe]="!card.requiresCodeChanges" [class.warn]="card.requiresCodeChanges">
           {{ card.requiresCodeChanges ? 'Code changes required' : 'No code changes' }}
         </span>
+        <span class="glance-label" [class.safe]="card.runsLocally" [class.warn]="!card.runsLocally">
+          {{ card.runsLocally ? 'Runs locally' : 'Not localhost-only' }}
+        </span>
         <span class="glance-label" [class.safe]="!card.promptLeavesEnvironment" [class.warn]="card.promptLeavesEnvironment">
-          {{ card.promptLeavesEnvironment ? 'Prompts leave environment' : 'Prompts stay local' }}
+          {{ card.promptLeavesEnvironment ? 'Prompts may leave environment' : 'Prompts stay local by default' }}
+        </span>
+        <span class="glance-label" [class.safe]="card.directProviderBilling" [class.warn]="!card.directProviderBilling">
+          {{ card.directProviderBilling ? 'Direct provider billing' : 'No direct provider billing' }}
         </span>
         <span class="glance-label safe">{{ card.providerCallPath }}</span>
+        <span class="glance-label" [class.safe]="card.goodForOpenClaw" [class.muted]="!card.goodForOpenClaw">
+          {{ card.goodForOpenClaw ? 'Good for OpenClaw' : 'Not the OpenClaw path' }}
+        </span>
+        <span class="glance-label" [class.safe]="card.goodForAgentTools" [class.muted]="!card.goodForAgentTools">
+          {{ card.goodForAgentTools ? 'Good for agent tools' : 'Limited for agent tools' }}
+        </span>
+        <span class="glance-label safe">Setup: {{ card.setupComplexity }}</span>
         <span class="glance-label safe">Telemetry: {{ card.telemetryDefault }}</span>
         <span class="glance-label safe">Best first mode: {{ card.recommendedFirstMode }}</span>
       </div>
@@ -58,6 +71,43 @@
         </ol>
       </div>
 
+      <!-- OpenClaw: Desktop / Local Companion -->
+      <div class="section" *ngIf="selectedCard.id === 'local-companion'">
+        <h3>OpenClaw — How it works</h3>
+        <div class="guide-content">
+          <div class="guide-item">
+            <strong>What it is</strong>
+            <p>Spectyra runs locally and acts as a <strong>local OpenAI-compatible model provider</strong> for OpenClaw (and similar tools).</p>
+          </div>
+          <div class="guide-item">
+            <strong>Data flow</strong>
+            <p>OpenClaw → Spectyra Local Companion on localhost → your selected real provider (using your API key).</p>
+          </div>
+          <div class="guide-item">
+            <strong>What stays local</strong>
+            <p>Prompts, responses, prompt comparisons, and analytics by default.</p>
+          </div>
+          <div class="guide-item">
+            <strong>What leaves your machine</strong>
+            <p>Only the final request to your chosen provider. Optional redacted analytics if you enable cloud sync.</p>
+          </div>
+          <div class="guide-item">
+            <strong>Model aliases</strong>
+            <p><code>spectyra/smart</code> and <code>spectyra/fast</code> are not separate vendors — they are stable Spectyra-local routing profiles. Spectyra forwards to the real model you configured in Desktop (for example Claude Sonnet, GPT-4.1 mini, or a Groq fast model).</p>
+          </div>
+        </div>
+        <div class="section-header" style="margin-top: 16px">
+          <h3>OpenClaw config example</h3>
+          <button class="btn btn-sm btn-secondary" type="button" (click)="copyOpenClawConfig()">Copy JSON</button>
+        </div>
+        <p style="color: #666; font-size: 14px; margin-bottom: 12px">
+          Add <code>models.providers.spectyra</code> pointing at the Local Companion base URL. OpenClaw model refs use <code>provider/model</code> (e.g. <code>spectyra/smart</code>).
+        </p>
+        <div class="code-block">
+          <pre><code>{{ openClawConfigExampleJson }}</code></pre>
+        </div>
+      </div>
+
       <!-- Quickstart code -->
       <div class="section" *ngIf="selectedCard.quickstart">
         <div class="section-header">
@@ -77,27 +127,12 @@
         </ul>
       </div>
 
-      <!-- OpenClaw specific -->
+      <!-- Generic agent tools -->
       <div class="section" *ngIf="selectedCard.id === 'local-companion'">
-        <h3>OpenClaw / Local Companion</h3>
-        <div class="guide-content">
-          <div class="guide-item">
-            <strong>No code integration required</strong>
-            <p>Spectyra runs locally beside tools like OpenClaw. In your tool's settings, change the API endpoint to the Local Companion URL shown below.</p>
-          </div>
-          <div class="guide-item">
-            <strong>Localhost endpoint</strong>
-            <p>http://127.0.0.1:4111/v1</p>
-          </div>
-          <div class="guide-item">
-            <strong>Provider key stays on your machine</strong>
-            <p>Set your provider key as an environment variable. It is never uploaded to Spectyra cloud.</p>
-          </div>
-          <div class="guide-item">
-            <strong>Observe first, then on</strong>
-            <p>Start in observe mode to see projected savings without modifying prompts. Switch to on when ready.</p>
-          </div>
-        </div>
+        <h3>Other agentic coding tools</h3>
+        <p style="color: #666; line-height: 1.6">
+          Any tool that supports a <strong>local OpenAI-compatible base URL</strong> can use the same Local Companion endpoint (<code>http://127.0.0.1:4111/v1</code> by default). No OpenClaw-specific logic lives in Spectyra’s optimizer — only the documented OpenAI-compatible surface and stable <code>spectyra/*</code> aliases.
+        </p>
       </div>
     </div>
   </div>

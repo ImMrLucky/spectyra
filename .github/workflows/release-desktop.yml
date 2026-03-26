@@ -1,4 +1,4 @@
-# Builds Desktop artifacts for your distribution channel (Netlify, CDN, etc.).
+# Builds Desktop artifacts (electron-builder: DMG/zip on macOS, NSIS/zip on Windows).
 #
 # Usage:
 #   git tag desktop-v1.0.0 && git push origin desktop-v1.0.0
@@ -38,18 +38,18 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
-      - name: Build desktop (DMG + zip)
-        run: pnpm desktop:make
+      - name: Package desktop (electron-builder)
+        run: pnpm desktop:dist
 
       - name: Upload artifacts
         uses: actions/upload-artifact@v4
         with:
           name: spectyra-desktop-macos
-          path: apps/desktop/deploy-out/out/make/
+          path: apps/desktop/release/
           if-no-files-found: error
 
   build-windows:
-    name: Build (Windows — Squirrel + zip)
+    name: Build (Windows — NSIS + zip)
     runs-on: windows-latest
     steps:
       - name: Checkout
@@ -69,12 +69,12 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
-      - name: Build desktop (Squirrel installer + zip)
-        run: pnpm --filter @spectyra/desktop deploy apps/desktop/deploy-out && pnpm --dir apps/desktop/deploy-out run make
+      - name: Package desktop (electron-builder)
+        run: pnpm desktop:dist
 
       - name: Upload artifacts
         uses: actions/upload-artifact@v4
         with:
           name: spectyra-desktop-windows
-          path: apps/desktop/deploy-out/out/make/
+          path: apps/desktop/release/
           if-no-files-found: error

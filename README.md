@@ -127,14 +127,12 @@ provider key management, license activation, and a local analytics dashboard.
 **Build from source** (release engineering / contributors):
 
 ```bash
-cd apps/desktop
 pnpm install
-pnpm dev          # run in development
-pnpm make         # build distributable (DMG, zip, or Squirrel installer)
+pnpm desktop:dev   # dev: Electron + Angular (see apps/desktop/README.md)
+pnpm desktop:dist  # installers → apps/desktop/release/ (DMG/zip, NSIS exe/zip)
 ```
 
-The built app appears in `apps/desktop/out/`. It embeds the companion server
-in-process — no separate install needed. See [docs/INSTALL_AND_SETUP.md](docs/INSTALL_AND_SETUP.md).
+The packaged app bundles the **Local Companion** as a child process (no separate install). See [docs/INSTALL_AND_SETUP.md](docs/INSTALL_AND_SETUP.md).
 
 ---
 

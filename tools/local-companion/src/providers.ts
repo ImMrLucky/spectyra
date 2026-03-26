@@ -13,7 +13,21 @@ export interface ProviderCallResult {
   raw: unknown;
 }
 
+function parseSessionKeys(): Record<string, string> {
+  const raw = process.env.SPECTYRA_PROVIDER_KEYS_JSON;
+  if (!raw?.trim()) return {};
+  try {
+    return JSON.parse(raw) as Record<string, string>;
+  } catch {
+    return {};
+  }
+}
+
+const sessionKeys = parseSessionKeys();
+
 function getProviderKey(provider: string): string {
+  const fromSession = sessionKeys[provider];
+  if (fromSession) return fromSession;
   switch (provider) {
     case "openai": return process.env.OPENAI_API_KEY || "";
     case "anthropic": return process.env.ANTHROPIC_API_KEY || "";

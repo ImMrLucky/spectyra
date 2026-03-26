@@ -42,6 +42,13 @@ export class AuthSessionService implements OnDestroy {
     }
 
     this.initialized = true;
+
+    if (environment.isDesktop) {
+      this.session$.next(null);
+      this.user$.next(null);
+      return;
+    }
+
     console.debug('[auth] initializing auth state listener');
 
     // Get initial session

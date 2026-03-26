@@ -8,8 +8,9 @@
     "packages/*"
   ],
   "scripts": {
-    "desktop:make": "pnpm --filter @spectyra/desktop deploy apps/desktop/deploy-out && pnpm --dir apps/desktop/deploy-out run make",
-    "desktop:make:win32": "pnpm --filter @spectyra/desktop deploy apps/desktop/deploy-out && pnpm --dir apps/desktop/deploy-out exec electron-forge make --platform win32 --arch x64",
+    "desktop:build": "pnpm --filter @spectyra/desktop run build",
+    "desktop:dist": "pnpm --filter @spectyra/desktop run dist",
+    "desktop:dev": "pnpm --filter @spectyra/desktop run dev",
     "dev:api": "pnpm --filter api dev",
     "dev:web": "pnpm --filter web dev",
     "dev": "pnpm --parallel --filter \"./apps/*\" dev",

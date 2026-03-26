@@ -4,6 +4,7 @@ import { CommonModule } from '@angular/common';
 import { AuthService } from './core/auth/auth.service';
 import { SupabaseService } from './services/supabase.service';
 import { OrgSwitcherComponent } from './components/org-switcher.component';
+import { environment } from '../environments/environment';
 import { Subscription, combineLatest } from 'rxjs';
 import { map } from 'rxjs/operators';
 import { MatSnackBarModule } from '@angular/material/snack-bar';
@@ -44,7 +45,9 @@ interface NavItem {
 export class AppComponent implements OnInit, OnDestroy, AfterViewInit {
   @ViewChild(MatSidenavContainer) sidenavContainer?: MatSidenavContainer;
   @ViewChild('sidenav') sidenav?: MatSidenav;
-  
+
+  readonly isDesktop = environment.isDesktop;
+
   isAuthenticated = false;
   userEmail: string | null = null;
   showAdminLink = false;
@@ -85,6 +88,10 @@ export class AppComponent implements OnInit, OnDestroy, AfterViewInit {
   ) {}
 
   ngOnInit() {
+    if (this.isDesktop) {
+      this.isAuthenticated = true;
+      return;
+    }
     // Check screen size and auto-collapse on mobile
     this.checkScreenSize();
     window.addEventListener('resize', this.checkScreenSize);
