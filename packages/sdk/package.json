@@ -31,6 +31,7 @@
     "directory": "packages/sdk"
   },
   "dependencies": {
+    "@spectyra/analytics-core": "workspace:*",
     "@spectyra/core-types": "workspace:*",
     "@spectyra/canonical-model": "workspace:*",
     "@spectyra/feature-detection": "workspace:*",

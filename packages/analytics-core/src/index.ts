@@ -1,9 +1,16 @@
 /**
- * Analytics core.
+ * @spectyra/analytics-core
  *
- * Computes savings reports and run summaries from optimization pipeline results.
+ * Unified analytics: savings calculations, session aggregation, cloud-safe sync payloads.
  */
 
+export * from "./types.js";
+export * from "./calculators.js";
+export * from "./aggregators.js";
+export * from "./sync.js";
+export * from "./session-tracker.js";
+
+// Legacy: pipeline-based reports (canonical model)
 import type { SavingsReport, PromptComparison } from "@spectyra/core-types";
 import type { CanonicalRequest, OptimizationPipelineResult } from "@spectyra/canonical-model";
 
@@ -20,9 +27,7 @@ function requestCharCount(req: CanonicalRequest): number {
 /**
  * Build a SavingsReport from a pipeline result.
  */
-export function buildSavingsReport(
-  pipeline: OptimizationPipelineResult,
-): SavingsReport {
+export function buildSavingsReport(pipeline: OptimizationPipelineResult): SavingsReport {
   const { originalRequest, optimizedRequest, transformsApplied } = pipeline;
 
   const beforeChars = requestCharCount(originalRequest);
@@ -30,7 +35,7 @@ export function buildSavingsReport(
   const beforeTokens = estimateTokens(beforeChars);
   const afterTokens = estimateTokens(afterChars);
   const tokensSaved = beforeTokens - afterTokens;
-  const savingsPct = beforeTokens > 0 ? Math.round(((tokensSaved) / beforeTokens) * 100) : 0;
+  const savingsPct = beforeTokens > 0 ? Math.round((tokensSaved / beforeTokens) * 100) : 0;
 
   return {
     runId: originalRequest.runId,
@@ -57,17 +62,15 @@ export function buildSavingsReport(
 /**
  * Build a PromptComparison from a pipeline result.
  */
-export function buildPromptComparison(
-  pipeline: OptimizationPipelineResult,
-): PromptComparison {
+export function buildPromptComparison(pipeline: OptimizationPipelineResult): PromptComparison {
   const report = buildSavingsReport(pipeline);
 
   return {
-    originalMessagesSummary: pipeline.originalRequest.messages.map(m => ({
+    originalMessagesSummary: pipeline.originalRequest.messages.map((m) => ({
       role: m.role,
       contentPreview: (m.text ?? "").slice(0, 500),
     })),
-    optimizedMessagesSummary: pipeline.optimizedRequest.messages.map(m => ({
+    optimizedMessagesSummary: pipeline.optimizedRequest.messages.map((m) => ({
       role: m.role,
       contentPreview: (m.text ?? "").slice(0, 500),
     })),
@@ -86,9 +89,7 @@ export function buildPromptComparison(
 /**
  * Aggregate multiple savings reports into a summary.
  */
-export function aggregateSavings(
-  reports: SavingsReport[],
-): {
+export function aggregateSavings(reports: SavingsReport[]): {
   totalRuns: number;
   totalTokensSaved: number;
   totalCostSaved: number;
@@ -97,9 +98,8 @@ export function aggregateSavings(
   const totalRuns = reports.length;
   const totalTokensSaved = reports.reduce((a, r) => a + (r.inputTokensBefore - r.inputTokensAfter), 0);
   const totalCostSaved = reports.reduce((a, r) => a + r.estimatedSavings, 0);
-  const avgSavingsPercent = totalRuns > 0
-    ? reports.reduce((a, r) => a + r.estimatedSavingsPct, 0) / totalRuns
-    : 0;
+  const avgSavingsPercent =
+    totalRuns > 0 ? reports.reduce((a, r) => a + r.estimatedSavingsPct, 0) / totalRuns : 0;
 
   return { totalRuns, totalTokensSaved, totalCostSaved, avgSavingsPercent };
 }

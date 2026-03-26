@@ -31,6 +31,18 @@ import { interval, Subscription } from 'rxjs';
         </mat-card-actions>
       </mat-card>
 
+      <mat-card class="card" *ngIf="currentSession">
+        <mat-card-title>Current session (live)</mat-card-title>
+        <mat-card-content>
+          <p><strong>Steps:</strong> {{ currentSession['totalSteps'] ?? '—' }}</p>
+          <p><strong>Token savings (input):</strong>
+            {{ (currentSession['totalInputTokensBefore'] ?? 0) - (currentSession['totalInputTokensAfter'] ?? 0) }}</p>
+          <p><strong>Workflow savings (est. USD):</strong> {{ currentSession['estimatedWorkflowSavings'] | number:'1.2-4' }}</p>
+          <p><strong>Mode:</strong> {{ currentSession['mode'] }}</p>
+          <p class="fine">Inference: direct to provider · Telemetry: {{ currentSession['security']?.['telemetryMode'] }}</p>
+        </mat-card-content>
+      </mat-card>
+
       <mat-card class="card">
         <mat-card-title>Security</mat-card-title>
         <mat-card-content>
@@ -51,12 +63,14 @@ import { interval, Subscription } from 'rxjs';
       .card { margin-bottom: 16px; }
       .list { margin: 0; padding-left: 1.2rem; line-height: 1.6; }
       code { background: #f0f0f0; padding: 2px 6px; border-radius: 4px; }
+      .fine { font-size: 0.85rem; color: #666; margin-bottom: 0; }
     `,
   ],
 })
 export class DesktopDashboardPage implements OnInit, OnDestroy {
   companionHost = environment.companionBaseUrl;
   health: Record<string, unknown> | null = null;
+  currentSession: Record<string, unknown> | null = null;
   private poll?: Subscription;
 
   constructor(private desktop: DesktopBridgeService) {}
@@ -76,6 +90,14 @@ export class DesktopDashboardPage implements OnInit, OnDestroy {
       this.health = h;
     } catch {
       this.health = null;
+    }
+    try {
+      const s = await fetch(`${this.companionHost}/v1/analytics/current-session`).then((r) =>
+        r.ok ? r.json() : null,
+      );
+      this.currentSession = s && typeof s === 'object' && s !== null && 'sessionId' in s ? s : null;
+    } catch {
+      this.currentSession = null;
     }
   }
 }

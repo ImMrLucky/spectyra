@@ -29,6 +29,7 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
+    "@spectyra/analytics-core": "workspace:*",
     "@spectyra/shared": "workspace:*",
     "@spectyra/core-types": "workspace:*",
     "@spectyra/canonical-model": "workspace:*",

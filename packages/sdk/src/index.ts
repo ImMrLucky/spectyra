@@ -27,6 +27,10 @@
 export { createSpectyra } from "./createSpectyra.js";
 export type { SpectyraInstance } from "./createSpectyra.js";
 
+// Workflow sessions (multi-step analytics)
+export { startSpectyraSession } from "./session/startSpectyraSession.js";
+export type { SpectyraSessionHandle, StartSpectyraSessionOptions } from "./session/startSpectyraSession.js";
+
 // Provider adapters (direct-provider, no Spectyra cloud)
 export { createOpenAIAdapter } from "./adapters/openai.js";
 export { createAnthropicAdapter } from "./adapters/anthropic.js";
@@ -44,6 +48,14 @@ export type {
   PromptComparison,
   SecurityLabels,
 } from "./types.js";
+
+// Analytics (workflow sessions, cloud-safe payloads)
+export type {
+  AnalyticsEvent,
+  SessionAnalyticsRecord,
+  StepAnalyticsRecord,
+  SyncedAnalyticsPayload,
+} from "@spectyra/analytics-core";
 
 // SDK-specific types
 export type {

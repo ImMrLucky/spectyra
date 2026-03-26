@@ -22,8 +22,16 @@ import { loadConfig, type CompanionConfig } from "./config.js";
 import { optimize, type ChatMessage } from "./optimizer.js";
 import { callProvider } from "./providers.js";
 import { saveRun, savePromptComparison, getRuns, getPromptComparison, getSavingsSummary } from "./localStore.js";
+import { estimateInputCostUsd, estimateOutputCostUsd } from "@spectyra/analytics-core";
+import {
+  CompanionSessionRegistry,
+  listStoredSessions,
+  getStoredSessionById,
+  readCurrentSessionForKey,
+} from "./sessionAnalytics.js";
 
 const cfg: CompanionConfig = loadConfig();
+const sessionRegistry = new CompanionSessionRegistry(cfg);
 const app = express();
 
 app.use(cors());
@@ -160,6 +168,8 @@ app.post("/v1/messages", async (req, res) => {
     const runId = crypto.randomUUID();
     const report = buildReport(runId, resolved.provider, resolved.upstreamModel, optResult, providerResult.usage);
     await persistLocally(runId, report, optResult, messages);
+    const sk = sessionRegistry.sessionKeyFromRequest(req.headers as any);
+    await sessionRegistry.recordStep(sk, report);
 
     res.json({
       id: `msg-${runId}`,
@@ -206,6 +216,45 @@ app.get("/v1/prompt-comparison/:runId", async (req, res) => {
   res.json(comparison);
 });
 
+// ── Unified analytics (workflow sessions, real-time snapshots) ─────────────
+
+app.get("/v1/analytics/current-session", async (req, res) => {
+  const sessionKey = (req.query.sessionKey as string) || "default";
+  const live = sessionRegistry.getLiveSnapshot(sessionKey);
+  if (live) return res.json(live);
+  const disk = await readCurrentSessionForKey(sessionKey);
+  res.json(disk);
+});
+
+app.get("/v1/analytics/sessions", async (req, res) => {
+  const limit = parseInt(req.query.limit as string || "100", 10);
+  res.json(await listStoredSessions(limit));
+});
+
+app.get("/v1/analytics/session/:sessionId", async (req, res) => {
+  const row = await getStoredSessionById(req.params.sessionId);
+  if (!row) return res.status(404).json({ error: "Session not found" });
+  res.json(row);
+});
+
+app.get("/v1/analytics/prompt-comparison/:runId", async (req, res) => {
+  const comparison = await getPromptComparison(req.params.runId);
+  if (!comparison) return res.status(404).json({ error: "Not found" });
+  res.json(comparison);
+});
+
+app.post("/v1/analytics/session/complete", async (req, res) => {
+  const sessionKey = (req.body?.sessionKey as string) || sessionRegistry.sessionKeyFromRequest(req.headers as any);
+  const rec = await sessionRegistry.completeSession(sessionKey);
+  if (!rec) return res.status(404).json({ error: "No active session" });
+  res.json(rec);
+});
+
+/** Optional: acknowledge sync intent (companion stays local-first; cloud upload is via Spectyra app/API). */
+app.post("/v1/analytics/sync", (_req, res) => {
+  res.json({ ok: true, message: "Analytics sync is configured in the Spectyra web/desktop app when signed in." });
+});
+
 // ── Helpers ──────────────────────────────────────────────────────────────────
 
 function buildReport(
@@ -217,6 +266,12 @@ function buildReport(
 ): SavingsReport {
   const saved = opt.inputTokensBefore - opt.inputTokensAfter;
   const pct = opt.inputTokensBefore > 0 ? (saved / opt.inputTokensBefore) * 100 : 0;
+  const costInBefore = estimateInputCostUsd(opt.inputTokensBefore, model);
+  const costInAfter = estimateInputCostUsd(opt.inputTokensAfter, model);
+  const costOut = estimateOutputCostUsd(usage.outputTokens, model);
+  const costBefore = costInBefore + costOut;
+  const costAfter = costInAfter + costOut;
+  const estSavings = Math.max(0, costBefore - costAfter);
   return {
     runId,
     mode: cfg.runMode,
@@ -226,9 +281,9 @@ function buildReport(
     inputTokensBefore: opt.inputTokensBefore,
     inputTokensAfter: opt.inputTokensAfter,
     outputTokens: usage.outputTokens,
-    estimatedCostBefore: 0,
-    estimatedCostAfter: 0,
-    estimatedSavings: 0,
+    estimatedCostBefore: costBefore,
+    estimatedCostAfter: costAfter,
+    estimatedSavings: estSavings,
     estimatedSavingsPct: pct,
     contextReductionPct: pct > 0 ? pct : undefined,
     telemetryMode: cfg.telemetryMode,
