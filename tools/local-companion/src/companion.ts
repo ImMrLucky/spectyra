@@ -17,6 +17,7 @@ import express from "express";
 import cors from "cors";
 import crypto from "crypto";
 import type { SavingsReport, PromptComparison } from "@spectyra/core-types";
+import { resolveSpectyraModel } from "@spectyra/shared";
 import { loadConfig, type CompanionConfig } from "./config.js";
 import { optimize, type ChatMessage } from "./optimizer.js";
 import { callProvider } from "./providers.js";
@@ -50,9 +51,34 @@ app.get("/config", (_req, res) => {
     bindHost: cfg.bindHost,
     port: cfg.port,
     provider: cfg.provider,
+    aliasSmartModel: cfg.aliasSmartModel,
+    aliasFastModel: cfg.aliasFastModel,
     inferencePath: "direct_provider",
     providerBillingOwner: "customer",
     cloudRelay: "none",
+  });
+});
+
+// ── OpenAI-compatible models list (OpenClaw / Cursor / etc.) ─────────────────
+
+app.get("/v1/models", (_req, res) => {
+  const now = Math.floor(Date.now() / 1000);
+  res.json({
+    object: "list",
+    data: [
+      {
+        id: "spectyra/smart",
+        object: "model",
+        created: now,
+        owned_by: "spectyra-local",
+      },
+      {
+        id: "spectyra/fast",
+        object: "model",
+        created: now,
+        owned_by: "spectyra-local",
+      },
+    ],
   });
 });
 
@@ -60,26 +86,30 @@ app.get("/config", (_req, res) => {
 
 app.post("/v1/chat/completions", async (req, res) => {
   try {
-    const model: string = req.body.model || "gpt-4o-mini";
+    const rawModel: string = req.body.model || "gpt-4o-mini";
     const messages: ChatMessage[] = (req.body.messages || []).map((m: any) => ({
       role: m.role,
       content: typeof m.content === "string" ? m.content : JSON.stringify(m.content),
     }));
 
-    const provider = detectProvider(model, "openai");
-    const optResult = optimize(messages, cfg.runMode);
+    const resolved = resolveSpectyraModel(rawModel, {
+      provider: cfg.provider,
+      aliasSmartModel: cfg.aliasSmartModel,
+      aliasFastModel: cfg.aliasFastModel,
+    });
+    const optResult = optimize(messages, cfg.runMode, cfg.licenseKey);
 
-    const providerResult = await callProvider(provider, model, optResult.messages);
+    const providerResult = await callProvider(resolved.provider, resolved.upstreamModel, optResult.messages);
 
     const runId = crypto.randomUUID();
-    const report = buildReport(runId, provider, model, optResult, providerResult.usage);
+    const report = buildReport(runId, resolved.provider, resolved.upstreamModel, optResult, providerResult.usage);
     await persistLocally(runId, report, optResult, messages);
 
     res.json({
       id: `chatcmpl-${runId}`,
       object: "chat.completion",
       created: Math.floor(Date.now() / 1000),
-      model,
+      model: resolved.requestedModel,
       choices: [{
         index: 0,
         message: { role: "assistant", content: providerResult.text },
@@ -109,7 +139,7 @@ app.post("/v1/chat/completions", async (req, res) => {
 
 app.post("/v1/messages", async (req, res) => {
   try {
-    const model: string = req.body.model || "claude-3-5-sonnet-latest";
+    const rawModel: string = req.body.model || "claude-3-5-sonnet-latest";
     const messages: ChatMessage[] = [];
     if (req.body.system) messages.push({ role: "system", content: req.body.system });
     for (const m of req.body.messages || []) {
@@ -119,12 +149,16 @@ app.post("/v1/messages", async (req, res) => {
       });
     }
 
-    const provider = detectProvider(model, "anthropic");
-    const optResult = optimize(messages, cfg.runMode);
-    const providerResult = await callProvider(provider, model, optResult.messages);
+    const resolved = resolveSpectyraModel(rawModel, {
+      provider: cfg.provider,
+      aliasSmartModel: cfg.aliasSmartModel,
+      aliasFastModel: cfg.aliasFastModel,
+    });
+    const optResult = optimize(messages, cfg.runMode, cfg.licenseKey);
+    const providerResult = await callProvider(resolved.provider, resolved.upstreamModel, optResult.messages);
 
     const runId = crypto.randomUUID();
-    const report = buildReport(runId, provider, model, optResult, providerResult.usage);
+    const report = buildReport(runId, resolved.provider, resolved.upstreamModel, optResult, providerResult.usage);
     await persistLocally(runId, report, optResult, messages);
 
     res.json({
@@ -132,7 +166,7 @@ app.post("/v1/messages", async (req, res) => {
       type: "message",
       role: "assistant",
       content: [{ type: "text", text: providerResult.text }],
-      model,
+      model: resolved.requestedModel,
       stop_reason: "end_turn",
       usage: {
         input_tokens: providerResult.usage.inputTokens,
@@ -173,12 +207,6 @@ app.get("/v1/prompt-comparison/:runId", async (req, res) => {
 });
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
-
-function detectProvider(model: string, hintFormat: string): string {
-  if (model.includes("claude") || model.includes("anthropic") || hintFormat === "anthropic") return "anthropic";
-  if (model.includes("llama") || model.includes("mixtral")) return "groq";
-  return "openai";
-}
 
 function buildReport(
   runId: string,

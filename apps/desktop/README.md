@@ -1,43 +1,51 @@
-# Spectyra Desktop
+# Spectyra Desktop (Electron)
 
-Electron app with **provider key management**, **license activation**, and an **embedded Local Companion** (OpenAI-compatible server) — no separate Node process required.
+Local-first desktop app: **Electron** shell + **Local Companion** child process (OpenAI-compatible `http://127.0.0.1:4111/v1`) + **Angular** UI (desktop build).
 
-## Who this is for
+## Layout
 
-Users who want Spectyra **without** adding the npm SDK to a codebase: run a **normal desktop app**, paste keys, configure mode, and use the built-in companion.
+| Path | Role |
+|------|------|
+| `electron/main.ts` | Main process: window, IPC, spawn companion, config under `~/.spectyra/desktop/` |
+| `electron/preload.ts` | Exposes `window.spectyra` to the renderer |
+| `dist-electron/*.js` | Compiled main/preload (CommonJS) |
+| `../web` (desktop build) | Angular output → `dist/renderer/` |
+| `resources/companion/` | Produced by `scripts/prepare-companion.cjs` (`pnpm deploy` of `@spectyra/local-companion`) |
+| `electron-builder.yml` | Packaging: macOS DMG+zip, Windows NSIS+zip |
 
-## End users (download + run)
+## Dev (two terminals)
 
-1. Download the **installer** from your product **Download** page — e.g. **[spectyra.netlify.app](https://spectyra.netlify.app/)** (or your customer portal / email link).
-2. Install **Spectyra** like any other app (DMG on macOS, installer on Windows).
-3. Open the app and follow the on-screen setup for provider keys and license.
+1. **Angular** (desktop configuration, hash routing, `http://127.0.0.1:4200`):
 
-**You do not need GitHub or a source checkout** to use the desktop app. Distribution is **signed binaries** hosted on **your** website or CDN, not necessarily a public code host.
+   ```bash
+   cd apps/web && pnpm exec ng serve --configuration desktop --port 4200
+   ```
 
-More context: [docs/INSTALL_AND_SETUP.md](../../docs/INSTALL_AND_SETUP.md)
+2. **Electron** (loads dev URL, starts companion subprocess):
 
-## Developers (build from source)
+   ```bash
+   # repo root
+   pnpm desktop:dev
+   ```
+
+Ensure `tools/local-companion` is built (`pnpm --filter @spectyra/local-companion build`) before first run.
+
+## Package installers
+
+From **repository root**:
 
 ```bash
-# From repository root
-pnpm install
-pnpm --filter @spectyra/desktop dev
+pnpm desktop:dist
 ```
 
-## Build installers (for release engineering)
+Artifacts: `apps/desktop/release/` (`.dmg`, `.zip`, NSIS `.exe`, etc., per platform).
 
-Electron Forge + this pnpm monorepo needs an **isolated deploy** so dependencies resolve correctly. From the **repository root**:
+Prerequisites: `pnpm install`, local-companion built, Angular desktop build, and `resources/companion` (the `dist` script runs `build` which includes `prepare:companion`).
 
-```bash
-pnpm desktop:make
-```
+## Security notes
 
-This runs `pnpm deploy` into `apps/desktop/deploy-out/` (gitignored), then `electron-forge make` there. Artifacts: `apps/desktop/deploy-out/out/make/` (e.g. `Spectyra.dmg`, zip).
+- Provider API keys are stored in `~/.spectyra/desktop/config.json` (local disk only).
+- Companion runs with `ELECTRON_RUN_AS_NODE=1` and your keys in `SPECTYRA_PROVIDER_KEYS_JSON` — no separate Node install.
+- License validation may call the Spectyra API; inference does not go through Spectyra cloud.
 
-**Windows portable from macOS:** `pnpm desktop:make:win32` → copy the zip to `apps/web/src/assets/downloads/Spectyra-windows.zip`.
-
-**When to rebuild installers:** [RELEASING.md](./RELEASING.md).
-
-To ship with the Netlify Angular UI, copy artifacts into `apps/web/src/assets/downloads/` (see `desktopDownloadsSameOrigin` in the web `environment`), then deploy the web app.
-
-CI: [`.github/workflows/release-desktop.yml`](../../.github/workflows/release-desktop.yml) (macOS + Windows).
+See also: [RELEASING.md](./RELEASING.md), [tools/local-companion/README.md](../../tools/local-companion/README.md).

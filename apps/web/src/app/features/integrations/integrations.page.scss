@@ -36,6 +36,49 @@
   gap: 20px;
 }
 
+.glance-labels {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 4px;
+}
+
+.glance-label {
+  display: inline-block;
+  padding: 4px 10px;
+  border-radius: 4px;
+  font-size: 11px;
+  font-weight: 500;
+  background: #f0f0f0;
+  color: #555;
+
+  &.safe {
+    background: #e8f5e9;
+    color: #1b5e20;
+  }
+
+  &.warn {
+    background: #fff3e0;
+    color: #e65100;
+  }
+
+  &.muted {
+    background: #f5f5f5;
+    color: #888;
+  }
+}
+
+.setup-steps {
+  margin: 0;
+  padding-left: 1.25rem;
+  color: #333;
+  line-height: 1.7;
+
+  li {
+    margin-bottom: 8px;
+  }
+}
+
 .scenario-card {
   border: 2px solid #e0e0e0;
   border-radius: 8px;
@@ -75,6 +118,10 @@
     background: #28a745;
     color: white;
     text-transform: uppercase;
+
+    &.deprecated-badge {
+      background: #6c757d;
+    }
   }
 
   .scenario-description {

@@ -3,7 +3,8 @@ import { Router, CanActivateFn } from '@angular/router';
 import { SupabaseService } from '../../services/supabase.service';
 import { AuthService } from '../auth/auth.service';
 import { map } from 'rxjs/operators';
-import { combineLatest } from 'rxjs';
+import { combineLatest, of } from 'rxjs';
+import { environment } from '../../../environments/environment';
 
 /**
  * Auth Guard - Protects routes that require authentication
@@ -15,6 +16,9 @@ import { combineLatest } from 'rxjs';
  * Redirects to /login if not authenticated
  */
 export const authGuard: CanActivateFn = (route, state) => {
+  if (environment.isDesktop) {
+    return of(true);
+  }
   const router = inject(Router);
   const supabase = inject(SupabaseService);
   const authService = inject(AuthService);

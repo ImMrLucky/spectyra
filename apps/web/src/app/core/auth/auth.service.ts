@@ -34,8 +34,26 @@ export class AuthService {
     private http: HttpClient,
     private meService: MeService
   ) {
-    // Load from storage on init
+    if (environment.isDesktop) {
+      this.applyDesktopLocalSession();
+      return;
+    }
     this.loadFromStorage();
+  }
+
+  /** Desktop Electron: local session without cloud account. */
+  private applyDesktopLocalSession(): void {
+    this.updateAuthState({
+      apiKey: 'desktop-local',
+      user: {
+        id: 'desktop-local',
+        email: 'desktop@spectyra.local',
+        trial_ends_at: null,
+        subscription_active: true,
+      },
+      hasAccess: true,
+      trialActive: true,
+    });
   }
 
   get authState(): Observable<AuthState> {
@@ -176,6 +194,10 @@ export class AuthService {
    * Logout (clear storage)
    */
   logout(): void {
+    if (environment.isDesktop) {
+      this.applyDesktopLocalSession();
+      return;
+    }
     // Clear API key and user data
     localStorage.removeItem(this.apiKeyStorageKey);
     localStorage.removeItem(this.userStorageKey);

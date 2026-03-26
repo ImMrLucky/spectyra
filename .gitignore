@@ -9,3 +9,6 @@ data/
 .DS_Store
 .angular/
 apps/desktop/deploy-out/
+apps/desktop/dist-electron/
+apps/desktop/resources/companion/
+apps/desktop/release/

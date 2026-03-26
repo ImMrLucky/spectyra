@@ -1,71 +1,84 @@
-<div class="app-container">
-  <!-- Header -->
-  <mat-toolbar class="app-header" color="primary">
-    <div class="header-left">
-      <button
-        *ngIf="isAuthenticated"
-        mat-icon-button
-        (click)="toggleSidebar()"
-        class="sidebar-toggle"
-        aria-label="Toggle sidebar"
-      >
-        <mat-icon>menu</mat-icon>
-      </button>
-      <h1 routerLink="/" class="logo">Spectyra</h1>
-    </div>
-    
-    <div class="header-right">
-      <!-- Org/Project Switcher -->
-      <ng-container *ngIf="isAuthenticated">
-        <app-org-switcher></app-org-switcher>
-      </ng-container>
-      
-      <!-- Auth links -->
-      <span *ngIf="!isAuthenticated" class="auth-links">
-        <a routerLink="/login">Login</a>
-        <a routerLink="/register">Sign Up</a>
-      </span>
-      <span *ngIf="isAuthenticated" class="auth-links">
-        <span class="user-email">{{ userEmail }}</span>
-        <button (click)="logout()" class="btn-logout">Logout</button>
-      </span>
-    </div>
-  </mat-toolbar>
-
-  <!-- Sidebar and Main Content -->
-  <div class="app-body">
-    <mat-sidenav-container class="sidenav-container">
-      <!-- Sidebar Navigation -->
-      <mat-sidenav
-        #sidenav
-        [(opened)]="sidebarOpen"
-        mode="side"
-        class="app-sidenav"
-        [class.collapsed]="sidebarCollapsed"
-        [style.width.px]="sidebarCollapsed ? 64 : 240"
-      >
-        <mat-nav-list>
-          <ng-container *ngFor="let item of navItems">
-            <a
-              mat-list-item
-              *ngIf="(!item.requiresAuth || isAuthenticated) && (!item.adminOnly || showAdminLink)"
-              [routerLink]="item.route"
-              routerLinkActive="active"
-              [routerLinkActiveOptions]="{ exact: item.route === '/overview' }"
-              class="nav-item"
-              [class.collapsed]="sidebarCollapsed"
-            >
-              <mat-icon matListItemIcon>{{ item.icon }}</mat-icon>
-              <span matListItemTitle *ngIf="!sidebarCollapsed">{{ item.label }}</span>
-            </a>
-          </ng-container>
-        </mat-nav-list>
-      </mat-sidenav>
-
-      <!-- Main Content -->
-      <mat-sidenav-content class="app-main">
-        <router-outlet></router-outlet>
-      </mat-sidenav-content>
-    </mat-sidenav-container>
+<ng-container *ngIf="isDesktop; else webShell">
+  <div class="desktop-app">
+    <mat-toolbar color="primary" class="desktop-toolbar">
+      <h1 routerLink="/desktop/dashboard" class="logo">Spectyra</h1>
+      <span class="toolbar-spacer"></span>
+      <a mat-button routerLink="/desktop/dashboard" routerLinkActive="active">Dashboard</a>
+      <a mat-button routerLink="/desktop/onboarding" routerLinkActive="active">Setup</a>
+      <a mat-button routerLink="/desktop/openclaw" routerLinkActive="active">OpenClaw</a>
+      <a mat-button routerLink="/desktop/runs" routerLinkActive="active">Runs</a>
+      <a mat-button routerLink="/integrations" routerLinkActive="active">Integrations</a>
+    </mat-toolbar>
+    <main class="desktop-main">
+      <router-outlet></router-outlet>
+    </main>
   </div>
-</div>
+</ng-container>
+
+<ng-template #webShell>
+  <div class="app-container">
+    <mat-toolbar class="app-header" color="primary">
+      <div class="header-left">
+        <button
+          *ngIf="isAuthenticated"
+          mat-icon-button
+          (click)="toggleSidebar()"
+          class="sidebar-toggle"
+          aria-label="Toggle sidebar"
+        >
+          <mat-icon>menu</mat-icon>
+        </button>
+        <h1 routerLink="/" class="logo">Spectyra</h1>
+      </div>
+
+      <div class="header-right">
+        <ng-container *ngIf="isAuthenticated">
+          <app-org-switcher></app-org-switcher>
+        </ng-container>
+
+        <span *ngIf="!isAuthenticated" class="auth-links">
+          <a routerLink="/login">Login</a>
+          <a routerLink="/register">Sign Up</a>
+        </span>
+        <span *ngIf="isAuthenticated" class="auth-links">
+          <span class="user-email">{{ userEmail }}</span>
+          <button (click)="logout()" class="btn-logout">Logout</button>
+        </span>
+      </div>
+    </mat-toolbar>
+
+    <div class="app-body">
+      <mat-sidenav-container class="sidenav-container">
+        <mat-sidenav
+          #sidenav
+          [(opened)]="sidebarOpen"
+          mode="side"
+          class="app-sidenav"
+          [class.collapsed]="sidebarCollapsed"
+          [style.width.px]="sidebarCollapsed ? 64 : 240"
+        >
+          <mat-nav-list>
+            <ng-container *ngFor="let item of navItems">
+              <a
+                mat-list-item
+                *ngIf="(!item.requiresAuth || isAuthenticated) && (!item.adminOnly || showAdminLink)"
+                [routerLink]="item.route"
+                routerLinkActive="active"
+                [routerLinkActiveOptions]="{ exact: item.route === '/overview' }"
+                class="nav-item"
+                [class.collapsed]="sidebarCollapsed"
+              >
+                <mat-icon matListItemIcon>{{ item.icon }}</mat-icon>
+                <span matListItemTitle *ngIf="!sidebarCollapsed">{{ item.label }}</span>
+              </a>
+            </ng-container>
+          </mat-nav-list>
+        </mat-sidenav>
+
+        <mat-sidenav-content class="app-main">
+          <router-outlet></router-outlet>
+        </mat-sidenav-content>
+      </mat-sidenav-container>
+    </div>
+  </div>
+</ng-template>

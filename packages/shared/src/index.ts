@@ -5,3 +5,5 @@ export * from "./orgTypes";
 export * from "./providerTypes";
 export * from "./agentTypes";
 export * from "./uiTypes";
+export * from "./spectyraModelAliases";
+export * from "./openclawConfigExample";

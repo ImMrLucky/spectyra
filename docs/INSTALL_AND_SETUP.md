@@ -33,12 +33,12 @@ Use **[Local Companion](#local-companion-one-command)** (terminal + `localhost`)
 
 ### Maintainers (building & hosting installers)
 
-1. **Build** the app: from the repo root run **`pnpm desktop:make`** (uses `pnpm deploy` + Electron Forge; see `apps/desktop/README.md`). Artifacts land under **`apps/desktop/deploy-out/out/make/`** (e.g. `Spectyra.dmg`).
+1. **Build** the app: from the repo root run **`pnpm desktop:dist`** (electron-builder; see `apps/desktop/README.md`). Artifacts land under **`apps/desktop/release/`** (for example **`Spectyra-<version>-mac-x64.dmg`** / **`.zip`** on macOS, NSIS **`.exe`** and **`.zip`** on Windows — exact names follow `electron-builder.yml`).
 2. **Sign & notarize** (Apple / Microsoft) per your release process.
-3. **Netlify (same deploy as the Angular UI):** Copy into **`apps/web/src/assets/downloads/`** per `desktopDownloadsSameOrigin`: **`Spectyra-mac.dmg`**, **`Spectyra-windows.exe`** (installer from a Windows build), **`Spectyra-windows.zip`** (optional portable). See **[apps/desktop/RELEASING.md](../apps/desktop/RELEASING.md)**. Use `git add -f` for gitignored binaries; redeploy Netlify.
+3. **Netlify (same deploy as the Angular UI):** The Angular env expects stable filenames under **`apps/web/src/assets/downloads/`**: **`Spectyra-mac.dmg`**, **`Spectyra-windows.exe`**, optional **`Spectyra-windows.zip`**. Copy or rename the built artifacts to those names (see **[apps/desktop/RELEASING.md](../apps/desktop/RELEASING.md)**). Use `git add -f` for gitignored binaries; redeploy Netlify.
 4. **Optional override:** To host installers elsewhere (CDN, S3) without changing the web build, set **`DESKTOP_DOWNLOAD_MAC_URL`** and **`DESKTOP_DOWNLOAD_WINDOWS_URL`** on the **API** (Railway). The `/download` page prefers those URLs over same-origin assets.
 
-Optional: a private CI pipeline can still produce the same `out/` folder (see [`.github/workflows/release-desktop.yml`](../.github/workflows/release-desktop.yml) as a template).
+Optional: CI can produce **`apps/desktop/release/`** on each OS (see [`.github/workflows/release-desktop.yml`](../.github/workflows/release-desktop.yml)).
 
 ---
 

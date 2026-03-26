@@ -1,0 +1,45 @@
+appId: com.spectyra.desktop
+productName: Spectyra
+copyright: Copyright © Spectyra
+
+# Pinned for electron-builder + pnpm (resolves even when Electron is not hoisted to this package).
+electronVersion: 28.3.3
+
+# Predictable filenames for hosting (CDN / Netlify / GitHub Releases)
+artifactName: ${productName}-${version}-${os}-${arch}.${ext}
+
+directories:
+  output: release
+  buildResources: assets
+
+files:
+  - dist-electron/**/*
+  - dist/renderer/**/*
+  - package.json
+
+extraResources:
+  - from: resources/companion
+    to: companion
+    filter:
+      - "**/*"
+
+asar: true
+
+mac:
+  category: public.app-category.developer-tools
+  target:
+    - dmg
+    - zip
+  gatekeeperAssess: false
+
+win:
+  target:
+    - nsis
+    - zip
+  executableName: spectyra
+
+nsis:
+  oneClick: false
+  allowToChangeInstallationDirectory: true
+  createDesktopShortcut: true
+  shortcutName: Spectyra

@@ -1,8 +1,5 @@
 /**
- * Preload script — exposes a safe IPC bridge to the renderer.
- *
- * Everything here is available as `window.spectyra.*` in the UI.
- * No Node APIs leak to the renderer.
+ * Preload — exposes `window.spectyra` and desktop flags for the Angular renderer.
  */
 
 import { contextBridge, ipcRenderer } from "electron";
@@ -31,15 +28,24 @@ contextBridge.exposeInMainWorld("spectyra", {
     clear: () => ipcRenderer.invoke("license:clear"),
   },
 
+  openclaw: {
+    getExampleConfig: () => ipcRenderer.invoke("openclaw:example-config") as Promise<string>,
+  },
+
   app: {
     info: () => ipcRenderer.invoke("app:info"),
+    companionBaseUrl: () => ipcRenderer.invoke("app:companion-base-url") as Promise<string>,
     openDataDir: () => ipcRenderer.invoke("app:open-data-dir"),
   },
 
   onLog: (cb: (msg: string) => void) => {
-    ipcRenderer.on("companion-log", (_e, msg) => cb(msg));
+    ipcRenderer.on("companion-log", (_e, msg: string) => cb(msg));
   },
   onStatus: (cb: (status: { running: boolean; port?: number; code?: number }) => void) => {
     ipcRenderer.on("companion-status", (_e, s) => cb(s));
   },
+});
+
+contextBridge.exposeInMainWorld("spectyraDesktop", {
+  isDesktop: true,
 });

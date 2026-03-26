@@ -76,9 +76,19 @@ pnpm start
 | Method | Path | Purpose |
 |--------|------|---------|
 | GET | `/health` | Status, mode, inference path |
-| GET | `/config` | Companion configuration |
+| GET | `/config` | Companion configuration (includes `provider`, `aliasSmartModel`, `aliasFastModel`) |
+| GET | `/v1/models` | OpenAI-style model list (`spectyra/smart`, `spectyra/fast` for OpenClaw) |
 | POST | `/v1/chat/completions` | OpenAI-compatible chat |
 | POST | `/v1/messages` | Anthropic-compatible messages |
+
+### Stable model aliases (`spectyra/smart`, `spectyra/fast`)
+
+Configure the upstream provider with **`SPECTYRA_PROVIDER`** (`openai` | `anthropic` | `groq`). Optional overrides:
+
+- **`SPECTYRA_ALIAS_SMART_MODEL`** — real model id for `spectyra/smart`
+- **`SPECTYRA_ALIAS_FAST_MODEL`** — real model id for `spectyra/fast`
+
+If unset, defaults match the chosen provider (see `@spectyra/shared` `defaultAliasModels`). OpenClaw and other clients can keep a fixed config pointing at `http://127.0.0.1:4111/v1` while you change routing in Spectyra Desktop or env vars.
 
 ---
 

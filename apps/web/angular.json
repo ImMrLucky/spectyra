@@ -35,6 +35,21 @@
                 "vendor": true,
                 "hidden": false
               }
+            },
+            "desktop": {
+              "outputPath": "../desktop/dist/renderer",
+              "baseHref": "./",
+              "fileReplacements": [
+                {
+                  "replace": "src/environments/environment.ts",
+                  "with": "src/environments/environment.desktop.ts"
+                },
+                {
+                  "replace": "src/app/app.routes.ts",
+                  "with": "src/app/app.routes.desktop-bundle.ts"
+                }
+              ],
+              "sourceMap": true
             }
           }
         },
