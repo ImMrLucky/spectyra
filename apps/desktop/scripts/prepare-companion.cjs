@@ -30,4 +30,61 @@ function removeFilesRecursive(dir, predicate) {
 }
 removeFilesRecursive(target, (p) => p.endsWith(".map"));
 
+/**
+ * Remove dev-only cruft from deployed node_modules (docs, tests, licenses as files).
+ * Safe for runtime: we only run compiled JS from dist/ + package deps.
+ */
+const JUNK_DIR = new Set([
+  "test",
+  "tests",
+  "__tests__",
+  "docs",
+  "doc",
+  "examples",
+  "example",
+  "coverage",
+  "benchmark",
+  "benchmarks",
+  "html",
+  "man",
+  ".github",
+  "ci",
+]);
+
+function pruneNodeModulesJunk(roots) {
+  const nm = path.join(roots, "node_modules");
+  if (!fs.existsSync(nm)) return;
+
+  function walk(dir) {
+    let entries;
+    try {
+      entries = fs.readdirSync(dir, { withFileTypes: true });
+    } catch {
+      return;
+    }
+    for (const e of entries) {
+      const p = path.join(dir, e.name);
+      const n = e.name.toLowerCase();
+      if (e.isDirectory()) {
+        if (JUNK_DIR.has(n)) {
+          fs.rmSync(p, { recursive: true, force: true });
+        } else {
+          walk(p);
+        }
+      } else if (e.isFile()) {
+        if (/\.md$/i.test(e.name) || /^license/i.test(e.name) || /^changelog/i.test(e.name) || /^authors$/i.test(e.name)) {
+          try {
+            fs.unlinkSync(p);
+          } catch {
+            /* ignore */
+          }
+        }
+      }
+    }
+  }
+  walk(nm);
+}
+
+pruneNodeModulesJunk(target);
+
 console.log("Companion bundle ready at apps/desktop/resources/companion");

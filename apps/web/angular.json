@@ -49,7 +49,7 @@
                   "with": "src/app/app.routes.desktop-bundle.ts"
                 }
               ],
-              "sourceMap": true
+              "sourceMap": false
             }
           }
         },
