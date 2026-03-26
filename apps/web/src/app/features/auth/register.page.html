@@ -75,6 +75,10 @@
       <button class="btn btn-primary" (click)="goToApp()">Continue to App</button>
     </div>
     
+    <div *ngIf="successMessage" class="success-banner">
+      <p>{{ successMessage }}</p>
+    </div>
+
     <div *ngIf="error" class="error-box">
       <p>{{ error }}</p>
     </div>

@@ -120,6 +120,19 @@ label {
   }
 }
 
+.success-banner {
+  background: #d4edda;
+  border: 1px solid #c3e6cb;
+  border-radius: 4px;
+  padding: 12px;
+  margin: 16px 0;
+  color: #155724;
+
+  p {
+    margin: 0;
+  }
+}
+
 .error-box {
   background: #f8d7da;
   border: 1px solid #f5c6cb;

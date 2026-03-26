@@ -6,6 +6,7 @@ import { SupabaseService } from '../../services/supabase.service';
 import { HttpClient, HttpHeaders } from '@angular/common/http';
 import { environment } from '../../../environments/environment';
 import { AuthService } from '../../core/auth/auth.service';
+import { MeService } from '../../core/services/me.service';
 import { SnackbarService } from '../../core/services/snackbar.service';
 import { firstValueFrom } from 'rxjs';
 
@@ -24,6 +25,8 @@ export class RegisterPage {
   loading = false;
   success = false;
   error: string | null = null;
+  /** Shown after sign-up when email confirmation is required (green banner, not an error). */
+  successMessage: string | null = null;
   apiKey: string | null = null;
   trialEndsAt: string | null = null;
 
@@ -31,6 +34,7 @@ export class RegisterPage {
     private supabase: SupabaseService,
     private http: HttpClient,
     private authService: AuthService,
+    private meService: MeService,
     private router: Router,
     private snackbarService: SnackbarService
   ) {}
@@ -38,22 +42,26 @@ export class RegisterPage {
   async register() {
     if (!this.email || !this.password || !this.orgName) {
       this.error = 'Please fill in all required fields';
+      this.successMessage = null;
       return;
     }
 
     if (this.password.length < 8) {
       this.error = 'Password must be at least 8 characters';
+      this.successMessage = null;
       return;
     }
 
     this.loading = true;
     this.error = null;
+    this.successMessage = null;
 
     try {
       // 1. Sign up with Supabase
       const { error: signUpError, session, user } = await this.supabase.signUp(this.email, this.password);
       
       if (signUpError) {
+        this.successMessage = null;
         this.error = signUpError.message || 'Failed to create account';
         this.loading = false;
         return;
@@ -61,7 +69,8 @@ export class RegisterPage {
       
       // If user was created but no session, email confirmation is likely required
       if (user && !session) {
-        this.error = 'Account created! Please check your email to confirm your account, then try logging in.';
+        this.successMessage =
+          'Account created! Please check your email to confirm your account, then try logging in.';
         this.loading = false;
         return;
       }
@@ -89,7 +98,8 @@ export class RegisterPage {
 
       if (!token) {
         // No session available - likely email confirmation required
-        this.error = 'Account created! Please check your email to confirm your account, then try logging in.';
+        this.successMessage =
+          'Account created! Please check your email to confirm your account, then try logging in.';
         this.loading = false;
         return;
       }
@@ -112,6 +122,7 @@ export class RegisterPage {
       ));
 
       if (!response || !response.api_key) {
+        this.successMessage = null;
         this.error = 'Failed to create organization. Please try again.';
         this.loading = false;
         return;
@@ -120,13 +131,16 @@ export class RegisterPage {
       this.success = true;
       this.apiKey = response.api_key;
       this.trialEndsAt = response.org?.trial_ends_at || null;
-      
+
+      this.meService.clearCache();
+
       // Store API key for gateway usage
       this.authService.setApiKey(response.api_key);
-      
+
       this.loading = false;
     } catch (err: any) {
       console.error('Registration error:', err);
+      this.successMessage = null;
       if (err.status === 401) {
         this.error = 'Authentication failed. Please check your email confirmation if required, then try logging in.';
       } else if (err.status === 400 && err.error?.error?.includes('already exists')) {

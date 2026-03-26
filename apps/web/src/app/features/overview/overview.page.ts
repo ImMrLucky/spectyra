@@ -79,7 +79,7 @@ export class OverviewPage implements OnInit {
     // 404 { needs_bootstrap: true }. Redirect to /login instead of calling
     // /usage/* and /integrations/status (they require org context).
     try {
-      await firstValueFrom(this.meService.getMe());
+      await firstValueFrom(this.meService.getMe(true));
     } catch (err: any) {
       if (err?.status === 404 && err?.error?.needs_bootstrap) {
         this.router.navigate(['/login']);
