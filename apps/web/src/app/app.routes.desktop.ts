@@ -5,7 +5,8 @@ import { DesktopOnboardingPage } from './features/desktop/onboarding.page';
 import { DesktopOpenClawPage } from './features/desktop/openclaw.page';
 import { DesktopRunsPage } from './features/desktop/runs.page';
 import { LiveSavingsPage } from './features/desktop/live-savings.page';
-import { IntegrationsPage } from './features/integrations/integrations.page';
+import { IntegrationsLandingPage } from './features/integrations/integrations-landing.page';
+import { IntegrationTopicPage } from './features/integrations/integration-topic.page';
 import { LoginPage } from './features/auth/login.page';
 
 /** Electron renderer — local-first shell (hash routing in main.ts). */
@@ -17,5 +18,6 @@ export const desktopRoutes: Routes = [
   { path: 'desktop/runs', component: DesktopRunsPage },
   { path: 'desktop/live-savings', component: LiveSavingsPage },
   { path: 'login', component: LoginPage },
-  { path: 'integrations', component: IntegrationsPage, canActivate: [authGuard] },
+  { path: 'integrations', component: IntegrationsLandingPage, canActivate: [authGuard] },
+  { path: 'integrations/:slug', component: IntegrationTopicPage, canActivate: [authGuard] },
 ];

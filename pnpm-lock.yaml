@@ -38,6 +38,9 @@ importers:
       '@spectyra/feature-detection':
         specifier: workspace:*
         version: link:../../packages/feature-detection
+      '@spectyra/integration-metadata':
+        specifier: workspace:*
+        version: link:../../packages/integration-metadata
       '@spectyra/optimization-engine':
         specifier: workspace:*
         version: link:../../packages/optimization-engine
@@ -166,6 +169,9 @@ importers:
       '@spectyra/event-core':
         specifier: workspace:*
         version: link:../../packages/event-core
+      '@spectyra/integration-metadata':
+        specifier: workspace:*
+        version: link:../../packages/integration-metadata
       '@spectyra/shared':
         specifier: workspace:*
         version: link:../../packages/shared
@@ -286,6 +292,12 @@ importers:
         specifier: ~5.4.0
         version: 5.4.5
 
+  packages/integration-metadata:
+    devDependencies:
+      typescript:
+        specifier: ~5.4.0
+        version: 5.4.5
+
   packages/learning:
     dependencies:
       '@spectyra/canonical-model':
@@ -377,6 +389,10 @@ importers:
         version: 5.4.5
 
   packages/shared:
+    dependencies:
+      '@spectyra/integration-metadata':
+        specifier: workspace:*
+        version: link:../integration-metadata
     devDependencies:
       typescript:
         specifier: ^5.3.3

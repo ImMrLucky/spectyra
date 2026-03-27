@@ -8,6 +8,7 @@ import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatSelectModule } from '@angular/material/select';
 import { MatInputModule } from '@angular/material/input';
 import { DesktopBridgeService } from '../../core/desktop/desktop-bridge.service';
+import { environment } from '../../../environments/environment';
 
 @Component({
   selector: 'app-desktop-onboarding',
@@ -22,7 +23,34 @@ import { DesktopBridgeService } from '../../core/desktop/desktop-bridge.service'
     MatInputModule,
   ],
   template: `
-    <div class="wrap">
+    <div class="wrap" *ngIf="step === 1">
+      <h1>How do you want to use Spectyra?</h1>
+      <p class="sub">Pick a path. You can open full setup guides on the website; local keys are configured on the next step.</p>
+
+      <div class="choice-grid">
+        <mat-card class="choice" (click)="chooseUseCase('sdk')">
+          <mat-card-title>With my app code (SDK)</mat-card-title>
+          <mat-card-content>Best fidelity — wrap LLM calls in your codebase.</mat-card-content>
+        </mat-card>
+        <mat-card class="choice" (click)="chooseUseCase('openclaw')">
+          <mat-card-title>OpenClaw or a local agent tool</mat-card-title>
+          <mat-card-content>Point tools at Spectyra on localhost — no app code changes.</mat-card-content>
+        </mat-card>
+        <mat-card class="choice" (click)="chooseUseCase('server')">
+          <mat-card-title>Server or VM agent</mat-card-title>
+          <mat-card-content>Run Spectyra beside cloud or VM workloads.</mat-card-content>
+        </mat-card>
+        <mat-card class="choice" (click)="chooseUseCase('events')">
+          <mat-card-title>Observe with logs / events / traces</mat-card-title>
+          <mat-card-content>Analytics-first — structured local signals.</mat-card-content>
+        </mat-card>
+      </div>
+      <p class="hint">We’ll open the matching guide in your browser when helpful. Continue to configure your provider on this machine.</p>
+      <button mat-stroked-button color="primary" type="button" (click)="skipToProviderConfig()">Skip — configure provider now</button>
+    </div>
+
+    <div class="wrap" *ngIf="step === 2">
+      <button mat-button type="button" (click)="backToStep1()" class="back">← Back</button>
       <h1>Welcome to Spectyra</h1>
       <p class="sub">Configure your local provider. Keys are stored only on this computer.</p>
 
@@ -87,6 +115,13 @@ import { DesktopBridgeService } from '../../core/desktop/desktop-bridge.service'
       .wrap { max-width: 560px; margin: 0 auto; padding: 24px; }
       h1 { margin: 0 0 8px; }
       .sub { color: #666; margin-bottom: 16px; }
+      .choice-grid { display: grid; gap: 12px; margin-bottom: 16px; }
+      .choice { cursor: pointer; transition: box-shadow 0.15s; }
+      .choice:hover { box-shadow: 0 2px 8px rgba(0,0,0,0.12); }
+      .choice mat-card-title { font-size: 16px; }
+      .choice mat-card-content { font-size: 13px; color: #555; }
+      .hint { font-size: 13px; color: #666; margin: 12px 0 16px; line-height: 1.45; }
+      .back { margin-bottom: 12px; }
       .card { margin-bottom: 16px; }
       .full { width: 100%; display: block; margin-bottom: 8px; }
       .notice { font-size: 13px; color: #555; margin: 16px 0; line-height: 1.5; }
@@ -95,6 +130,7 @@ import { DesktopBridgeService } from '../../core/desktop/desktop-bridge.service'
   ],
 })
 export class DesktopOnboardingPage implements OnInit {
+  step: 1 | 2 = 1;
   provider = 'openai';
   apiKey = '';
   runMode = 'observe';
@@ -110,6 +146,29 @@ export class DesktopOnboardingPage implements OnInit {
 
   ngOnInit() {
     void this.load();
+  }
+
+  chooseUseCase(which: 'sdk' | 'openclaw' | 'server' | 'events'): void {
+    localStorage.setItem('spectyra_desktop_use_case', which);
+    const base = (environment.publicSiteUrl || '').replace(/\/$/, '');
+    if (base.startsWith('http')) {
+      const paths: Record<typeof which, string> = {
+        sdk: '/integrations/sdk',
+        openclaw: '/integrations/openclaw',
+        server: '/integrations/server-sidecar',
+        events: '/integrations/events',
+      };
+      window.open(`${base}${paths[which]}`, '_blank', 'noopener');
+    }
+    this.step = 2;
+  }
+
+  backToStep1(): void {
+    this.step = 1;
+  }
+
+  skipToProviderConfig(): void {
+    this.step = 2;
   }
 
   private async load() {

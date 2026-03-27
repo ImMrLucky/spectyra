@@ -3,7 +3,8 @@ import { RunsPage } from './features/runs/runs.page';
 import { SettingsPage } from './features/settings/settings.page';
 import { RegisterPage } from './features/auth/register.page';
 import { LoginPage } from './features/auth/login.page';
-import { IntegrationsPage } from './features/integrations/integrations.page';
+import { IntegrationsLandingPage } from './features/integrations/integrations-landing.page';
+import { IntegrationTopicPage } from './features/integrations/integration-topic.page';
 import { ProjectsPage } from './features/projects/projects.page';
 import { AdminPage } from './features/admin/admin.page';
 import { OptimizerLabPage } from './features/optimizer-lab/optimizer-lab.page';
@@ -27,7 +28,8 @@ export const webRoutes: Routes = [
 
   { path: 'studio', component: StudioPage, canActivate: [authGuard] },
   { path: 'observe', component: OptimizerLabPage, canActivate: [authGuard] },
-  { path: 'integrations', component: IntegrationsPage, canActivate: [authGuard] },
+  { path: 'integrations', component: IntegrationsLandingPage, canActivate: [authGuard] },
+  { path: 'integrations/:slug', component: IntegrationTopicPage, canActivate: [authGuard] },
   { path: 'download', component: DownloadPage, canActivate: [authGuard] },
 
   { path: 'overview', component: OverviewPage, canActivate: [authGuard] },

@@ -73,18 +73,53 @@ export class OverviewPage implements OnInit {
     await this.loadData();
   }
 
+  /**
+   * /auth/me must succeed before other dashboard calls. Handles:
+   * - 404 + needs_bootstrap → send user to login to create an org
+   * - 401 on first call → brief wait + retry (JWT sometimes lags right after sign-in)
+   */
+  private async ensureMeLoaded(): Promise<boolean> {
+    const load = () => firstValueFrom(this.meService.getMe(true));
+    try {
+      await load();
+      return true;
+    } catch (err: any) {
+      if (err?.status === 404 && err?.error?.needs_bootstrap) {
+        this.router.navigate(['/login']);
+        return false;
+      }
+      if (err?.status === 401) {
+        this.meService.clearCache();
+        await new Promise((r) => setTimeout(r, 350));
+        try {
+          await load();
+          return true;
+        } catch (err2: any) {
+          if (err2?.status === 404 && err2?.error?.needs_bootstrap) {
+            this.router.navigate(['/login']);
+            return false;
+          }
+          throw err2;
+        }
+      }
+      throw err;
+    }
+  }
+
   async loadData() {
     // Brand-new users can be authenticated by Supabase but not yet bootstrapped
     // into an org (no org_memberships row). In that case, /auth/me returns
     // 404 { needs_bootstrap: true }. Redirect to /login instead of calling
     // /usage/* and /integrations/status (they require org context).
     try {
-      await firstValueFrom(this.meService.getMe(true));
-    } catch (err: any) {
-      if (err?.status === 404 && err?.error?.needs_bootstrap) {
-        this.router.navigate(['/login']);
+      const ok = await this.ensureMeLoaded();
+      if (!ok) {
+        this.loading = false;
         return;
       }
+    } catch {
+      this.loading = false;
+      return;
     }
 
     this.loading = true;

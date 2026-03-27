@@ -1,7 +1,7 @@
 import { Component, OnInit, OnDestroy } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-import { Router, RouterModule } from '@angular/router';
+import { Router, RouterModule, ActivatedRoute } from '@angular/router';
 import { AuthService } from '../../core/auth/auth.service';
 import { SupabaseService } from '../../services/supabase.service';
 import { MeService } from '../../core/services/me.service';
@@ -11,6 +11,10 @@ import { Subscription } from 'rxjs';
 import { debounceTime, distinctUntilChanged } from 'rxjs/operators';
 import { firstValueFrom } from 'rxjs';
 import { SnackbarService } from '../../core/services/snackbar.service';
+import {
+  readPendingBootstrap,
+  clearPendingBootstrap,
+} from '../../core/auth/pending-bootstrap.storage';
 
 @Component({
   selector: 'app-login',
@@ -48,6 +52,7 @@ export class LoginPage implements OnInit, OnDestroy {
     private supabase: SupabaseService,
     private http: HttpClient,
     private router: Router,
+    private route: ActivatedRoute,
     private snackbarService: SnackbarService,
     private meService: MeService
   ) {}
@@ -106,6 +111,18 @@ export class LoginPage implements OnInit, OnDestroy {
     }
   }
 
+  /** Pre-fill org from sign-up when email confirmation delayed POST /auth/bootstrap. */
+  private applyPendingOrgPrefill(): void {
+    const p = readPendingBootstrap();
+    if (!p) return;
+    if (!this.orgName.trim()) {
+      this.orgName = p.orgName;
+    }
+    if (!this.projectName.trim() && p.projectName) {
+      this.projectName = p.projectName;
+    }
+  }
+
   async checkBootstrap() {
     try {
       const token = await this.supabase.getAccessToken();
@@ -113,12 +130,9 @@ export class LoginPage implements OnInit, OnDestroy {
         return;
       }
 
-      // Use MeService to prevent duplicate calls
       try {
-        // Try to get user's org info
-        const me = await firstValueFrom(this.meService.getMe());
+        const me = await firstValueFrom(this.meService.getMe(true));
         if (me && me.org) {
-          // User has org, proceed normally
           this.success = true;
           this.userEmail = me.org.name;
           this.hasAccess = me.has_access;
@@ -127,15 +141,11 @@ export class LoginPage implements OnInit, OnDestroy {
           this.needsBootstrap = false;
         }
       } catch (err: any) {
-        // Check if error indicates user needs bootstrap
+        // Only "no org membership" uses needs_bootstrap — not every 404
         if (err.status === 404 && err.error?.needs_bootstrap) {
-          // User doesn't have an org yet, show bootstrap
           this.needsBootstrap = true;
-        } else if (err.status === 401 || err.status === 404) {
-          // Also show bootstrap for 404 (org not found)
-          this.needsBootstrap = true;
+          this.applyPendingOrgPrefill();
         } else {
-          // Other error - show error message
           this.error = err.error?.error || 'Failed to check organization status';
         }
       }
@@ -176,6 +186,7 @@ export class LoginPage implements OnInit, OnDestroy {
         this.authService.setApiKey(response.api_key);
       }
 
+      clearPendingBootstrap();
       this.bootstrapLoading = false;
     } catch (err: any) {
       this.error = err.error?.error || 'Failed to create organization';
@@ -230,6 +241,9 @@ export class LoginPage implements OnInit, OnDestroy {
   }
 
   goToApp() {
-    this.router.navigate(['/overview']);
+    const raw = this.route.snapshot.queryParams['returnUrl'];
+    const target =
+      typeof raw === 'string' && raw.startsWith('/') && !raw.startsWith('//') ? raw : '/overview';
+    void this.router.navigateByUrl(target);
   }
 }
