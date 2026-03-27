@@ -41,8 +41,8 @@ import { environment } from '../../../environments/environment';
           <mat-card-content>Run Spectyra beside cloud or VM workloads.</mat-card-content>
         </mat-card>
         <mat-card class="choice" (click)="chooseUseCase('events')">
-          <mat-card-title>Observe with logs / events / traces</mat-card-title>
-          <mat-card-content>Analytics-first — structured local signals.</mat-card-content>
+          <mat-card-title>Logs / events / traces</mat-card-title>
+          <mat-card-content>Analytics-first — structured local signals (optional path).</mat-card-content>
         </mat-card>
       </div>
       <p class="hint">We’ll open the matching guide in your browser when helpful. Continue to configure your provider on this machine.</p>
@@ -78,9 +78,9 @@ import { environment } from '../../../environments/environment';
           <mat-form-field appearance="outline" class="full">
             <mat-label>Mode</mat-label>
             <mat-select [(ngModel)]="runMode">
+              <mat-option value="on">On — live optimization (recommended)</mat-option>
               <mat-option value="off">Off — pass-through</mat-option>
-              <mat-option value="observe">Observe — projected savings, no provider change in observe</mat-option>
-              <mat-option value="on">On — optimize then call provider</mat-option>
+              <mat-option value="observe">Observe — projected savings only (optional)</mat-option>
             </mat-select>
           </mat-form-field>
           <mat-form-field appearance="outline" class="full">
@@ -133,7 +133,7 @@ export class DesktopOnboardingPage implements OnInit {
   step: 1 | 2 = 1;
   provider = 'openai';
   apiKey = '';
-  runMode = 'observe';
+  runMode = 'on';
   telemetryMode = 'local';
   promptSnapshots = 'local_only';
   saving = false;

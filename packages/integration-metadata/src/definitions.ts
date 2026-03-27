@@ -9,7 +9,7 @@ export const TRUST_LABELS = [
   "Runs locally",
   "Direct provider billing",
   "Prompts stay local by default",
-  "Works with Observe mode",
+  "On mode — live optimization",
   "Real-time savings supported",
   "No code changes required",
   "Best for apps you control",
@@ -56,7 +56,7 @@ const sdkSnippet = `import { createSpectyra, createOpenAIAdapter } from '@specty
 import OpenAI from 'openai';
 
 const spectyra = createSpectyra({
-  runMode: 'observe',
+  runMode: 'on',
   licenseKey: process.env.SPECTYRA_LICENSE_KEY,
 });
 
@@ -101,7 +101,7 @@ export const INTEGRATION_SCENARIOS: IntegrationCardDefinition[] = [
     setupSteps: [
       "Install @spectyra/sdk",
       "Wrap the call site where you invoke the model",
-      "Choose Off, Observe, or On",
+      "Use On mode for live optimization (recommended). Off and Observe are available anytime in settings",
       "See savings locally in real time",
       "Optionally sign in to sync analytics summaries only",
     ],
@@ -117,7 +117,7 @@ export const INTEGRATION_SCENARIOS: IntegrationCardDefinition[] = [
       "Provider keys never sent to Spectyra",
     ],
     troubleshootingTips: [
-      "Start in Observe before On",
+      "If you need a dry-run without changing the upstream request, switch to Observe in settings — after On is working",
       "Verify SavingsReport shows direct_provider inference path",
     ],
     copyableConfigSnippets: [{ label: "Minimal TypeScript", language: "typescript", content: sdkSnippet }],
@@ -143,6 +143,7 @@ export const INTEGRATION_SCENARIOS: IntegrationCardDefinition[] = [
     setupSteps: [
       "Install Spectyra Desktop",
       "Choose provider and paste your provider API key",
+      "Set run mode to On for live optimization (Off / Observe are optional later)",
       "Start Local Companion",
       "Point your tool to http://127.0.0.1:4111/v1",
       "Use models spectyra/smart or spectyra/fast (local routing profiles)",
@@ -191,7 +192,7 @@ export const INTEGRATION_SCENARIOS: IntegrationCardDefinition[] = [
       "Deploy Spectyra next to the agent (process or localhost service)",
       "Use the SDK in the app or point HTTP to the local sidecar",
       "Keep provider keys in env / secrets in your environment",
-      "Use Observe or On as appropriate",
+      "Run On mode for live optimization in production paths",
       "Optionally sign in for analytics summary sync",
     ],
     verificationSteps: [
@@ -209,7 +210,7 @@ export const INTEGRATION_SCENARIOS: IntegrationCardDefinition[] = [
   },
   {
     id: "events-logs-traces",
-    title: "Observe / Events / Logs / Traces",
+    title: "Events / Logs / Traces",
     scenario: "event_ingestion",
     recommendedFor: ["Best for analytics-first integrations"],
     requiresCodeChanges: false,
@@ -245,7 +246,7 @@ export const INTEGRATION_SCENARIOS: IntegrationCardDefinition[] = [
       "Only normalized analytics summaries sync if you enable cloud sync",
     ],
     troubleshootingTips: [
-      "This path is best for Observe and backfill — not a substitute for live On mode in the SDK",
+      "This path is for analytics and backfill when Spectyra is not in the live path — use SDK or Companion On mode for live savings",
     ],
   },
 ];
@@ -437,7 +438,7 @@ export const INTEGRATION_PAGES: IntegrationPageDefinition[] = [
     setupSteps: INTEGRATION_SCENARIOS[3].setupSteps,
     verificationSteps: INTEGRATION_SCENARIOS[3].verificationSteps,
     commonMistakes: INTEGRATION_SCENARIOS[3].troubleshootingTips,
-    ctas: [{ label: "Observe", route: "/observe" }],
+    ctas: [{ label: "Savings preview (dry-run)", route: "/observe" }],
   }),
   pageBase({
     slug: "claude-agent-sdk",
@@ -460,7 +461,7 @@ export const INTEGRATION_PAGES: IntegrationPageDefinition[] = [
     setupSteps: [
       "Choose SDK or sidecar",
       "Keep provider keys in your environment",
-      "Use Observe first if unsure",
+      "Use On mode for live optimization; add Observe later if you want a no-change preview",
       "Verify savings and session analytics locally",
     ],
     verificationSteps: [
@@ -495,13 +496,13 @@ export const INTEGRATION_PAGES: IntegrationPageDefinition[] = [
     ],
     setupSteps: [
       "Install SDK and wrap provider calls",
-      "Start with Observe or On per workflow",
+      "Use On for live runs; use Observe only when you want a projected preview without changing requests",
       "Optionally connect tracing exports to adapters for dashboards",
     ],
     verificationSteps: [
       "Run a traced workflow",
       "Confirm before/after token metrics in On mode",
-      "Confirm projected savings in Observe",
+      "If using Observe, confirm projected savings match what you expect before relying on them",
     ],
     commonMistakes: ["Confusing trace analytics with live On optimization — both are valid, different paths"],
     ctas: [
@@ -527,7 +528,7 @@ export function getIntegrationsPayload(): IntegrationsPayload {
     version: "1",
     heroTitle: "Use Spectyra with your AI workflow",
     heroSubtitle:
-      "Choose the integration that matches how your app or tool runs. Spectyra keeps prompts local by default, uses your provider keys, and shows savings in real time.",
+      "Choose how your app or tool connects to Spectyra. Prompts stay local by default; your provider still bills you directly. Start in On mode for live optimization — Observe is there when you want a projected preview without changing requests.",
     trustLabels: TRUST_LABELS,
     comparisonRows: COMPARISON_ROWS,
     scenarios: INTEGRATION_SCENARIOS,
