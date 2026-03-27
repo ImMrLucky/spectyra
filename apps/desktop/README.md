@@ -9,7 +9,7 @@ Local-first desktop app: **Electron** shell + **Local Companion** child process 
 | `electron/main.ts` | Main process: window, IPC, spawn companion, config under `~/.spectyra/desktop/` |
 | `electron/preload.ts` | Exposes `window.spectyra` to the renderer |
 | `dist-electron/*.js` | Compiled main/preload (CommonJS) |
-| `../web` (desktop build) | Angular output → `dist/renderer/` |
+| `../web` (desktop build) | Angular output → `dist/renderer/` (includes **Live savings**: SSE + detailed local metrics; optional redacted cloud sync when signed in) |
 | `resources/companion/` | Produced by `scripts/prepare-companion.cjs` (`pnpm deploy` of `@spectyra/local-companion`) |
 | `electron-builder.yml` | Packaging: macOS DMG+zip, Windows NSIS+zip |
 

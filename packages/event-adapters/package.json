@@ -1,0 +1,16 @@
+{
+  "name": "@spectyra/event-adapters",
+  "version": "0.1.0",
+  "description": "Tool-specific adapters → normalized SpectyraEvent",
+  "type": "module",
+  "main": "./src/index.ts",
+  "types": "./src/index.ts",
+  "files": ["src"],
+  "scripts": { "typecheck": "tsc --noEmit" },
+  "dependencies": {
+    "@spectyra/core-types": "workspace:*",
+    "@spectyra/event-core": "workspace:*"
+  },
+  "devDependencies": { "typescript": "~5.4.0" },
+  "license": "MIT"
+}

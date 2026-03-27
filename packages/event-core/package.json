@@ -1,0 +1,16 @@
+{
+  "name": "@spectyra/event-core",
+  "version": "0.1.0",
+  "description": "Normalized local event model, bus, ingestion engine, session aggregation",
+  "type": "module",
+  "main": "./src/index.ts",
+  "types": "./src/index.ts",
+  "files": ["src"],
+  "scripts": { "typecheck": "tsc --noEmit" },
+  "dependencies": {
+    "@spectyra/analytics-core": "workspace:*",
+    "@spectyra/core-types": "workspace:*"
+  },
+  "devDependencies": { "typescript": "~5.4.0" },
+  "license": "MIT"
+}

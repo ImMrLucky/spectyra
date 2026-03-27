@@ -80,6 +80,14 @@ pnpm start
 | GET | `/v1/models` | OpenAI-style model list (`spectyra/smart`, `spectyra/fast` for OpenClaw) |
 | POST | `/v1/chat/completions` | OpenAI-compatible chat |
 | POST | `/v1/messages` | Anthropic-compatible messages |
+| GET | `/v1/analytics/live-events` | SSE stream of normalized `SpectyraEvent` (local) |
+| GET | `/v1/analytics/live-state` | JSON snapshot for dashboards |
+| GET | `/v1/analytics/current-session` | Current workflow session |
+| GET | `/v1/analytics/sessions` | Recent sessions |
+| GET | `/v1/analytics/session/:sessionId` | Session detail |
+| POST | `/v1/analytics/ingest` | Push adapter-shaped JSON (JSONL tailers, daemons, sidecars) |
+
+See [AGENTIC_AND_SERVER_INTEGRATION.md](../../docs/AGENTIC_AND_SERVER_INTEGRATION.md) for OpenClaw, Claude harnesses, and server-side daemon patterns.
 
 ### Stable model aliases (`spectyra/smart`, `spectyra/fast`)
 

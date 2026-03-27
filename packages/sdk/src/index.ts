@@ -31,6 +31,18 @@ export type { SpectyraInstance } from "./createSpectyra.js";
 export { startSpectyraSession } from "./session/startSpectyraSession.js";
 export type { SpectyraSessionHandle, StartSpectyraSessionOptions } from "./session/startSpectyraSession.js";
 
+// Normalized local events (same model as Local Companion; subscribe via sdkEventEngine)
+export {
+  sdkEventEngine,
+  shouldEmitSdkNormalizedEvents,
+  ingestSdkSessionStart,
+  ingestSdkSessionEnd,
+  ingestSdkComplete,
+  ingestSdkPromptComparisonAvailable,
+  emitSdkEventsForStandaloneComplete,
+} from "./events/sdkEvents.js";
+export type { SpectyraEvent, SpectyraEventType } from "@spectyra/event-core";
+
 // Provider adapters (direct-provider, no Spectyra cloud)
 export { createOpenAIAdapter } from "./adapters/openai.js";
 export { createAnthropicAdapter } from "./adapters/anthropic.js";
