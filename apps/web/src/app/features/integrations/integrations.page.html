@@ -1,0 +1,148 @@
+<div class="container">
+  <div class="page-header">
+    <h1>{{ payload.heroTitle }}</h1>
+    <p class="subtitle">{{ payload.heroSubtitle }}</p>
+  </div>
+
+  <div class="scenarios-grid">
+    <div
+      *ngFor="let card of scenarios"
+      class="scenario-card"
+      [class.selected]="selectedId === card.id"
+      (click)="selectCard(card)"
+    >
+      <div class="scenario-header">
+        <h3>{{ card.title }}</h3>
+        <span class="scenario-badge" *ngIf="card.recommendedFor?.length">{{ card.recommendedFor[0] }}</span>
+      </div>
+      <p class="scenario-description">{{ card.heroSummary }}</p>
+
+      <div class="glance-labels">
+        <span class="glance-label" [class.safe]="!card.requiresCodeChanges" [class.warn]="card.requiresCodeChanges">
+          {{ card.requiresCodeChanges ? 'Code changes required' : 'No code changes' }}
+        </span>
+        <span class="glance-label safe" *ngIf="rowFor(card.id)?.runsLocally">Runs locally</span>
+        <span class="glance-label safe" *ngIf="rowFor(card.id) && !rowFor(card.id)?.runsLocally">Runs in your environment</span>
+        <span class="glance-label safe" *ngIf="card.directProviderBilling">Direct provider billing</span>
+        <span class="glance-label safe" *ngIf="card.realTimeSavingsSupported">Real-time savings (On)</span>
+        <span class="glance-label" [class.safe]="rowFor(card.id)?.goodForOpenClaw" [class.muted]="!rowFor(card.id)?.goodForOpenClaw">
+          {{ rowFor(card.id)?.goodForOpenClaw ? 'Good for OpenClaw' : '—' }}
+        </span>
+        <span class="glance-label" [class.safe]="rowFor(card.id)?.goodForServerAgents" [class.muted]="!rowFor(card.id)?.goodForServerAgents">
+          {{ rowFor(card.id)?.goodForServerAgents ? 'Server / VM agents' : '—' }}
+        </span>
+        <span class="glance-label" [class.safe]="rowFor(card.id)?.goodForSdkApps" [class.muted]="!rowFor(card.id)?.goodForSdkApps">
+          {{ rowFor(card.id)?.goodForSdkApps ? 'SDK apps' : '—' }}
+        </span>
+        <span class="glance-label safe">Setup: {{ card.setupComplexity }}</span>
+      </div>
+
+      <p class="more-hint" *ngIf="selectedId !== card.id">Click for setup, security, and verification</p>
+    </div>
+  </div>
+
+  <div class="scenario-details" *ngIf="selectedCard && pageDetail">
+    <div class="card">
+      <div class="card-header">
+        <h2>{{ pageDetail.title }}</h2>
+      </div>
+
+      <div class="flow-strip" *ngIf="pageDetail.flowLine">
+        <code>{{ pageDetail.flowLine }}</code>
+      </div>
+
+      <div class="section" *ngIf="pageDetail.whatThisIs?.length">
+        <h3>What this is</h3>
+        <ul class="bullet-list">
+          <li *ngFor="let line of pageDetail.whatThisIs">{{ line }}</li>
+        </ul>
+      </div>
+
+      <div class="section" *ngIf="pageDetail.howItWorks?.length">
+        <h3>How it works</h3>
+        <ul class="bullet-list">
+          <li *ngFor="let line of pageDetail.howItWorks">{{ line }}</li>
+        </ul>
+      </div>
+
+      <div class="section">
+        <h3>Security &amp; data handling</h3>
+        <ul class="controls-list">
+          <li *ngFor="let note of pageDetail.securitySection">{{ note }}</li>
+        </ul>
+        <p class="fine-print">
+          Spectyra does not proxy live inference through Spectyra servers by default. <strong>On</strong> is the mode that applies real optimization. <strong>Observe</strong> is optional — use it when you want projected savings without changing the upstream request, after everything is working.
+        </p>
+      </div>
+
+      <div class="section">
+        <h3>Setup steps</h3>
+        <ol class="setup-steps">
+          <li *ngFor="let step of pageDetail.setupSteps">{{ step }}</li>
+        </ol>
+      </div>
+
+      <div class="section" *ngIf="selectedCard?.id === 'sdk-library' && selectedCard?.copyableConfigSnippets?.length">
+        <div class="section-header">
+          <h3>Quick start</h3>
+          <button type="button" class="btn btn-sm btn-secondary" (click)="copy(selectedCard!.copyableConfigSnippets![0].content)">Copy</button>
+        </div>
+        <div class="code-block">
+          <pre><code>{{ selectedCard!.copyableConfigSnippets![0].content }}</code></pre>
+        </div>
+      </div>
+
+      <div class="section" *ngIf="selectedCard?.id === 'desktop-companion'">
+        <h3>OpenClaw</h3>
+        <div class="guide-content">
+          <div class="guide-item">
+            <strong>How it connects</strong>
+            <p>OpenClaw calls Spectyra on <code>http://127.0.0.1:4111/v1</code> as a custom provider. Spectyra forwards to your real provider with your key.</p>
+          </div>
+          <div class="guide-item" *ngIf="openClawFocused">
+            <strong>OpenClaw guide</strong>
+            <p>Run <code>openclaw models list</code> and confirm <code>spectyra/smart</code> appears, then run a test prompt.</p>
+          </div>
+          <div class="guide-item">
+            <strong>Model aliases</strong>
+            <p><code>spectyra/smart</code> and <code>spectyra/fast</code> are local routing profiles — they map to the model you chose in Desktop.</p>
+          </div>
+        </div>
+        <div class="section-header" style="margin-top: 16px">
+          <h3>OpenClaw config example</h3>
+          <button type="button" class="btn btn-sm btn-secondary" (click)="copy(openClawConfigJson)">Copy JSON</button>
+        </div>
+        <p class="fine-print">Add <code>models.providers.spectyra</code> with this base URL. Use <code>spectyra/smart</code> as the model ref in OpenClaw.</p>
+        <div class="code-block">
+          <pre><code>{{ openClawConfigJson }}</code></pre>
+        </div>
+      </div>
+
+      <div class="section">
+        <h3>Verify it works</h3>
+        <ul class="controls-list">
+          <li *ngFor="let step of pageDetail.verificationSteps">{{ step }}</li>
+        </ul>
+      </div>
+
+      <div class="section" *ngIf="selectedCard?.troubleshootingTips?.length">
+        <h3>Common issues</h3>
+        <ul class="bullet-list">
+          <li *ngFor="let t of selectedCard!.troubleshootingTips!">{{ t }}</li>
+        </ul>
+      </div>
+
+      <div class="section">
+        <h3>More guides</h3>
+        <p class="fine-print">Deeper pages for specific tools (same security model).</p>
+        <div class="guide-links">
+          <a routerLink="/integrations/openclaw">OpenClaw</a>
+          <a routerLink="/integrations/claude-agent-sdk">Claude Agent SDK</a>
+          <a routerLink="/integrations/openai-agents">OpenAI Agents</a>
+          <a routerLink="/integrations/server-sidecar">Server / VM sidecar</a>
+          <a routerLink="/integrations/events">Events / logs / traces</a>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>

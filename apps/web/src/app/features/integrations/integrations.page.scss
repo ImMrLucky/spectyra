@@ -1,0 +1,294 @@
+.container {
+  max-width: 1400px;
+  margin: 0 auto;
+  padding: 20px;
+}
+
+.page-header {
+  margin-bottom: 28px;
+
+  h1 {
+    margin: 0 0 8px;
+    font-size: 32px;
+    font-weight: 600;
+  }
+
+  .subtitle {
+    color: #555;
+    font-size: 16px;
+    margin: 0;
+    line-height: 1.55;
+    max-width: 900px;
+  }
+}
+
+.scenarios-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+  gap: 20px;
+}
+
+.glance-labels {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 4px;
+}
+
+.glance-label {
+  display: inline-block;
+  padding: 4px 10px;
+  border-radius: 4px;
+  font-size: 11px;
+  font-weight: 500;
+  background: #f0f0f0;
+  color: #555;
+
+  &.safe {
+    background: #e8f5e9;
+    color: #1b5e20;
+  }
+
+  &.warn {
+    background: #fff3e0;
+    color: #e65100;
+  }
+
+  &.muted {
+    background: #f5f5f5;
+    color: #888;
+  }
+}
+
+.more-hint {
+  margin: 12px 0 0;
+  font-size: 12px;
+  color: #888;
+}
+
+.setup-steps {
+  margin: 0;
+  padding-left: 1.25rem;
+  color: #333;
+  line-height: 1.7;
+
+  li {
+    margin-bottom: 8px;
+  }
+}
+
+.scenario-card {
+  border: 2px solid #e0e0e0;
+  border-radius: 8px;
+  padding: 24px;
+  cursor: pointer;
+  transition: all 0.2s;
+  background: white;
+
+  &:hover {
+    border-color: #007bff;
+    box-shadow: 0 2px 8px rgba(0, 123, 255, 0.1);
+  }
+
+  &.selected {
+    border-color: #007bff;
+    background: #f0f7ff;
+  }
+
+  .scenario-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: start;
+    margin-bottom: 12px;
+
+    h3 {
+      margin: 0;
+      font-size: 18px;
+      font-weight: 600;
+    }
+  }
+
+  .scenario-badge {
+    padding: 4px 8px;
+    border-radius: 4px;
+    font-size: 11px;
+    font-weight: 600;
+    background: #e8f0fe;
+    color: #1565c0;
+    text-transform: uppercase;
+  }
+
+  .scenario-description {
+    margin: 0 0 16px;
+    color: #555;
+    font-size: 14px;
+    line-height: 1.5;
+  }
+}
+
+.scenario-details {
+  margin-top: 30px;
+}
+
+.card {
+  background: white;
+  border-radius: 8px;
+  padding: 24px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.08);
+
+  .card-header h2 {
+    margin: 0;
+    font-size: 24px;
+    font-weight: 600;
+  }
+}
+
+.flow-strip {
+  margin: 16px 0 20px;
+  padding: 12px 14px;
+  background: #f6f8fa;
+  border: 1px solid #e8ecf1;
+  border-radius: 8px;
+
+  code {
+    font-size: 13px;
+    color: #333;
+    word-break: break-word;
+  }
+}
+
+.section {
+  margin-bottom: 28px;
+
+  h3 {
+    font-size: 18px;
+    font-weight: 600;
+    margin: 0 0 12px;
+  }
+
+  .section-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 8px;
+
+    h3 {
+      margin: 0;
+    }
+  }
+}
+
+.fine-print {
+  font-size: 13px;
+  color: #666;
+  line-height: 1.55;
+  margin-top: 12px;
+}
+
+.bullet-list {
+  margin: 0;
+  padding-left: 1.25rem;
+  color: #333;
+  line-height: 1.65;
+
+  li {
+    margin-bottom: 6px;
+  }
+}
+
+.controls-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+
+  li {
+    padding: 8px 0;
+    border-bottom: 1px solid #e0e0e0;
+
+    &:last-child {
+      border-bottom: none;
+    }
+
+    &::before {
+      content: '✓ ';
+      color: #28a745;
+      font-weight: 600;
+      margin-right: 8px;
+    }
+  }
+}
+
+.guide-links {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px 20px;
+  margin-top: 8px;
+
+  a {
+    color: #1565c0;
+    font-size: 14px;
+    text-decoration: none;
+
+    &:hover {
+      text-decoration: underline;
+    }
+  }
+}
+
+.code-block {
+  background: #1e1e1e;
+  border-radius: 8px;
+  padding: 16px;
+  overflow-x: auto;
+
+  pre {
+    margin: 0;
+    color: #d4d4d4;
+    font-family: Monaco, 'Courier New', monospace;
+    font-size: 13px;
+    line-height: 1.5;
+    white-space: pre;
+  }
+}
+
+.guide-content {
+  .guide-item {
+    margin-bottom: 16px;
+
+    strong {
+      display: block;
+      font-size: 14px;
+      margin-bottom: 6px;
+    }
+
+    p {
+      margin: 0;
+      font-size: 14px;
+      color: #555;
+      line-height: 1.6;
+    }
+  }
+}
+
+.btn {
+  padding: 8px 16px;
+  border: none;
+  border-radius: 4px;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+
+  &.btn-secondary {
+    background: #6c757d;
+    color: white;
+
+    &:hover {
+      background: #545b62;
+    }
+  }
+
+  &.btn-sm {
+    padding: 6px 12px;
+    font-size: 12px;
+  }
+}
