@@ -28,6 +28,7 @@ import { interval, Subscription } from 'rxjs';
         <mat-card-actions>
           <button mat-raised-button color="primary" (click)="refresh()">Refresh</button>
           <a mat-button routerLink="/desktop/openclaw">OpenClaw setup</a>
+          <a mat-raised-button color="accent" routerLink="/desktop/live-savings">Live savings</a>
         </mat-card-actions>
       </mat-card>
 
@@ -35,11 +36,10 @@ import { interval, Subscription } from 'rxjs';
         <mat-card-title>Current session (live)</mat-card-title>
         <mat-card-content>
           <p><strong>Steps:</strong> {{ currentSession['totalSteps'] ?? '—' }}</p>
-          <p><strong>Token savings (input):</strong>
-            {{ (currentSession['totalInputTokensBefore'] ?? 0) - (currentSession['totalInputTokensAfter'] ?? 0) }}</p>
-          <p><strong>Workflow savings (est. USD):</strong> {{ currentSession['estimatedWorkflowSavings'] | number:'1.2-4' }}</p>
+          <p><strong>Token savings (input):</strong> {{ tokenSavedInput(currentSession) | number:'1.0-0' }}</p>
+          <p><strong>Workflow savings (est. USD):</strong> {{ workflowSavingsUsd(currentSession) | number:'1.2-4' }}</p>
           <p><strong>Mode:</strong> {{ currentSession['mode'] }}</p>
-          <p class="fine">Inference: direct to provider · Telemetry: {{ currentSession['security']?.['telemetryMode'] }}</p>
+          <p class="fine">Inference: direct to provider · Telemetry: {{ telemetryLabel(currentSession) }}</p>
         </mat-card-content>
       </mat-card>
 
@@ -72,6 +72,24 @@ export class DesktopDashboardPage implements OnInit, OnDestroy {
   health: Record<string, unknown> | null = null;
   currentSession: Record<string, unknown> | null = null;
   private poll?: Subscription;
+
+  tokenSavedInput(cs: Record<string, unknown>): number {
+    const b = Number(cs['totalInputTokensBefore'] ?? 0);
+    const a = Number(cs['totalInputTokensAfter'] ?? 0);
+    return Math.max(0, b - a);
+  }
+
+  workflowSavingsUsd(cs: Record<string, unknown>): number {
+    return Number(cs['estimatedWorkflowSavings'] ?? 0);
+  }
+
+  telemetryLabel(cs: Record<string, unknown>): string {
+    const sec = cs['security'];
+    if (sec && typeof sec === 'object' && sec !== null && 'telemetryMode' in sec) {
+      return String((sec as Record<string, unknown>)['telemetryMode'] ?? '—');
+    }
+    return '—';
+  }
 
   constructor(private desktop: DesktopBridgeService) {}
 

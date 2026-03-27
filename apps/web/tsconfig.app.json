@@ -2,8 +2,13 @@
   "extends": "./tsconfig.json",
   "compilerOptions": {
     "outDir": "./out-tsc/app",
-    "types": []
+    "types": [],
+    "paths": {
+      "@spectyra/analytics-core": ["../../packages/analytics-core/src/index.ts"],
+      "@spectyra/analytics-core/*": ["../../packages/analytics-core/src/*"],
+      "@spectyra/event-core": ["../../packages/event-core/src/index.ts"],
+      "@spectyra/event-core/*": ["../../packages/event-core/src/*"]
+    }
   },
-  "files": ["src/main.ts"],
-  "include": ["src/**/*.d.ts"]
+  "include": ["src/**/*.ts"]
 }

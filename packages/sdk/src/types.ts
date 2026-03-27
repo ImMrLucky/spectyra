@@ -108,9 +108,16 @@ export interface SpectyraCompleteInput<TClient = unknown> {
   maxTokens?: number;
   temperature?: number;
   runContext?: {
+    /** Correlate multiple `complete()` calls with a shared workflow session (optional). */
+    sessionId?: string;
     appType?: string;
     appName?: string;
     workflowType?: string;
+    /**
+     * When `false`, `complete()` does not emit normalized SDK events (used by `startSpectyraSession`,
+     * which emits session/step events itself). Default: emit for standalone `complete()` calls.
+     */
+    emitNormalizedEvents?: boolean;
   };
 }
 

@@ -15,6 +15,13 @@ import {
   type SessionAnalyticsRecord,
   type SpectyraSessionTracker,
 } from "@spectyra/analytics-core";
+import {
+  ingestSdkComplete,
+  ingestSdkPromptComparisonAvailable,
+  ingestSdkSessionEnd,
+  ingestSdkSessionStart,
+  shouldEmitSdkNormalizedEvents,
+} from "../events/sdkEvents.js";
 
 export type StartSpectyraSessionOptions = {
   appName?: string;
@@ -64,17 +71,68 @@ export function startSpectyraSession(
     onEvent: options.onEvent,
   });
 
+  if (shouldEmitSdkNormalizedEvents(telemetryMode)) {
+    ingestSdkSessionStart({
+      sessionId: tracker.sessionId,
+      runId: tracker.runId,
+      appName: options.appName,
+      workflowType: options.workflowType,
+      mode: runMode,
+      telemetryMode,
+      promptSnapshotMode,
+    });
+  }
+
   return {
     sessionId: tracker.sessionId,
     runId: tracker.runId,
     tracker,
     async complete(input, adapter) {
-      const result = await spectyra.complete(input, adapter);
-      tracker.recordStepFromReport(result.report);
+      const result = await spectyra.complete(
+        {
+          ...input,
+          runContext: {
+            ...input.runContext,
+            emitNormalizedEvents: false,
+          },
+        },
+        adapter,
+      );
+      const step = tracker.recordStepFromReport(result.report);
+      if (shouldEmitSdkNormalizedEvents(telemetryMode)) {
+        ingestSdkComplete({
+          sessionId: tracker.sessionId,
+          runId: result.report.runId,
+          stepId: step.stepId,
+          appName: options.appName,
+          workflowType: options.workflowType,
+          report: result.report,
+        });
+        if (result.promptComparison) {
+          ingestSdkPromptComparisonAvailable({
+            sessionId: tracker.sessionId,
+            runId: result.report.runId,
+            stepId: step.stepId,
+            appName: options.appName,
+            workflowType: options.workflowType,
+            comparisonRunId: result.report.runId,
+            storageMode: result.promptComparison.storageMode,
+          });
+        }
+      }
       return result;
     },
     finish() {
-      return tracker.finish();
+      const rec = tracker.finish();
+      if (shouldEmitSdkNormalizedEvents(telemetryMode)) {
+        ingestSdkSessionEnd({
+          sessionId: tracker.sessionId,
+          runId: tracker.runId,
+          appName: options.appName,
+          workflowType: options.workflowType,
+        });
+      }
+      return rec;
     },
   };
 }

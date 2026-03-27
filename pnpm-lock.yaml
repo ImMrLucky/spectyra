@@ -160,6 +160,12 @@ importers:
       '@angular/router':
         specifier: ^17.0.0
         version: 17.3.12(@angular/common@17.3.12(@angular/core@17.3.12(rxjs@7.8.2)(zone.js@0.14.10))(rxjs@7.8.2))(@angular/core@17.3.12(rxjs@7.8.2)(zone.js@0.14.10))(@angular/platform-browser@17.3.12(@angular/animations@17.3.12(@angular/core@17.3.12(rxjs@7.8.2)(zone.js@0.14.10)))(@angular/common@17.3.12(@angular/core@17.3.12(rxjs@7.8.2)(zone.js@0.14.10))(rxjs@7.8.2))(@angular/core@17.3.12(rxjs@7.8.2)(zone.js@0.14.10)))(rxjs@7.8.2)
+      '@spectyra/analytics-core':
+        specifier: workspace:*
+        version: link:../../packages/analytics-core
+      '@spectyra/event-core':
+        specifier: workspace:*
+        version: link:../../packages/event-core
       '@spectyra/shared':
         specifier: workspace:*
         version: link:../../packages/shared
@@ -244,6 +250,32 @@ importers:
         specifier: ~5.4.0
         version: 5.4.5
 
+  packages/event-adapters:
+    dependencies:
+      '@spectyra/core-types':
+        specifier: workspace:*
+        version: link:../core-types
+      '@spectyra/event-core':
+        specifier: workspace:*
+        version: link:../event-core
+    devDependencies:
+      typescript:
+        specifier: ~5.4.0
+        version: 5.4.5
+
+  packages/event-core:
+    dependencies:
+      '@spectyra/analytics-core':
+        specifier: workspace:*
+        version: link:../analytics-core
+      '@spectyra/core-types':
+        specifier: workspace:*
+        version: link:../core-types
+    devDependencies:
+      typescript:
+        specifier: ~5.4.0
+        version: 5.4.5
+
   packages/feature-detection:
     dependencies:
       '@spectyra/canonical-model':
@@ -311,6 +343,12 @@ importers:
       '@spectyra/core-types':
         specifier: workspace:*
         version: link:../core-types
+      '@spectyra/event-adapters':
+        specifier: workspace:*
+        version: link:../event-adapters
+      '@spectyra/event-core':
+        specifier: workspace:*
+        version: link:../event-core
       '@spectyra/feature-detection':
         specifier: workspace:*
         version: link:../feature-detection
@@ -390,6 +428,12 @@ importers:
       '@spectyra/core-types':
         specifier: workspace:*
         version: link:../../packages/core-types
+      '@spectyra/event-adapters':
+        specifier: workspace:*
+        version: link:../../packages/event-adapters
+      '@spectyra/event-core':
+        specifier: workspace:*
+        version: link:../../packages/event-core
       '@spectyra/feature-detection':
         specifier: workspace:*
         version: link:../../packages/feature-detection

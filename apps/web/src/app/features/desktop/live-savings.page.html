@@ -1,0 +1,153 @@
+<div class="ls-page">
+  <header class="ls-hero">
+    <div class="ls-hero-text">
+      <p class="ls-kicker">Local-first · Direct provider</p>
+      <h1>Live savings</h1>
+      <p class="ls-lead">
+        Detailed token, cost, and workflow metrics from your Local Companion — same normalization model as the SDK.
+        Raw prompts stay on this machine; account sync sends <strong>redacted summaries</strong> only when you enable it and sign in.
+      </p>
+    </div>
+    <div class="ls-hero-metrics" *ngIf="activeSession() as s">
+      <div class="ls-metric">
+        <span class="ls-metric-label">Workflow savings (est.)</span>
+        <span class="ls-metric-value">${{ s.estimatedWorkflowSavings | number:'1.2-4' }}</span>
+      </div>
+      <div class="ls-metric">
+        <span class="ls-metric-label">Input tokens saved</span>
+        <span class="ls-metric-value">{{ tokenSavedInput(s) | number:'1.0-0' }}</span>
+      </div>
+      <div class="ls-metric">
+        <span class="ls-metric-label">Steps</span>
+        <span class="ls-metric-value">{{ s.totalSteps }}</span>
+      </div>
+    </div>
+  </header>
+
+  <div class="ls-toolbar">
+    <span class="ls-pill" [class.on]="health?.['status'] === 'ok'">
+      Companion {{ health?.['status'] || 'offline' }} · {{ companionOrigin }}
+    </span>
+    <span class="ls-pill" [class.on]="sseConnected">
+      Live stream {{ sseConnected ? 'on' : 'reconnecting…' }}
+    </span>
+    <span class="ls-pill subtle">Last event: {{ lastEventLabel }}</span>
+  </div>
+
+  <mat-progress-spinner *ngIf="loading" diameter="36" mode="indeterminate" class="ls-spin"></mat-progress-spinner>
+
+  <div class="ls-grid" *ngIf="!loading">
+    <mat-card class="ls-card">
+      <mat-card-title>Current session</mat-card-title>
+      <mat-card-content>
+        <ng-container *ngIf="activeSession() as cur; else noSession">
+          <dl class="ls-dl">
+            <dt>Mode</dt><dd>{{ cur.mode }}</dd>
+            <dt>Provider / model</dt><dd>{{ cur.provider || '—' }} · {{ cur.model || '—' }}</dd>
+            <dt>Input tokens</dt><dd>{{ cur.totalInputTokensBefore | number }} → {{ cur.totalInputTokensAfter | number }}</dd>
+            <dt>Output tokens</dt><dd>{{ cur.totalOutputTokens | number }}</dd>
+            <dt>Workflow cost (est.)</dt><dd>${{ cur.estimatedWorkflowCostBefore | number:'1.2-4' }} → ${{ cur.estimatedWorkflowCostAfter | number:'1.2-4' }}</dd>
+            <dt>Savings %</dt><dd>{{ cur.estimatedWorkflowSavingsPct | number:'1.1-1' }}%</dd>
+            <dt>Transforms</dt><dd>
+              <span class="ls-chip" *ngFor="let t of cur.transformsApplied">{{ t }}</span>
+              <span *ngIf="!cur.transformsApplied?.length">—</span>
+            </dd>
+            <dt>Repeated context avoided</dt><dd>{{ cur.repeatedContextTokensAvoided | number }}</dd>
+            <dt>Telemetry</dt><dd>{{ cur.security.telemetryMode }}</dd>
+            <dt>Prompt snapshots</dt><dd>{{ cur.security.promptSnapshotMode }}</dd>
+          </dl>
+        </ng-container>
+        <ng-template #noSession>
+          <p class="ls-muted">No active session. Send traffic through the companion (OpenClaw, API base URL, or SDK) to see live metrics.</p>
+        </ng-template>
+      </mat-card-content>
+    </mat-card>
+
+    <mat-card class="ls-card">
+      <mat-card-title>Flow & prompts</mat-card-title>
+      <mat-card-content>
+        <p class="ls-muted">
+          <strong>Flow signals</strong> (stability, loops, path hints) appear when the optimizer emits them — typically via SDK-integrated apps.
+          This view still shows every token and cost line the companion records.
+        </p>
+        <mat-divider></mat-divider>
+        <p *ngIf="liveState?.promptComparisonAvailable" class="ls-prompt">
+          <mat-icon>compare</mat-icon>
+          Prompt comparison available locally for recent runs.
+          <button mat-stroked-button color="primary" *ngIf="activeSession() as cur" (click)="openPromptComparison(cur.runId)">
+            Open comparison
+          </button>
+        </p>
+        <p *ngIf="!liveState?.promptComparisonAvailable" class="ls-muted">No prompt comparison reference for the current aggregate yet.</p>
+      </mat-card-content>
+    </mat-card>
+
+    <mat-card class="ls-card ls-span2">
+      <mat-card-title>Recent steps (live)</mat-card-title>
+      <mat-card-content>
+        <table mat-table [dataSource]="stepRows" class="ls-table" *ngIf="stepRows.length">
+          <ng-container matColumnDef="idx">
+            <th mat-header-cell *matHeaderCellDef>#</th>
+            <td mat-cell *matCellDef="let row">{{ row.stepIndex != null ? row.stepIndex + 1 : '—' }}</td>
+          </ng-container>
+          <ng-container matColumnDef="model">
+            <th mat-header-cell *matHeaderCellDef>Model</th>
+            <td mat-cell *matCellDef="let row">{{ row.model || '—' }}</td>
+          </ng-container>
+          <ng-container matColumnDef="tokens">
+            <th mat-header-cell *matHeaderCellDef>Tokens in</th>
+            <td mat-cell *matCellDef="let row">{{ row.inputTokensBefore | number }} → {{ row.inputTokensAfter | number }}</td>
+          </ng-container>
+          <ng-container matColumnDef="savings">
+            <th mat-header-cell *matHeaderCellDef>Step $ / %</th>
+            <td mat-cell *matCellDef="let row">${{ row.estimatedStepSavings | number:'1.2-4' }} ({{ row.estimatedStepSavingsPct | number:'1.0-1' }}%)</td>
+          </ng-container>
+          <ng-container matColumnDef="transforms">
+            <th mat-header-cell *matHeaderCellDef>Transforms</th>
+            <td mat-cell *matCellDef="let row">{{ (row.transformsApplied || []).join(', ') || '—' }}</td>
+          </ng-container>
+          <tr mat-header-row *matHeaderRowDef="stepColumns"></tr>
+          <tr mat-row *matRowDef="let row; columns: stepColumns"></tr>
+        </table>
+        <p *ngIf="!stepRows.length" class="ls-muted">Steps will appear as provider calls complete.</p>
+      </mat-card-content>
+    </mat-card>
+
+    <mat-card class="ls-card">
+      <mat-card-title>Account analytics (optional)</mat-card-title>
+      <mat-card-content>
+        <p class="ls-muted">
+          When enabled, <strong>session summaries</strong> (tokens, savings, transforms, labels) sync to your Spectyra account.
+          Prompt text and raw logs are never uploaded by default.
+        </p>
+        <div class="ls-sync-row">
+          <mat-slide-toggle [checked]="syncToCloud" (change)="onSyncToggle($event.checked)" [disabled]="syncing">
+            Sync redacted summaries
+          </mat-slide-toggle>
+          <button mat-button (click)="trySyncLatestSession()" [disabled]="!syncToCloud || syncing">
+            <mat-icon>cloud_upload</mat-icon> Sync now
+          </button>
+        </div>
+        <p class="ls-error" *ngIf="cloudSync.lastError">{{ cloudSync.lastError }}</p>
+        <p class="ls-muted" *ngIf="!canSyncAccount">
+          <a routerLink="/login">Sign in</a> to enable cloud sync (Supabase session). Local analytics work without signing in.
+        </p>
+        <p class="ls-muted" *ngIf="cloudSync.lastSyncedAt">Last sync attempt: {{ cloudSync.lastSyncedAt }}</p>
+      </mat-card-content>
+    </mat-card>
+
+    <mat-card class="ls-card">
+      <mat-card-title>Recent sessions (disk)</mat-card-title>
+      <mat-card-content>
+        <ul class="ls-session-list" *ngIf="sessions.length">
+          <li *ngFor="let s of sessions.slice().reverse().slice(0, 8)">
+            <span class="mono">{{ s.sessionId.substring(0, 8) }}…</span>
+            · ${{ s.estimatedWorkflowSavings | number:'1.2-2' }}
+            · {{ s.totalSteps }} steps
+          </li>
+        </ul>
+        <p *ngIf="!sessions.length" class="ls-muted">Completed sessions are appended under ~/.spectyra/companion/sessions.jsonl</p>
+      </mat-card-content>
+    </mat-card>
+  </div>
+</div>

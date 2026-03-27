@@ -17,11 +17,20 @@ export type SpectyraAnalyticsMode = SpectyraRunMode;
 /** Alias — same as TelemetryMode. */
 export type SpectyraTelemetryMode = TelemetryMode;
 
-/** Narrow integration labels used in analytics payloads (subset of IntegrationType). */
+/**
+ * Analytics integration surface (SDK, companion, log/tracing adapters).
+ * Tool-specific logic stays in @spectyra/event-adapters — values are labels only here.
+ */
 export type SpectyraAnalyticsIntegration =
   | "sdk-wrapper"
   | "local-companion"
-  | "observe-preview";
+  | "observe-preview"
+  | "openclaw-jsonl"
+  | "claude-hooks"
+  | "claude-jsonl"
+  | "openai-tracing"
+  | "generic-jsonl"
+  | "unknown";
 
 export type AnalyticsSyncState = "not_synced" | "queued" | "synced" | "sync_failed";
 

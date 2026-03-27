@@ -29,6 +29,12 @@ import {
   getStoredSessionById,
   readCurrentSessionForKey,
 } from "./sessionAnalytics.js";
+import {
+  companionEventEngine,
+  ingestCompanionChatCompleted,
+  registerSseClient,
+  getLiveStateFromEvents,
+} from "./companionEvents.js";
 
 const cfg: CompanionConfig = loadConfig();
 const sessionRegistry = new CompanionSessionRegistry(cfg);
@@ -112,6 +118,16 @@ app.post("/v1/chat/completions", async (req, res) => {
     const runId = crypto.randomUUID();
     const report = buildReport(runId, resolved.provider, resolved.upstreamModel, optResult, providerResult.usage);
     await persistLocally(runId, report, optResult, messages);
+    const sk = sessionRegistry.sessionKeyFromRequest(req.headers as any);
+    if (cfg.telemetryMode !== "off") {
+      await sessionRegistry.recordStep(sk, report);
+      const tr = sessionRegistry.getOrCreateTracker(sk);
+      ingestCompanionChatCompleted({
+        sessionId: tr.sessionId,
+        runId: report.runId,
+        report,
+      });
+    }
 
     res.json({
       id: `chatcmpl-${runId}`,
@@ -169,7 +185,15 @@ app.post("/v1/messages", async (req, res) => {
     const report = buildReport(runId, resolved.provider, resolved.upstreamModel, optResult, providerResult.usage);
     await persistLocally(runId, report, optResult, messages);
     const sk = sessionRegistry.sessionKeyFromRequest(req.headers as any);
-    await sessionRegistry.recordStep(sk, report);
+    if (cfg.telemetryMode !== "off") {
+      await sessionRegistry.recordStep(sk, report);
+      const tr = sessionRegistry.getOrCreateTracker(sk);
+      ingestCompanionChatCompleted({
+        sessionId: tr.sessionId,
+        runId: report.runId,
+        report,
+      });
+    }
 
     res.json({
       id: `msg-${runId}`,
@@ -253,6 +277,39 @@ app.post("/v1/analytics/session/complete", async (req, res) => {
 /** Optional: acknowledge sync intent (companion stays local-first; cloud upload is via Spectyra app/API). */
 app.post("/v1/analytics/sync", (_req, res) => {
   res.json({ ok: true, message: "Analytics sync is configured in the Spectyra web/desktop app when signed in." });
+});
+
+/** Server-Sent Events: normalized SpectyraEvent stream (local-only). */
+app.get("/v1/analytics/live-events", (req, res) => {
+  registerSseClient(res);
+});
+
+/** Live state derived from normalized events (parallel to file-based current-session). */
+app.get("/v1/analytics/live-state", (_req, res) => {
+  res.json(getLiveStateFromEvents());
+});
+
+/**
+ * Push adapter-shaped JSON into the same normalization pipeline as in-process integrations.
+ * Use for log tailers, sidecars, or daemons that cannot patch Claude / agent harnesses directly.
+ */
+app.post("/v1/analytics/ingest", (req, res) => {
+  if (cfg.telemetryMode === "off") {
+    return res.status(403).json({ error: "telemetry_disabled", message: "Set telemetry to local or enable in config." });
+  }
+  const body = req.body;
+  if (body == null || typeof body !== "object" || Array.isArray(body)) {
+    return res.status(400).json({ error: "expected_json_object" });
+  }
+  const events = companionEventEngine.ingest(body);
+  if (events.length === 0) {
+    return res.status(422).json({
+      error: "no_adapter_matched",
+      hint:
+        "Send a known envelope (e.g. kind: spectyra.companion.v1, spectyra.sdk.v1, spectyra.openclaw.jsonl.v1, or generic JSONL mapping).",
+    });
+  }
+  res.json({ ok: true, count: events.length });
 });
 
 // ── Helpers ──────────────────────────────────────────────────────────────────

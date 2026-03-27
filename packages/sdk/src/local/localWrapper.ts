@@ -36,6 +36,7 @@ import type {
 import { detectFeatures } from "@spectyra/feature-detection";
 import { optimize, activateLicense } from "@spectyra/optimization-engine";
 import { estimateCost } from "./tokenEstimator.js";
+import { emitSdkEventsForStandaloneComplete } from "../events/sdkEvents.js";
 
 /**
  * Run a provider call wrapped with Spectyra optimization logic.
@@ -101,7 +102,7 @@ export async function localComplete<TClient, TResult>(
     temperature: input.temperature,
   });
 
-  return buildResult({
+  const out = buildResult({
     runId, runMode, provider: input.provider, model: input.model,
     inputTokensBefore: charEstimate(originalMessages),
     inputTokensAfter: charEstimate(messagesToSend),
@@ -116,6 +117,8 @@ export async function localComplete<TClient, TResult>(
     licenseStatus: pipeline.licenseStatus,
     projectedSavingsIfActivated: pipeline.projectedSavingsIfActivated,
   });
+  emitSdkEventsForStandaloneComplete(telemetryMode, input, out);
+  return out;
 }
 
 // ---------------------------------------------------------------------------
