@@ -292,11 +292,12 @@ authRouter.post("/login", requireSpectyraApiKey, optionalProviderKey, async (req
 
 /**
  * GET /v1/auth/me
- * 
- * Get current org/project info
- * Supports both Supabase JWT and API key auth
- * 
- * Uses proper middleware pattern
+ *
+ * Get current org/project info. Supports Supabase JWT and API key auth.
+ *
+ * When the JWT is valid but there is no `org_memberships` row yet, responds with **200** and
+ * `{ needs_bootstrap: true, org: null, ... }` (not 404) so clients treat this as a successful
+ * “profile incomplete” state, not a transport error.
  */
 authRouter.get("/me", async (req: AuthenticatedRequest, res) => {
   try {
@@ -328,9 +329,14 @@ authRouter.get("/me", async (req: AuthenticatedRequest, res) => {
             `, [req.auth.userId]);
 
             if (!membership) {
-              res.status(404).json({ 
-                error: "Organization not found",
-                needs_bootstrap: true 
+              // 200 (not 404): JWT is valid; user simply has no org yet. Clients should not treat this as a transport error.
+              res.status(200).json({
+                needs_bootstrap: true,
+                org: null,
+                projects: [],
+                has_access: false,
+                trial_active: false,
+                desktop_downloads: desktopDownloadsPayload(),
               });
               resolve();
               return;
@@ -338,7 +344,10 @@ authRouter.get("/me", async (req: AuthenticatedRequest, res) => {
 
             const org = await getOrgById(membership.org_id);
             if (!org) {
-              res.status(404).json({ error: "Organization not found" });
+              res.status(500).json({
+                error: "Organization missing for membership",
+                needs_bootstrap: true,
+              });
               resolve();
               return;
             }

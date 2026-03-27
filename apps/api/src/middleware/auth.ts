@@ -346,11 +346,12 @@ export async function requireUserSession(
     try {
       const JWKS = createRemoteJWKSet(new URL(jwksUrl));
       
-      // Supabase JWT issuer can be either the full URL or just the domain
-      // Try both formats for compatibility, and also try without issuer check
+      // Supabase access tokens usually set iss to https://<ref>.supabase.co/auth/v1 (not the origin alone).
+      // Try auth/v1 first, then legacy/alternate shapes, then verify without issuer.
       const issuerOptions = [
-        cleanSupabaseUrl, // Full URL: https://project.supabase.co
-        cleanSupabaseUrl.replace(/^https?:\/\//, ''), // Domain only: project.supabase.co
+        `${cleanSupabaseUrl}/auth/v1`,
+        cleanSupabaseUrl,
+        cleanSupabaseUrl.replace(/^https?:\/\//, ""),
       ];
       
       let verified = false;
@@ -366,7 +367,6 @@ export async function requireUserSession(
           });
           payload = result.payload;
           verified = true;
-          safeLog("info", "JWT verified successfully", { issuer, userId: payload.sub });
           break;
         } catch (err: any) {
           lastError = err;
@@ -383,7 +383,6 @@ export async function requireUserSession(
           });
           payload = result.payload;
           verified = true;
-          safeLog("info", "JWT verified without issuer check", { userId: payload.sub });
         } catch (err: any) {
           lastError = err;
         }

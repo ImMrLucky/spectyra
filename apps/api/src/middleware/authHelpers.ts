@@ -48,9 +48,12 @@ export async function requireAuth(
           }
         }
         // If we get here, JWT auth succeeded but no org found
-        res.status(404).json({ 
-          error: "Organization not found",
-          needs_bootstrap: true 
+        res.status(200).json({
+          needs_bootstrap: true,
+          org: null,
+          projects: [],
+          has_access: false,
+          trial_active: false,
         });
       });
       return; // Handled by requireUserSession
