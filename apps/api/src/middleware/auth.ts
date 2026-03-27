@@ -64,6 +64,8 @@ export interface AuthenticatedRequest extends Request {
   context?: RequestContext;
   auth?: {
     userId?: string;
+    /** From Supabase JWT (email / user_metadata.email) — used for billing exempt list */
+    email?: string;
     orgId?: string;
     projectId?: string | null;
     role?: string;
@@ -434,7 +436,17 @@ export async function requireUserSession(
       // Attach user info to request
       req.auth = req.auth || {};
       req.auth.userId = userId;
-      
+      const meta =
+        payload.user_metadata && typeof payload.user_metadata === "object"
+          ? (payload.user_metadata as Record<string, unknown>)
+          : null;
+      const emailRaw =
+        (typeof payload.email === "string" && payload.email) ||
+        (meta && typeof meta.email === "string" ? meta.email : undefined);
+      if (emailRaw?.trim()) {
+        req.auth.email = emailRaw.trim();
+      }
+
       // Also attach to context for backward compatibility
       req.context = req.context || {} as RequestContext;
       req.context.userId = userId;

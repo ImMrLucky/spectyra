@@ -7,6 +7,7 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
+    "@spectyra/integration-metadata": "workspace:*",
     "@spectyra/analytics-core": "workspace:*",
     "@spectyra/event-core": "workspace:*",
     "@angular/animations": "^17.0.0",

@@ -8,8 +8,19 @@ import { Router } from "express";
 import { requireUserSession, type AuthenticatedRequest } from "../middleware/auth.js";
 import { safeLog } from "../utils/redaction.js";
 import { query, queryOne } from "../services/storage/db.js";
+import { getIntegrationsPayload } from "@spectyra/integration-metadata";
 
 export const integrationsRouter = Router();
+
+/**
+ * GET /v1/integrations
+ *
+ * Full integration framework metadata (scenarios, pages, OpenClaw snippet, trust labels).
+ * Public — no auth required so docs and static generators can fetch it.
+ */
+integrationsRouter.get("/", (_req, res) => {
+  res.json(getIntegrationsPayload());
+});
 
 /**
  * GET /v1/integrations/status

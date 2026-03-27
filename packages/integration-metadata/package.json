@@ -1,0 +1,12 @@
+{
+  "name": "@spectyra/integration-metadata",
+  "version": "0.1.0",
+  "description": "Canonical integration scenarios, copy, and setup metadata for Spectyra web, API, and desktop.",
+  "type": "module",
+  "main": "./src/index.ts",
+  "types": "./src/index.ts",
+  "files": ["src"],
+  "scripts": { "typecheck": "tsc --noEmit" },
+  "devDependencies": { "typescript": "~5.4.0" },
+  "license": "MIT"
+}

@@ -346,7 +346,9 @@ authRouter.get("/me", async (req: AuthenticatedRequest, res) => {
             // Get projects for this org
             const projects = await getOrgProjects(org.id);
 
-            const hasAccess = hasActiveAccess(org);
+            const hasAccess = hasActiveAccess(org, {
+              userEmail: req.auth?.email,
+            });
             const trialEnd = org.trial_ends_at ? new Date(org.trial_ends_at) : null;
             const isTrialActive = trialEnd ? trialEnd > new Date() : false;
 

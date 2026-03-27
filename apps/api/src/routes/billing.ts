@@ -31,43 +31,97 @@ const stripe = new Stripe(process.env.STRIPE_SECRET_KEY || "", {
  */
 billingRouter.post("/checkout", async (req: AuthenticatedRequest, res) => {
   try {
+    if (!process.env.STRIPE_SECRET_KEY?.trim()) {
+      return res.status(503).json({
+        error: "Billing is not configured",
+        message: "STRIPE_SECRET_KEY is missing",
+      });
+    }
+    if (!process.env.STRIPE_PRICE_ID?.trim()) {
+      return res.status(503).json({
+        error: "Billing is not configured",
+        message: "STRIPE_PRICE_ID is missing",
+      });
+    }
+
     let orgId: string | null = null;
 
-    // Try Supabase JWT first
+    // Try Supabase JWT first (same promise pattern as GET /status — async next() is not awaited by Express)
     const authHeader = req.headers.authorization;
     if (authHeader && authHeader.startsWith("Bearer ")) {
-      try {
-        await requireUserSession(req, res, async () => {
-          if (!req.auth?.userId) {
-            return res.status(401).json({ error: "Not authenticated" });
-          }
+      let jwtAuthSucceeded = false;
+      let middlewareCompleted = false;
 
-          const { queryOne } = await import("../services/storage/db.js");
-          const membership = await queryOne<{ org_id: string }>(`
-            SELECT org_id FROM org_memberships WHERE user_id = $1 LIMIT 1
-          `, [req.auth.userId]);
+      await new Promise<void>((resolve) => {
+        const nextCallback = () => {
+          jwtAuthSucceeded = true;
+          middlewareCompleted = true;
+          resolve();
+        };
 
-          if (!membership) {
-            return res.status(404).json({ error: "Organization not found" });
-          }
+        requireUserSession(req, res, nextCallback)
+          .then(() => {
+            if (!middlewareCompleted) {
+              middlewareCompleted = true;
+              resolve();
+            }
+          })
+          .catch(() => {
+            middlewareCompleted = true;
+            resolve();
+          });
+      });
 
-          orgId = membership.org_id;
-        });
-        if (res.headersSent) return;
-      } catch (jwtError) {
-        // Fall through to API key
+      if (res.headersSent) {
+        return;
+      }
+
+      if (jwtAuthSucceeded && req.auth?.userId) {
+        const { queryOne } = await import("../services/storage/db.js");
+        const membership = await queryOne<{ org_id: string }>(`
+          SELECT org_id FROM org_memberships WHERE user_id = $1 LIMIT 1
+        `, [req.auth.userId]);
+
+        if (!membership) {
+          return res.status(404).json({ error: "Organization not found" });
+        }
+
+        orgId = membership.org_id;
       }
     }
 
     // Fall back to API key auth
-    if (!orgId) {
-      await requireSpectyraApiKey(req, res, async () => {
-        if (!req.context) {
-          return res.status(401).json({ error: "Not authenticated" });
-        }
-        orgId = req.context.org.id;
+    if (!orgId && !res.headersSent) {
+      let apiKeyAuthSucceeded = false;
+      let middlewareCompleted = false;
+
+      await new Promise<void>((resolve) => {
+        const nextCallback = () => {
+          apiKeyAuthSucceeded = true;
+          middlewareCompleted = true;
+          resolve();
+        };
+
+        requireSpectyraApiKey(req, res, nextCallback)
+          .then(() => {
+            if (!middlewareCompleted) {
+              middlewareCompleted = true;
+              resolve();
+            }
+          })
+          .catch(() => {
+            middlewareCompleted = true;
+            resolve();
+          });
       });
-      if (res.headersSent) return;
+
+      if (apiKeyAuthSucceeded && !res.headersSent && req.context) {
+        orgId = req.context.org.id;
+      }
+
+      if (res.headersSent) {
+        return;
+      }
     }
 
     if (!orgId) {
@@ -88,7 +142,7 @@ billingRouter.post("/checkout", async (req: AuthenticatedRequest, res) => {
     let customerId = org.stripe_customer_id;
     if (!customerId) {
       const customer = await stripe.customers.create({
-        email: `${org.id}@spectyra.local`, // Placeholder, can be updated
+        email: req.auth?.email?.trim() || `${org.id}@spectyra.local`,
         name: org.name,
         metadata: {
           spectyra_org_id: org.id,
@@ -323,7 +377,7 @@ billingRouter.get("/status", async (req: AuthenticatedRequest, res) => {
       return res.status(404).json({ error: "Organization not found" });
     }
     
-    const hasAccess = hasActiveAccess(org);
+    const hasAccess = hasActiveAccess(org, { userEmail: req.auth?.email });
     const trialEnd = org.trial_ends_at ? new Date(org.trial_ends_at) : null;
     const isTrialActive = trialEnd ? trialEnd > new Date() : false;
     

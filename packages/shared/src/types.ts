@@ -38,7 +38,13 @@ export interface Org {
   created_at: string;
   trial_ends_at: string | null;
   stripe_customer_id: string | null;
-  subscription_status: "trial" | "active" | "canceled" | "past_due";
+  /** Set when the org has (or had) a Stripe subscription */
+  stripe_subscription_id?: string | null;
+  /** End of the current paid period (monthly); savings active while now is before this */
+  subscription_current_period_end?: string | null;
+  /** User scheduled cancel in Stripe; access continues until subscription_current_period_end */
+  cancel_at_period_end?: boolean;
+  subscription_status: "trial" | "active" | "canceled" | "past_due" | "paused";
   sdk_access_enabled: boolean;
 }
 

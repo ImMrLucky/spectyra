@@ -32,7 +32,7 @@ export function requireActiveAccess(
     return;
   }
 
-  if (!hasActiveAccess(org)) {
+  if (!hasActiveAccess(org, { userEmail: req.auth?.email })) {
     const trialEnd = org.trial_ends_at ? new Date(org.trial_ends_at) : null;
     const trialEnded = trialEnd ? trialEnd < new Date() : false;
 

@@ -10,6 +10,7 @@
   "dependencies": {
     "@anthropic-ai/sdk": "^0.20.1",
     "@google/generative-ai": "^0.2.1",
+    "@spectyra/integration-metadata": "workspace:*",
     "@spectyra/core-types": "workspace:*",
     "@spectyra/shared": "workspace:*",
     "@spectyra/canonical-model": "workspace:*",

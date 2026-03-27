@@ -10,6 +10,10 @@ import { safeLog } from "../../utils/redaction.js";
 import crypto from "node:crypto";
 import argon2 from "argon2";
 import type { Org, Project, ApiKey } from "@spectyra/shared";
+import {
+  isBillingExemptEmail,
+  isBillingExemptOrgId,
+} from "../../billing/billingExempt.js";
 
 // Re-export canonical types
 export type { Org, Project, ApiKey };
@@ -78,18 +82,30 @@ export async function updateOrgName(orgId: string, newName: string): Promise<Org
   return result.rows[0];
 }
 
+export type HasActiveAccessOpts = {
+  /** Supabase user email (JWT) — matches BILLING_EXEMPT_EMAILS */
+  userEmail?: string | null;
+};
+
 /**
- * Check if org has active access (trial or subscription)
+ * Check if org has active access (trial, subscription, or founder exempt list).
  */
-export function hasActiveAccess(org: Org): boolean {
+export function hasActiveAccess(org: Org, opts?: HasActiveAccessOpts): boolean {
+  if (isBillingExemptOrgId(org.id)) {
+    return true;
+  }
+  if (opts?.userEmail && isBillingExemptEmail(opts.userEmail)) {
+    return true;
+  }
+
   if (org.subscription_status === "active") {
     return true;
   }
-  
+
   if (org.subscription_status === "trial" && org.trial_ends_at) {
     return new Date(org.trial_ends_at) > new Date();
   }
-  
+
   return false;
 }
 
@@ -412,9 +428,12 @@ export async function updateOrgSubscription(
   status: string,
   isActive: boolean
 ): Promise<void> {
-  // Map isActive to subscription_status
+  // Map Stripe subscription status to DB. Trialing must count as paid access.
   let subscriptionStatus: Org["subscription_status"] = "trial";
-  if (isActive && status === "active") {
+  if (
+    isActive &&
+    (status === "active" || status === "trialing")
+  ) {
     subscriptionStatus = "active";
   } else if (status === "canceled") {
     subscriptionStatus = "canceled";

@@ -10,9 +10,11 @@
 
 1. Go to [Spectyra](https://spectyra.netlify.app/)
 2. Click "Sign Up"
-3. Enter your email address
-4. **Save your API key** - it's shown only once!
-5. You'll get a 7-day free trial automatically
+3. Enter your email, password, and **organization name** (and optional project name)
+
+**If your project uses email confirmation (common in production Supabase):** you will not get a session until you confirm the email. In that case the app **cannot** create your organization in the same step — your company name is **saved in the browser** and the **Create organization** step appears automatically after you sign in. If email confirmation is **disabled**, sign-up completes in one step: your org is created immediately and you receive an API key — **save it**, it is shown only once.
+
+4. You get a **7-day free trial** when the organization is created (immediate or right after first login).
 
 ### 2. Choose Your Integration Method
 

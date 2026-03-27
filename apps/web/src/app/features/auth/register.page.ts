@@ -8,6 +8,7 @@ import { environment } from '../../../environments/environment';
 import { AuthService } from '../../core/auth/auth.service';
 import { MeService } from '../../core/services/me.service';
 import { SnackbarService } from '../../core/services/snackbar.service';
+import { savePendingBootstrap } from '../../core/auth/pending-bootstrap.storage';
 import { firstValueFrom } from 'rxjs';
 
 @Component({
@@ -97,9 +98,9 @@ export class RegisterPage {
       }
 
       if (!token) {
-        // No session available - likely email confirmation required
+        savePendingBootstrap({ orgName: this.orgName, projectName: this.projectName });
         this.successMessage =
-          'Account created! Please check your email to confirm your account, then try logging in.';
+          'Account created! Confirm your email, then sign in — your company name is saved; we will create your organization after you log in.';
         this.loading = false;
         return;
       }

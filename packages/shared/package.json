@@ -10,6 +10,9 @@
   "scripts": {
     "typecheck": "tsc --noEmit"
   },
+  "dependencies": {
+    "@spectyra/integration-metadata": "workspace:*"
+  },
   "devDependencies": {
     "typescript": "^5.3.3"
   }

@@ -41,6 +41,16 @@ MASTER_KEY_ID=v1
 # Retention worker (if enabled)
 # Generate: openssl rand -hex 32
 RETENTION_SECRET=<secret-for-cron>
+
+# Stripe (production billing)
+STRIPE_SECRET_KEY=sk_live_...
+STRIPE_WEBHOOK_SECRET=whsec_...
+STRIPE_PRICE_ID=price_...
+
+# Comp / founder access without payment (comma-separated)
+# Emails: dashboard + JWT routes (case-insensitive). Org IDs: API-key-only flows (e.g. SDK).
+BILLING_EXEMPT_EMAILS=founder@example.com
+BILLING_EXEMPT_ORG_IDS=
 ```
   
 ## Notes
