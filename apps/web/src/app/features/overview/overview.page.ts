@@ -75,28 +75,36 @@ export class OverviewPage implements OnInit {
 
   /**
    * /auth/me must succeed before other dashboard calls. Handles:
-   * - 404 + needs_bootstrap → send user to login to create an org
+   * - needs_bootstrap (no org row) → send user to login to create an org
    * - 401 on first call → brief wait + retry (JWT sometimes lags right after sign-in)
    */
   private async ensureMeLoaded(): Promise<boolean> {
     const load = () => firstValueFrom(this.meService.getMe(true));
     try {
-      await load();
+      const me = await load();
+      if (me?.needs_bootstrap || !me?.org) {
+        this.router.navigate(['/login'], { queryParams: { returnUrl: '/overview' } });
+        return false;
+      }
       return true;
     } catch (err: any) {
       if (err?.status === 404 && err?.error?.needs_bootstrap) {
-        this.router.navigate(['/login']);
+        this.router.navigate(['/login'], { queryParams: { returnUrl: '/overview' } });
         return false;
       }
       if (err?.status === 401) {
         this.meService.clearCache();
         await new Promise((r) => setTimeout(r, 350));
         try {
-          await load();
+          const me2 = await load();
+          if (me2?.needs_bootstrap || !me2?.org) {
+            this.router.navigate(['/login'], { queryParams: { returnUrl: '/overview' } });
+            return false;
+          }
           return true;
         } catch (err2: any) {
           if (err2?.status === 404 && err2?.error?.needs_bootstrap) {
-            this.router.navigate(['/login']);
+            this.router.navigate(['/login'], { queryParams: { returnUrl: '/overview' } });
             return false;
           }
           throw err2;
@@ -109,7 +117,7 @@ export class OverviewPage implements OnInit {
   async loadData() {
     // Brand-new users can be authenticated by Supabase but not yet bootstrapped
     // into an org (no org_memberships row). In that case, /auth/me returns
-    // 404 { needs_bootstrap: true }. Redirect to /login instead of calling
+    // 200 { needs_bootstrap: true, org: null }. Redirect to /login instead of calling
     // /usage/* and /integrations/status (they require org context).
     try {
       const ok = await this.ensureMeLoaded();

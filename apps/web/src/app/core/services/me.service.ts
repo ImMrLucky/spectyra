@@ -5,12 +5,14 @@ import { tap, shareReplay, catchError } from 'rxjs/operators';
 import { environment } from '../../../environments/environment';
 
 export interface MeResponse {
+  /** Present when Supabase JWT is valid but `org_memberships` has no row yet. */
+  needs_bootstrap?: boolean;
   org: {
     id: string;
     name: string;
     trial_ends_at: string | null;
     subscription_status: string;
-  };
+  } | null;
   projects?: Array<{
     id: string;
     name: string;

@@ -24,8 +24,8 @@ export class HomePage implements OnInit {
 
   ngOnInit() {
     // Redirect authenticated users, but avoid routes that assume org state exists.
-    // Brand-new Supabase users have a session, but /auth/me returns 404 { needs_bootstrap: true }
-    // until /auth/bootstrap runs. Send them to /login in that case.
+    // Brand-new Supabase users have a session, but /auth/me returns needs_bootstrap until
+    // POST /auth/bootstrap runs. Send them to /login in that case.
     this.supabase
       .getSession()
       .pipe(
@@ -38,11 +38,14 @@ export class HomePage implements OnInit {
 
           return this.meService.getMe().pipe(
             take(1),
-            map((me) => ({ kind: me?.org ? ('org' as const) : ('needs-bootstrap' as const) })),
+            map((me) =>
+              me?.needs_bootstrap || !me?.org
+                ? { kind: 'needs-bootstrap' as const }
+                : { kind: 'org' as const }
+            ),
             catchError((err: any) => {
-              // Any 404 from /auth/me for a Bearer session means no org context yet (or missing org).
-              // Do not assume a JSON body (proxies may return HTML); `needs_bootstrap` is optional.
-              if (err?.status === 404) {
+              // Legacy API: 404 + needs_bootstrap
+              if (err?.status === 404 && (err?.error?.needs_bootstrap || err?.error?.error === 'Organization not found')) {
                 return of({ kind: 'needs-bootstrap' as const });
               }
               if (err?.status === 401) {

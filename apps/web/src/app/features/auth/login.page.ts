@@ -132,7 +132,10 @@ export class LoginPage implements OnInit, OnDestroy {
 
       try {
         const me = await firstValueFrom(this.meService.getMe(true));
-        if (me && me.org) {
+        if (me?.needs_bootstrap || !me?.org) {
+          this.needsBootstrap = true;
+          this.applyPendingOrgPrefill();
+        } else if (me.org) {
           this.success = true;
           this.userEmail = me.org.name;
           this.hasAccess = me.has_access;
@@ -141,7 +144,7 @@ export class LoginPage implements OnInit, OnDestroy {
           this.needsBootstrap = false;
         }
       } catch (err: any) {
-        // Only "no org membership" uses needs_bootstrap — not every 404
+        // Legacy API: 404 + needs_bootstrap before we switched GET /me to 200
         if (err.status === 404 && err.error?.needs_bootstrap) {
           this.needsBootstrap = true;
           this.applyPendingOrgPrefill();

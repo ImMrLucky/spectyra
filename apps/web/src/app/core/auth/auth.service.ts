@@ -128,10 +128,18 @@ export class AuthService {
     // Use MeService to cache and prevent duplicate calls
     return this.meService.getMe().pipe(
       map(response => {
+        if (response.needs_bootstrap || !response.org) {
+          return {
+            org: null,
+            project: null,
+            has_access: response.has_access ?? false,
+            trial_active: response.trial_active ?? false,
+          };
+        }
         // Map response to expected format
         // If project is not set but projects array exists, use first project
         const project = response.project ?? (response.projects && response.projects.length > 0 ? response.projects[0] : null);
-        
+
         return {
           org: response.org,
           project: project,
@@ -140,6 +148,15 @@ export class AuthService {
         };
       }),
       tap(response => {
+        if (!response.org) {
+          localStorage.removeItem(this.userStorageKey);
+          this.updateAuthState({
+            user: null,
+            hasAccess: false,
+            trialActive: false,
+          });
+          return;
+        }
         // Map org to user for backward compatibility
         const user: User = {
           id: response.org.id,
