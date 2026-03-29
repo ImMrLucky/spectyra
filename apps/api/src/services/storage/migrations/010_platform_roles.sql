@@ -1,10 +1,9 @@
 -- Platform-wide roles (by email). Grants perpetual billing access and superuser console.
 -- Only emails listed here bypass subscription checks when matched to the signed-in user.
 --
--- WHERE TO RUN: Apply this file against the API Postgres database (same DATABASE_URL as
--- Railway / Supabase — not on the Mac, not in SQLite). The API selects orgs.platform_exempt
--- on many routes; if this migration was never applied, the desktop and web apps can get 500s
--- when loading org/session data.
+-- WHERE TO RUN: The API also applies this schema automatically on startup (`ensurePlatformRolesSchema`).
+-- Run this file manually only if you need to apply offline or audit. Target: same Postgres as DATABASE_URL
+-- (Railway / Supabase — not SQLite). Without platform_exempt / platform_roles, org/session routes can 500.
 
 CREATE TABLE IF NOT EXISTS platform_roles (
   email TEXT PRIMARY KEY,
