@@ -1,11 +1,8 @@
 import { Component, OnDestroy, OnInit, ChangeDetectorRef } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { RouterModule } from '@angular/router';
-import { MatCardModule } from '@angular/material/card';
-import { MatButtonModule } from '@angular/material/button';
 import { MatIconModule } from '@angular/material/icon';
 import { MatSlideToggleModule } from '@angular/material/slide-toggle';
-import { MatTableModule } from '@angular/material/table';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { MatTabsModule } from '@angular/material/tabs';
 import { LiveTopBarComponent } from './live-top-bar.component';
@@ -30,11 +27,8 @@ const SYNC_LS = 'spectyra_analytics_cloud_sync';
   imports: [
     CommonModule,
     RouterModule,
-    MatCardModule,
-    MatButtonModule,
     MatIconModule,
     MatSlideToggleModule,
-    MatTableModule,
     MatProgressSpinnerModule,
     MatTabsModule,
     LiveTopBarComponent,

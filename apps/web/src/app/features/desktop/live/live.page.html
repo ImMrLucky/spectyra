@@ -3,138 +3,156 @@
 </div>
 
 <div class="live-page" *ngIf="snapshot as snap">
+  <!-- Chips + savings row -->
   <app-live-top-bar [topline]="snap.topline" [health]="health" [session]="activeSession()"></app-live-top-bar>
 
-  <div class="live-toolbar">
-    <span class="pill" [class.on]="health?.['status'] === 'ok'">
-      Companion {{ health?.['status'] || 'offline' }} · {{ companionOrigin }}
+  <!-- Status bar -->
+  <div class="status-bar">
+    <span class="sb-item">
+      <span class="sb-label">Companion:</span>
+      <span class="sb-value" [class.sb-ok]="health?.['status'] === 'ok'">{{ companionOrigin || '—' }}</span>
     </span>
-    <span class="pill" [class.on]="sseConnected">Live stream {{ sseConnected ? 'on' : 'reconnecting…' }}</span>
-    <span class="pill subtle">Last event: {{ lastEventLabel }}</span>
-    <span class="pill subtle" *ngIf="health?.['workflowPolicyMode']">Policy: {{ health?.['workflowPolicyMode'] }}</span>
+    <span class="sb-sep"></span>
+    <span class="sb-item">
+      <span class="sb-label">Stream:</span>
+      <span class="sb-value" [class.sb-ok]="sseConnected">{{ sseConnected ? 'live' : 'reconnecting' }}</span>
+    </span>
+    <span class="sb-sep"></span>
+    <span class="sb-item">
+      <span class="sb-label">Last event:</span>
+      <span class="sb-value">{{ lastEventLabel }}</span>
+    </span>
+    <span class="sb-sep" *ngIf="health?.['workflowPolicyMode']"></span>
+    <span class="sb-item" *ngIf="health?.['workflowPolicyMode']">
+      <span class="sb-label">Policy:</span>
+      <span class="sb-value">{{ health?.['workflowPolicyMode'] }}</span>
+    </span>
   </div>
 
+  <!-- Upgrade hint -->
   <div class="upgrade-hint" *ngIf="snap.topline.metricsPresentation === 'projected' && snap.topline.runMode !== 'off'">
     <mat-icon fontIcon="rocket_launch"></mat-icon>
     <div>
-      <strong>Trial ended or license inactive.</strong> Spectyra keeps monitoring — upgrade to turn optimization on and realize the
+      <strong>Trial ended or license inactive.</strong> Spectyra keeps monitoring — upgrade to realize the
       projected savings shown here.
-      <a *ngIf="!isDesktop" routerLink="/billing">View plans</a>
-      <span *ngIf="isDesktop" class="muted-inline">Use the Spectyra web app to upgrade.</span>
+      <span class="muted-inline">Use the Spectyra web app to upgrade.</span>
     </div>
   </div>
 
+  <!-- Main split layout -->
   <div class="split">
-    <div class="split-col agent">
+    <div class="split-left">
       <app-agent-activity-panel
         [session]="activeSession()"
         [stepRows]="stepRows"
         [recentEvents]="recentEvents"
       ></app-agent-activity-panel>
     </div>
-    <div class="split-col spectyra">
+    <div class="split-right">
       <app-spectyra-intelligence-panel
         [topline]="snap.topline"
         [session]="activeSession()"
         [workflowPolicy]="workflowPolicySummary"
         [stepRows]="stepRows"
       ></app-spectyra-intelligence-panel>
+
+      <!-- Account sync card -->
+      <div class="sync-card">
+        <div class="sync-header">
+          <span class="sync-title">Account sync</span>
+        </div>
+        <div class="sync-body">
+          <div class="sync-row">
+            <mat-slide-toggle [checked]="syncToCloud" (change)="onSyncToggle($event.checked)" [disabled]="syncing">
+              Sync redacted summaries
+            </mat-slide-toggle>
+            <button class="btn-sync" (click)="trySyncLatestSession()" [disabled]="!syncToCloud || syncing">
+              <mat-icon fontIcon="cloud_upload" style="font-size:14px;width:14px;height:14px"></mat-icon>
+              Sync now
+            </button>
+          </div>
+          <p class="sync-err" *ngIf="cloudSync.lastError">{{ cloudSync.lastError }}</p>
+          <p class="sync-auth" *ngIf="!canSyncAccount">
+            <a routerLink="/login">Sign in</a> to enable cloud sync.
+          </p>
+        </div>
+      </div>
     </div>
   </div>
 
-  <mat-tab-group class="lower-tabs" animationDuration="0ms">
-    <mat-tab label="Step breakdown">
-      <div class="tab-pad">
-        <table mat-table [dataSource]="stepRows" class="tbl" *ngIf="stepRows.length">
-          <ng-container matColumnDef="idx">
-            <th mat-header-cell *matHeaderCellDef>#</th>
-            <td mat-cell *matCellDef="let row">{{ row.stepIndex != null ? row.stepIndex + 1 : '—' }}</td>
-          </ng-container>
-          <ng-container matColumnDef="model">
-            <th mat-header-cell *matHeaderCellDef>Model</th>
-            <td mat-cell *matCellDef="let row">{{ row.model || '—' }}</td>
-          </ng-container>
-          <ng-container matColumnDef="tokens">
-            <th mat-header-cell *matHeaderCellDef>Tokens in</th>
-            <td mat-cell *matCellDef="let row">{{ row.inputTokensBefore | number }} → {{ row.inputTokensAfter | number }}</td>
-          </ng-container>
-          <ng-container matColumnDef="savings">
-            <th mat-header-cell *matHeaderCellDef>Step $ / %</th>
-            <td mat-cell *matCellDef="let row">
-              ${{ row.estimatedStepSavings | number : '1.2-4' }} ({{ row.estimatedStepSavingsPct | number : '1.0-1' }}%)
-            </td>
-          </ng-container>
-          <ng-container matColumnDef="transforms">
-            <th mat-header-cell *matHeaderCellDef>Transforms</th>
-            <td mat-cell *matCellDef="let row">{{ (row.transformsApplied || []).join(', ') || '—' }}</td>
-          </ng-container>
-          <tr mat-header-row *matHeaderRowDef="stepColumns"></tr>
-          <tr mat-row *matRowDef="let row; columns: stepColumns"></tr>
-        </table>
-        <p class="muted" *ngIf="!stepRows.length">Steps appear as provider calls complete.</p>
-      </div>
-    </mat-tab>
+  <!-- Bottom tab group -->
+  <div class="bottom-tabs">
+    <mat-tab-group animationDuration="0ms">
+      <mat-tab label="Step breakdown">
+        <div class="tab-content">
+          <table class="step-table" *ngIf="stepRows.length">
+            <thead>
+              <tr>
+                <th>#</th>
+                <th>Model</th>
+                <th>Tokens in</th>
+                <th>Step $ / %</th>
+                <th>Transforms</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr *ngFor="let row of stepRows">
+                <td class="mono">{{ row.stepIndex != null ? row.stepIndex + 1 : '—' }}</td>
+                <td>{{ row.model || '—' }}</td>
+                <td class="mono">{{ row.inputTokensBefore | number }} → {{ row.inputTokensAfter | number }}</td>
+                <td class="mono">${{ row.estimatedStepSavings | number : '1.2-4' }} ({{ row.estimatedStepSavingsPct | number : '1.0-1' }}%)</td>
+                <td>{{ (row.transformsApplied || []).join(', ') || '—' }}</td>
+              </tr>
+            </tbody>
+          </table>
+          <p class="empty-hint" *ngIf="!stepRows.length">Steps appear as provider calls complete.</p>
+        </div>
+      </mat-tab>
 
-    <mat-tab label="Prompt compare">
-      <div class="tab-pad">
-        <p *ngIf="liveState?.promptComparisonAvailable && activeSession() as cur" class="row">
-          <button mat-stroked-button color="primary" (click)="openPromptComparison(cur.runId)">Open prompt comparison</button>
-        </p>
-        <p class="muted" *ngIf="!liveState?.promptComparisonAvailable">No prompt comparison for the current aggregate yet.</p>
-      </div>
-    </mat-tab>
+      <mat-tab label="Prompt compare">
+        <div class="tab-content">
+          <p *ngIf="liveState?.promptComparisonAvailable && activeSession() as cur">
+            <button class="btn-secondary" (click)="openPromptComparison(cur.runId)">Open prompt comparison</button>
+          </p>
+          <p class="empty-hint" *ngIf="!liveState?.promptComparisonAvailable">No prompt comparison for the current aggregate yet.</p>
+        </div>
+      </mat-tab>
 
-    <mat-tab label="Transforms">
-      <div class="tab-pad">
-        <p *ngIf="activeSession() as s">
-          <span class="chip" *ngFor="let t of s.transformsApplied">{{ t }}</span>
-          <span class="muted" *ngIf="!s.transformsApplied?.length">—</span>
-        </p>
-        <p class="muted" *ngIf="!activeSession()">No session.</p>
-      </div>
-    </mat-tab>
+      <mat-tab label="Transforms">
+        <div class="tab-content">
+          <div *ngIf="activeSession() as s" class="chips-row">
+            <span class="transform-chip" *ngFor="let t of s.transformsApplied">{{ t }}</span>
+            <span class="empty-hint" *ngIf="!s.transformsApplied?.length">—</span>
+          </div>
+          <p class="empty-hint" *ngIf="!activeSession()">No session.</p>
+        </div>
+      </mat-tab>
 
-    <mat-tab label="Security">
-      <div class="tab-pad">
-        <ul class="trust">
-          <li>Runs locally — inference goes direct to your provider.</li>
-          <li>Telemetry: {{ activeSession()?.security?.telemetryMode || '—' }}</li>
-          <li>Prompt snapshots: {{ activeSession()?.security?.promptSnapshotMode || '—' }}</li>
-          <li>Optimization: {{ snap.topline.optimizationHeadline }}</li>
-        </ul>
-      </div>
-    </mat-tab>
+      <mat-tab label="Security">
+        <div class="tab-content">
+          <ul class="trust-list">
+            <li>Runs locally — inference goes direct to your provider.</li>
+            <li>Telemetry: {{ activeSession()?.security?.telemetryMode || '—' }}</li>
+            <li>Prompt snapshots: {{ activeSession()?.security?.promptSnapshotMode || '—' }}</li>
+            <li>Optimization: {{ snap.topline.optimizationHeadline }}</li>
+          </ul>
+        </div>
+      </mat-tab>
 
-    <mat-tab label="Raw events">
-      <div class="tab-pad">
-        <ul class="evlist" *ngIf="recentEvents.length">
-          <li *ngFor="let e of recentEvents.slice().reverse()">
-            <span class="mono">{{ e.type }}</span> · {{ e.sessionId }}… · {{ e.timestamp | date : 'shortTime' }}
-          </li>
-        </ul>
-        <p class="muted" *ngIf="!recentEvents.length">No persisted events (or telemetry off).</p>
-      </div>
-    </mat-tab>
-  </mat-tab-group>
-
-  <mat-card class="sync-card">
-    <mat-card-title>Account sync (optional)</mat-card-title>
-    <mat-card-content>
-      <p class="muted">
-        Redacted session summaries only. Prompt text stays local unless you opt in elsewhere.
-      </p>
-      <div class="sync-row">
-        <mat-slide-toggle [checked]="syncToCloud" (change)="onSyncToggle($event.checked)" [disabled]="syncing">
-          Sync redacted summaries
-        </mat-slide-toggle>
-        <button mat-button (click)="trySyncLatestSession()" [disabled]="!syncToCloud || syncing">
-          <mat-icon>cloud_upload</mat-icon> Sync now
-        </button>
-      </div>
-      <p class="err" *ngIf="cloudSync.lastError">{{ cloudSync.lastError }}</p>
-      <p class="muted" *ngIf="!canSyncAccount">
-        <a routerLink="/login">Sign in</a> to enable cloud sync.
-      </p>
-    </mat-card-content>
-  </mat-card>
+      <mat-tab label="Raw events">
+        <div class="tab-content">
+          <ul class="event-list" *ngIf="recentEvents.length">
+            <li *ngFor="let e of recentEvents.slice().reverse()">
+              <span class="mono">{{ e.type }}</span>
+              <span class="ev-sep">·</span>
+              <span class="mono">{{ e.sessionId | slice:0:8 }}…</span>
+              <span class="ev-sep">·</span>
+              <span class="mono">{{ e.timestamp | date : 'shortTime' }}</span>
+            </li>
+          </ul>
+          <p class="empty-hint" *ngIf="!recentEvents.length">No persisted events (or telemetry off).</p>
+        </div>
+      </mat-tab>
+    </mat-tab-group>
+  </div>
 </div>
