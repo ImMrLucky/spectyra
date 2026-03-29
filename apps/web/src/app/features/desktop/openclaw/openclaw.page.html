@@ -1,71 +1,235 @@
-<div class="oc-wrap">
-  <header class="oc-hero">
-    <h1>OpenClaw setup</h1>
-    <p class="oc-lead">
-      Point OpenClaw at your Local Companion. Inference stays on your machine; Spectyra optimizes before the provider call.
+<div class="oc-wizard">
+  <!-- Wizard step indicators -->
+  <div class="oc-progress">
+    <span class="oc-step" *ngFor="let s of stepLabels; let i = index"
+          [class.active]="i <= step - 1"
+          [class.current]="i === step - 1"
+          (click)="goToStep(i + 1)">
+      <span class="oc-step-num">{{ i + 1 }}</span>
+      {{ s }}
+    </span>
+  </div>
+
+  <!-- Step 1: What OpenClaw is -->
+  <div class="oc-step-content" *ngIf="step === 1">
+    <h1 class="oc-title">OpenClaw + Spectyra</h1>
+    <p class="oc-sub">
+      OpenClaw is a local CLI agent that supports custom provider endpoints.
+      Spectyra's Local Companion acts as an in-path optimization proxy — OpenClaw
+      sends requests to Spectyra, which optimizes, then calls your real provider.
     </p>
-  </header>
-
-  <mat-accordion class="oc-acc" multi="true">
-    <mat-expansion-panel [expanded]="true">
-      <mat-expansion-panel-header>
-        <mat-panel-title>A — What is OpenClaw?</mat-panel-title>
-      </mat-expansion-panel-header>
-      <p>
-        Common uses: coding, browser automation, research assistants, messaging workflows, and scheduled automations. Spectyra
-        sits in front of your chosen model provider.
+    <div class="oc-info-card">
+      <span class="oc-info-label">How it works</span>
+      <div class="oc-flow">
+        <span class="oc-flow-node">OpenClaw</span>
+        <span class="oc-flow-arrow">→</span>
+        <span class="oc-flow-node active">Spectyra (localhost:4111)</span>
+        <span class="oc-flow-arrow">→</span>
+        <span class="oc-flow-node">Your provider (OpenAI / Anthropic)</span>
+      </div>
+      <p class="oc-info-detail">
+        Inference goes direct to your provider. No Spectyra cloud relay.
+        Billing stays on your account.
       </p>
-    </mat-expansion-panel>
+    </div>
 
-    <mat-expansion-panel>
-      <mat-expansion-panel-header>
-        <mat-panel-title>B — Install &amp; onboard</mat-panel-title>
-      </mat-expansion-panel-header>
-      <ol class="oc-steps">
-        <li>Install OpenClaw per upstream docs.</li>
-        <li>Run <code>openclaw onboard</code> once.</li>
-      </ol>
-    </mat-expansion-panel>
+    <div class="oc-path-choice">
+      <button class="oc-path-btn" [class.selected]="userPath === 'new'" (click)="userPath = 'new'">
+        <span class="material-icons">add_circle_outline</span>
+        <span class="oc-pb-label">I'm new to OpenClaw</span>
+        <span class="oc-pb-desc">Full guided setup from install to live</span>
+      </button>
+      <button class="oc-path-btn" [class.selected]="userPath === 'existing'" (click)="userPath = 'existing'">
+        <span class="material-icons">link</span>
+        <span class="oc-pb-label">OpenClaw is already running</span>
+        <span class="oc-pb-desc">Connect Spectyra to existing OpenClaw</span>
+      </button>
+    </div>
 
-    <mat-expansion-panel>
-      <mat-expansion-panel-header>
-        <mat-panel-title>C — Spectyra Local Companion</mat-panel-title>
-      </mat-expansion-panel-header>
-      <p>
-        Ensure this app is running so the companion binds to <code>{{ baseV1 }}</code>. Add your provider API key in onboarding.
+    <button class="btn-primary" (click)="step = 2" [disabled]="!userPath">Next →</button>
+  </div>
+
+  <!-- Step 2: Install / onboard (new) or validate (existing) -->
+  <div class="oc-step-content" *ngIf="step === 2">
+    <button class="back-btn" (click)="step = 1">← Back</button>
+
+    <div *ngIf="userPath === 'new'">
+      <h1 class="oc-title">Install OpenClaw</h1>
+      <p class="oc-sub">Get OpenClaw running on your machine first.</p>
+      <div class="oc-code-card">
+        <span class="oc-code-label">Install and onboard</span>
+        <pre class="oc-code">curl -fsSL https://openclaw.sh/install | sh
+openclaw onboard</pre>
+        <button class="btn-copy" (click)="copyCmd('curl -fsSL https://openclaw.sh/install | sh && openclaw onboard')">Copy</button>
+      </div>
+      <p class="oc-hint">After <code>openclaw onboard</code>, OpenClaw will ask for your provider API key and preferred model. Complete that first.</p>
+    </div>
+
+    <div *ngIf="userPath === 'existing'">
+      <h1 class="oc-title">Verify OpenClaw</h1>
+      <p class="oc-sub">Let's make sure OpenClaw is running and reachable.</p>
+      <div class="oc-cmd-grid">
+        <div class="oc-cmd-card" *ngFor="let cmd of verifyCommands">
+          <span class="oc-cmd-label">{{ cmd.label }}</span>
+          <code class="oc-cmd-code">{{ cmd.command }}</code>
+          <button class="btn-copy-sm" (click)="copyCmd(cmd.command)">Copy</button>
+        </div>
+      </div>
+    </div>
+
+    <button class="btn-primary" (click)="step = 3">Next →</button>
+  </div>
+
+  <!-- Step 3: Start Spectyra companion -->
+  <div class="oc-step-content" *ngIf="step === 3">
+    <button class="back-btn" (click)="step = 2">← Back</button>
+    <h1 class="oc-title">Start Spectyra Local Companion</h1>
+    <p class="oc-sub">The companion should already be running if you started the Spectyra desktop app.</p>
+
+    <div class="oc-status-card" [class.ok]="health?.['status'] === 'ok'">
+      <div class="oc-sc-row">
+        <span class="oc-sc-dot" [class.on]="health?.['status'] === 'ok'"></span>
+        <span class="oc-sc-label">
+          {{ health?.['status'] === 'ok' ? 'Companion is running' : 'Companion not detected' }}
+        </span>
+      </div>
+      <span class="oc-sc-detail" *ngIf="health?.['status'] === 'ok'">
+        Listening at {{ baseV1 | slice:0:-3 }} · Mode: {{ health?.['runMode'] }}
+      </span>
+      <span class="oc-sc-detail" *ngIf="health?.['status'] !== 'ok'">
+        Expected at {{ baseV1 | slice:0:-3 }}. Start the Spectyra desktop app or run the companion manually.
+      </span>
+    </div>
+
+    <button class="btn-secondary" (click)="refreshHealth()">Re-check</button>
+    <button class="btn-primary" (click)="step = 4" [disabled]="health?.['status'] !== 'ok'" style="margin-left: 10px">Next →</button>
+  </div>
+
+  <!-- Step 4: Configure OpenClaw custom provider -->
+  <div class="oc-step-content" *ngIf="step === 4">
+    <button class="back-btn" (click)="step = 3">← Back</button>
+    <h1 class="oc-title">Configure OpenClaw custom provider</h1>
+    <p class="oc-sub">
+      Tell OpenClaw to route requests through the Spectyra companion.
+      Add this to your OpenClaw config file.
+    </p>
+
+    <div class="oc-code-card">
+      <span class="oc-code-label">OpenClaw provider config</span>
+      <pre class="oc-code">{{ json || defaultConfigSnippet }}</pre>
+      <button class="btn-copy" (click)="copy()">Copy config</button>
+    </div>
+
+    <div class="oc-info-card compact">
+      <span class="oc-info-label">Config file location</span>
+      <p class="oc-info-detail">
+        Usually <code>~/.openclaw/config.json</code> or <code>~/.config/openclaw/config.json</code>.<br>
+        Run <code>openclaw config path</code> to find yours.
       </p>
-      <p><strong>Status:</strong> {{ health?.['status'] || 'offline' }}</p>
-    </mat-expansion-panel>
+    </div>
 
-    <mat-expansion-panel [expanded]="true">
-      <mat-expansion-panel-header>
-        <mat-panel-title>D — OpenClaw config</mat-panel-title>
-      </mat-expansion-panel-header>
-      <p class="oc-muted">Paste into your OpenClaw provider config (models.providers):</p>
-      <pre class="oc-pre">{{ json }}</pre>
-      <button mat-raised-button color="primary" type="button" (click)="copy()">Copy JSON</button>
-    </mat-expansion-panel>
+    <div class="oc-attach-choice" *ngIf="userPath === 'existing'">
+      <p class="oc-attach-label">Connection mode:</p>
+      <div class="oc-attach-options">
+        <button class="oc-attach-btn" [class.selected]="attachMode === 'proxy'" (click)="attachMode = 'proxy'">
+          <strong>In-path proxy</strong>
+          <span>Full optimization + monitoring. Routes through companion.</span>
+        </button>
+        <button class="oc-attach-btn" [class.selected]="attachMode === 'observe'" (click)="attachMode = 'observe'">
+          <strong>Observe / log attach</strong>
+          <span>Monitoring only. OpenClaw calls provider directly.</span>
+        </button>
+      </div>
+    </div>
 
-    <mat-expansion-panel>
-      <mat-expansion-panel-header>
-        <mat-panel-title>E — Validate</mat-panel-title>
-      </mat-expansion-panel-header>
-      <ul class="oc-cmds">
-        <li><code>openclaw models list</code> — expect <code>spectyra/smart</code></li>
-        <li><code>openclaw doctor</code></li>
-        <li><code>openclaw status</code> · <code>openclaw health</code></li>
-        <li><code>openclaw logs</code> for troubleshooting</li>
-      </ul>
-      <button mat-stroked-button type="button" (click)="test()">Test companion /v1/models</button>
-      <p class="oc-msg" *ngIf="message">{{ message }}</p>
-    </mat-expansion-panel>
+    <button class="btn-primary" (click)="step = 5">Next →</button>
+  </div>
 
-    <mat-expansion-panel>
-      <mat-expansion-panel-header>
-        <mat-panel-title>F — Go live</mat-panel-title>
-      </mat-expansion-panel-header>
-      <p>Open the split Live dashboard to watch agent activity vs Spectyra savings in real time.</p>
-      <a mat-raised-button color="accent" routerLink="/desktop/live">Open Live</a>
-    </mat-expansion-panel>
-  </mat-accordion>
+  <!-- Step 5: Validate -->
+  <div class="oc-step-content" *ngIf="step === 5">
+    <button class="back-btn" (click)="step = 4">← Back</button>
+    <h1 class="oc-title">Validate</h1>
+    <p class="oc-sub">Check that OpenClaw can reach the Spectyra companion and models are available.</p>
+
+    <div class="oc-status-card" [class.ok]="health?.['status'] === 'ok'">
+      <div class="oc-sc-row">
+        <span class="oc-sc-dot" [class.on]="health?.['status'] === 'ok'"></span>
+        <span class="oc-sc-label">Companion: {{ health?.['status'] === 'ok' ? 'Connected' : 'Offline' }}</span>
+      </div>
+    </div>
+
+    <div class="oc-status-card" [class.ok]="!!modelsMessage">
+      <div class="oc-sc-row">
+        <span class="oc-sc-dot" [class.on]="!!modelsMessage && modelsMessage.startsWith('OK')"></span>
+        <span class="oc-sc-label">Models: {{ modelsMessage || 'Not tested yet' }}</span>
+      </div>
+    </div>
+
+    <div class="oc-validate-actions">
+      <button class="btn-secondary" (click)="test()">Run validation</button>
+    </div>
+
+    <div class="oc-cmd-grid" style="margin-top: 16px">
+      <div class="oc-cmd-card" *ngFor="let cmd of troubleshootCommands">
+        <span class="oc-cmd-label">{{ cmd.label }}</span>
+        <code class="oc-cmd-code">{{ cmd.command }}</code>
+        <button class="btn-copy-sm" (click)="copyCmd(cmd.command)">Copy</button>
+      </div>
+    </div>
+
+    <button class="btn-primary" (click)="step = 6" style="margin-top: 16px"
+            [disabled]="health?.['status'] !== 'ok'">Next →</button>
+  </div>
+
+  <!-- Step 6: Troubleshoot -->
+  <div class="oc-step-content" *ngIf="step === 6">
+    <button class="back-btn" (click)="step = 5">← Back</button>
+    <h1 class="oc-title">Troubleshooting</h1>
+    <p class="oc-sub">Common issues and fixes.</p>
+
+    <div class="oc-ts-list">
+      <div class="oc-ts-item">
+        <h3>Companion not reachable</h3>
+        <p>Make sure the Spectyra desktop app is open. The companion auto-starts on launch. Check that port 4111 isn't in use by another process.</p>
+      </div>
+      <div class="oc-ts-item">
+        <h3>OpenClaw not using Spectyra</h3>
+        <p>Verify your config file has the custom provider pointing to <code>http://localhost:4111/v1</code>. Restart OpenClaw after config changes.</p>
+      </div>
+      <div class="oc-ts-item">
+        <h3>API key errors</h3>
+        <p>The companion needs your provider API key. Go to <a routerLink="/desktop/onboarding">Settings</a> to configure it.</p>
+      </div>
+      <div class="oc-ts-item">
+        <h3>Useful commands</h3>
+        <div class="oc-cmd-grid compact">
+          <div class="oc-cmd-card" *ngFor="let cmd of allCommands">
+            <span class="oc-cmd-label">{{ cmd.label }}</span>
+            <code class="oc-cmd-code">{{ cmd.command }}</code>
+            <button class="btn-copy-sm" (click)="copyCmd(cmd.command)">Copy</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <button class="btn-primary" (click)="step = 7">Continue to live →</button>
+  </div>
+
+  <!-- Step 7: Go live -->
+  <div class="oc-step-content" *ngIf="step === 7">
+    <div class="oc-go-live">
+      <span class="oc-gl-dot"></span>
+      <h1 class="oc-gl-title">OpenClaw + Spectyra — ready</h1>
+      <p class="oc-gl-sub">
+        Your OpenClaw agent is {{ attachMode === 'observe' ? 'being observed by' : 'routed through' }}
+        the Spectyra Local Companion. Start using OpenClaw normally — Spectyra monitors and
+        {{ attachMode === 'observe' ? 'shows projected savings' : 'optimizes in real time' }}.
+      </p>
+      <button class="btn-primary" routerLink="/desktop/live">Open Live dashboard</button>
+      <p class="oc-gl-hint">
+        Your OpenClaw agent keeps working even if you close this wizard.
+        Spectyra never blocks the underlying provider call.
+      </p>
+    </div>
+  </div>
 </div>
