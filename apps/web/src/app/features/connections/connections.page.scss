@@ -5,31 +5,33 @@
 }
 
 h1 {
+  font-family: var(--font-display);
   font-size: 32px;
   margin-bottom: 8px;
 }
 
 .subtitle {
-  color: #666;
+  color: var(--text-secondary);
   font-size: 16px;
   margin-bottom: 30px;
 }
 
 .info-box {
-  background: #e7f3ff;
-  border: 1px solid #b3d9ff;
-  border-radius: 8px;
+  background: var(--spectyra-blue-pale);
+  border: 1px solid var(--spectyra-blue-light);
+  border-radius: var(--radius-input);
   padding: 20px;
   margin-bottom: 30px;
 
   &.warning {
-    background: #fff3cd;
-    border-color: #ffc107;
+    background: var(--spectyra-amber-pale);
+    border-color: var(--spectyra-amber-border);
   }
 
   h3 {
     margin-top: 0;
     margin-bottom: 12px;
+    font-family: var(--font-display);
     font-size: 18px;
   }
 
@@ -53,19 +55,18 @@ h1 {
 .step-card {
   display: flex;
   gap: 20px;
-  background: white;
-  border: 1px solid #ddd;
-  border-radius: 8px;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-input);
   padding: 24px;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
 }
 
 .step-number {
   flex-shrink: 0;
   width: 48px;
   height: 48px;
-  background: #007bff;
-  color: white;
+  background: var(--spectyra-navy);
+  color: var(--spectyra-blue-pale);
   border-radius: 50%;
   display: flex;
   align-items: center;
@@ -80,39 +81,41 @@ h1 {
   h3 {
     margin-top: 0;
     margin-bottom: 12px;
+    font-family: var(--font-display);
     font-size: 20px;
   }
 
   h4 {
     margin-top: 20px;
     margin-bottom: 8px;
+    font-family: var(--font-display);
     font-size: 16px;
-    color: #333;
+    color: var(--text-primary);
   }
 }
 
 .step-note {
-  color: #666;
+  color: var(--text-secondary);
   font-size: 14px;
   margin-top: 8px;
 
   strong {
-    color: #333;
+    color: var(--text-primary);
   }
 }
 
 .code-block {
-  background: #f5f5f5;
-  border: 1px solid #ddd;
-  border-radius: 4px;
+  background: var(--bg-elevated);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-chip);
   padding: 12px;
   margin: 12px 0;
-  font-family: 'Monaco', 'Courier New', monospace;
+  font-family: var(--font-mono);
   font-size: 13px;
   overflow-x: auto;
 
   code {
-    color: #333;
+    color: var(--text-primary);
     white-space: pre;
   }
 }
@@ -120,7 +123,7 @@ h1 {
 .tool-config {
   margin-top: 20px;
   padding-top: 20px;
-  border-top: 1px solid #eee;
+  border-top: 1px solid var(--border);
 
   &:first-child {
     margin-top: 0;
@@ -139,10 +142,10 @@ h1 {
   }
 
   code {
-    background: #f5f5f5;
+    background: var(--bg-elevated);
     padding: 2px 6px;
     border-radius: 3px;
-    font-family: 'Monaco', 'Courier New', monospace;
+    font-family: var(--font-mono);
     font-size: 13px;
   }
 }
@@ -156,7 +159,7 @@ h1 {
 .btn {
   padding: 10px 20px;
   border: none;
-  border-radius: 4px;
+  border-radius: var(--radius-chip);
   font-size: 14px;
   font-weight: 500;
   cursor: pointer;
@@ -164,17 +167,19 @@ h1 {
   display: inline-block;
 
   &.btn-secondary {
-    background: #6c757d;
-    color: white;
+    background: transparent;
+    border: 1px solid var(--border-bright);
+    color: var(--text-secondary);
 
     &:hover {
-      background: #5a6268;
+      border-color: var(--spectyra-blue);
+      color: var(--text-primary);
     }
   }
 }
 
 a {
-  color: #007bff;
+  color: var(--spectyra-blue);
   text-decoration: none;
 
   &:hover {

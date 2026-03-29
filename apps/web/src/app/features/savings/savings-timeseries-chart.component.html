@@ -9,22 +9,22 @@
           [attr.x2]="chartWidth - padding"
           [attr.y1]="y" 
           [attr.y2]="y"
-          stroke="#eee" />
+          stroke="rgba(55,138,221,0.12)" />
       </g>
       
-      <!-- Tokens saved line -->
+      <!-- Tokens saved line (brand blue) -->
       <polyline
         [attr.points]="tokensPoints"
         fill="none"
-        stroke="#007bff"
+        stroke="#378ADD"
         stroke-width="2"
       />
       
-      <!-- Cost saved line -->
+      <!-- Cost saved line (brand teal) -->
       <polyline
         [attr.points]="costPoints"
         fill="none"
-        stroke="#28a745"
+        stroke="#1D9E75"
         stroke-width="2"
       />
       
@@ -35,7 +35,8 @@
           [attr.y]="chartHeight - padding + 20"
           text-anchor="middle"
           font-size="10"
-          fill="#666">
+          font-family="'DM Mono', monospace"
+          fill="#3d5a78">
           {{ tick.label }}
         </text>
       </g>
@@ -47,17 +48,18 @@
           [attr.y]="tick"
           text-anchor="end"
           font-size="10"
-          fill="#666">
+          font-family="'DM Mono', monospace"
+          fill="#3d5a78">
           {{ formatNumber(tickValue(tick)) }}
         </text>
       </g>
       
       <!-- Legend -->
       <g class="legend">
-        <line x1="padding" y1="20" x2="padding + 30" y2="20" stroke="#007bff" stroke-width="2" />
-        <text [attr.x]="padding + 35" y="25" font-size="12" fill="#333">Tokens Saved</text>
-        <line [attr.x1]="padding + 150" y1="20" [attr.x2]="padding + 180" y2="20" stroke="#28a745" stroke-width="2" />
-        <text [attr.x]="padding + 185" y="25" font-size="12" fill="#333">Cost Saved</text>
+        <line x1="padding" y1="20" x2="padding + 30" y2="20" stroke="#378ADD" stroke-width="2" />
+        <text [attr.x]="padding + 35" y="25" font-size="11" font-family="'DM Sans', sans-serif" fill="#7a9fc0">Tokens Saved</text>
+        <line [attr.x1]="padding + 150" y1="20" [attr.x2]="padding + 180" y2="20" stroke="#1D9E75" stroke-width="2" />
+        <text [attr.x]="padding + 185" y="25" font-size="11" font-family="'DM Sans', sans-serif" fill="#7a9fc0">Cost Saved</text>
       </g>
     </svg>
   </div>

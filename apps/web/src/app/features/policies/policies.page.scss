@@ -2,6 +2,7 @@
   max-width: 1200px;
   margin: 0 auto;
   padding: 20px;
+  font-family: var(--font-body);
 }
 
 .page-header {
@@ -11,10 +12,11 @@
     margin: 0 0 8px 0;
     font-size: 32px;
     font-weight: 600;
+    font-family: var(--font-display);
   }
 
   .subtitle {
-    color: #666;
+    color: var(--text-secondary);
     font-size: 16px;
     margin: 0;
   }
@@ -23,16 +25,16 @@
 .loading {
   text-align: center;
   padding: 40px;
-  color: #666;
+  color: var(--text-secondary);
 }
 
 .error-box {
-  background: #f8d7da;
-  border: 1px solid #f5c6cb;
-  border-radius: 4px;
+  background: var(--color-danger-bg);
+  border: 1px solid var(--color-danger-border);
+  border-radius: var(--radius-chip);
   padding: 16px;
   margin-bottom: 20px;
-  color: #721c24;
+  color: var(--color-danger);
 }
 
 .policy-types {
@@ -43,16 +45,15 @@
 }
 
 .policy-type-card {
-  border: 2px solid #e0e0e0;
-  border-radius: 8px;
+  border: 2px solid var(--border);
+  border-radius: var(--radius-input);
   padding: 24px;
   text-align: center;
   cursor: pointer;
   transition: all 0.2s;
 
   &:hover {
-    border-color: #007bff;
-    box-shadow: 0 2px 8px rgba(0, 123, 255, 0.1);
+    border-color: var(--spectyra-blue);
   }
 
   .type-icon {
@@ -61,7 +62,7 @@
     display: flex;
     justify-content: center;
     align-items: center;
-    color: #007bff;
+    color: var(--spectyra-blue);
 
     .material-icons {
       font-size: 64px;
@@ -72,21 +73,22 @@
     margin: 0 0 8px 0;
     font-size: 18px;
     font-weight: 600;
+    font-family: var(--font-display);
   }
 
   p {
     margin: 0;
     font-size: 14px;
-    color: #666;
+    color: var(--text-secondary);
   }
 }
 
 .card {
-  background: white;
-  border-radius: 8px;
+  background: var(--bg-card);
+  border-radius: var(--radius-input);
   padding: 24px;
   margin-bottom: 24px;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  border: 1px solid var(--border);
 
   .card-header {
     margin-bottom: 20px;
@@ -95,6 +97,7 @@
       margin: 0;
       font-size: 20px;
       font-weight: 600;
+      font-family: var(--font-display);
     }
   }
 }
@@ -106,20 +109,21 @@
   h3 {
     margin: 0 0 12px 0;
     font-size: 18px;
-    color: #333;
+    color: var(--text-primary);
+    font-family: var(--font-display);
   }
 
   p {
     margin: 0;
-    color: #666;
+    color: var(--text-secondary);
   }
 }
 
 .policies-list {
   .policy-item {
     padding: 20px;
-    border: 1px solid #e0e0e0;
-    border-radius: 8px;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-input);
     margin-bottom: 16px;
 
     .policy-info {
@@ -132,12 +136,13 @@
         margin: 0;
         font-size: 16px;
         font-weight: 600;
+        font-family: var(--font-display);
       }
     }
 
     .policy-meta {
       font-size: 14px;
-      color: #666;
+      color: var(--text-secondary);
       margin-bottom: 12px;
     }
 
@@ -150,24 +155,30 @@
 
 .policy-type-badge {
   padding: 4px 8px;
-  border-radius: 4px;
-  font-size: 12px;
+  border-radius: var(--radius-chip);
+  font-family: var(--font-mono);
+  font-size: 10px;
   font-weight: 500;
-  background: #e3f2fd;
-  color: #1976d2;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  background: var(--spectyra-blue-pale);
+  color: var(--spectyra-blue);
 }
 
 .policy-status {
   padding: 4px 8px;
-  border-radius: 4px;
-  font-size: 12px;
+  border-radius: var(--radius-chip);
+  font-family: var(--font-mono);
+  font-size: 10px;
   font-weight: 500;
-  background: #e0e0e0;
-  color: #666;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  background: var(--bg-elevated);
+  color: var(--text-secondary);
 
   &.enabled {
-    background: #d4edda;
-    color: #155724;
+    background: var(--spectyra-teal-pale);
+    color: var(--spectyra-teal);
   }
 }
 
@@ -179,16 +190,17 @@
       display: block;
       margin-bottom: 6px;
       font-weight: 500;
-      color: #333;
+      color: var(--text-primary);
     }
 
     .form-input,
     .form-select {
       width: 100%;
       padding: 8px 12px;
-      border: 1px solid #ddd;
-      border-radius: 4px;
+      border: 1px solid var(--border);
+      border-radius: var(--radius-chip);
       font-size: 14px;
+      font-family: var(--font-body);
     }
   }
 }
@@ -196,7 +208,7 @@
 .btn {
   padding: 8px 16px;
   border: none;
-  border-radius: 4px;
+  border-radius: var(--radius-chip);
   font-size: 14px;
   font-weight: 500;
   cursor: pointer;
@@ -208,20 +220,20 @@
   }
 
   &.btn-primary {
-    background: #007bff;
-    color: white;
+    background: var(--spectyra-navy);
+    color: var(--text-primary);
 
     &:hover:not(:disabled) {
-      background: #0056b3;
+      background: var(--spectyra-navy-mid);
     }
   }
 
   &.btn-secondary {
-    background: #6c757d;
-    color: white;
+    background: var(--bg-elevated);
+    color: var(--text-primary);
 
     &:hover:not(:disabled) {
-      background: #545b62;
+      background: var(--bg-card);
     }
   }
 
@@ -245,13 +257,13 @@
 }
 
 .modal-content {
-  background: white;
-  border-radius: 8px;
+  background: var(--bg-card);
+  border-radius: var(--radius-input);
   width: 90%;
   max-width: 600px;
   max-height: 90vh;
   overflow-y: auto;
-  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+  border: 1px solid var(--border);
 }
 
 .modal-header {
@@ -259,12 +271,13 @@
   justify-content: space-between;
   align-items: center;
   padding: 20px 24px;
-  border-bottom: 1px solid #e0e0e0;
+  border-bottom: 1px solid var(--border);
 
   h2 {
     margin: 0;
     font-size: 20px;
     font-weight: 600;
+    font-family: var(--font-display);
   }
 
   .btn-close {
@@ -272,17 +285,17 @@
     border: none;
     font-size: 24px;
     cursor: pointer;
-    color: #666;
+    color: var(--text-secondary);
     padding: 0;
     width: 32px;
     height: 32px;
     display: flex;
     align-items: center;
     justify-content: center;
-    border-radius: 4px;
+    border-radius: var(--radius-chip);
 
     &:hover {
-      background: #f0f0f0;
+      background: var(--bg-elevated);
     }
   }
 }
@@ -296,13 +309,13 @@
   justify-content: flex-end;
   gap: 12px;
   padding: 20px 24px;
-  border-top: 1px solid #e0e0e0;
+  border-top: 1px solid var(--border);
 }
 
 .form-section {
   margin-top: 20px;
   padding-top: 20px;
-  border-top: 1px solid #e0e0e0;
+  border-top: 1px solid var(--border);
 
   &:first-child {
     margin-top: 0;
@@ -314,6 +327,7 @@
     margin: 0 0 16px 0;
     font-size: 16px;
     font-weight: 600;
-    color: #333;
+    color: var(--text-primary);
+    font-family: var(--font-display);
   }
 }

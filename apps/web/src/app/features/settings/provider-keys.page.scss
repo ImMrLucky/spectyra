@@ -2,34 +2,37 @@
   max-width: 900px;
   margin: 0 auto;
   padding: 2rem;
+  font-family: var(--font-body);
 }
 
 .page-header {
   margin-bottom: 2rem;
-  
+
   h1 {
     margin: 0 0 0.5rem 0;
     font-size: 2rem;
+    font-family: var(--font-display);
   }
-  
+
   .subtitle {
-    color: #666;
+    color: var(--text-secondary);
     margin: 0;
   }
 }
 
 .card {
-  background: white;
-  border-radius: 8px;
+  background: var(--bg-card);
+  border-radius: var(--radius-input);
   padding: 1.5rem;
   margin-bottom: 1.5rem;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-  
+  border: 1px solid var(--border);
+
   h2 {
     margin: 0 0 1rem 0;
     font-size: 1.25rem;
+    font-family: var(--font-display);
   }
-  
+
   .card-header {
     display: flex;
     justify-content: space-between;
@@ -40,24 +43,24 @@
 
 .form-group {
   margin-bottom: 1.5rem;
-  
+
   label {
     display: block;
     margin-bottom: 0.5rem;
     font-weight: 500;
   }
-  
+
   .form-input {
     width: 100%;
     padding: 0.5rem;
-    border: 1px solid #ddd;
-    border-radius: 4px;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-chip);
     font-size: 1rem;
   }
-  
+
   .help-text {
     margin-top: 0.5rem;
-    color: #666;
+    color: var(--text-secondary);
     font-size: 0.9rem;
   }
 }
@@ -73,40 +76,41 @@
   justify-content: space-between;
   align-items: center;
   padding: 1rem;
-  border: 1px solid #ddd;
-  border-radius: 4px;
-  background: #f9f9f9;
-  
+  border: 1px solid var(--border);
+  border-radius: var(--radius-chip);
+  background: var(--bg-elevated);
+
   .credential-info {
     flex: 1;
-    
+
     .credential-header {
       display: flex;
       align-items: center;
       gap: 1rem;
       margin-bottom: 0.5rem;
     }
-    
+
     .fingerprint {
       margin: 0.25rem 0;
       font-size: 0.9rem;
-      color: #666;
-      
+      color: var(--text-secondary);
+
       code {
-        background: #e0e0e0;
+        background: var(--bg-card);
         padding: 0.25rem 0.5rem;
-        border-radius: 3px;
-        font-family: monospace;
+        border-radius: var(--radius-chip);
+        font-family: var(--font-mono);
+        border: 1px solid var(--border);
       }
     }
-    
+
     .metadata {
       margin: 0.25rem 0 0 0;
       font-size: 0.85rem;
-      color: #999;
+      color: var(--text-muted);
     }
   }
-  
+
   .credential-actions {
     margin-left: 1rem;
   }
@@ -114,55 +118,58 @@
 
 .status-badge {
   padding: 0.25rem 0.75rem;
-  border-radius: 12px;
+  border-radius: var(--radius-card);
   font-size: 0.85rem;
-  background: #4caf50;
-  color: white;
-  
+  background: var(--spectyra-teal);
+  color: var(--spectyra-teal-pale);
+
   &.revoked {
-    background: #f44336;
+    background: var(--color-danger);
+    color: var(--text-primary);
   }
 }
 
 .btn {
   padding: 0.5rem 1rem;
   border: none;
-  border-radius: 4px;
+  border-radius: var(--radius-chip);
   font-size: 0.9rem;
   cursor: pointer;
   transition: background-color 0.2s;
-  
+
   &.btn-primary {
-    background-color: #2196F3;
-    color: white;
-    
+    background-color: var(--spectyra-navy);
+    color: var(--spectyra-blue-pale);
+
     &:hover:not(:disabled) {
-      background-color: #1976D2;
+      background-color: var(--spectyra-navy-mid);
     }
-    
+
     &:disabled {
       opacity: 0.6;
       cursor: not-allowed;
     }
   }
-  
+
   &.btn-secondary {
-    background-color: #757575;
-    color: white;
-    
+    background-color: var(--bg-elevated);
+    color: var(--text-primary);
+    border: 1px solid var(--border);
+
     &:hover {
-      background-color: #616161;
+      background-color: var(--bg-card);
+      border-color: var(--border-bright);
     }
   }
-  
+
   &.btn-danger {
-    background-color: #f44336;
-    color: white;
-    
+    background-color: var(--color-danger);
+    color: var(--spectyra-blue-pale);
+
     &:hover:not(:disabled) {
-      background-color: #d32f2f;
+      background-color: var(--color-danger-border);
     }
-    
+
     &:disabled {
       opacity: 0.6;
       cursor: not-allowed;
@@ -173,15 +180,16 @@
 .empty-state {
   text-align: center;
   padding: 2rem;
-  color: #666;
+  color: var(--text-secondary);
 }
 
 .error-box {
-  background: #ffebee;
-  color: #c62828;
+  background: var(--color-danger-bg);
+  color: var(--color-danger);
   padding: 1rem;
-  border-radius: 4px;
+  border-radius: var(--radius-chip);
   margin-bottom: 1rem;
+  border: 1px solid var(--color-danger-border);
 }
 
 .loading {

@@ -10,68 +10,77 @@
 }
 
 .kpi-card {
-  background: white;
-  border-radius: 8px;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-card);
   padding: 20px;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
   text-align: center;
   position: relative;
 
   &.kpi-verified {
-    border-left: 4px solid #28a745;
+    border-left: 3px solid var(--spectyra-teal);
   }
 
   &.kpi-total {
-    border-left: 4px solid #007bff;
+    border-left: 3px solid var(--spectyra-blue);
   }
 }
 
 .kpi-label {
-  font-size: 14px;
-  color: #666;
+  font-family: var(--font-body);
+  font-size: 12px;
+  color: var(--text-secondary);
   margin-bottom: 8px;
 }
 
 .kpi-value {
-  font-size: 32px;
-  font-weight: 600;
-  color: #007bff;
+  font-family: var(--font-mono);
+  font-size: 28px;
+  font-weight: 500;
+  color: var(--spectyra-teal-light);
   margin-bottom: 4px;
 }
 
 .kpi-subtext {
   font-size: 12px;
-  color: #999;
+  font-family: var(--font-mono);
+  color: var(--text-muted);
 }
 
 .kpi-badge {
   position: absolute;
   top: 10px;
   right: 10px;
+  font-family: var(--font-mono);
   font-size: 10px;
-  padding: 4px 8px;
-  border-radius: 4px;
-  font-weight: 600;
+  padding: 2px 8px;
+  border-radius: var(--radius-chip);
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
 
   &.verified,
   &.confidence-high {
-    background: #d4edda;
-    color: #155724;
+    background: var(--spectyra-teal-pale);
+    border: 1px solid var(--spectyra-teal-border);
+    color: var(--spectyra-teal);
   }
 
   &.confidence-medium {
-    background: #fff3cd;
-    color: #856404;
+    background: var(--spectyra-amber-pale);
+    border: 1px solid var(--spectyra-amber-border);
+    color: var(--spectyra-amber);
   }
 
   &.confidence-low {
-    background: #f8d7da;
-    color: #721c24;
+    background: var(--color-danger-bg);
+    border: 1px solid var(--color-danger-border);
+    color: var(--color-danger);
   }
 }
 
 .loading {
   text-align: center;
   padding: 40px;
-  color: #666;
+  color: var(--text-muted);
 }

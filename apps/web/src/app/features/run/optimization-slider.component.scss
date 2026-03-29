@@ -1,5 +1,6 @@
 .slider-container {
   margin-bottom: 20px;
+  font-family: var(--font-body);
 }
 
 .slider-wrapper {
@@ -12,7 +13,7 @@
 .slider-label-left,
 .slider-label-right {
   font-size: 13px;
-  color: #666;
+  color: var(--text-secondary);
   white-space: nowrap;
   min-width: 120px;
 }
@@ -28,8 +29,8 @@
 .slider {
   flex: 1;
   height: 8px;
-  border-radius: 4px;
-  background: #ddd;
+  border-radius: var(--radius-chip);
+  background: var(--border);
   outline: none;
   -webkit-appearance: none;
 
@@ -39,7 +40,7 @@
     width: 20px;
     height: 20px;
     border-radius: 50%;
-    background: #007bff;
+    background: var(--spectyra-blue);
     cursor: pointer;
   }
 
@@ -47,7 +48,7 @@
     width: 20px;
     height: 20px;
     border-radius: 50%;
-    background: #007bff;
+    background: var(--spectyra-blue);
     cursor: pointer;
     border: none;
   }
@@ -61,9 +62,9 @@
 .level-badge {
   display: inline-block;
   padding: 6px 12px;
-  background: #e3f2fd;
-  color: #1976d2;
-  border-radius: 4px;
+  background: var(--spectyra-blue-pale);
+  color: var(--spectyra-blue);
+  border-radius: var(--radius-chip);
   font-weight: 500;
   font-size: 14px;
 }

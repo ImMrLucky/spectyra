@@ -2,32 +2,35 @@
   max-width: 900px;
   margin: 0 auto;
   padding: 2rem;
+  font-family: var(--font-body);
 }
 
 .page-header {
   margin-bottom: 2rem;
-  
+
   h1 {
     margin: 0 0 0.5rem 0;
     font-size: 2rem;
+    font-family: var(--font-display);
   }
-  
+
   .subtitle {
-    color: #666;
+    color: var(--text-secondary);
     margin: 0;
   }
 }
 
 .card {
-  background: white;
-  border-radius: 8px;
+  background: var(--bg-card);
+  border-radius: var(--radius-input);
   padding: 1.5rem;
   margin-bottom: 1.5rem;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-  
+  border: 1px solid var(--border);
+
   h2 {
     margin: 0 0 1rem 0;
     font-size: 1.25rem;
+    font-family: var(--font-display);
   }
 }
 
@@ -36,23 +39,23 @@
   justify-content: space-between;
   align-items: center;
   padding: 1rem 0;
-  border-bottom: 1px solid #eee;
-  
+  border-bottom: 1px solid var(--border);
+
   &:last-child {
     border-bottom: none;
   }
-  
+
   .setting-info {
     flex: 1;
-    
+
     strong {
       display: block;
       margin-bottom: 0.25rem;
     }
-    
+
     p {
       margin: 0;
-      color: #666;
+      color: var(--text-secondary);
       font-size: 0.9rem;
     }
   }
@@ -63,13 +66,13 @@
   display: inline-block;
   width: 50px;
   height: 24px;
-  
+
   input {
     opacity: 0;
     width: 0;
     height: 0;
   }
-  
+
   .toggle-slider {
     position: absolute;
     cursor: pointer;
@@ -77,10 +80,11 @@
     left: 0;
     right: 0;
     bottom: 0;
-    background-color: #ccc;
+    background-color: var(--bg-elevated);
     transition: 0.4s;
     border-radius: 24px;
-    
+    border: 1px solid var(--border);
+
     &:before {
       position: absolute;
       content: "";
@@ -88,16 +92,17 @@
       width: 18px;
       left: 3px;
       bottom: 3px;
-      background-color: white;
+      background-color: var(--spectyra-blue-pale);
       transition: 0.4s;
       border-radius: 50%;
     }
   }
-  
+
   input:checked + .toggle-slider {
-    background-color: #2196F3;
+    background-color: var(--spectyra-navy);
+    border-color: var(--spectyra-navy-mid);
   }
-  
+
   input:checked + .toggle-slider:before {
     transform: translateX(26px);
   }
@@ -105,30 +110,30 @@
 
 .form-group {
   margin-bottom: 1.5rem;
-  
+
   label {
     display: block;
     margin-bottom: 0.5rem;
     font-weight: 500;
   }
-  
+
   .form-input {
     width: 100%;
     padding: 0.5rem;
-    border: 1px solid #ddd;
-    border-radius: 4px;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-chip);
     font-size: 1rem;
   }
-  
+
   .help-text {
     margin-top: 0.5rem;
-    color: #666;
+    color: var(--text-secondary);
     font-size: 0.9rem;
   }
 }
 
 .info-text {
-  color: #666;
+  color: var(--text-secondary);
   margin-bottom: 1rem;
 }
 
@@ -140,19 +145,19 @@
 .btn {
   padding: 0.75rem 1.5rem;
   border: none;
-  border-radius: 4px;
+  border-radius: var(--radius-chip);
   font-size: 1rem;
   cursor: pointer;
   transition: background-color 0.2s;
-  
+
   &.btn-primary {
-    background-color: #2196F3;
-    color: white;
-    
+    background-color: var(--spectyra-navy);
+    color: var(--spectyra-blue-pale);
+
     &:hover:not(:disabled) {
-      background-color: #1976D2;
+      background-color: var(--spectyra-navy-mid);
     }
-    
+
     &:disabled {
       opacity: 0.6;
       cursor: not-allowed;
@@ -161,11 +166,12 @@
 }
 
 .error-box {
-  background: #ffebee;
-  color: #c62828;
+  background: var(--color-danger-bg);
+  color: var(--color-danger);
   padding: 1rem;
-  border-radius: 4px;
+  border-radius: var(--radius-chip);
   margin-bottom: 1rem;
+  border: 1px solid var(--color-danger-border);
 }
 
 .loading {

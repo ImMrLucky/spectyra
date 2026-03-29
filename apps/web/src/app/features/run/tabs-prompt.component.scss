@@ -6,13 +6,14 @@
 .message {
   margin-bottom: 15px;
   padding: 10px;
-  background: #f8f9fa;
-  border-radius: 4px;
+  background: var(--bg-elevated);
+  border-radius: var(--radius-chip);
 
   strong {
     display: block;
     margin-bottom: 5px;
-    color: #007bff;
+    color: var(--spectyra-blue);
+    font-family: var(--font-body);
   }
 }
 
@@ -20,6 +21,6 @@ pre {
   margin: 0;
   white-space: pre-wrap;
   word-wrap: break-word;
-  font-family: 'Courier New', monospace;
+  font-family: var(--font-mono);
   font-size: 12px;
 }

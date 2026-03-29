@@ -1,16 +1,17 @@
 .output-content {
   max-height: 400px;
   overflow-y: auto;
-  background: #f8f9fa;
+  background: var(--bg-elevated);
   padding: 15px;
-  border-radius: 4px;
+  border-radius: var(--radius-chip);
+  border: 1px solid var(--border);
 }
 
 pre {
   margin: 0;
   white-space: pre-wrap;
   word-wrap: break-word;
-  font-family: 'Courier New', monospace;
+  font-family: var(--font-mono);
   font-size: 13px;
   line-height: 1.5;
 }
