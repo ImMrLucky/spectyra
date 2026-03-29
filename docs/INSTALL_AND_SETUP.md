@@ -25,6 +25,24 @@ This guide is for **end users** who should not need to clone the repo or run `pn
 3. Open **`Spectyra-*.dmg`** (macOS) or **`.exe` / installer** (Windows) and install like any other app.
 4. On first launch, the app guides you through **provider API keys** (BYOK) and optional **license** activation.
 
+#### macOS: “Spectyra can’t be opened” / “Apple could not verify…” (Gatekeeper)
+
+That message appears when the app is **not** signed with an **Apple Developer ID** certificate and **notarized** by Apple. It is **expected** for unsigned builds (local dev builds or downloads produced without your signing pipeline). The app is not “flagged as malware”; macOS is refusing to run **unnotarized** software by default.
+
+**Ways to open it anyway (you trust this build):**
+
+1. **Right‑click** `Spectyra.app` (in **Applications** or inside the `.dmg`) → **Open** → confirm **Open** in the dialog. After the first successful launch, double‑click works like a normal app.
+2. Or open **System Settings** → **Privacy & Security** → scroll to the message about the blocked app → **Open Anyway**.
+3. If you copied the app from a download and it still fails, clear the quarantine flag in Terminal (path must match where the app lives):
+
+   ```bash
+   xattr -cr "/Applications/Spectyra.app"
+   ```
+
+   Then open the app again.
+
+For a **public** release without this friction, maintainers must **code sign** the Mac build with a **Developer ID Application** identity and **notarize** it (see **[apps/desktop/RELEASING.md](../apps/desktop/RELEASING.md)**).
+
 Shipping the app does **not** require publishing source code on GitHub. You only ship **signed binaries** (DMG, MSI, exe, etc.) from **your** website, CDN, or customer portal.
 
 ### If no desktop download is available yet

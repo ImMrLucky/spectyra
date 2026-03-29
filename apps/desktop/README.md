@@ -44,6 +44,11 @@ Artifacts: `apps/desktop/release/` (`.dmg`, `.zip`, NSIS `.exe`, etc., per platf
 
 Prerequisites: `pnpm install`, local-companion built, Angular desktop build, and `resources/companion` (the `dist` script runs `build` which includes `prepare:companion`).
 
+## Runtime behavior (main process)
+
+- **Single instance:** A second launch focuses the existing window instead of starting another copy (avoids two Local Companions fighting for the same port).
+- **macOS:** Closing the last window does **not** quit the app (standard dock behavior); the Local Companion keeps running for `localhost` tools. Use **Quit** from the menu or **Cmd+Q** to exit fully.
+
 ## Security notes
 
 - Provider API keys are stored in `~/.spectyra/desktop/config.json` (local disk only).
@@ -51,3 +56,15 @@ Prerequisites: `pnpm install`, local-companion built, Angular desktop build, and
 - License validation may call the Spectyra API; inference does not go through Spectyra cloud.
 
 See also: [RELEASING.md](./RELEASING.md), [tools/local-companion/README.md](../../tools/local-companion/README.md).
+
+## Troubleshooting (signed-in cloud features)
+
+If the **Mac or Windows** app errors when talking to your API (e.g. org load / billing / session) and your server logs mention **`platform_exempt`** or **`platform_roles`**, the **Postgres** behind the API is missing migration **`apps/api/src/services/storage/migrations/010_platform_roles.sql`**. Open **Supabase → SQL** (or `psql` with `DATABASE_URL`), run that whole file once, then redeploy or restart the API if needed. This is a **database** change, not something you install on the Mac itself.
+
+### macOS: double-click does nothing / no window
+
+That is usually **not** the SQL migration (that affects the **API**, not local Electron startup). Try:
+
+1. **Right‑click the app → Open** once if Gatekeeper still blocks unsigned builds (see [docs/INSTALL_AND_SETUP.md](../../docs/INSTALL_AND_SETUP.md)).
+2. **Rebuild and reinstall** a fresh `.dmg` from `pnpm desktop:dist` — recent builds show a **dialog** if the UI bundle is missing or `loadFile` fails, instead of quitting silently.
+3. Open **Console.app** and filter for **Spectyra** to see crash logs if the process exits immediately.
