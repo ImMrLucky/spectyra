@@ -5,7 +5,7 @@ The brand should feel: calm, trustworthy, technically precise, quietly powerful.
 Not flashy. Not loud. Like infrastructure you can rely on.
 
 ## Fonts
-- Display / headings: Syne (weights 600, 700, 800)
+- Display / headings: Source Sans Pro (weights 400, 600, 700)
 - Body / UI: DM Sans (weights 300, 400, 500)
 - Monospace / code / data: DM Mono (weights 300, 400, 500)
 
@@ -72,7 +72,7 @@ Pulse animation for live/running states:
 The logo mark is an abstract spectral waveform: three overlapping arcs of
 decreasing size radiating from a center point, suggesting both a spectrum
 and compression. Navy (#0C447C) on light, #E6F1FB on dark.
-Wordmark: "Spectyra" in Syne 700. Letter-spacing: 0.02em.
+Wordmark: "Spectyra" in Source Sans Pro 700. Letter-spacing: 0.02em.
 
 ## Component rules
 - Border radius: 4px (chips/badges), 8px (inputs/buttons), 12px (cards)
@@ -89,5 +89,5 @@ Wordmark: "Spectyra" in Syne 700. Letter-spacing: 0.02em.
 - No gradients on primary backgrounds
 - No drop shadows (use border instead)
 - No purple, pink, or coral anywhere in product UI
-- No Inter, Roboto, or system-ui fonts
+- No Inter, Roboto, Syne, or system-ui fonts
 - Never use red for warnings — amber only; red reserved for errors/critical

@@ -74,12 +74,18 @@
           mode="side"
           class="app-sidenav"
           [class.collapsed]="sidebarCollapsed"
-          [style.width.px]="sidebarCollapsed ? 64 : 240"
+          [style.width.px]="sidebarCollapsed ? 64 : 256"
         >
-          <mat-nav-list>
-            <ng-container *ngFor="let item of navItems">
+          <nav class="sidebar-nav">
+            <ng-container *ngFor="let item of navItems; let i = index">
+              <div
+                *ngIf="item.section && !sidebarCollapsed"
+                class="nav-section-label"
+                [class.first]="i === 0"
+              >{{ item.section }}</div>
+              <div *ngIf="item.section && sidebarCollapsed && i > 0" class="nav-section-divider"></div>
+
               <a
-                mat-list-item
                 *ngIf="(!item.requiresAuth || isAuthenticated) && (!item.adminOnly || showAdminLink) && (!item.superuserOnly || showSuperuserLink)"
                 [routerLink]="item.route"
                 routerLinkActive="active"
@@ -87,11 +93,11 @@
                 class="nav-item"
                 [class.collapsed]="sidebarCollapsed"
               >
-                <mat-icon matListItemIcon>{{ item.icon }}</mat-icon>
-                <span matListItemTitle *ngIf="!sidebarCollapsed">{{ item.label }}</span>
+                <mat-icon class="nav-icon">{{ item.icon }}</mat-icon>
+                <span class="nav-label" *ngIf="!sidebarCollapsed">{{ item.label }}</span>
               </a>
             </ng-container>
-          </mat-nav-list>
+          </nav>
         </mat-sidenav>
 
         <mat-sidenav-content class="app-main">

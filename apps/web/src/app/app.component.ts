@@ -12,7 +12,6 @@ import { MatDialogModule } from '@angular/material/dialog';
 import { MatSidenavModule, MatSidenavContainer, MatSidenav } from '@angular/material/sidenav';
 import { MatButtonModule } from '@angular/material/button';
 import { MatIconModule } from '@angular/material/icon';
-import { MatListModule } from '@angular/material/list';
 import { MatToolbarModule } from '@angular/material/toolbar';
 import { OwnerService } from './core/services/owner.service';
 import { SuperuserService } from './core/api/superuser.service';
@@ -21,6 +20,7 @@ interface NavItem {
   label: string;
   route: string;
   icon: string;
+  section?: string;
   adminOnly?: boolean;
   superuserOnly?: boolean;
   requiresAuth?: boolean;
@@ -39,7 +39,6 @@ interface NavItem {
     MatSidenavModule,
     MatButtonModule,
     MatIconModule,
-    MatListModule,
     MatToolbarModule,
   ],
   templateUrl: './app.component.html',
@@ -62,28 +61,24 @@ export class AppComponent implements OnInit, OnDestroy, AfterViewInit {
   private supabaseSub?: Subscription;
 
   navItems: NavItem[] = [
-    // Product features — visible to all authenticated users
-    { label: 'Studio', route: '/studio', icon: 'auto_awesome', requiresAuth: true },
-    { label: 'Observe', route: '/observe', icon: 'visibility', requiresAuth: true },
-    { label: 'Integrations', route: '/integrations', icon: 'extension', requiresAuth: true },
-    { label: 'Desktop app', route: '/download', icon: 'laptop_mac', requiresAuth: true },
+    { label: 'Overview', route: '/overview', icon: 'space_dashboard', section: 'Product', requiresAuth: true },
+    { label: 'Studio', route: '/studio', icon: 'science', requiresAuth: true },
+    { label: 'Observe', route: '/observe', icon: 'monitoring', requiresAuth: true },
+    { label: 'Integrations', route: '/integrations', icon: 'hub', requiresAuth: true },
+    { label: 'Desktop App', route: '/download', icon: 'computer', requiresAuth: true },
 
-    // Analytics & management
-    { label: 'Overview', route: '/overview', icon: 'dashboard', requiresAuth: true },
-    { label: 'Runs', route: '/runs', icon: 'play_circle', requiresAuth: true },
-    { label: 'Usage', route: '/usage', icon: 'account_balance', requiresAuth: true },
-    { label: 'Savings', route: '/analytics', icon: 'savings', requiresAuth: true },
-    { label: 'Plan & Licensing', route: '/billing', icon: 'verified', requiresAuth: true },
+    { label: 'Runs', route: '/runs', icon: 'receipt_long', section: 'Analytics', requiresAuth: true },
+    { label: 'Usage', route: '/usage', icon: 'bar_chart', requiresAuth: true },
+    { label: 'Savings', route: '/analytics', icon: 'trending_down', requiresAuth: true },
+    { label: 'Plan & Billing', route: '/billing', icon: 'credit_card', requiresAuth: true },
 
-    // Settings
-    { label: 'Projects', route: '/projects', icon: 'folder', requiresAuth: true },
-    { label: 'Policies', route: '/policies', icon: 'security', requiresAuth: true },
-    { label: 'Audit Logs', route: '/audit', icon: 'history', requiresAuth: true },
-    { label: 'Settings', route: '/settings', icon: 'settings', requiresAuth: true },
+    { label: 'Projects', route: '/projects', icon: 'folder_open', section: 'Manage', requiresAuth: true },
+    { label: 'Policies', route: '/policies', icon: 'policy', requiresAuth: true },
+    { label: 'Audit Logs', route: '/audit', icon: 'assignment', requiresAuth: true },
+    { label: 'Settings', route: '/settings', icon: 'tune', requiresAuth: true },
 
-    // Admin (actual admin only — server enforced)
-    { label: 'Admin', route: '/admin', icon: 'admin_panel_settings', adminOnly: true, requiresAuth: true },
-    { label: 'Superuser', route: '/superuser', icon: 'shield', superuserOnly: true, requiresAuth: true },
+    { label: 'Admin', route: '/admin', icon: 'admin_panel_settings', section: 'Admin', adminOnly: true, requiresAuth: true },
+    { label: 'Superuser', route: '/superuser', icon: 'security', superuserOnly: true, requiresAuth: true },
   ];
 
   constructor(
@@ -217,7 +212,7 @@ export class AppComponent implements OnInit, OnDestroy, AfterViewInit {
         setTimeout(() => {
           const contentElement = document.querySelector('.mat-drawer-content') as HTMLElement;
           if (contentElement && this.sidenav?.opened) {
-            const drawerWidth = this.sidebarCollapsed ? 64 : 240;
+            const drawerWidth = this.sidebarCollapsed ? 64 : 256;
             contentElement.style.marginLeft = `${drawerWidth}px`;
           }
         }, 10);
