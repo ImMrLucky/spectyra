@@ -35,6 +35,12 @@ import type {
 } from "@spectyra/canonical-model";
 import { detectFeatures } from "@spectyra/feature-detection";
 import { optimize, activateLicense } from "@spectyra/optimization-engine";
+import {
+  applyUpdate,
+  learningUpdatesFromPipelineRun,
+  mergeCalibrationForDetection,
+  toHistoricalSignals,
+} from "@spectyra/learning";
 import { estimateCost } from "./tokenEstimator.js";
 import { emitSdkEventsForStandaloneComplete } from "../events/sdkEvents.js";
 
@@ -47,7 +53,7 @@ export async function localComplete<TClient, TResult>(
   input: SpectyraCompleteInput<TClient>,
   adapter: ProviderAdapter<TClient, TResult>,
 ): Promise<SpectyraCompleteResult<TResult>> {
-  const runMode: SpectyraRunMode = config.runMode ?? "observe";
+  const runMode: SpectyraRunMode = config.runMode ?? "on";
   const telemetryMode: TelemetryMode = config.telemetry?.mode ?? "local";
   const promptSnapshotMode: PromptSnapshotMode = config.promptSnapshots ?? "local_only";
   const runId = crypto.randomUUID();
@@ -84,15 +90,32 @@ export async function localComplete<TClient, TResult>(
   // Run the full pipeline — the engine handles license gating internally:
   // licensed = real optimizations applied, unlicensed = observe-only
   const canonicalReq = toCanonical(runId, runMode, input, telemetryMode, promptSnapshotMode);
-  const features = detectFeatures(canonicalReq);
+  const profile = config.learningProfile;
+  const features = detectFeatures(
+    canonicalReq,
+    profile ? toHistoricalSignals(profile) : undefined,
+    mergeCalibrationForDetection(profile, config.globalLearningSnapshot),
+  );
   const pipeline = optimize({
     request: canonicalReq,
     features,
+    profile,
     licenseStatus,
   });
 
   // The engine already enforces: unlicensed → optimizedRequest === originalRequest
   const messagesToSend = fromCanonicalMessages(pipeline.optimizedRequest.messages);
+
+  if (profile) {
+    const updates = learningUpdatesFromPipelineRun({
+      scopeId: profile.scopeId,
+      appliedTransformIds: pipeline.transformsApplied,
+      tokensSaved: Math.max(0, charEstimate(originalMessages) - charEstimate(messagesToSend)),
+      featureIds: features.map((f) => f.featureId),
+      success: true,
+    });
+    for (const u of updates) applyUpdate(profile, u);
+  }
 
   const { result, usage } = await adapter.call({
     client: input.client,

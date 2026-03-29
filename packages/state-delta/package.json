@@ -1,0 +1,21 @@
+{
+  "name": "@spectyra/state-delta",
+  "version": "0.1.0",
+  "description": "Stable base + delta + refs for canonical workflow state (Phase 4 moat). Provider-agnostic.",
+  "type": "module",
+  "main": "./src/index.ts",
+  "types": "./src/index.ts",
+  "files": ["src"],
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "test:state-delta": "tsx src/__tests__/state-delta.test.ts"
+  },
+  "dependencies": {
+    "@spectyra/event-core": "workspace:*"
+  },
+  "devDependencies": {
+    "tsx": "^4.7.1",
+    "typescript": "~5.4.0"
+  },
+  "license": "MIT"
+}

@@ -8,11 +8,13 @@
   "files": ["src"],
   "scripts": {
     "typecheck": "tsc --noEmit",
-    "test:anti-coupling": "tsx src/__tests__/anti-coupling.test.ts"
+    "test:anti-coupling": "tsx src/__tests__/anti-coupling.test.ts",
+    "test:learning-gate": "tsx src/__tests__/learning-gate.test.ts"
   },
   "dependencies": {
     "@spectyra/canonical-model": "workspace:*",
     "@spectyra/feature-detection": "workspace:*",
+    "@spectyra/learning": "workspace:*",
     "@spectyra/optimizer-algorithms": "workspace:*"
   },
   "devDependencies": { "typescript": "~5.4.0" },

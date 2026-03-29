@@ -16,6 +16,7 @@ import type {
   PromptComparison,
   SecurityLabels,
 } from "@spectyra/core-types";
+import type { GlobalLearningSnapshot, LearningProfile } from "@spectyra/canonical-model";
 
 // Re-export core-types so downstream consumers only need @spectyra/sdk
 export type {
@@ -42,7 +43,7 @@ export type SpectyraMode = "local" | "api";
 export interface SpectyraConfig {
   /**
    * Run mode: off | observe | on
-   * Default: "observe"
+   * Default when omitted: "on" (optimization when licensed; use "observe" for dry-run / projected savings).
    */
   runMode?: SpectyraRunMode;
 
@@ -61,6 +62,15 @@ export interface SpectyraConfig {
    * NOT a provider key — provider keys are supplied per-call or via env.
    */
   licenseKey?: string;
+
+  /**
+   * Phase 5 — optional local learning profile (mutated in place when present).
+   * Use `createEmptyProfile` from `@spectyra/learning` and reuse across `complete()` calls.
+   */
+  learningProfile?: LearningProfile;
+
+  /** Optional aggregate benchmarks (non-sensitive); tune detector thresholds with local profile. */
+  globalLearningSnapshot?: GlobalLearningSnapshot;
 
   // --- Legacy fields (deprecated, kept for backward compat) ---
 

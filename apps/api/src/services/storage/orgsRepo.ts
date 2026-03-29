@@ -28,7 +28,7 @@ export async function createOrg(name: string, trialDays: number = 7): Promise<Or
   const result = await query<Org>(`
     INSERT INTO orgs (name, trial_ends_at, subscription_status, sdk_access_enabled)
     VALUES ($1, $2, 'trial', $3)
-    RETURNING id, name, created_at, trial_ends_at, stripe_customer_id, subscription_status, sdk_access_enabled
+    RETURNING id, name, created_at, trial_ends_at, stripe_customer_id, subscription_status, sdk_access_enabled, platform_exempt
   `, [name, trialEndsAt.toISOString(), true]);
   
   return result.rows[0];
@@ -39,7 +39,7 @@ export async function createOrg(name: string, trialDays: number = 7): Promise<Or
  */
 export async function getAllOrgs(): Promise<Org[]> {
   const result = await query<Org>(`
-    SELECT id, name, created_at, trial_ends_at, stripe_customer_id, subscription_status, sdk_access_enabled
+    SELECT id, name, created_at, trial_ends_at, stripe_customer_id, subscription_status, sdk_access_enabled, platform_exempt
     FROM orgs 
     ORDER BY created_at DESC
   `);
@@ -52,7 +52,7 @@ export async function getAllOrgs(): Promise<Org[]> {
  */
 export async function getOrgById(id: string): Promise<Org | null> {
   const result = await queryOne<Org>(`
-    SELECT id, name, created_at, trial_ends_at, stripe_customer_id, subscription_status, sdk_access_enabled
+    SELECT id, name, created_at, trial_ends_at, stripe_customer_id, subscription_status, sdk_access_enabled, platform_exempt
     FROM orgs 
     WHERE id = $1
   `, [id]);
@@ -72,7 +72,7 @@ export async function updateOrgName(orgId: string, newName: string): Promise<Org
     UPDATE orgs 
     SET name = $1 
     WHERE id = $2
-    RETURNING id, name, created_at, trial_ends_at, stripe_customer_id, subscription_status
+    RETURNING id, name, created_at, trial_ends_at, stripe_customer_id, subscription_status, sdk_access_enabled, platform_exempt
   `, [newName.trim(), orgId]);
   
   if (result.rowCount === 0) {
@@ -85,12 +85,20 @@ export async function updateOrgName(orgId: string, newName: string): Promise<Org
 export type HasActiveAccessOpts = {
   /** Supabase user email (JWT) — matches BILLING_EXEMPT_EMAILS */
   userEmail?: string | null;
+  /** DB platform_roles or equivalent — perpetual access for that user */
+  platformBillingExempt?: boolean;
 };
 
 /**
  * Check if org has active access (trial, subscription, or founder exempt list).
  */
 export function hasActiveAccess(org: Org, opts?: HasActiveAccessOpts): boolean {
+  if (org.platform_exempt) {
+    return true;
+  }
+  if (opts?.platformBillingExempt) {
+    return true;
+  }
   if (isBillingExemptOrgId(org.id)) {
     return true;
   }
@@ -400,7 +408,7 @@ export async function deleteOrg(orgId: string): Promise<void> {
  */
 export async function getOrgByStripeCustomerId(customerId: string): Promise<Org | null> {
   const result = await queryOne<Org>(`
-    SELECT id, name, created_at, trial_ends_at, stripe_customer_id, subscription_status, sdk_access_enabled
+    SELECT id, name, created_at, trial_ends_at, stripe_customer_id, subscription_status, sdk_access_enabled, platform_exempt
     FROM orgs 
     WHERE stripe_customer_id = $1
   `, [customerId]);
@@ -417,6 +425,20 @@ export async function updateOrgStripeCustomerId(orgId: string, customerId: strin
     SET stripe_customer_id = $1
     WHERE id = $2
   `, [customerId, orgId]);
+}
+
+/**
+ * Superuser-only: mark org as exempt from subscription/trial gates (API key + chat flows).
+ */
+export async function setOrgPlatformExempt(orgId: string, exempt: boolean): Promise<Org> {
+  const result = await query<Org>(`
+    UPDATE orgs SET platform_exempt = $2 WHERE id = $1
+    RETURNING id, name, created_at, trial_ends_at, stripe_customer_id, subscription_status, sdk_access_enabled, platform_exempt
+  `, [orgId, exempt]);
+  if (result.rowCount === 0) {
+    throw new Error(`Organization ${orgId} not found`);
+  }
+  return result.rows[0];
 }
 
 /**

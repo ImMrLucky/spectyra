@@ -47,7 +47,7 @@ export class LocalCompanionAdapter implements SpectyraAdapter<CompanionInternalR
     return {
       requestId: generateId("req"),
       runId: generateId("run"),
-      mode: ctx?.runModeOverride ?? input.runMode ?? "observe",
+      mode: ctx?.runModeOverride ?? input.runMode ?? "on",
       integrationType: "local-companion",
       provider: { vendor: input.provider, model: input.model, apiStyle: "openai_compatible" },
       messages,

@@ -30,7 +30,7 @@ const DATA_DIR = path.join(homedir(), ".spectyra", "companion");
 
 const _defaults = defaultAliasModels("openai");
 let config: AppConfig = {
-  runMode: "observe",
+  runMode: "on",
   telemetryMode: "local",
   promptSnapshots: "local_only",
   provider: "openai",

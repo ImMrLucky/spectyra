@@ -11,6 +11,8 @@ export interface AdminOrg {
   stripe_customer_id: string | null;
   subscription_status: 'trial' | 'active' | 'canceled' | 'past_due';
   sdk_access_enabled: boolean;
+  /** Org-wide API/chat bypass (set from superuser console). */
+  platform_exempt?: boolean;
   stats?: {
     projects: number;
     api_keys: number;

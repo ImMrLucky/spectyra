@@ -10,28 +10,34 @@ import path from "path";
 import { homedir } from "os";
 import type { SavingsReport, PromptComparison } from "@spectyra/core-types";
 
-const DATA_DIR = path.join(homedir(), ".spectyra", "companion");
+/** Canonical companion data directory (~/.spectyra/companion). */
+export const COMPANION_DATA_DIR = path.join(homedir(), ".spectyra", "companion");
 
 async function ensureDir(): Promise<void> {
-  await fs.mkdir(DATA_DIR, { recursive: true });
+  await fs.mkdir(COMPANION_DATA_DIR, { recursive: true });
+}
+
+/** JSONL of normalized SpectyraEvent (Phase 2 event spine persistence). */
+export function companionEventsJsonlPath(): string {
+  return path.join(COMPANION_DATA_DIR, "events.jsonl");
 }
 
 export async function saveRun(report: SavingsReport): Promise<void> {
   await ensureDir();
-  const file = path.join(DATA_DIR, "runs.jsonl");
+  const file = path.join(COMPANION_DATA_DIR, "runs.jsonl");
   await fs.appendFile(file, JSON.stringify(report) + "\n", "utf-8");
 }
 
 export async function savePromptComparison(runId: string, comparison: PromptComparison): Promise<void> {
   await ensureDir();
-  const dir = path.join(DATA_DIR, "comparisons");
+  const dir = path.join(COMPANION_DATA_DIR, "comparisons");
   await fs.mkdir(dir, { recursive: true });
   await fs.writeFile(path.join(dir, `${runId}.json`), JSON.stringify(comparison, null, 2), "utf-8");
 }
 
 export async function getRuns(limit = 50): Promise<SavingsReport[]> {
   await ensureDir();
-  const file = path.join(DATA_DIR, "runs.jsonl");
+  const file = path.join(COMPANION_DATA_DIR, "runs.jsonl");
   try {
     const raw = await fs.readFile(file, "utf-8");
     const lines = raw.trim().split("\n").filter(Boolean);
@@ -42,7 +48,7 @@ export async function getRuns(limit = 50): Promise<SavingsReport[]> {
 }
 
 export async function getPromptComparison(runId: string): Promise<PromptComparison | null> {
-  const file = path.join(DATA_DIR, "comparisons", `${runId}.json`);
+  const file = path.join(COMPANION_DATA_DIR, "comparisons", `${runId}.json`);
   try {
     const raw = await fs.readFile(file, "utf-8");
     return JSON.parse(raw) as PromptComparison;

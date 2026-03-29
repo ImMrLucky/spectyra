@@ -1,15 +1,21 @@
 <ng-container *ngIf="isDesktop; else webShell">
   <div class="desktop-app">
     <mat-toolbar color="primary" class="desktop-toolbar">
-      <h1 routerLink="/desktop/dashboard" class="logo">Spectyra</h1>
+      <h1 routerLink="/desktop/live" class="logo">Spectyra</h1>
       <span class="toolbar-spacer"></span>
+      <a mat-button routerLink="/desktop/live" routerLinkActive="active">Live</a>
+      <a mat-button routerLink="/desktop/sessions" routerLinkActive="active">Sessions</a>
+      <a mat-button routerLink="/desktop/history" routerLinkActive="active">History</a>
+      <a mat-button routerLink="/desktop/compare" routerLinkActive="active">Compare</a>
+      <a mat-button routerLink="/desktop/agent-companion" routerLinkActive="active">Agent Companion</a>
+      <a mat-button routerLink="/integrations" routerLinkActive="active">Integrations</a>
+      <a mat-button routerLink="/desktop/security" routerLinkActive="active">Security</a>
+      <a mat-button routerLink="/desktop/settings" routerLinkActive="active">Settings</a>
       <a mat-button routerLink="/desktop/dashboard" routerLinkActive="active">Dashboard</a>
-      <a mat-button routerLink="/desktop/live-savings" routerLinkActive="active">Live savings</a>
       <a mat-button routerLink="/desktop/onboarding" routerLinkActive="active">Setup</a>
       <a mat-button routerLink="/desktop/openclaw" routerLinkActive="active">OpenClaw</a>
       <a mat-button routerLink="/desktop/runs" routerLinkActive="active">Runs</a>
       <a mat-button routerLink="/login" routerLinkActive="active">Sign in</a>
-      <a mat-button routerLink="/integrations" routerLinkActive="active">Integrations</a>
     </mat-toolbar>
     <main class="desktop-main">
       <router-outlet></router-outlet>
@@ -63,7 +69,7 @@
             <ng-container *ngFor="let item of navItems">
               <a
                 mat-list-item
-                *ngIf="(!item.requiresAuth || isAuthenticated) && (!item.adminOnly || showAdminLink)"
+                *ngIf="(!item.requiresAuth || isAuthenticated) && (!item.adminOnly || showAdminLink) && (!item.superuserOnly || showSuperuserLink)"
                 [routerLink]="item.route"
                 routerLinkActive="active"
                 [routerLinkActiveOptions]="{ exact: item.route === '/overview' }"

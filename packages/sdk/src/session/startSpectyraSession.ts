@@ -57,7 +57,7 @@ export function startSpectyraSession(
   config: SpectyraConfig,
   options: StartSpectyraSessionOptions = {},
 ): SpectyraSessionHandle {
-  const runMode = config.runMode ?? "observe";
+  const runMode = config.runMode ?? "on";
   const telemetryMode = config.telemetry?.mode ?? "local";
   const promptSnapshotMode = config.promptSnapshots ?? "local_only";
 

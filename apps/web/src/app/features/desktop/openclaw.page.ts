@@ -1,74 +1,67 @@
 import { Component, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
+import { RouterModule } from '@angular/router';
 import { MatCardModule } from '@angular/material/card';
 import { MatButtonModule } from '@angular/material/button';
+import { MatExpansionModule } from '@angular/material/expansion';
 import { DesktopBridgeService } from '../../core/desktop/desktop-bridge.service';
 import { environment } from '../../../environments/environment';
 
 @Component({
   selector: 'app-desktop-openclaw',
   standalone: true,
-  imports: [CommonModule, MatCardModule, MatButtonModule],
-  template: `
-    <div class="wrap">
-      <h1>Use with OpenClaw</h1>
-      <p class="sub">
-        Point OpenClaw at your Local Companion using <code>models.providers</code> and this base URL:
-        <code>{{ baseV1 }}</code>
-      </p>
-
-      <mat-card class="card">
-        <mat-card-title>Status</mat-card-title>
-        <mat-card-content>
-          <p><strong>Companion:</strong> {{ health?.['status'] || 'offline' }}</p>
-          <p><strong>Aliases:</strong> <code>spectyra/smart</code>, <code>spectyra/fast</code> — routing profiles to your chosen provider in Spectyra, not separate vendors.</p>
-        </mat-card-content>
-        <mat-card-actions align="end">
-          <button mat-raised-button color="primary" (click)="test()">Test connection</button>
-          <button mat-button (click)="copy()">Copy config JSON</button>
-        </mat-card-actions>
-      </mat-card>
-
-      <mat-card class="card">
-        <mat-card-title>Example config</mat-card-title>
-        <mat-card-content>
-          <pre class="pre">{{ json }}</pre>
-        </mat-card-content>
-      </mat-card>
-
-      <mat-card class="card">
-        <mat-card-title>Troubleshooting</mat-card-title>
-        <mat-card-content>
-          <ul class="list">
-            <li>Ensure the Spectyra app is running and the companion process started.</li>
-            <li>Match your provider API key to the upstream provider in Settings / onboarding.</li>
-            <li>Run <code>openclaw models list</code> and confirm <code>spectyra/smart</code> appears.</li>
-          </ul>
-        </mat-card-content>
-      </mat-card>
-
-      <p class="msg" *ngIf="message">{{ message }}</p>
-    </div>
-  `,
+  imports: [CommonModule, RouterModule, MatCardModule, MatButtonModule, MatExpansionModule],
+  templateUrl: './openclaw/openclaw.page.html',
   styles: [
     `
-      .wrap { max-width: 800px; margin: 0 auto; padding: 24px; }
-      h1 { margin: 0 0 8px; }
-      .sub { line-height: 1.6; color: #555; margin-bottom: 16px; }
-      .sub code { background: #f5f5f5; padding: 2px 6px; }
-      .card { margin-bottom: 16px; }
-      .pre {
-        background: #1e1e1e;
-        color: #e0e0e0;
-        padding: 12px;
-        border-radius: 8px;
+      .oc-wrap {
+        max-width: 880px;
+        margin: 0 auto;
+        padding: 24px 20px 48px;
+      }
+      .oc-hero h1 {
+        margin: 0 0 8px;
+        font-size: 1.75rem;
+      }
+      .oc-lead {
+        color: #64748b;
+        line-height: 1.55;
+        margin-bottom: 20px;
+      }
+      .oc-acc {
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+      }
+      .oc-steps,
+      .oc-cmds {
+        line-height: 1.65;
+        color: #334155;
+      }
+      .oc-pre {
+        background: #0f172a;
+        color: #e2e8f0;
+        padding: 14px;
+        border-radius: 10px;
         overflow: auto;
         font-size: 12px;
         white-space: pre-wrap;
         word-break: break-word;
       }
-      .list { line-height: 1.6; }
-      .msg { color: #1565c0; }
+      .oc-muted {
+        color: #64748b;
+        font-size: 0.9rem;
+      }
+      .oc-msg {
+        margin-top: 10px;
+        color: #0369a1;
+      }
+      code {
+        background: #f1f5f9;
+        padding: 2px 6px;
+        border-radius: 4px;
+        font-size: 0.85em;
+      }
     `,
   ],
 })

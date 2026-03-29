@@ -1,0 +1,21 @@
+{
+  "name": "@spectyra/execution-graph",
+  "version": "0.1.0",
+  "description": "Workflow execution graph: steps, tools, edges, usefulness scoring (Phase 3 moat). Provider-agnostic.",
+  "type": "module",
+  "main": "./src/index.ts",
+  "types": "./src/index.ts",
+  "files": ["src"],
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "test:execution-graph": "tsx src/__tests__/execution-graph.test.ts"
+  },
+  "dependencies": {
+    "@spectyra/event-core": "workspace:*"
+  },
+  "devDependencies": {
+    "tsx": "^4.7.1",
+    "typescript": "~5.4.0"
+  },
+  "license": "MIT"
+}

@@ -103,7 +103,7 @@ import { createSpectyra } from "@spectyra/sdk";
 import { createOpenAIAdapter } from "@spectyra/sdk/adapters/openai";
 import OpenAI from "openai";
 
-const spectyra = createSpectyra({ runMode: "observe" }); // or "on"
+const spectyra = createSpectyra({ runMode: "on" }); // or "observe" for dry-run / projected savings
 const openai = new OpenAI();
 
 const result = await spectyra.complete(

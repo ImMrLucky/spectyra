@@ -12,6 +12,7 @@
 import type {
   CanonicalRequest,
   FeatureDetectionResult,
+  GlobalLearningSnapshot,
   LearningProfile,
   OptimizationPipelineResult,
   TransformRiskLevel,
@@ -27,6 +28,7 @@ export interface OptimizeClientInput {
   request: CanonicalRequest;
   features: FeatureDetectionResult[];
   profile?: LearningProfile;
+  globalLearningSnapshot?: GlobalLearningSnapshot;
 }
 
 /**

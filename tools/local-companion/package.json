@@ -30,7 +30,11 @@
   },
   "dependencies": {
     "@spectyra/event-adapters": "workspace:*",
+    "@spectyra/learning": "workspace:*",
     "@spectyra/event-core": "workspace:*",
+    "@spectyra/execution-graph": "workspace:*",
+    "@spectyra/state-delta": "workspace:*",
+    "@spectyra/workflow-policy": "workspace:*",
     "@spectyra/analytics-core": "workspace:*",
     "@spectyra/shared": "workspace:*",
     "@spectyra/core-types": "workspace:*",

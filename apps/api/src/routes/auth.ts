@@ -20,7 +20,14 @@ import {
   updateOrgName,
   getOrgProjects,
 } from "../services/storage/orgsRepo.js";
-import { requireSpectyraApiKey, optionalProviderKey, requireUserSession, requireOrgMembership, type AuthenticatedRequest } from "../middleware/auth.js";
+import {
+  requireSpectyraApiKey,
+  optionalProviderKey,
+  requireUserSession,
+  requireOrgMembership,
+  billingAccessOpts,
+  type AuthenticatedRequest,
+} from "../middleware/auth.js";
 import { query, queryOne } from "../services/storage/db.js";
 import { safeLog } from "../utils/redaction.js";
 import { audit } from "../services/audit/audit.js";
@@ -355,9 +362,7 @@ authRouter.get("/me", async (req: AuthenticatedRequest, res) => {
             // Get projects for this org
             const projects = await getOrgProjects(org.id);
 
-            const hasAccess = hasActiveAccess(org, {
-              userEmail: req.auth?.email,
-            });
+            const hasAccess = hasActiveAccess(org, billingAccessOpts(req));
             const trialEnd = org.trial_ends_at ? new Date(org.trial_ends_at) : null;
             const isTrialActive = trialEnd ? trialEnd > new Date() : false;
 
@@ -371,6 +376,8 @@ authRouter.get("/me", async (req: AuthenticatedRequest, res) => {
               projects: projects,
               has_access: hasAccess,
               trial_active: isTrialActive,
+              platform_role: req.auth?.platformRole ?? null,
+              org_platform_exempt: !!org.platform_exempt,
               desktop_downloads: desktopDownloadsPayload(),
             });
             resolve();

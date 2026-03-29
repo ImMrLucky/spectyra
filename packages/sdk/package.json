@@ -12,7 +12,8 @@
   "scripts": {
     "build": "tsc",
     "dev": "tsc --watch",
-    "prepublishOnly": "npm run build"
+    "prepublishOnly": "npm run build",
+    "test:sdk-moat-summaries": "tsx src/__tests__/sdkMoatSummaries.test.ts"
   },
   "keywords": [
     "llm",
@@ -31,6 +32,9 @@
     "directory": "packages/sdk"
   },
   "dependencies": {
+    "@spectyra/learning": "workspace:*",
+    "@spectyra/execution-graph": "workspace:*",
+    "@spectyra/state-delta": "workspace:*",
     "@spectyra/event-adapters": "workspace:*",
     "@spectyra/event-core": "workspace:*",
     "@spectyra/analytics-core": "workspace:*",
@@ -41,6 +45,7 @@
   },
   "devDependencies": {
     "@types/node": "^20.0.0",
+    "tsx": "^4.7.1",
     "typescript": "~5.4.0"
   }
 }

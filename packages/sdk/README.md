@@ -60,6 +60,27 @@ Your code → spectyra.complete() → local optimization → provider adapter �
 
 ---
 
+## Moat analytics (Phases 3–4)
+
+The SDK emits the same normalized **`SpectyraEvent`** stream as Local Companion (`sdkEventEngine`). You can build **execution-graph** and **state-delta** summaries in-process (equivalent to `GET /v1/analytics/execution-graph/summary` and `GET /v1/analytics/state-delta/summary` on the companion):
+
+```ts
+import {
+  moatPhase34SummariesFromSdkBuffer,
+  moatPhase34SummariesFromEvents,
+} from "@spectyra/sdk";
+import type { SpectyraEvent } from "@spectyra/event-core";
+
+const fromBuffer = moatPhase34SummariesFromSdkBuffer();
+console.log(fromBuffer.executionGraph.stepOrder, fromBuffer.stateDelta.transitionCount);
+
+// Or from any `SpectyraEvent[]`:
+const events: SpectyraEvent[] = [/* ... */];
+const custom = moatPhase34SummariesFromEvents(events);
+```
+
+---
+
 ## Run Modes
 
 | Mode | Optimization | Provider Call | Use Case |
@@ -69,7 +90,8 @@ Your code → spectyra.complete() → local optimization → provider adapter �
 | `on` | Applied locally | Direct (optimized messages) | Production — real savings |
 
 ```ts
-const spectyra = createSpectyra({ runMode: "observe" }); // safe default
+const spectyra = createSpectyra({ runMode: "on" }); // default when omitted
+// const spectyra = createSpectyra({ runMode: "observe" }); // dry-run / projected savings
 ```
 
 ---

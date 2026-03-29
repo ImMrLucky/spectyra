@@ -9,12 +9,14 @@
   "files": ["src"],
   "scripts": {
     "typecheck": "tsc --noEmit",
+    "test:preserve-smoke": "tsx src/__tests__/preserve-core-smoke.test.ts",
+    "test:preserve-context-compiler": "tsx src/__tests__/preserve-context-compiler.test.ts",
     "build": "tsc --outDir dist --declaration",
     "build:minify": "tsc --outDir dist --declaration && node -e \"/* minification step — add terser/esbuild in CI */\""
   },
   "dependencies": {
     "@spectyra/canonical-model": "workspace:*"
   },
-  "devDependencies": { "typescript": "~5.4.0" },
+  "devDependencies": { "tsx": "^4.7.1", "typescript": "~5.4.0" },
   "license": "UNLICENSED"
 }

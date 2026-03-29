@@ -6,11 +6,24 @@
   "main": "./src/index.ts",
   "types": "./src/index.ts",
   "files": ["src"],
-  "scripts": { "typecheck": "tsc --noEmit" },
+  "exports": {
+    ".": {
+      "types": "./src/index.ts",
+      "default": "./src/index.ts"
+    },
+    "./local-persistence": {
+      "types": "./src/local-persistence.ts",
+      "default": "./src/local-persistence.ts"
+    }
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "test:local-persistence": "tsx src/__tests__/local-persistence.test.ts"
+  },
   "dependencies": {
     "@spectyra/analytics-core": "workspace:*",
     "@spectyra/core-types": "workspace:*"
   },
-  "devDependencies": { "typescript": "~5.4.0" },
+  "devDependencies": { "tsx": "^4.7.1", "typescript": "~5.4.0" },
   "license": "MIT"
 }

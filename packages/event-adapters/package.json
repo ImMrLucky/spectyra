@@ -6,11 +6,14 @@
   "main": "./src/index.ts",
   "types": "./src/index.ts",
   "files": ["src"],
-  "scripts": { "typecheck": "tsc --noEmit" },
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "test:ingestion-pipeline": "tsx src/__tests__/ingestion-pipeline.test.ts"
+  },
   "dependencies": {
     "@spectyra/core-types": "workspace:*",
     "@spectyra/event-core": "workspace:*"
   },
-  "devDependencies": { "typescript": "~5.4.0" },
+  "devDependencies": { "tsx": "^4.7.1", "typescript": "~5.4.0" },
   "license": "MIT"
 }

@@ -8,7 +8,7 @@
  * import { createSpectyra, createOpenAIAdapter } from '@spectyra/sdk';
  *
  * const spectyra = createSpectyra({
- *   runMode: "observe",
+ *   runMode: "on",
  *   licenseKey: process.env.SPECTYRA_LICENSE_KEY,
  * });
  *
@@ -42,6 +42,19 @@ export {
   emitSdkEventsForStandaloneComplete,
 } from "./events/sdkEvents.js";
 export type { SpectyraEvent, SpectyraEventType } from "@spectyra/event-core";
+
+// Learning (Phase 5) — optional profile on `SpectyraConfig`
+export { createEmptyProfile, applyUpdate } from "@spectyra/learning";
+export type { LearningProfile, GlobalLearningSnapshot } from "@spectyra/canonical-model";
+
+// Moat Phase 3–4 summaries from the SDK event buffer (parity with Local Companion HTTP summaries)
+export {
+  moatPhase34SummariesFromEvents,
+  moatPhase34SummariesFromSdkBuffer,
+} from "./analytics/sdkMoatSummaries.js";
+export type { SdkMoatPhase34Payload } from "./analytics/sdkMoatSummaries.js";
+export type { ExecutionGraphSummaryPayload } from "@spectyra/execution-graph";
+export type { StateDeltaAnalyticsSummary } from "@spectyra/state-delta";
 
 // Provider adapters (direct-provider, no Spectyra cloud)
 export { createOpenAIAdapter } from "./adapters/openai.js";

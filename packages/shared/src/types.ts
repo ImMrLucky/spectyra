@@ -46,6 +46,8 @@ export interface Org {
   cancel_at_period_end?: boolean;
   subscription_status: "trial" | "active" | "canceled" | "past_due" | "paused";
   sdk_access_enabled: boolean;
+  /** Superuser-granted: org always has access (trial/subscription checks skipped). */
+  platform_exempt?: boolean;
 }
 
 /**

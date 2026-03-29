@@ -212,4 +212,206 @@ if (webAppFiles.length > 0) {
   }
 }
 
+// ── Test: analytics-core stays summary-first / provider-agnostic (Phase 1) ───
+
+const analyticsSrcDir = join(packagesDir, "analytics-core", "src");
+let analyticsFiles: string[] = [];
+try {
+  analyticsFiles = collectTsFiles(analyticsSrcDir).filter((f) => !f.includes("__tests__"));
+} catch {
+  /* */
+}
+
+if (analyticsFiles.length > 0) {
+  const analyticsVendor = findViolations(analyticsFiles);
+  if (analyticsVendor.length > 0) {
+    console.error("\n❌ ANTI-COUPLING VIOLATION: analytics-core references vendor/tool names");
+    for (const v of analyticsVendor) {
+      console.error(`  ${v.file}:${v.line} — vendor "${v.vendor}": ${v.match}`);
+    }
+    process.exit(1);
+  }
+  const analyticsImports = findImportViolations(analyticsFiles, [
+    "@spectyra/adapters",
+    "@spectyra/event-adapters",
+    "@spectyra/optimization-engine",
+    "@spectyra/optimizer-algorithms",
+  ]);
+  if (analyticsImports.length > 0) {
+    console.error("\n❌ ANTI-COUPLING VIOLATION: analytics-core imports forbidden higher-layer packages");
+    for (const v of analyticsImports) {
+      console.error(`  ${v.file}:${v.line}: ${v.match}`);
+    }
+    process.exit(1);
+  }
+}
+
+// ── Test: event-core stays tool-agnostic — no adapter packages (Phase 2) ──────
+
+const eventCoreSrcDir = join(packagesDir, "event-core", "src");
+let eventCoreFiles: string[] = [];
+try {
+  eventCoreFiles = collectTsFiles(eventCoreSrcDir).filter((f) => !f.includes("__tests__"));
+} catch {
+  /* */
+}
+
+if (eventCoreFiles.length > 0) {
+  const eventVendor = findViolations(eventCoreFiles);
+  if (eventVendor.length > 0) {
+    console.error("\n❌ ANTI-COUPLING VIOLATION: event-core references vendor/tool names");
+    for (const v of eventVendor) {
+      console.error(`  ${v.file}:${v.line} — vendor "${v.vendor}": ${v.match}`);
+    }
+    process.exit(1);
+  }
+  const eventImports = findImportViolations(eventCoreFiles, [
+    "@spectyra/adapters",
+    "@spectyra/event-adapters",
+  ]);
+  if (eventImports.length > 0) {
+    console.error("\n❌ ANTI-COUPLING VIOLATION: event-core imports tool/provider adapter packages");
+    for (const v of eventImports) {
+      console.error(`  ${v.file}:${v.line}: ${v.match}`);
+    }
+    process.exit(1);
+  }
+}
+
+// ── Test: execution-graph stays tool-agnostic (Phase 3) ───────────────────────
+
+const execGraphSrcDir = join(packagesDir, "execution-graph", "src");
+let execGraphFiles: string[] = [];
+try {
+  execGraphFiles = collectTsFiles(execGraphSrcDir).filter((f) => !f.includes("__tests__"));
+} catch {
+  /* package optional in shallow checkouts */
+}
+
+if (execGraphFiles.length > 0) {
+  const egVendor = findViolations(execGraphFiles);
+  if (egVendor.length > 0) {
+    console.error("\n❌ ANTI-COUPLING VIOLATION: execution-graph references vendor/tool names");
+    for (const v of egVendor) {
+      console.error(`  ${v.file}:${v.line} — vendor "${v.vendor}": ${v.match}`);
+    }
+    process.exit(1);
+  }
+  const egImports = findImportViolations(execGraphFiles, [
+    "@spectyra/adapters",
+    "@spectyra/event-adapters",
+    "@spectyra/optimization-engine",
+    "@spectyra/optimizer-algorithms",
+  ]);
+  if (egImports.length > 0) {
+    console.error("\n❌ ANTI-COUPLING VIOLATION: execution-graph imports forbidden packages");
+    for (const v of egImports) {
+      console.error(`  ${v.file}:${v.line}: ${v.match}`);
+    }
+    process.exit(1);
+  }
+}
+
+// ── Test: state-delta stays tool-agnostic (Phase 4) ───────────────────────────
+
+const stateDeltaSrcDir = join(packagesDir, "state-delta", "src");
+let stateDeltaFiles: string[] = [];
+try {
+  stateDeltaFiles = collectTsFiles(stateDeltaSrcDir).filter((f) => !f.includes("__tests__"));
+} catch {
+  /* */
+}
+
+if (stateDeltaFiles.length > 0) {
+  const sdVendor = findViolations(stateDeltaFiles);
+  if (sdVendor.length > 0) {
+    console.error("\n❌ ANTI-COUPLING VIOLATION: state-delta references vendor/tool names");
+    for (const v of sdVendor) {
+      console.error(`  ${v.file}:${v.line} — vendor "${v.vendor}": ${v.match}`);
+    }
+    process.exit(1);
+  }
+  const sdImports = findImportViolations(stateDeltaFiles, [
+    "@spectyra/adapters",
+    "@spectyra/event-adapters",
+    "@spectyra/optimization-engine",
+    "@spectyra/optimizer-algorithms",
+  ]);
+  if (sdImports.length > 0) {
+    console.error("\n❌ ANTI-COUPLING VIOLATION: state-delta imports forbidden packages");
+    for (const v of sdImports) {
+      console.error(`  ${v.file}:${v.line}: ${v.match}`);
+    }
+    process.exit(1);
+  }
+}
+
+// ── Test: learning stays tool-agnostic (Phase 5) ───────────────────────────────
+
+const learningSrcDir = join(packagesDir, "learning", "src");
+let learningFiles: string[] = [];
+try {
+  learningFiles = collectTsFiles(learningSrcDir).filter((f) => !f.includes("__tests__"));
+} catch {
+  /* */
+}
+
+if (learningFiles.length > 0) {
+  const lrVendor = findViolations(learningFiles);
+  if (lrVendor.length > 0) {
+    console.error("\n❌ ANTI-COUPLING VIOLATION: learning references vendor/tool names");
+    for (const v of lrVendor) {
+      console.error(`  ${v.file}:${v.line} — vendor "${v.vendor}": ${v.match}`);
+    }
+    process.exit(1);
+  }
+  const lrImports = findImportViolations(learningFiles, [
+    "@spectyra/adapters",
+    "@spectyra/event-adapters",
+    "@spectyra/optimization-engine",
+    "@spectyra/optimizer-algorithms",
+  ]);
+  if (lrImports.length > 0) {
+    console.error("\n❌ ANTI-COUPLING VIOLATION: learning imports forbidden packages");
+    for (const v of lrImports) {
+      console.error(`  ${v.file}:${v.line}: ${v.match}`);
+    }
+    process.exit(1);
+  }
+}
+
+// ── Test: workflow-policy stays tool-agnostic (Phase 6) ───────────────────────
+
+const workflowPolicySrcDir = join(packagesDir, "workflow-policy", "src");
+let workflowPolicyFiles: string[] = [];
+try {
+  workflowPolicyFiles = collectTsFiles(workflowPolicySrcDir).filter((f) => !f.includes("__tests__"));
+} catch {
+  /* */
+}
+
+if (workflowPolicyFiles.length > 0) {
+  const wpVendor = findViolations(workflowPolicyFiles);
+  if (wpVendor.length > 0) {
+    console.error("\n❌ ANTI-COUPLING VIOLATION: workflow-policy references vendor/tool names");
+    for (const v of wpVendor) {
+      console.error(`  ${v.file}:${v.line} — vendor "${v.vendor}": ${v.match}`);
+    }
+    process.exit(1);
+  }
+  const wpImports = findImportViolations(workflowPolicyFiles, [
+    "@spectyra/adapters",
+    "@spectyra/event-adapters",
+    "@spectyra/optimization-engine",
+    "@spectyra/optimizer-algorithms",
+  ]);
+  if (wpImports.length > 0) {
+    console.error("\n❌ ANTI-COUPLING VIOLATION: workflow-policy imports forbidden packages");
+    for (const v of wpImports) {
+      console.error(`  ${v.file}:${v.line}: ${v.match}`);
+    }
+    process.exit(1);
+  }
+}
+
 console.log("✅ All anti-coupling + IP protection checks passed.");
