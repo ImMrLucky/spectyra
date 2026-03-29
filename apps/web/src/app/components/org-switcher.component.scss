@@ -7,22 +7,22 @@
   align-items: center;
   gap: 8px;
   padding: 6px 12px;
-  background: rgba(55, 138, 221, 0.08);
-  border: 1px solid var(--border);
+  background: rgba(255, 255, 255, 0.1);
+  border: 1px solid rgba(255, 255, 255, 0.2);
   border-radius: var(--radius-input);
   cursor: pointer;
   transition: background 0.15s ease, border-color 0.15s ease;
 
   &:hover {
-    background: rgba(55, 138, 221, 0.14);
-    border-color: var(--border-bright);
+    background: rgba(255, 255, 255, 0.15);
+    border-color: rgba(255, 255, 255, 0.35);
   }
 }
 
 .org-name {
   font-weight: 500;
   font-size: 14px;
-  color: var(--text-primary);
+  color: #fff;
 }
 
 .org-status {
@@ -43,13 +43,13 @@
   &.trial {
     background: var(--spectyra-amber-pale);
     border: 1px solid var(--spectyra-amber-border);
-    color: var(--spectyra-amber-light);
+    color: var(--spectyra-amber);
   }
 }
 
 .dropdown-arrow {
   font-size: 10px;
-  color: var(--text-muted);
+  color: rgba(255, 255, 255, 0.6);
 }
 
 .dropdown {

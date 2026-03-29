@@ -28,18 +28,19 @@ body {
   -webkit-font-smoothing: antialiased;
 }
 
-/* ─── Angular Material overrides ─── */
+/* ─── Angular Material overrides (web: light) ─── */
 .mat-toolbar.mat-primary,
 .mat-mdc-raised-button.mat-primary,
 .mat-toolbar {
-  background-color: var(--bg-panel) !important;
-  color: var(--text-primary) !important;
+  background-color: var(--spectyra-navy) !important;
+  color: #fff !important;
 }
 
 .mat-sidenav,
 .mat-drawer {
   background-color: var(--bg-panel) !important;
   color: var(--text-secondary) !important;
+  border-right: 1px solid var(--border);
 }
 
 .mat-sidenav-content,
@@ -50,6 +51,16 @@ body {
 
 .mat-mdc-list-item {
   color: var(--text-secondary) !important;
+}
+
+/* ─── Desktop-only Material overrides (dark) ─── */
+.desktop-app {
+  .mat-toolbar.mat-primary,
+  .mat-mdc-raised-button.mat-primary,
+  .mat-toolbar {
+    background-color: var(--bg-panel) !important;
+    color: var(--text-primary) !important;
+  }
 }
 
 /* ─── Container ─── */
@@ -206,7 +217,7 @@ body {
 .badge-trial {
   background: var(--spectyra-amber-pale);
   border: 1px solid var(--spectyra-amber-border);
-  color: var(--spectyra-amber-light);
+  color: var(--color-amber-text);
 }
 
 .badge-observe {
@@ -312,14 +323,21 @@ body {
 /* ─── Utility ─── */
 .font-mono  { font-family: var(--font-mono); }
 .font-display { font-family: var(--font-display); }
-.text-teal  { color: var(--spectyra-teal-light); }
-.text-amber { color: var(--spectyra-amber-light); }
+.text-teal  { color: var(--color-savings); }
+.text-amber { color: var(--color-amber-text); }
 .text-muted { color: var(--text-muted); }
 
-/* ─── Scrollbar (subtle, dark) ─── */
+/* ─── Scrollbar ─── */
 ::-webkit-scrollbar { width: 6px; height: 6px; }
 ::-webkit-scrollbar-track { background: transparent; }
 ::-webkit-scrollbar-thumb {
   background: var(--border-bright);
   border-radius: 3px;
+}
+
+/* ─── Links (web light theme) ─── */
+.app-main a:not(.btn):not(.nav-item):not(.action-card) {
+  color: var(--spectyra-blue);
+  text-decoration: none;
+  &:hover { text-decoration: underline; }
 }

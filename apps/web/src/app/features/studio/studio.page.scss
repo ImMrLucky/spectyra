@@ -30,8 +30,8 @@
 .security-badge {
   display: inline-flex;
   align-items: center;
-  background: rgba(29, 158, 117, 0.1);
-  color: var(--spectyra-teal-light);
+  background: var(--spectyra-teal-pale);
+  color: var(--spectyra-teal);
   padding: 2px 8px;
   border-radius: var(--radius-chip);
   border: 1px solid var(--spectyra-teal-border);
@@ -320,7 +320,7 @@
   font-family: var(--font-mono);
   font-size: 26px;
   font-weight: 500;
-  color: var(--spectyra-teal-light);
+  color: var(--color-savings);
 }
 
 .savings-label {
@@ -507,13 +507,13 @@
   padding: 2px 8px;
   border-radius: var(--radius-chip);
   border: 1px solid var(--spectyra-teal-border);
-  background: rgba(29, 158, 117, 0.08);
+  background: var(--spectyra-teal-pale);
   font-family: var(--font-mono);
   font-size: 10px;
   font-weight: 500;
   text-transform: uppercase;
   letter-spacing: 0.04em;
-  color: var(--spectyra-teal-light);
+  color: var(--spectyra-teal);
 }
 
 .no-transforms {
