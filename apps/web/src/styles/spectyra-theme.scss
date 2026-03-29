@@ -27,19 +27,19 @@
 
   /* ─── Danger ─── */
   --color-danger:         #DC3545;
-  --color-danger-bg:      #2a1215;
-  --color-danger-border:  #6b2029;
+  --color-danger-bg:      #fdf2f2;
+  --color-danger-border:  #f5c6cb;
 
-  /* ─── Dark-mode surfaces (default) ─── */
-  --bg:                   #0a0f1a;
-  --bg-panel:             #0e1521;
-  --bg-card:              #121c2e;
-  --bg-elevated:          #162236;
-  --border:               rgba(55,138,221,0.12);
-  --border-bright:        rgba(55,138,221,0.25);
-  --text-primary:         #e8f1fb;
-  --text-secondary:       #7a9fc0;
-  --text-muted:           #3d5a78;
+  /* ─── Light-mode surfaces (web app default) ─── */
+  --bg:                   #f8fafc;
+  --bg-panel:             #ffffff;
+  --bg-card:              #ffffff;
+  --bg-elevated:          #f1f5f9;
+  --border:               #e2e8f0;
+  --border-bright:        #cbd5e1;
+  --text-primary:         #0f172a;
+  --text-secondary:       #475569;
+  --text-muted:           #94a3b8;
 
   /* ─── Fonts ─── */
   --font-display:         'Syne', sans-serif;
@@ -51,12 +51,36 @@
   --radius-input:         8px;
   --radius-card:          12px;
 
+  /* ─── Semantic text colors (contrast-safe for surfaces) ─── */
+  --color-savings:        #1D9E75;
+  --color-amber-text:     #BA7517;
+
   /* ─── Status dots ─── */
   --dot-healthy:          #1D9E75;
   --dot-warning:          #BA7517;
   --dot-running:          #378ADD;
-  --dot-offline:          #444441;
+  --dot-offline:          #94a3b8;
   --dot-error:            var(--color-danger);
+}
+
+/* ─── Desktop dark-mode surface overrides ─── */
+.desktop-app {
+  --color-danger-bg:      #2a1215;
+  --color-danger-border:  #6b2029;
+
+  --bg:                   #0a0f1a;
+  --bg-panel:             #0e1521;
+  --bg-card:              #121c2e;
+  --bg-elevated:          #162236;
+  --border:               rgba(55,138,221,0.12);
+  --border-bright:        rgba(55,138,221,0.25);
+  --text-primary:         #e8f1fb;
+  --text-secondary:       #7a9fc0;
+  --text-muted:           #3d5a78;
+  --dot-offline:          #444441;
+
+  --color-savings:        #5DCAA5;
+  --color-amber-text:     #EF9F27;
 }
 
 @keyframes pulse {
