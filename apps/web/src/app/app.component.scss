@@ -8,34 +8,84 @@
   background: var(--bg);
 }
 
-.desktop-toolbar {
-  background: var(--bg-panel) !important;
+/* ── Titlebar (38px, draggable) ── */
+.dt-titlebar {
+  display: flex;
+  align-items: center;
+  height: 38px;
+  padding: 0 14px;
+  background: var(--bg-panel);
+  -webkit-app-region: drag;
+  user-select: none;
+}
+
+.dt-brand {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  -webkit-app-region: no-drag;
+}
+
+.dt-logo-mark {
+  flex-shrink: 0;
+}
+
+.dt-wordmark {
+  font-family: var(--font-display);
+  font-size: 14px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  color: var(--spectyra-blue-pale);
+  cursor: pointer;
+  text-decoration: none;
+}
+
+.dt-spacer { flex: 1; }
+
+/* ── Nav tabs (36px) ── */
+.dt-nav {
+  display: flex;
+  align-items: center;
+  height: 36px;
+  padding: 0 14px;
+  gap: 2px;
+  background: var(--bg-panel);
   border-bottom: 1px solid var(--border);
+  overflow-x: auto;
 
-  .toolbar-spacer { flex: 1; }
+  &::-webkit-scrollbar { display: none; }
+}
 
-  .logo {
-    margin: 0;
-    font-family: var(--font-display);
-    font-size: 1.25rem;
-    font-weight: 700;
-    letter-spacing: 0.02em;
-    cursor: pointer;
-    color: var(--spectyra-blue-pale);
-  }
+.dt-nav-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  height: 36px;
+  padding: 0 10px;
+  font-family: var(--font-body);
+  font-size: 12px;
+  font-weight: 400;
+  color: var(--text-muted);
+  text-decoration: none;
+  white-space: nowrap;
+  border-bottom: 2px solid transparent;
+  transition: color 0.15s ease, border-color 0.15s ease;
 
-  a[mat-button] {
-    color: var(--text-muted);
-    font-family: var(--font-body);
+  &:hover { color: var(--text-secondary); }
+
+  &.active {
+    color: var(--spectyra-blue);
+    border-bottom-color: var(--spectyra-blue);
     font-weight: 500;
-    transition: color 0.15s ease;
-
-    &:hover { color: var(--text-secondary); }
-    &.active {
-      color: var(--text-primary);
-      border-bottom: 2px solid var(--spectyra-blue);
-    }
   }
+}
+
+.dt-live-dot {
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: var(--spectyra-teal);
+  animation: pulse 2s ease-in-out infinite;
 }
 
 .desktop-main {

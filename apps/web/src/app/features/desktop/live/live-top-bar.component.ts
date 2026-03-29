@@ -1,124 +1,138 @@
 import { Component, Input } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { MatIconModule } from '@angular/material/icon';
 import type { LiveProductTopline } from '../../../core/agent-companion/trial-license-ui.service';
 import type { SessionAnalyticsRecord } from '@spectyra/analytics-core';
 
 const SOURCE_LABELS: Record<string, string> = {
-  'sdk-wrapper': 'SDK App',
-  'local-companion': 'Local Companion',
+  'sdk-wrapper': 'SDK',
+  'local-companion': 'Companion',
   'openclaw-jsonl': 'OpenClaw',
-  'claude-hooks': 'Claude Runtime',
-  'claude-jsonl': 'Claude Runtime',
-  'openai-tracing': 'OpenAI Agents',
-  'generic-jsonl': 'Generic attach',
-  'observe-preview': 'Observe preview',
+  'claude-hooks': 'Claude',
+  'claude-jsonl': 'Claude',
+  'openai-tracing': 'OpenAI',
+  'generic-jsonl': 'Generic',
+  'observe-preview': 'Observe',
   unknown: 'Unknown',
 };
 
 @Component({
   selector: 'app-live-top-bar',
   standalone: true,
-  imports: [CommonModule, MatIconModule],
+  imports: [CommonModule],
   template: `
-    <header class="tb">
-      <div class="tb-brand">
-        <mat-icon class="tb-icon" fontIcon="bolt"></mat-icon>
-        <span class="tb-title">Spectyra</span>
-        <span class="tb-pill" [class.on]="health?.['status'] === 'ok'">
-          {{ health?.['status'] === 'ok' ? 'Active' : 'Offline' }}
-        </span>
+    <div class="tb-chips-row">
+      <div class="tb-left">
+        <span class="tb-live-dot"></span>
+        <span class="tb-live-label">Live</span>
+
+        <span class="tb-chip trial" *ngIf="topline.trialBadge === 'Trial Active'">TRIAL</span>
+        <span class="tb-chip trial-ended" *ngIf="topline.trialBadge === 'Trial Ended'">TRIAL ENDED</span>
+        <span class="tb-chip opt">{{ topline.optimizationHeadline | uppercase }}</span>
+        <span class="tb-chip model" *ngIf="session?.model">{{ session!.model! | uppercase }}</span>
+        <span class="tb-chip sdk" *ngIf="session">{{ sourceLabel(session!) | uppercase }}</span>
       </div>
-      <div class="tb-badges">
-        <span class="tb-chip trial" *ngIf="topline.trialBadge === 'Trial Active'">Trial Active</span>
-        <span class="tb-chip trial-ended" *ngIf="topline.trialBadge === 'Trial Ended'">Trial Ended</span>
-        <span class="tb-chip opt">{{ topline.optimizationHeadline }}</span>
-        <span class="tb-chip mode">Mode: {{ topline.runMode }}</span>
-        <span class="tb-chip metrics" *ngIf="topline.metricsPresentation === 'actual'">Actual savings</span>
-        <span class="tb-chip metrics projected" *ngIf="topline.metricsPresentation === 'projected'">Projected savings</span>
+      <div class="tb-right" *ngIf="session as s">
+        <span class="tb-savings-label">Actual savings:</span>
+        <span class="tb-savings-val">\${{ s.estimatedWorkflowSavings | number : '1.2-4' }}</span>
       </div>
-      <div class="tb-meta" *ngIf="session">
-        <span class="tb-muted">{{ session.provider || 'Provider' }} · {{ session.model || '—' }}</span>
-        <span class="tb-muted"> · Source: {{ sourceLabel(session) }}</span>
-      </div>
-    </header>
+    </div>
   `,
   styles: [
     `
-      .tb {
-        display: flex;
-        flex-wrap: wrap;
-        align-items: center;
-        gap: 12px 20px;
-        padding: 16px 20px;
-        border-radius: 12px;
-        background: linear-gradient(135deg, rgba(15, 23, 42, 0.92), rgba(30, 41, 59, 0.88));
-        color: #e2e8f0;
-        border: 1px solid rgba(148, 163, 184, 0.15);
-      }
-      .tb-brand {
+      .tb-chips-row {
         display: flex;
         align-items: center;
-        gap: 10px;
+        justify-content: space-between;
+        gap: 12px;
+        padding: 0 16px;
+        height: 34px;
+        background: var(--bg-panel);
       }
-      .tb-icon {
-        color: #38bdf8;
-        font-size: 22px;
-        width: 22px;
-        height: 22px;
-      }
-      .tb-title {
-        font-weight: 650;
-        font-size: 1.1rem;
-        letter-spacing: -0.02em;
-      }
-      .tb-pill {
-        font-size: 0.75rem;
-        padding: 3px 10px;
-        border-radius: 999px;
-        background: rgba(239, 68, 68, 0.2);
-        color: #fecaca;
-      }
-      .tb-pill.on {
-        background: rgba(34, 197, 94, 0.2);
-        color: #bbf7d0;
-      }
-      .tb-badges {
+
+      .tb-left {
         display: flex;
-        flex-wrap: wrap;
+        align-items: center;
         gap: 8px;
-        align-items: center;
       }
+
+      .tb-live-dot {
+        width: 6px;
+        height: 6px;
+        border-radius: 50%;
+        background: #1D9E75;
+        animation: pulse 2s ease-in-out infinite;
+      }
+
+      .tb-live-label {
+        font-family: var(--font-body);
+        font-size: 12px;
+        font-weight: 500;
+        color: var(--spectyra-blue-pale);
+        margin-right: 4px;
+      }
+
       .tb-chip {
-        font-size: 0.72rem;
-        font-weight: 600;
-        padding: 4px 10px;
-        border-radius: 8px;
-        background: rgba(51, 65, 85, 0.9);
-        color: #e2e8f0;
+        font-family: var(--font-mono);
+        font-size: 10px;
+        font-weight: 500;
+        text-transform: uppercase;
+        letter-spacing: 0.04em;
+        padding: 2px 8px;
+        border-radius: 4px;
       }
+
       .tb-chip.trial {
-        background: rgba(59, 130, 246, 0.25);
-        color: #bfdbfe;
+        background: var(--spectyra-amber-pale);
+        border: 1px solid var(--spectyra-amber-border);
+        color: var(--spectyra-amber-light);
       }
+
       .tb-chip.trial-ended {
-        background: rgba(245, 158, 11, 0.2);
-        color: #fde68a;
+        background: rgba(186, 117, 23, 0.15);
+        border: 1px solid var(--spectyra-amber-border);
+        color: var(--spectyra-amber);
       }
+
       .tb-chip.opt {
-        background: rgba(16, 185, 129, 0.2);
-        color: #a7f3d0;
+        background: var(--spectyra-teal-pale);
+        border: 1px solid var(--spectyra-teal-border);
+        color: var(--spectyra-teal);
       }
-      .tb-chip.projected {
-        background: rgba(168, 85, 247, 0.2);
-        color: #e9d5ff;
+
+      .tb-chip.model {
+        background: rgba(55, 138, 221, 0.1);
+        border: 1px solid rgba(55, 138, 221, 0.25);
+        color: var(--spectyra-blue);
       }
-      .tb-meta {
-        flex: 1 1 100%;
-        font-size: 0.8rem;
+
+      .tb-chip.sdk {
+        background: #EEEDFE;
+        border: 1px solid rgba(93, 79, 207, 0.3);
+        color: #5D4FCF;
       }
-      .tb-muted {
-        color: #94a3b8;
+
+      .tb-right {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+      }
+
+      .tb-savings-label {
+        font-family: var(--font-mono);
+        font-size: 11px;
+        color: var(--text-muted);
+      }
+
+      .tb-savings-val {
+        font-family: var(--font-mono);
+        font-size: 13px;
+        font-weight: 500;
+        color: #5DCAA5;
+      }
+
+      @keyframes pulse {
+        0%, 100% { opacity: 1; }
+        50% { opacity: 0.35; }
       }
     `,
   ],

@@ -1,23 +1,33 @@
 <ng-container *ngIf="isDesktop; else webShell">
   <div class="desktop-app">
-    <mat-toolbar color="primary" class="desktop-toolbar">
-      <h1 routerLink="/desktop/live" class="logo">Spectyra</h1>
-      <span class="toolbar-spacer"></span>
-      <a mat-button routerLink="/desktop/live" routerLinkActive="active">Live</a>
-      <a mat-button routerLink="/desktop/sessions" routerLinkActive="active">Sessions</a>
-      <a mat-button routerLink="/desktop/history" routerLinkActive="active">History</a>
-      <a mat-button routerLink="/desktop/compare" routerLinkActive="active">Compare</a>
-      <a mat-button routerLink="/desktop/agent-companion" routerLinkActive="active">Agent Companion</a>
-      <a mat-button routerLink="/integrations" routerLinkActive="active">Integrations</a>
-      <a mat-button routerLink="/desktop/security" routerLinkActive="active">Security</a>
-      <a mat-button routerLink="/desktop/settings" routerLinkActive="active">Settings</a>
-      <a mat-button routerLink="/desktop/dashboard" routerLinkActive="active">Dashboard</a>
-      <a mat-button routerLink="/desktop/onboarding" routerLinkActive="active">Setup</a>
-      <a mat-button routerLink="/desktop/openclaw" routerLinkActive="active">OpenClaw</a>
-      <a mat-button routerLink="/desktop/runs" routerLinkActive="active">Runs</a>
-      <a mat-button *ngIf="showSuperuserLink" routerLink="/superuser" routerLinkActive="active">Superuser</a>
-      <a mat-button routerLink="/login" routerLinkActive="active">Sign in</a>
-    </mat-toolbar>
+    <div class="dt-titlebar">
+      <div class="dt-brand">
+        <svg class="dt-logo-mark" viewBox="0 0 24 24" width="20" height="20">
+          <path d="M12 3C7.5 3 4 6.5 4 10c0 2.2 1.1 4.2 2.8 5.4" fill="none" stroke="#378ADD" stroke-width="1.8" stroke-linecap="round"/>
+          <path d="M12 6C9 6 6.5 8 6.5 10.5c0 1.5.8 2.9 2 3.7" fill="none" stroke="#378ADD" stroke-width="1.8" stroke-linecap="round" opacity="0.7"/>
+          <path d="M12 9c-1.5 0-2.8 1-2.8 2.3 0 .8.4 1.5 1 2" fill="none" stroke="#378ADD" stroke-width="1.8" stroke-linecap="round" opacity="0.45"/>
+        </svg>
+        <span class="dt-wordmark" routerLink="/desktop/live">Spectyra</span>
+      </div>
+      <div class="dt-spacer"></div>
+    </div>
+
+    <nav class="dt-nav">
+      <a class="dt-nav-item" routerLink="/desktop/live" routerLinkActive="active"
+         [routerLinkActiveOptions]="{ exact: false }">
+        <span class="dt-live-dot"></span>Live
+      </a>
+      <a class="dt-nav-item" routerLink="/desktop/sessions" routerLinkActive="active">Sessions</a>
+      <a class="dt-nav-item" routerLink="/desktop/history" routerLinkActive="active">History</a>
+      <a class="dt-nav-item" routerLink="/desktop/compare" routerLinkActive="active">Compare</a>
+      <a class="dt-nav-item" routerLink="/desktop/agent-companion" routerLinkActive="active">Agent Companion</a>
+      <a class="dt-nav-item" routerLink="/desktop/runs" routerLinkActive="active">Runs</a>
+      <a class="dt-nav-item" routerLink="/desktop/security" routerLinkActive="active">Security</a>
+      <a class="dt-nav-item" routerLink="/desktop/settings" routerLinkActive="active">Settings</a>
+      <a class="dt-nav-item" *ngIf="showSuperuserLink" routerLink="/superuser" routerLinkActive="active">Superuser</a>
+      <a class="dt-nav-item" routerLink="/login" routerLinkActive="active">Sign in</a>
+    </nav>
+
     <main class="desktop-main">
       <router-outlet></router-outlet>
     </main>
