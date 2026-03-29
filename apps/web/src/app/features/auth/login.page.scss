@@ -5,14 +5,15 @@
 }
 
 .card {
-  background: white;
-  border-radius: 8px;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-input);
   padding: 32px;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
 }
 
 h1 {
   margin: 0 0 8px;
+  font-family: var(--font-display);
   font-size: 28px;
   font-weight: 600;
 }
@@ -21,7 +22,7 @@ h1 {
   display: flex;
   gap: 8px;
   margin-bottom: 24px;
-  border-bottom: 2px solid #e0e0e0;
+  border-bottom: 2px solid var(--border);
 }
 
 .tab {
@@ -32,17 +33,17 @@ h1 {
   cursor: pointer;
   font-size: 14px;
   font-weight: 500;
-  color: #666;
+  color: var(--text-secondary);
   border-bottom: 2px solid transparent;
   margin-bottom: -2px;
 
   &.active {
-    color: #007bff;
-    border-bottom-color: #007bff;
+    color: var(--spectyra-blue);
+    border-bottom-color: var(--spectyra-blue);
   }
 
   &:hover {
-    color: #007bff;
+    color: var(--spectyra-blue);
   }
 }
 
@@ -54,26 +55,26 @@ label {
   display: block;
   margin-bottom: 6px;
   font-weight: 500;
-  color: #333;
+  color: var(--text-primary);
 }
 
 .form-input {
   width: 100%;
   padding: 10px 12px;
-  border: 1px solid #ddd;
-  border-radius: 4px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-chip);
   font-size: 14px;
   box-sizing: border-box;
 }
 
 .help-text {
   font-size: 12px;
-  color: #666;
+  color: var(--text-secondary);
   margin-top: 4px;
   text-align: center;
 
   a {
-    color: #007bff;
+    color: var(--spectyra-blue);
     text-decoration: none;
   }
 }
@@ -82,22 +83,32 @@ label {
   width: 100%;
   padding: 12px;
   border: none;
-  border-radius: 4px;
+  border-radius: var(--radius-chip);
   font-size: 16px;
   font-weight: 500;
   cursor: pointer;
   margin-top: 8px;
 
   &.btn-primary {
-    background: #007bff;
-    color: white;
+    background: var(--spectyra-navy);
+    color: var(--spectyra-blue-pale);
+
+    &:hover:not(:disabled) {
+      background: var(--spectyra-navy-mid);
+    }
   }
 
   &.btn-secondary {
-    background: #6c757d;
-    color: white;
+    background: transparent;
+    border: 1px solid var(--border-bright);
+    color: var(--text-secondary);
     width: auto;
     margin-left: 8px;
+
+    &:hover:not(:disabled) {
+      border-color: var(--spectyra-blue);
+      color: var(--text-primary);
+    }
   }
 
   &:disabled {
@@ -109,11 +120,13 @@ label {
 .bootstrap-box {
   margin-top: 24px;
   padding: 24px;
-  background: #f8f9fa;
-  border-radius: 8px;
+  background: var(--bg-elevated);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-input);
 
   h2 {
     margin: 0 0 8px;
+    font-family: var(--font-display);
     font-size: 20px;
   }
 }
@@ -123,9 +136,9 @@ label {
 }
 
 .api-key-display {
-  background: white;
-  border: 2px solid #007bff;
-  border-radius: 4px;
+  background: var(--bg-card);
+  border: 2px solid var(--spectyra-blue);
+  border-radius: var(--radius-chip);
   padding: 16px;
   margin: 20px 0;
   display: flex;
@@ -134,12 +147,12 @@ label {
 
   code {
     flex: 1;
-    font-family: monospace;
+    font-family: var(--font-mono);
     font-size: 14px;
     word-break: break-word;
     overflow-wrap: break-word;
     white-space: pre-wrap;
-    color: #333;
+    color: var(--text-primary);
   }
 }
 
@@ -148,38 +161,39 @@ label {
 
   h2 {
     margin: 0 0 16px;
-    color: #28a745;
+    font-family: var(--font-display);
+    color: var(--spectyra-teal);
   }
 }
 
 .trial-info {
-  background: #d4edda;
-  border: 1px solid #c3e6cb;
-  border-radius: 4px;
+  background: var(--spectyra-teal-pale);
+  border: 1px solid var(--spectyra-teal-border);
+  border-radius: var(--radius-chip);
   padding: 16px;
   margin: 20px 0;
   text-align: left;
 
   p {
     margin: 8px 0;
-    color: #155724;
+    color: var(--spectyra-teal);
   }
 }
 
 .warning-box {
-  background: #fff3cd;
-  border: 1px solid #ffeaa7;
-  border-radius: 4px;
+  background: var(--spectyra-amber-pale);
+  border: 1px solid var(--spectyra-amber-border);
+  border-radius: var(--radius-chip);
   padding: 16px;
   margin: 20px 0;
-  color: #856404;
+  color: var(--spectyra-amber);
 }
 
 .error-box {
-  background: #f8d7da;
-  border: 1px solid #f5c6cb;
-  border-radius: 4px;
+  background: var(--color-danger-bg);
+  border: 1px solid var(--color-danger-border);
+  border-radius: var(--radius-chip);
   padding: 12px;
   margin: 16px 0;
-  color: #721c24;
+  color: var(--color-danger);
 }

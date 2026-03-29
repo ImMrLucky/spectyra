@@ -1,6 +1,6 @@
 .subtitle {
-  color: #666;
-  font-size: 16px;
+  color: var(--text-secondary);
+  font-size: 14px;
   margin-bottom: 20px;
 }
 
@@ -18,26 +18,36 @@
 .export-section {
   margin-top: 30px;
   padding: 20px;
-  background: white;
-  border-radius: 8px;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-input);
 }
 
 .btn {
   padding: 10px 20px;
   margin-right: 10px;
   border: none;
-  border-radius: 4px;
+  border-radius: var(--radius-input);
   cursor: pointer;
-  font-weight: 600;
+  font-weight: 500;
+  font-family: var(--font-body);
+  transition: background 0.2s ease;
 
   &.btn-primary {
-    background: #007bff;
-    color: white;
+    background: var(--spectyra-navy);
+    color: var(--spectyra-blue-pale);
+
+    &:hover { background: var(--spectyra-navy-mid); }
   }
 
   &.btn-secondary {
-    background: #6c757d;
-    color: white;
+    background: transparent;
+    border: 1px solid var(--border-bright);
+    color: var(--text-secondary);
+
+    &:hover {
+      border-color: var(--spectyra-blue);
+      color: var(--text-primary);
+    }
   }
 }

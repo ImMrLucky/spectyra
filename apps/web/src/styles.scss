@@ -1,148 +1,123 @@
-// Angular Material Theme
-@import '@angular/material/prebuilt-themes/indigo-pink.css';
+@import './styles/spectyra-theme';
 
-// SCSS Variables
-$primary-color: #007bff;
-$primary-hover: #0056b3;
-$secondary-color: #6c757d;
-$secondary-hover: #545b62;
-$success-color: #28a745;
-$success-bg: #d4edda;
-$success-text: #155724;
-$danger-color: #dc3545;
-$danger-bg: #f8d7da;
-$danger-text: #721c24;
-$warning-bg: #fff3cd;
-$warning-text: #856404;
-$info-bg: #d1ecf1;
-$info-text: #0c5460;
-
-$text-primary: #333;
-$text-secondary: #666;
-$text-muted: #999;
-
-$bg-primary: #f5f5f5;
-$bg-secondary: #f8f9fa;
-$bg-white: white;
-
-$border-color: #ddd;
-$border-radius: 4px;
-$border-radius-lg: 8px;
-$border-radius-xl: 12px;
-
-$spacing-xs: 4px;
-$spacing-sm: 8px;
-$spacing-md: 12px;
-$spacing-lg: 16px;
-$spacing-xl: 20px;
+/* ─── Spacing tokens ─── */
+$spacing-xs:  4px;
+$spacing-sm:  8px;
+$spacing-md:  12px;
+$spacing-lg:  16px;
+$spacing-xl:  20px;
 $spacing-2xl: 24px;
 $spacing-3xl: 32px;
-$spacing-4xl: 40px;
-$spacing-5xl: 60px;
 
-$font-size-xs: 12px;
-$font-size-sm: 14px;
-$font-size-base: 16px;
-$font-size-lg: 18px;
-$font-size-xl: 20px;
-$font-size-2xl: 24px;
-$font-size-3xl: 28px;
-$font-size-4xl: 36px;
-$font-size-5xl: 48px;
-
-$font-weight-normal: 400;
-$font-weight-medium: 500;
-$font-weight-semibold: 600;
-$font-weight-bold: 700;
-
-$shadow-sm: 0 2px 4px rgba(0, 0, 0, 0.1);
-$shadow-md: 0 2px 8px rgba(0, 0, 0, 0.1);
-$shadow-lg: 0 4px 12px rgba(0, 0, 0, 0.15);
-$shadow-xl: 0 4px 16px rgba(0, 0, 0, 0.1);
-
-$breakpoint-sm: 576px;
-$breakpoint-md: 768px;
-$breakpoint-lg: 992px;
+$breakpoint-sm:  576px;
+$breakpoint-md:  768px;
+$breakpoint-lg:  992px;
 $breakpoint-xl: 1200px;
 
-// Mixins
-@mixin transition($property: all, $duration: 0.2s, $easing: ease) {
-  transition: $property $duration $easing;
-}
+/* ─── Reset ─── */
+*, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
 
-@mixin card {
-  background: $bg-white;
-  border-radius: $border-radius-lg;
-  padding: $spacing-xl;
-  margin-bottom: $spacing-xl;
-  box-shadow: $shadow-md;
-}
-
-@mixin button-base {
-  padding: $spacing-md $spacing-xl;
-  border: none;
-  border-radius: $border-radius;
-  cursor: pointer;
-  font-size: $font-size-sm;
-  font-weight: $font-weight-medium;
-  @include transition(background);
-}
-
-@mixin button-primary {
-  @include button-base;
-  background: $primary-color;
-  color: white;
-
-  &:hover {
-    background: $primary-hover;
-  }
-}
-
-@mixin button-secondary {
-  @include button-base;
-  background: $secondary-color;
-  color: white;
-
-  &:hover {
-    background: $secondary-hover;
-  }
-}
-
-// Global Styles
-* {
-  margin: 0;
-  padding: 0;
-  box-sizing: border-box;
+html, body {
+  height: 100%;
 }
 
 body {
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
-  background: $bg-primary;
-  color: $text-primary;
+  font-family: var(--font-body);
+  background: var(--bg);
+  color: var(--text-primary);
+  -webkit-font-smoothing: antialiased;
 }
 
+/* ─── Angular Material overrides ─── */
+.mat-toolbar.mat-primary,
+.mat-mdc-raised-button.mat-primary,
+.mat-toolbar {
+  background-color: var(--bg-panel) !important;
+  color: var(--text-primary) !important;
+}
+
+.mat-sidenav,
+.mat-drawer {
+  background-color: var(--bg-panel) !important;
+  color: var(--text-secondary) !important;
+}
+
+.mat-sidenav-content,
+.mat-drawer-content {
+  background-color: var(--bg) !important;
+  color: var(--text-primary) !important;
+}
+
+.mat-mdc-list-item {
+  color: var(--text-secondary) !important;
+}
+
+/* ─── Container ─── */
 .container {
   max-width: $breakpoint-xl;
   margin: 0 auto;
   padding: $spacing-xl;
 }
 
+/* ─── Cards (brand: no shadows, use borders) ─── */
 .card {
-  @include card;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-card);
+  padding: $spacing-2xl;
+  margin-bottom: $spacing-2xl;
 }
 
+/* ─── Buttons ─── */
 .btn {
-  @include button-base;
+  padding: $spacing-md $spacing-xl;
+  border: none;
+  border-radius: var(--radius-input);
+  cursor: pointer;
+  font-family: var(--font-body);
+  font-size: 14px;
+  font-weight: 500;
+  transition: background 0.2s ease, border-color 0.2s ease;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
 }
 
 .btn-primary {
-  @include button-primary;
+  background: var(--spectyra-navy);
+  color: var(--spectyra-blue-pale);
+  border: none;
+
+  &:hover { background: var(--spectyra-navy-mid); }
 }
 
 .btn-secondary {
-  @include button-secondary;
+  background: transparent;
+  border: 1px solid var(--border-bright);
+  color: var(--text-secondary);
+
+  &:hover {
+    border-color: var(--spectyra-blue);
+    color: var(--text-primary);
+  }
 }
 
+.btn-destructive {
+  background: transparent;
+  border: 1px solid var(--color-danger);
+  color: var(--color-danger);
+
+  &:hover {
+    background: var(--color-danger-bg);
+  }
+}
+
+.btn-sm {
+  padding: 6px 12px;
+  font-size: 12px;
+}
+
+/* ─── Form inputs ─── */
 .form-group {
   margin-bottom: $spacing-lg;
 }
@@ -150,56 +125,100 @@ body {
 .form-label {
   display: block;
   margin-bottom: 5px;
-  font-weight: $font-weight-medium;
+  font-weight: 500;
+  color: var(--text-secondary);
+  font-family: var(--font-body);
 }
 
 .form-select,
 .form-input {
   width: 100%;
   padding: $spacing-sm $spacing-md;
-  border: 1px solid $border-color;
-  border-radius: $border-radius;
-  font-size: $font-size-sm;
+  border: 1px solid var(--border-bright);
+  border-radius: var(--radius-input);
+  font-size: 14px;
+  font-family: var(--font-body);
+  background: var(--bg-card);
+  color: var(--text-primary);
+
+  &:focus {
+    outline: none;
+    border-color: var(--spectyra-blue);
+  }
 }
 
+/* ─── Tables (global) ─── */
 .table {
   width: 100%;
   border-collapse: collapse;
 
-  th,
-  td {
+  th, td {
     padding: $spacing-md;
     text-align: left;
-    border-bottom: 1px solid $border-color;
+    border-bottom: 1px solid var(--border);
   }
 
   th {
-    background: $bg-secondary;
-    font-weight: $font-weight-semibold;
+    background: var(--bg-elevated);
+    color: var(--text-muted);
+    font-family: var(--font-body);
+    font-size: 11px;
+    font-weight: 500;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+  }
+
+  td {
+    background: var(--bg-card);
+    color: var(--text-primary);
+  }
+
+  tr:hover td {
+    background: var(--bg-elevated);
   }
 }
 
+/* ─── Badges / chips ─── */
 .badge {
   display: inline-block;
-  padding: $spacing-xs $spacing-sm;
-  border-radius: $border-radius;
-  font-size: $font-size-xs;
-  font-weight: $font-weight-medium;
+  padding: 2px 8px;
+  border-radius: var(--radius-chip);
+  font-family: var(--font-mono);
+  font-size: 10px;
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
 }
 
-.badge-success {
-  background: $success-bg;
-  color: $success-text;
+.badge-success,
+.badge-optimized {
+  background: var(--spectyra-teal-pale);
+  border: 1px solid var(--spectyra-teal-border);
+  color: var(--spectyra-teal);
 }
 
 .badge-danger {
-  background: $danger-bg;
-  color: $danger-text;
+  background: var(--color-danger-bg);
+  border: 1px solid var(--color-danger-border);
+  color: var(--color-danger);
 }
 
+.badge-trial {
+  background: var(--spectyra-amber-pale);
+  border: 1px solid var(--spectyra-amber-border);
+  color: var(--spectyra-amber-light);
+}
+
+.badge-observe {
+  background: var(--spectyra-blue-pale);
+  border: 1px solid var(--spectyra-blue);
+  color: var(--spectyra-navy);
+}
+
+/* ─── Tabs ─── */
 .tabs {
   display: flex;
-  border-bottom: 2px solid $border-color;
+  border-bottom: 1px solid var(--border);
   margin-bottom: $spacing-xl;
 }
 
@@ -208,23 +227,26 @@ body {
   cursor: pointer;
   border: none;
   background: none;
-  font-size: $font-size-sm;
-  color: $text-secondary;
+  font-size: 14px;
+  font-family: var(--font-body);
+  color: var(--text-muted);
 
   &.active {
-    color: $primary-color;
-    border-bottom: 2px solid $primary-color;
+    color: var(--spectyra-blue);
+    border-bottom: 2px solid var(--spectyra-blue);
+  }
+
+  &:hover:not(.active) {
+    color: var(--text-secondary);
   }
 }
 
 .tab-content {
   display: none;
-
-  &.active {
-    display: block;
-  }
+  &.active { display: block; }
 }
 
+/* ─── Compare view ─── */
 .compare-view {
   display: grid;
   grid-template-columns: 1fr 1fr;
@@ -235,28 +257,28 @@ body {
   }
 }
 
-// Angular Material Snackbar Styles
+/* ─── Snackbars ─── */
 .success-snackbar {
-  background-color: $success-color !important;
-  color: white !important;
+  background-color: var(--spectyra-teal) !important;
+  color: #fff !important;
 }
 
 .error-snackbar {
-  background-color: $danger-color !important;
-  color: white !important;
+  background-color: var(--color-danger) !important;
+  color: #fff !important;
 }
 
 .info-snackbar {
-  background-color: #17a2b8 !important;
-  color: white !important;
+  background-color: var(--spectyra-blue) !important;
+  color: #fff !important;
 }
 
 .warning-snackbar {
-  background-color: #ffc107 !important;
-  color: #333 !important;
+  background-color: var(--spectyra-amber) !important;
+  color: var(--bg) !important;
 }
 
-// Material Icons
+/* ─── Material Icons ─── */
 .material-icons {
   font-family: 'Material Icons';
   font-weight: normal;
@@ -271,4 +293,33 @@ body {
   direction: ltr;
   -webkit-font-feature-settings: 'liga';
   -webkit-font-smoothing: antialiased;
+}
+
+/* ─── Status dots ─── */
+.status-dot {
+  display: inline-block;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+
+  &.healthy  { background: var(--dot-healthy); }
+  &.warning  { background: var(--dot-warning); }
+  &.running  { background: var(--dot-running); animation: pulse 2s ease-in-out infinite; }
+  &.offline  { background: var(--dot-offline); }
+  &.error    { background: var(--dot-error); }
+}
+
+/* ─── Utility ─── */
+.font-mono  { font-family: var(--font-mono); }
+.font-display { font-family: var(--font-display); }
+.text-teal  { color: var(--spectyra-teal-light); }
+.text-amber { color: var(--spectyra-amber-light); }
+.text-muted { color: var(--text-muted); }
+
+/* ─── Scrollbar (subtle, dark) ─── */
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb {
+  background: var(--border-bright);
+  border-radius: 3px;
 }

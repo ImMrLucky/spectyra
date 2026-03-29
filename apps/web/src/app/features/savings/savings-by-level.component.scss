@@ -4,12 +4,20 @@
 }
 
 .badge-warning {
-  background: #fff3cd;
-  color: #856404;
+  background: var(--spectyra-amber-pale);
+  border: 1px solid var(--spectyra-amber-border);
+  color: var(--spectyra-amber);
+  padding: 2px 8px;
+  border-radius: var(--radius-chip);
+  font-family: var(--font-mono);
+  font-size: 10px;
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
 }
 
 .loading {
   text-align: center;
   padding: 40px;
-  color: #666;
+  color: var(--text-muted);
 }

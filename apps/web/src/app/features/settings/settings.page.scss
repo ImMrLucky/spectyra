@@ -2,40 +2,44 @@
   max-width: 900px;
   margin: 40px auto;
   padding: 20px;
+  font-family: var(--font-body);
 }
 
 h1 {
   font-size: 32px;
   margin-bottom: 8px;
+  font-family: var(--font-display);
 }
 
 .subtitle {
-  color: #666;
+  color: var(--text-secondary);
   margin-bottom: 24px;
 }
 
 .card {
-  background: white;
-  border-radius: 8px;
+  background: var(--bg-card);
+  border-radius: var(--radius-input);
   padding: 32px;
   margin-bottom: 24px;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  border: 1px solid var(--border);
 
   h2 {
     margin: 0 0 16px;
     font-size: 24px;
+    font-family: var(--font-display);
   }
 
   h3 {
     margin: 24px 0 16px;
     font-size: 18px;
+    font-family: var(--font-display);
   }
 }
 
 .form-section {
   margin-bottom: 32px;
   padding-bottom: 24px;
-  border-bottom: 1px solid #e0e0e0;
+  border-bottom: 1px solid var(--border);
 }
 
 .form-group {
@@ -46,14 +50,14 @@ label {
   display: block;
   margin-bottom: 6px;
   font-weight: 500;
-  color: #333;
+  color: var(--text-primary);
 }
 
 .form-input {
   width: 100%;
   padding: 10px 12px;
-  border: 1px solid #ddd;
-  border-radius: 4px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-chip);
   font-size: 14px;
   box-sizing: border-box;
 }
@@ -61,24 +65,29 @@ label {
 .btn {
   padding: 10px 20px;
   border: none;
-  border-radius: 4px;
+  border-radius: var(--radius-chip);
   font-size: 14px;
   font-weight: 500;
   cursor: pointer;
 
   &.btn-primary {
-    background: #007bff;
-    color: white;
+    background: var(--spectyra-navy);
+    color: var(--spectyra-blue-pale);
+
+    &:hover:not(:disabled) {
+      background: var(--spectyra-navy-mid);
+    }
   }
 
   &.btn-secondary {
-    background: #6c757d;
-    color: white;
+    background: var(--bg-elevated);
+    color: var(--text-primary);
+    border: 1px solid var(--border);
   }
 
   &.btn-danger {
-    background: #dc3545;
-    color: white;
+    background: var(--color-danger);
+    color: var(--spectyra-blue-pale);
   }
 
   &.btn-sm {
@@ -93,18 +102,18 @@ label {
 }
 
 .api-key-box {
-  background: #f8f9fa;
-  border: 2px solid #007bff;
-  border-radius: 8px;
+  background: var(--bg-elevated);
+  border: 2px solid var(--spectyra-blue);
+  border-radius: var(--radius-input);
   padding: 24px;
   margin: 24px 0;
   text-align: center;
 }
 
 .api-key-display {
-  background: white;
-  border: 1px solid #ddd;
-  border-radius: 4px;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-chip);
   padding: 16px;
   margin: 16px 0;
   display: flex;
@@ -113,12 +122,12 @@ label {
 
   code {
     flex: 1;
-    font-family: monospace;
+    font-family: var(--font-mono);
     font-size: 14px;
     word-break: break-word;
     overflow-wrap: break-word;
     white-space: pre-wrap;
-    color: #333;
+    color: var(--text-primary);
   }
 }
 
@@ -131,44 +140,44 @@ label {
   td {
     padding: 12px;
     text-align: left;
-    border-bottom: 1px solid #e0e0e0;
+    border-bottom: 1px solid var(--border);
   }
 
   th {
     font-weight: 600;
-    background: #f8f9fa;
+    background: var(--bg-elevated);
   }
 }
 
 .status-active {
-  color: #28a745;
+  color: var(--spectyra-teal);
   font-weight: 500;
 }
 
 .status-revoked {
-  color: #dc3545;
+  color: var(--color-danger);
   font-weight: 500;
 }
 
 .error-box {
-  background: #f8d7da;
-  border: 1px solid #f5c6cb;
-  border-radius: 4px;
+  background: var(--color-danger-bg);
+  border: 1px solid var(--color-danger-border);
+  border-radius: var(--radius-chip);
   padding: 12px;
   margin: 16px 0;
-  color: #721c24;
+  color: var(--color-danger);
 }
 
 .loading {
   text-align: center;
   padding: 24px;
-  color: #666;
+  color: var(--text-secondary);
 }
 
 .empty-state {
   text-align: center;
   padding: 24px;
-  color: #666;
+  color: var(--text-secondary);
 }
 
 .org-info {
@@ -183,7 +192,7 @@ label {
 
   li {
     padding: 12px;
-    border-bottom: 1px solid #e0e0e0;
+    border-bottom: 1px solid var(--border);
     display: flex;
     justify-content: space-between;
     align-items: center;
@@ -191,14 +200,14 @@ label {
 }
 
 .project-id {
-  color: #666;
+  color: var(--text-secondary);
   font-size: 12px;
-  font-family: monospace;
+  font-family: var(--font-mono);
 }
 
 .members-section {
   .info-text {
-    color: #666;
+    color: var(--text-secondary);
     font-size: 14px;
     margin-bottom: 20px;
   }
@@ -207,7 +216,7 @@ label {
     .role-item {
       margin-bottom: 16px;
       padding-bottom: 16px;
-      border-bottom: 1px solid #e0e0e0;
+      border-bottom: 1px solid var(--border);
 
       &:last-child {
         border-bottom: none;
@@ -217,14 +226,14 @@ label {
         display: block;
         font-size: 16px;
         font-weight: 600;
-        color: #333;
+        color: var(--text-primary);
         margin-bottom: 4px;
       }
 
       p {
         margin: 0;
         font-size: 14px;
-        color: #666;
+        color: var(--text-secondary);
       }
     }
   }
@@ -236,7 +245,7 @@ label {
     justify-content: space-between;
     align-items: center;
     padding: 16px 0;
-    border-bottom: 1px solid #e0e0e0;
+    border-bottom: 1px solid var(--border);
 
     &:last-child {
       border-bottom: none;
@@ -250,14 +259,14 @@ label {
         display: block;
         font-size: 16px;
         font-weight: 600;
-        color: #333;
+        color: var(--text-primary);
         margin-bottom: 4px;
       }
 
       p {
         margin: 0;
         font-size: 14px;
-        color: #666;
+        color: var(--text-secondary);
       }
     }
   }
@@ -275,7 +284,7 @@ label {
     height: 0;
 
     &:checked + .toggle-slider {
-      background-color: #007bff;
+      background-color: var(--spectyra-navy);
     }
 
     &:checked + .toggle-slider:before {
@@ -290,9 +299,10 @@ label {
     left: 0;
     right: 0;
     bottom: 0;
-    background-color: #ccc;
+    background-color: var(--bg-elevated);
     transition: 0.3s;
     border-radius: 24px;
+    border: 1px solid var(--border);
 
     &:before {
       position: absolute;
@@ -301,7 +311,7 @@ label {
       width: 18px;
       left: 3px;
       bottom: 3px;
-      background-color: white;
+      background-color: var(--spectyra-blue-pale);
       transition: 0.3s;
       border-radius: 50%;
     }
