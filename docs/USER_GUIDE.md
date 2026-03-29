@@ -160,6 +160,20 @@ curl -X POST https://spectyra.up.railway.app/v1/chat \
 
 ---
 
+## Local Companion & Desktop (local-first, BYOK)
+
+If you use the **Local Companion** or **Spectyra Desktop** (see [INSTALL_AND_SETUP.md](./INSTALL_AND_SETUP.md)), traffic stays on your machine: the companion optimizes prompts locally, then calls the LLM provider with **your** API key.
+
+| Topic | Behavior |
+|--------|----------|
+| **Run mode** | Environment variable **`SPECTYRA_RUN_MODE`**: `off`, `observe`, or `on`. If unset, the companion defaults to **`on`** (apply optimizations when your license allows). Use **`observe`** when you want projected savings **without** changing what the model receives. |
+| **Workflow policy** | **`SPECTYRA_WORKFLOW_POLICY`**: unset or any value except `observe` → **enforce** — the companion may return **HTTP 422** and skip the provider when policy rules fire (e.g. risky step patterns). Set to **`observe`** for **reporting only** (same diagnostics in Live Savings / analytics APIs, never blocks the provider). |
+| **Privacy** | Raw prompts are not sent to Spectyra for inference; optional cloud sync is separate and redacted. |
+
+The Desktop **Live savings** view shows companion health, including **`workflowPolicyMode`**, so you can confirm enforce vs observe at a glance.
+
+---
+
 ## When to Use Each Method
 
 ### Use Browser Extension When:

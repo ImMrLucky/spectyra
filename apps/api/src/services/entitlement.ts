@@ -24,6 +24,7 @@ interface OrgRow {
   optimized_runs_used: number;
   optimized_runs_limit: number | null;
   sdk_access_enabled: boolean;
+  platform_exempt: boolean;
 }
 
 const PLAN_LIMITS: Record<PlanType, { optimizedRuns: number | null; cloudAnalytics: boolean; desktop: boolean; sdk: boolean }> = {
@@ -88,6 +89,20 @@ export async function getEntitlement(orgId: string): Promise<EntitlementInfo> {
   const plan = resolvePlan(org.plan);
   const limits = PLAN_LIMITS[plan];
   const trial = resolveTrialState(org);
+
+  if (org.platform_exempt) {
+    return {
+      plan: "enterprise",
+      trialState: "converted",
+      trialEndsAt: null,
+      licenseStatus: "valid",
+      optimizedRunsLimit: null,
+      optimizedRunsUsed: org.optimized_runs_used,
+      cloudAnalyticsEnabled: true,
+      desktopAppEnabled: true,
+      sdkEnabled: true && org.sdk_access_enabled,
+    };
+  }
 
   return {
     plan,

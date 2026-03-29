@@ -32,6 +32,9 @@
       Live stream {{ sseConnected ? 'on' : 'reconnecting…' }}
     </span>
     <span class="ls-pill subtle">Last event: {{ lastEventLabel }}</span>
+    <span class="ls-pill subtle" *ngIf="health?.['workflowPolicyMode']">
+      Workflow policy: {{ health?.['workflowPolicyMode'] }}
+    </span>
   </div>
 
   <mat-progress-spinner *ngIf="loading" diameter="36" mode="indeterminate" class="ls-spin"></mat-progress-spinner>
@@ -133,6 +136,87 @@
           <a routerLink="/login">Sign in</a> to enable cloud sync (Supabase session). Local analytics work without signing in.
         </p>
         <p class="ls-muted" *ngIf="cloudSync.lastSyncedAt">Last sync attempt: {{ cloudSync.lastSyncedAt }}</p>
+      </mat-card-content>
+    </mat-card>
+
+    <mat-card class="ls-card" *ngIf="workflowPolicySummary as wp">
+      <mat-card-title>Workflow policy (Phase 6)</mat-card-title>
+      <mat-card-content>
+        <p class="ls-muted">
+          Evaluated as <span class="mono">{{ wp.mode }}</span>
+          <ng-container *ngIf="wp.mode === 'observe'">
+            · reporting only; the companion does not block provider calls.
+          </ng-container>
+          <ng-container *ngIf="wp.mode === 'enforce' && wp.shouldBlock">
+            · <span class="ls-error">would block</span> — matching requests can return HTTP 422 before the provider.
+          </ng-container>
+          <ng-container *ngIf="wp.mode === 'enforce' && !wp.shouldBlock">
+            · enforce mode; no violations above the block threshold for this buffer.
+          </ng-container>
+        </p>
+        <ul class="ls-session-list" *ngIf="wp.violations?.length">
+          <li *ngFor="let v of wp.violations">
+            <span class="mono">{{ v.severity }}</span> · {{ v.code }} — {{ v.message }}
+          </li>
+        </ul>
+        <p *ngIf="!wp.violations?.length" class="ls-muted">No policy flags for the current buffer.</p>
+      </mat-card-content>
+    </mat-card>
+
+    <mat-card class="ls-card" *ngIf="stateDeltaSummary as sd">
+      <mat-card-title>State / delta (Phase 4)</mat-card-title>
+      <mat-card-content>
+        <p class="ls-muted">
+          Snapshots: {{ sd.snapshotCount }}, same-session transitions: {{ sd.transitionCount }}.
+          Shared blobs: {{ sd.sharedContext.uniqueBlobs }}, reuse hits: {{ sd.sharedContext.reuseHits }}.
+          Ref store entries (summary pass): {{ sd.refStoreEntries }}.
+        </p>
+        <ul class="ls-session-list" *ngIf="sd.transitions?.length">
+          <li *ngFor="let t of sd.transitions.slice(-6)">
+            <span class="mono">{{ t.fromStepId }}</span> → <span class="mono">{{ t.toStepId }}</span>
+            · Δ keys +{{ t.addedKeyCount }} ~{{ t.changedKeyCount }} −{{ t.removedKeyCount }}
+            · {{ t.unchangedKeyCount }} stable
+            · ~{{ t.wireEstimateChars }} chars (compiled hop est.)
+          </li>
+        </ul>
+        <p *ngIf="!sd.transitions?.length" class="ls-muted">
+          No consecutive in-session transitions yet — run traffic through the companion to populate state slices.
+        </p>
+      </mat-card-content>
+    </mat-card>
+
+    <mat-card class="ls-card" *ngIf="executionSummary as eg">
+      <mat-card-title>Execution graph (Phase 3)</mat-card-title>
+      <mat-card-content>
+        <p class="ls-muted">
+          Derived from the in-memory normalized event buffer: {{ eg.nodeCount }} nodes, {{ eg.edgeCount }} edges,
+          {{ eg.stepOrder?.length || 0 }} steps. <span *ngIf="eg.repeatLoops?.length">Repeat loops: {{ eg.repeatLoops.length }}.</span>
+        </p>
+        <ul class="ls-session-list" *ngIf="eg.scores && (eg.scores | keyvalue).length">
+          <li *ngFor="let kv of eg.scores | keyvalue">
+            <span class="mono">{{ kv.key }}</span> → {{ $any(kv.value).classification }} ({{ $any(kv.value).score01 | number:'1.2-2' }})
+          </li>
+        </ul>
+        <p *ngIf="(eg.scores | keyvalue).length === 0" class="ls-muted">
+          No scored steps yet — run traffic through the companion to populate the graph.
+        </p>
+      </mat-card-content>
+    </mat-card>
+
+    <mat-card class="ls-card">
+      <mat-card-title>Normalized event log (local)</mat-card-title>
+      <mat-card-content>
+        <p class="ls-muted">
+          Last lines from <code>events.jsonl</code> — same schema as the SSE stream. No raw prompts unless a source explicitly flags content.
+        </p>
+        <ul class="ls-session-list" *ngIf="recentEvents.length">
+          <li *ngFor="let e of recentEvents.slice().reverse()">
+            <span class="mono">{{ e.type }}</span>
+            · {{ e.sessionId }}…
+            · {{ e.timestamp | date:'shortTime' }}
+          </li>
+        </ul>
+        <p *ngIf="!recentEvents.length" class="ls-muted">No persisted events yet, or telemetry is off.</p>
       </mat-card-content>
     </mat-card>
 

@@ -57,3 +57,17 @@ BILLING_EXEMPT_ORG_IDS=
   
 - Never commit secrets to git (including “temporary” `.env` files).
 - If any secrets were ever pushed to a public repo, **rotate them** and purge them from git history.
+
+---
+
+## Local Companion (customer machine)
+
+These apply to **`@spectyra/local-companion`** and the process spawned by Desktop — not the Railway API.
+
+| Variable | Purpose |
+|----------|---------|
+| `SPECTYRA_RUN_MODE` | `off` \| `observe` \| `on` — default **`on`** when unset |
+| `SPECTYRA_WORKFLOW_POLICY` | `observe` = policy evaluation only; unset or other = **`enforce`** (HTTP **422** before provider when rules trip) |
+| `SPECTYRA_TELEMETRY` | `off` \| `local` \| … — affects analytics routes (see [`LOCAL_ANALYTICS_AND_SYNC.md`](./LOCAL_ANALYTICS_AND_SYNC.md)) |
+
+Details: [`tools/local-companion/README.md`](../tools/local-companion/README.md).

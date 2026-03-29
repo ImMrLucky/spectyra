@@ -14,12 +14,15 @@ import { MatButtonModule } from '@angular/material/button';
 import { MatIconModule } from '@angular/material/icon';
 import { MatListModule } from '@angular/material/list';
 import { MatToolbarModule } from '@angular/material/toolbar';
+import { OwnerService } from './core/services/owner.service';
+import { SuperuserService } from './core/api/superuser.service';
 
 interface NavItem {
   label: string;
   route: string;
   icon: string;
   adminOnly?: boolean;
+  superuserOnly?: boolean;
   requiresAuth?: boolean;
 }
 
@@ -51,6 +54,7 @@ export class AppComponent implements OnInit, OnDestroy, AfterViewInit {
   isAuthenticated = false;
   userEmail: string | null = null;
   showAdminLink = false;
+  showSuperuserLink = false;
   sidebarOpen = true;
   sidebarCollapsed = false;
   private wasAutoCollapsed = false; // Track if collapse was due to screen size
@@ -79,13 +83,16 @@ export class AppComponent implements OnInit, OnDestroy, AfterViewInit {
 
     // Admin (actual admin only — server enforced)
     { label: 'Admin', route: '/admin', icon: 'admin_panel_settings', adminOnly: true, requiresAuth: true },
+    { label: 'Superuser', route: '/superuser', icon: 'shield', superuserOnly: true, requiresAuth: true },
   ];
 
   constructor(
     private authService: AuthService,
     private supabase: SupabaseService,
     private router: Router,
-    private cdr: ChangeDetectorRef
+    private cdr: ChangeDetectorRef,
+    private ownerService: OwnerService,
+    private superuserService: SuperuserService,
   ) {}
 
   ngOnInit() {
@@ -96,6 +103,11 @@ export class AppComponent implements OnInit, OnDestroy, AfterViewInit {
     // Check screen size and auto-collapse on mobile
     this.checkScreenSize();
     window.addEventListener('resize', this.checkScreenSize);
+
+    this.ownerService.getIsOwner().subscribe((is) => {
+      this.showAdminLink = is;
+      this.cdr.markForCheck();
+    });
 
     // Check both Supabase session and API key auth
     this.authSub = combineLatest([
@@ -130,9 +142,16 @@ export class AppComponent implements OnInit, OnDestroy, AfterViewInit {
   }
 
   private updateAdminVisibility(email: string | null | undefined) {
-    // Do not hardcode personal identifiers in the client. Owner access is enforced server-side.
-    // If you want to show an admin link, derive it from an authenticated backend signal.
-    this.showAdminLink = false;
+    if (!email) {
+      this.showSuperuserLink = false;
+      this.ownerService.refresh();
+      return;
+    }
+    this.ownerService.refresh();
+    this.superuserService.refresh().subscribe((r) => {
+      this.showSuperuserLink = !!r.is_superuser;
+      this.cdr.markForCheck();
+    });
   }
 
   ngAfterViewInit() {

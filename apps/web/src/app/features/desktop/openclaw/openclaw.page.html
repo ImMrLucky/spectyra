@@ -1,0 +1,71 @@
+<div class="oc-wrap">
+  <header class="oc-hero">
+    <h1>OpenClaw setup</h1>
+    <p class="oc-lead">
+      Point OpenClaw at your Local Companion. Inference stays on your machine; Spectyra optimizes before the provider call.
+    </p>
+  </header>
+
+  <mat-accordion class="oc-acc" multi="true">
+    <mat-expansion-panel [expanded]="true">
+      <mat-expansion-panel-header>
+        <mat-panel-title>A — What is OpenClaw?</mat-panel-title>
+      </mat-expansion-panel-header>
+      <p>
+        Common uses: coding, browser automation, research assistants, messaging workflows, and scheduled automations. Spectyra
+        sits in front of your chosen model provider.
+      </p>
+    </mat-expansion-panel>
+
+    <mat-expansion-panel>
+      <mat-expansion-panel-header>
+        <mat-panel-title>B — Install &amp; onboard</mat-panel-title>
+      </mat-expansion-panel-header>
+      <ol class="oc-steps">
+        <li>Install OpenClaw per upstream docs.</li>
+        <li>Run <code>openclaw onboard</code> once.</li>
+      </ol>
+    </mat-expansion-panel>
+
+    <mat-expansion-panel>
+      <mat-expansion-panel-header>
+        <mat-panel-title>C — Spectyra Local Companion</mat-panel-title>
+      </mat-expansion-panel-header>
+      <p>
+        Ensure this app is running so the companion binds to <code>{{ baseV1 }}</code>. Add your provider API key in onboarding.
+      </p>
+      <p><strong>Status:</strong> {{ health?.['status'] || 'offline' }}</p>
+    </mat-expansion-panel>
+
+    <mat-expansion-panel [expanded]="true">
+      <mat-expansion-panel-header>
+        <mat-panel-title>D — OpenClaw config</mat-panel-title>
+      </mat-expansion-panel-header>
+      <p class="oc-muted">Paste into your OpenClaw provider config (models.providers):</p>
+      <pre class="oc-pre">{{ json }}</pre>
+      <button mat-raised-button color="primary" type="button" (click)="copy()">Copy JSON</button>
+    </mat-expansion-panel>
+
+    <mat-expansion-panel>
+      <mat-expansion-panel-header>
+        <mat-panel-title>E — Validate</mat-panel-title>
+      </mat-expansion-panel-header>
+      <ul class="oc-cmds">
+        <li><code>openclaw models list</code> — expect <code>spectyra/smart</code></li>
+        <li><code>openclaw doctor</code></li>
+        <li><code>openclaw status</code> · <code>openclaw health</code></li>
+        <li><code>openclaw logs</code> for troubleshooting</li>
+      </ul>
+      <button mat-stroked-button type="button" (click)="test()">Test companion /v1/models</button>
+      <p class="oc-msg" *ngIf="message">{{ message }}</p>
+    </mat-expansion-panel>
+
+    <mat-expansion-panel>
+      <mat-expansion-panel-header>
+        <mat-panel-title>F — Go live</mat-panel-title>
+      </mat-expansion-panel-header>
+      <p>Open the split Live dashboard to watch agent activity vs Spectyra savings in real time.</p>
+      <a mat-raised-button color="accent" routerLink="/desktop/live">Open Live</a>
+    </mat-expansion-panel>
+  </mat-accordion>
+</div>

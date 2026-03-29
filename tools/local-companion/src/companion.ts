@@ -21,7 +21,16 @@ import { resolveSpectyraModel } from "@spectyra/shared";
 import { loadConfig, type CompanionConfig } from "./config.js";
 import { optimize, type ChatMessage } from "./optimizer.js";
 import { callProvider } from "./providers.js";
-import { saveRun, savePromptComparison, getRuns, getPromptComparison, getSavingsSummary } from "./localStore.js";
+import {
+  saveRun,
+  savePromptComparison,
+  getRuns,
+  getPromptComparison,
+  getSavingsSummary,
+  companionEventsJsonlPath,
+} from "./localStore.js";
+import { readRecentNormalizedEventsJsonl } from "@spectyra/event-core/local-persistence";
+import type { SpectyraEvent } from "@spectyra/event-core";
 import { estimateInputCostUsd, estimateOutputCostUsd } from "@spectyra/analytics-core";
 import {
   CompanionSessionRegistry,
@@ -35,8 +44,27 @@ import {
   registerSseClient,
   getLiveStateFromEvents,
 } from "./companionEvents.js";
+import { summarizeExecutionGraphFromSpectyraEvents } from "@spectyra/execution-graph";
+import {
+  extractStateSnapshotsFromSpectyraEvents,
+  summarizeStateDeltaFromSnapshots,
+} from "@spectyra/state-delta";
+import { evaluateWorkflowPolicyFromEvents } from "./workflowPolicyFromEvents.js";
+import { activateLicense } from "@spectyra/optimization-engine";
 
 const cfg: CompanionConfig = loadConfig();
+
+function licenseSnapshot(): {
+  licenseKeyPresent: boolean;
+  /** True when a key is set and passes local activation (trial or paid). */
+  licenseAllowsFullOptimization: boolean;
+} {
+  const key = cfg.licenseKey?.trim();
+  if (!key) {
+    return { licenseKeyPresent: false, licenseAllowsFullOptimization: false };
+  }
+  return { licenseKeyPresent: true, licenseAllowsFullOptimization: activateLicense(key) };
+}
 const sessionRegistry = new CompanionSessionRegistry(cfg);
 const app = express();
 
@@ -46,22 +74,31 @@ app.use(express.json({ limit: "10mb" }));
 // ── Health & Config ──────────────────────────────────────────────────────────
 
 app.get("/health", (_req, res) => {
+  const lic = licenseSnapshot();
   res.json({
     status: "ok",
     service: "spectyra-local-companion",
     runMode: cfg.runMode,
+    workflowPolicyMode: cfg.workflowPolicyMode,
     telemetryMode: cfg.telemetryMode,
     promptSnapshots: cfg.promptSnapshots,
+    persistNormalizedEvents: cfg.persistNormalizedEvents,
     inferencePath: "direct_provider",
     providerBillingOwner: "customer",
+    licenseKeyPresent: lic.licenseKeyPresent,
+    licenseAllowsFullOptimization: lic.licenseAllowsFullOptimization,
+    /** True when telemetry is not off — normalized events + live analytics available. */
+    monitoringEnabled: cfg.telemetryMode !== "off",
   });
 });
 
 app.get("/config", (_req, res) => {
   res.json({
     runMode: cfg.runMode,
+    workflowPolicyMode: cfg.workflowPolicyMode,
     telemetryMode: cfg.telemetryMode,
     promptSnapshots: cfg.promptSnapshots,
+    persistNormalizedEvents: cfg.persistNormalizedEvents,
     bindHost: cfg.bindHost,
     port: cfg.port,
     provider: cfg.provider,
@@ -112,6 +149,17 @@ app.post("/v1/chat/completions", async (req, res) => {
       aliasFastModel: cfg.aliasFastModel,
     });
     const optResult = optimize(messages, cfg.runMode, cfg.licenseKey);
+
+    const policy = evaluateWorkflowPolicyFromEvents(companionEventEngine.snapshot(), cfg.workflowPolicyMode);
+    if (policy.shouldBlock) {
+      return res.status(422).json({
+        error: {
+          type: "workflow_policy_blocked",
+          message: "Workflow policy blocked this request before the upstream provider call.",
+          violations: policy.violations,
+        },
+      });
+    }
 
     const providerResult = await callProvider(resolved.provider, resolved.upstreamModel, optResult.messages);
 
@@ -179,6 +227,18 @@ app.post("/v1/messages", async (req, res) => {
       aliasFastModel: cfg.aliasFastModel,
     });
     const optResult = optimize(messages, cfg.runMode, cfg.licenseKey);
+
+    const policyMsg = evaluateWorkflowPolicyFromEvents(companionEventEngine.snapshot(), cfg.workflowPolicyMode);
+    if (policyMsg.shouldBlock) {
+      return res.status(422).json({
+        error: {
+          type: "workflow_policy_blocked",
+          message: "Workflow policy blocked this request before the upstream provider call.",
+          violations: policyMsg.violations,
+        },
+      });
+    }
+
     const providerResult = await callProvider(resolved.provider, resolved.upstreamModel, optResult.messages);
 
     const runId = crypto.randomUUID();
@@ -287,6 +347,45 @@ app.get("/v1/analytics/live-events", (req, res) => {
 /** Live state derived from normalized events (parallel to file-based current-session). */
 app.get("/v1/analytics/live-state", (_req, res) => {
   res.json(getLiveStateFromEvents());
+});
+
+/** Execution graph + step usefulness from in-memory normalized event buffer (Phase 3). */
+app.get("/v1/analytics/execution-graph/summary", (_req, res) => {
+  if (cfg.telemetryMode === "off") {
+    return res.status(403).json({ error: "telemetry_disabled" });
+  }
+  const events = companionEventEngine.snapshot();
+  res.json(summarizeExecutionGraphFromSpectyraEvents(events));
+});
+
+/** State / delta analytics from the same in-memory buffer (Phase 4). */
+app.get("/v1/analytics/state-delta/summary", (_req, res) => {
+  if (cfg.telemetryMode === "off") {
+    return res.status(403).json({ error: "telemetry_disabled" });
+  }
+  const events = companionEventEngine.snapshot();
+  const snapshots = extractStateSnapshotsFromSpectyraEvents(events);
+  const summary = summarizeStateDeltaFromSnapshots(snapshots);
+  res.json(summary);
+});
+
+/** Workflow policy evaluation (same mode as inference: enforce may block provider; observe never). */
+app.get("/v1/analytics/workflow-policy/summary", (_req, res) => {
+  if (cfg.telemetryMode === "off") {
+    return res.status(403).json({ error: "telemetry_disabled" });
+  }
+  const events = companionEventEngine.snapshot();
+  res.json(evaluateWorkflowPolicyFromEvents(events, cfg.workflowPolicyMode));
+});
+
+/** Recent normalized events from disk (JSONL), newest last — for debugging / proof UI. */
+app.get("/v1/analytics/events/recent", async (req, res) => {
+  if (cfg.telemetryMode === "off") {
+    return res.status(403).json({ error: "telemetry_disabled" });
+  }
+  const limit = Math.min(500, Math.max(1, parseInt(req.query.limit as string, 10) || 50));
+  const events = await readRecentNormalizedEventsJsonl(companionEventsJsonlPath(), limit);
+  res.json({ events, path: companionEventsJsonlPath() } satisfies { events: SpectyraEvent[]; path: string });
 });
 
 /**

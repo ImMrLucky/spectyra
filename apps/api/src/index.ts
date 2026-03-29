@@ -25,6 +25,7 @@ import { usageRouter } from "./routes/usage.js";
 import { analyticsSyncRouter } from "./routes/analyticsSync.js";
 import { providerKeysRouter } from "./routes/providerKeys.js";
 import { retentionRouter } from "./routes/retention.js";
+import { superuserRouter } from "./routes/superuser.js";
 import { settingsRouter } from "./routes/settings.js";
 import { scimRouter } from "./routes/scim.js";
 import { serverOptimizeRouter } from "./routes/serverOptimize.js";
@@ -110,6 +111,7 @@ app.use("/v1", studioRouter); // POST /v1/studio/run (authenticated)
 app.use("/v1/proof", proofRouter);
 app.use("/v1/replay/simulate", replaySimulateRouter);
 app.use("/v1/billing", billingRouter);
+app.use("/v1/superuser", superuserRouter);
 app.use("/v1/auth", authRouter);
 app.use("/v1/license", licenseRouter);
 app.use("/v1/integrations", integrationsRouter);

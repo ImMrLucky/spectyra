@@ -18,7 +18,9 @@ import { SecuritySettingsPage } from './features/settings/security.page';
 import { ProviderKeysPage } from './features/settings/provider-keys.page';
 import { BillingPage } from './features/billing/billing.page';
 import { DownloadPage } from './features/download/download.page';
+import { SuperuserPage } from './features/superuser/superuser.page';
 import { authGuard } from './core/guards/auth.guard';
+import { superuserGuard } from './core/guards/superuser.guard';
 
 export const webRoutes: Routes = [
   { path: '', component: HomePage },
@@ -46,6 +48,7 @@ export const webRoutes: Routes = [
   { path: 'settings/provider-keys', component: ProviderKeysPage, canActivate: [authGuard] },
 
   { path: 'admin', component: AdminPage, canActivate: [authGuard] },
+  { path: 'superuser', component: SuperuserPage, canActivate: [authGuard, superuserGuard] },
 
   { path: 'optimizer-lab', redirectTo: '/observe', pathMatch: 'full' },
   { path: 'admin/optimizer-lab', redirectTo: '/observe', pathMatch: 'full' },

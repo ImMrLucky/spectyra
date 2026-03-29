@@ -26,6 +26,7 @@ import type {
   FlowRecommendation,
   LicenseStatus,
 } from "@spectyra/canonical-model";
+import { shouldSkipTransformForLearning } from "@spectyra/learning";
 
 import { whitespaceNormalize } from "./transforms/whitespace-normalize.js";
 import { dedupConsecutive } from "./transforms/dedup-consecutive.js";
@@ -251,6 +252,7 @@ function runTransformPipeline(
   const riskAnnotations: Array<{ transformId: string; risk: TransformRiskLevel; note: string }> = [];
 
   for (const transform of transforms) {
+    if (shouldSkipTransformForLearning(transform.id, profile)) continue;
     if (!transform.applies(features, current, profile)) continue;
 
     const ctx: TransformContext = {

@@ -1,6 +1,41 @@
 import { Injectable } from '@angular/core';
 import { environment } from '../../../environments/environment';
-import type { LiveSessionState } from '@spectyra/event-core';
+import type { LiveSessionState, SpectyraEvent } from '@spectyra/event-core';
+
+/** Local companion execution-graph/summary JSON (Phase 3). */
+export interface ExecutionGraphSummary {
+  stepOrder: string[];
+  nodeCount: number;
+  edgeCount: number;
+  scores: Record<string, { stepId: string; classification: string; score01: number; reasons: string[] }>;
+  repeatLoops: string[][];
+}
+
+/** Local companion state-delta/summary JSON (Phase 4). */
+export interface StateDeltaSummary {
+  snapshotCount: number;
+  transitionCount: number;
+  transitions: Array<{
+    fromEventId: string;
+    toEventId: string;
+    fromStepId: string;
+    toStepId: string;
+    unchangedKeyCount: number;
+    changedKeyCount: number;
+    addedKeyCount: number;
+    removedKeyCount: number;
+    wireEstimateChars: number;
+  }>;
+  sharedContext: { uniqueBlobs: number; reuseHits: number };
+  refStoreEntries: number;
+}
+
+/** Local companion workflow-policy/summary JSON (Phase 6). */
+export interface WorkflowPolicySummary {
+  mode: string;
+  violations: Array<{ code: string; message: string; severity: string; stepIds?: string[] }>;
+  shouldBlock: boolean;
+}
 import type { SessionAnalyticsRecord } from '@spectyra/analytics-core';
 
 /** Companion HTTP API — local-first; no Spectyra cloud for these calls. */
@@ -61,6 +96,54 @@ export class CompanionAnalyticsService {
       return (await r.json()) as SessionAnalyticsRecord[];
     } catch {
       return [];
+    }
+  }
+
+  /** Recent normalized events from companion disk (Phase 2 event spine). */
+  async fetchExecutionGraphSummary(): Promise<ExecutionGraphSummary | null> {
+    const origin = await this.resolveCompanionOrigin();
+    try {
+      const r = await fetch(`${origin}/v1/analytics/execution-graph/summary`);
+      if (!r.ok) return null;
+      return (await r.json()) as ExecutionGraphSummary;
+    } catch {
+      return null;
+    }
+  }
+
+  async fetchStateDeltaSummary(): Promise<StateDeltaSummary | null> {
+    const origin = await this.resolveCompanionOrigin();
+    try {
+      const r = await fetch(`${origin}/v1/analytics/state-delta/summary`);
+      if (!r.ok) return null;
+      return (await r.json()) as StateDeltaSummary;
+    } catch {
+      return null;
+    }
+  }
+
+  async fetchWorkflowPolicySummary(): Promise<WorkflowPolicySummary | null> {
+    const origin = await this.resolveCompanionOrigin();
+    try {
+      const r = await fetch(`${origin}/v1/analytics/workflow-policy/summary`);
+      if (!r.ok) return null;
+      return (await r.json()) as WorkflowPolicySummary;
+    } catch {
+      return null;
+    }
+  }
+
+  async fetchRecentNormalizedEvents(limit = 40): Promise<{
+    events: SpectyraEvent[];
+    path: string;
+  } | null> {
+    const origin = await this.resolveCompanionOrigin();
+    try {
+      const r = await fetch(`${origin}/v1/analytics/events/recent?limit=${limit}`);
+      if (!r.ok) return null;
+      return (await r.json()) as { events: SpectyraEvent[]; path: string };
+    } catch {
+      return null;
     }
   }
 

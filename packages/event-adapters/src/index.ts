@@ -1,3 +1,4 @@
+export * from "./source-labels.js";
 export * from "./sdk/adapter.js";
 export * from "./local-companion/adapter.js";
 export * from "./openclaw-jsonl/adapter.js";

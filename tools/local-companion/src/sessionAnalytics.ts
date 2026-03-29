@@ -4,12 +4,12 @@
 
 import { promises as fs } from "fs";
 import path from "path";
-import { homedir } from "os";
 import type { SavingsReport } from "@spectyra/core-types";
 import { createSessionTracker, type SessionAnalyticsRecord, type SpectyraSessionTracker } from "@spectyra/analytics-core";
 import type { CompanionConfig } from "./config.js";
+import { COMPANION_DATA_DIR } from "./localStore.js";
 
-const DATA_DIR = path.join(homedir(), ".spectyra", "companion");
+const DATA_DIR = COMPANION_DATA_DIR;
 
 function safeKey(sessionKey: string): string {
   return sessionKey.replace(/[^a-zA-Z0-9_-]/g, "_").slice(0, 120) || "default";

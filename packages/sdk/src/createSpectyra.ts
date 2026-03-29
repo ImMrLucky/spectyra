@@ -77,7 +77,7 @@ export interface SpectyraInstance {
  * ```ts
  * // Recommended: local-first, direct-provider
  * const spectyra = createSpectyra({
- *   runMode: "observe",
+ *   runMode: "on",
  *   telemetry: { mode: "local" },
  *   promptSnapshots: "local_only",
  *   licenseKey: process.env.SPECTYRA_LICENSE_KEY,

@@ -48,6 +48,8 @@ import crypto from "node:crypto";
 import { jwtVerify, createRemoteJWKSet } from "jose";
 import type { Org, Project } from "@spectyra/shared";
 import type { SupabaseAdminUser } from "../types/supabase.js";
+import type { PlatformRoleName } from "../services/storage/platformRolesRepo.js";
+import type { HasActiveAccessOpts } from "../services/storage/orgsRepo.js";
 
 export interface RequestContext {
   org: Org;
@@ -73,6 +75,15 @@ export interface AuthenticatedRequest extends Request {
     apiKeyId?: string;
     providerKeyOverride?: string;
     providerKeyFingerprint?: string;
+    /** From platform_roles table */
+    platformRole?: PlatformRoleName;
+  };
+}
+
+export function billingAccessOpts(req: AuthenticatedRequest): HasActiveAccessOpts {
+  return {
+    userEmail: req.auth?.email,
+    platformBillingExempt: !!req.auth?.platformRole,
   };
 }
 
@@ -446,6 +457,16 @@ export async function requireUserSession(
         req.auth.email = emailRaw.trim();
       }
 
+      try {
+        const { getPlatformRoleByEmail } = await import("../services/storage/platformRolesRepo.js");
+        const pr = await getPlatformRoleByEmail(req.auth.email);
+        if (pr) {
+          req.auth.platformRole = pr;
+        }
+      } catch {
+        /* non-fatal */
+      }
+
       // Also attach to context for backward compatibility
       req.context = req.context || {} as RequestContext;
       req.context.userId = userId;
@@ -675,6 +696,12 @@ export async function requireOwner(
   try {
     if (!req.auth?.userId) {
       res.status(401).json({ error: "Not authenticated" });
+      return;
+    }
+
+    if (req.auth?.platformRole === "superuser") {
+      safeLog("info", "Owner access granted (platform superuser)", { userId: req.auth.userId });
+      next();
       return;
     }
 

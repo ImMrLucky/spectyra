@@ -6,13 +6,20 @@
  * License model:
  *   - Valid trial or paid → full optimization applied, all efficiencies
  *   - No valid license → observe-only: full pipeline runs so user SEES
- *     projected savings, but zero optimization applied.
+ *     projected savings, but zero optimization is applied.
  */
 
 import type { SpectyraRunMode } from "@spectyra/core-types";
 import type { CanonicalRequest, CanonicalMessage, FlowSignals, LicenseStatus } from "@spectyra/canonical-model";
 import { detectFeatures } from "@spectyra/feature-detection";
 import { optimize as runPipeline, activateLicense } from "@spectyra/optimization-engine";
+import {
+  applyUpdate,
+  learningUpdatesFromPipelineRun,
+  mergeCalibrationForDetection,
+  toHistoricalSignals,
+} from "@spectyra/learning";
+import { loadCompanionLearningProfile, saveCompanionLearningProfile } from "./learningStore.js";
 
 export interface ChatMessage {
   role: string;
@@ -70,12 +77,26 @@ export function optimize(messages: ChatMessage[], runMode: SpectyraRunMode, lice
     return { messages: [...messages], inputTokensBefore, inputTokensAfter: inputTokensBefore, transforms: [], flowSignals: null, licenseLimited: false };
   }
 
+  const learningProfile = loadCompanionLearningProfile();
   const canonical = toCanonical(messages, runMode);
-  const features = detectFeatures(canonical);
-  const pipeline = runPipeline({ request: canonical, features, licenseStatus });
+  const history = toHistoricalSignals(learningProfile);
+  const calibration = mergeCalibrationForDetection(learningProfile, undefined);
+  const features = detectFeatures(canonical, history, calibration);
+  const pipeline = runPipeline({ request: canonical, features, profile: learningProfile, licenseStatus });
 
   const resultMessages = fromCanonical(pipeline.optimizedRequest.messages);
   const inputTokensAfter = estimateTokens(resultMessages);
+
+  const tokensSaved = Math.max(0, inputTokensBefore - inputTokensAfter);
+  const updates = learningUpdatesFromPipelineRun({
+    scopeId: learningProfile.scopeId,
+    appliedTransformIds: pipeline.transformsApplied,
+    tokensSaved,
+    featureIds: features.map((f) => f.featureId),
+    success: true,
+  });
+  for (const u of updates) applyUpdate(learningProfile, u);
+  saveCompanionLearningProfile(learningProfile);
 
   return {
     messages: resultMessages,

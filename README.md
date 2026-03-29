@@ -147,7 +147,7 @@ three-state mode:
 | `observe` | Local dry-run, projected savings | **None** | Free |
 | `on` | Optimization applied, then direct call | Direct | Reduced provider price |
 
-Default for new integrations: **`observe`** (safe onboarding, no mutation).
+Default for new integrations: **`on`** where optimization is licensed; use **`observe`** for dry-run/projected savings without changing provider payloads.
 
 ---
 

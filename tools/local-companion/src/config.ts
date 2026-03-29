@@ -11,9 +11,15 @@ import type {
   PromptSnapshotMode,
 } from "@spectyra/core-types";
 import { defaultAliasModels } from "@spectyra/shared";
+import type { WorkflowPolicyMode } from "@spectyra/workflow-policy";
 
 export interface CompanionConfig {
   runMode: SpectyraRunMode;
+  /**
+   * enforce — may return 422 and skip the provider when policy rules trip (see workflow-policy defaults).
+   * observe — evaluate and expose via GET summary only; never blocks provider calls.
+   */
+  workflowPolicyMode: WorkflowPolicyMode;
   telemetryMode: TelemetryMode;
   promptSnapshots: PromptSnapshotMode;
   bindHost: string;
@@ -28,13 +34,22 @@ export interface CompanionConfig {
   licenseKey?: string;
   providerKeySource: "env" | "session";
   debugLogPrompts: boolean;
+  /** Append normalized SpectyraEvent to ~/.spectyra/companion/events.jsonl (default true when telemetry is not off). */
+  persistNormalizedEvents: boolean;
+}
+
+function parseWorkflowPolicyMode(raw: string | undefined): WorkflowPolicyMode {
+  const v = (raw || "").trim().toLowerCase();
+  if (v === "observe") return "observe";
+  return "enforce";
 }
 
 export function loadConfig(): CompanionConfig {
   const provider = process.env.SPECTYRA_PROVIDER || "openai";
   const defaults = defaultAliasModels(provider);
   return {
-    runMode: (process.env.SPECTYRA_RUN_MODE as SpectyraRunMode) || "observe",
+    runMode: (process.env.SPECTYRA_RUN_MODE as SpectyraRunMode) || "on",
+    workflowPolicyMode: parseWorkflowPolicyMode(process.env.SPECTYRA_WORKFLOW_POLICY),
     telemetryMode: (process.env.SPECTYRA_TELEMETRY as TelemetryMode) || "local",
     promptSnapshots: (process.env.SPECTYRA_PROMPT_SNAPSHOTS as PromptSnapshotMode) || "local_only",
     bindHost: process.env.SPECTYRA_BIND_HOST || "127.0.0.1",
@@ -45,5 +60,6 @@ export function loadConfig(): CompanionConfig {
     licenseKey: process.env.SPECTYRA_LICENSE_KEY?.trim() || undefined,
     providerKeySource: (process.env.SPECTYRA_KEY_SOURCE as "env" | "session") || "env",
     debugLogPrompts: process.env.DEBUG_LOG_PROMPTS === "true",
+    persistNormalizedEvents: process.env.SPECTYRA_PERSIST_EVENTS !== "false",
   };
 }

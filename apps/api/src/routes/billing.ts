@@ -12,7 +12,13 @@ import {
   updateOrgSubscription,
   updateOrgStripeCustomerId,
 } from "../services/storage/orgsRepo.js";
-import { requireSpectyraApiKey, optionalProviderKey, requireUserSession, type AuthenticatedRequest } from "../middleware/auth.js";
+import {
+  requireSpectyraApiKey,
+  optionalProviderKey,
+  requireUserSession,
+  billingAccessOpts,
+  type AuthenticatedRequest,
+} from "../middleware/auth.js";
 import { hasActiveAccess } from "../services/storage/orgsRepo.js";
 import { safeLog } from "../utils/redaction.js";
 
@@ -377,7 +383,7 @@ billingRouter.get("/status", async (req: AuthenticatedRequest, res) => {
       return res.status(404).json({ error: "Organization not found" });
     }
     
-    const hasAccess = hasActiveAccess(org, { userEmail: req.auth?.email });
+    const hasAccess = hasActiveAccess(org, billingAccessOpts(req));
     const trialEnd = org.trial_ends_at ? new Date(org.trial_ends_at) : null;
     const isTrialActive = trialEnd ? trialEnd > new Date() : false;
     
@@ -391,6 +397,9 @@ billingRouter.get("/status", async (req: AuthenticatedRequest, res) => {
       trial_active: isTrialActive,
       subscription_status: org.subscription_status,
       subscription_active: org.subscription_status === "active",
+      platform_role: req.auth?.platformRole ?? null,
+      platform_billing_exempt: !!req.auth?.platformRole,
+      org_platform_exempt: !!org.platform_exempt,
     });
   } catch (error: any) {
     if (!res.headersSent) {

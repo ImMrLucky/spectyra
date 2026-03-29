@@ -48,10 +48,10 @@ export interface SpectyraRuntimeConfig {
 }
 
 /**
- * Default runtime config — safe, local-first, observe mode.
+ * Default runtime config — local-first; matches SDK/companion default run mode when unset.
  */
 export const DEFAULT_RUNTIME_CONFIG: Readonly<SpectyraRuntimeConfig> = {
-  runMode: "observe",
+  runMode: "on",
   telemetry: { mode: "local" },
   promptSnapshots: "local_only",
   companion: {

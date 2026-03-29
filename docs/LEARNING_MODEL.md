@@ -101,3 +101,12 @@ Global learning must never depend on raw prompt content. Enforced by:
 - Only aggregate metrics in `GlobalLearningSnapshot`
 - No fields for raw text, code, or files
 - `@spectyra/security-core` validates what can be synced
+
+## Implementation status (Phase 5)
+
+- **Transform selection** — `optimization-engine` skips heavy transforms (`spectral_scc`, `refpack`, `phrasebook`, `codemap`, `stable_turn_summarize`) when local `LearningProfile` shows sustained failure (`shouldSkipTransformForLearning` in `@spectyra/learning`).
+- **Feature detection** — `detectFeatures(request, toHistoricalSignals(profile), mergeCalibrationForDetection(profile, global))` in **Local Companion** (`optimizer.ts`) and **SDK** (`localWrapper.ts` when `learningProfile` / `globalLearningSnapshot` are set).
+- **Feedback** — `learningUpdatesFromPipelineRun` + `applyUpdate` after each run; Companion persists **`~/.spectyra/companion/learning-profile.json`**.
+- **SDK** — Optional `SpectyraConfig.learningProfile` and `globalLearningSnapshot`; export `createEmptyProfile` / `applyUpdate` from `@spectyra/sdk`.
+
+Tests: `pnpm test:learning-loop`, full moat `pnpm test:moat-through-5`.

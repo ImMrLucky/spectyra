@@ -9,7 +9,12 @@ import { MatDividerModule } from '@angular/material/divider';
 import { MatTableModule } from '@angular/material/table';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { MatTooltipModule } from '@angular/material/tooltip';
-import { CompanionAnalyticsService } from '../../core/analytics/companion-analytics.service';
+import {
+  CompanionAnalyticsService,
+  type ExecutionGraphSummary,
+  type StateDeltaSummary,
+  type WorkflowPolicySummary,
+} from '../../core/analytics/companion-analytics.service';
 import { CloudAnalyticsSyncService } from '../../core/analytics/cloud-analytics-sync.service';
 import { SupabaseService } from '../../services/supabase.service';
 import { environment } from '../../../environments/environment';
@@ -54,6 +59,10 @@ export class LiveSavingsPage implements OnInit, OnDestroy {
 
   stepColumns = ['idx', 'model', 'tokens', 'savings', 'transforms'];
   stepRows: StepAnalyticsRecord[] = [];
+  recentEvents: Array<{ type: string; timestamp: string; sessionId: string }> = [];
+  executionSummary: ExecutionGraphSummary | null = null;
+  stateDeltaSummary: StateDeltaSummary | null = null;
+  workflowPolicySummary: WorkflowPolicySummary | null = null;
 
   private poll?: Subscription;
   private es?: EventSource;
@@ -93,6 +102,15 @@ export class LiveSavingsPage implements OnInit, OnDestroy {
       this.liveState = await this.companion.fetchLiveState();
       this.diskSession = await this.companion.fetchCurrentSession();
       this.sessions = await this.companion.fetchSessions(40);
+      this.executionSummary = await this.companion.fetchExecutionGraphSummary();
+      this.stateDeltaSummary = await this.companion.fetchStateDeltaSummary();
+      this.workflowPolicySummary = await this.companion.fetchWorkflowPolicySummary();
+      const ev = await this.companion.fetchRecentNormalizedEvents(24);
+      this.recentEvents = (ev?.events ?? []).map((e) => ({
+        type: e.type,
+        timestamp: e.timestamp,
+        sessionId: e.sessionId?.slice(0, 8) ?? '—',
+      }));
       this.stepRows = this.liveState?.recentSteps?.length
         ? [...this.liveState.recentSteps].reverse()
         : [];

@@ -82,9 +82,16 @@ pnpm start
 | POST | `/v1/messages` | Anthropic-compatible messages |
 | GET | `/v1/analytics/live-events` | SSE stream of normalized `SpectyraEvent` (local) |
 | GET | `/v1/analytics/live-state` | JSON snapshot for dashboards |
+| GET | `/v1/analytics/events/recent` | Tail of `events.jsonl` (telemetry not off) |
+| GET | `/v1/analytics/execution-graph/summary` | Phase 3 — graph + step scores from in-memory events |
+| GET | `/v1/analytics/state-delta/summary` | Phase 4 — state/delta stats from in-memory events |
+| GET | `/v1/analytics/workflow-policy/summary` | Phase 6 — workflow policy (same mode as pre-provider gate; default enforce) |
 | GET | `/v1/analytics/current-session` | Current workflow session |
 | GET | `/v1/analytics/sessions` | Recent sessions |
 | GET | `/v1/analytics/session/:sessionId` | Session detail |
+| GET | `/v1/analytics/prompt-comparison/:runId` | Prompt comparison metadata |
+| POST | `/v1/analytics/session/complete` | Finalize active session |
+| POST | `/v1/analytics/sync` | Sync intent ack (cloud upload via Spectyra app) |
 | POST | `/v1/analytics/ingest` | Push adapter-shaped JSON (JSONL tailers, daemons, sidecars) |
 
 See [AGENTIC_AND_SERVER_INTEGRATION.md](../../docs/AGENTIC_AND_SERVER_INTEGRATION.md) for OpenClaw, Claude harnesses, and server-side daemon patterns.
@@ -110,7 +117,20 @@ Spectyra uses a universal **off / observe / on** model:
 
 Configure via companion API or match the [Desktop app](../../apps/desktop) behavior — see project docs.
 
+**Environment (common):**
+
+| Variable | Effect |
+|----------|--------|
+| `SPECTYRA_RUN_MODE` | `off` \| `observe` \| `on` — default **`on`** when unset |
+| `SPECTYRA_WORKFLOW_POLICY` | `observe` = evaluate only; unset or any other value = **`enforce`** (may return **422** before the provider when rules trip) |
+
+`/health` and `/config` include `workflowPolicyMode`.
+
 ---
+
+## Local learning (Phase 5)
+
+Companion persists **`~/.spectyra/companion/learning-profile.json`** after each optimization. Heavy transforms (`refpack`, `phrasebook`, `spectral_scc`, etc.) are skipped automatically if local stats show repeated failure. Feature detection uses the same profile for historical signals and optional detector threshold overrides.
 
 ## Docs
 

@@ -23,3 +23,11 @@ Keep this folder **user-facing and current**.
 ### Configuration
 
 - **Environment variables**: [`ENVIRONMENT_VARIABLES.md`](./ENVIRONMENT_VARIABLES.md)
+
+### Moat architecture (engineering)
+
+Start with **[`MOAT_UPGRADE_ROADMAP.md`](./MOAT_UPGRADE_ROADMAP.md)** (phases, commands, what shipped). **[`PRESERVE_FIRST_BOUNDARIES.md`](./PRESERVE_FIRST_BOUNDARIES.md)** is the IP/boundary inventory. Policy rules and package layout: **[`WORKFLOW_POLICY_ENGINE.md`](./WORKFLOW_POLICY_ENGINE.md)**.
+
+Optional deeper notes (no need to read every file for every phase): [`WHY_SPECTYRA_IS_AN_OPTIMIZATION_LAYER.md`](./WHY_SPECTYRA_IS_AN_OPTIMIZATION_LAYER.md), [`LOCAL_EVENT_SPINE.md`](./LOCAL_EVENT_SPINE.md), [`LOCAL_ANALYTICS_AND_SYNC.md`](./LOCAL_ANALYTICS_AND_SYNC.md), [`EXECUTION_GRAPH.md`](./EXECUTION_GRAPH.md), [`STATE_DELTA_OPTIMIZATION.md`](./STATE_DELTA_OPTIMIZATION.md), [`LEARNING_MODEL.md`](./LEARNING_MODEL.md), [`STAYING_AHEAD_OF_PROVIDER_EVOLUTION.md`](./STAYING_AHEAD_OF_PROVIDER_EVOLUTION.md).
+
+**Regression:** `pnpm test:moat-phase1-2` (1–2) · `pnpm test:moat-through-4` (through 4) · `pnpm test:moat-through-5` (through 5) · `pnpm test:moat-through-6` (through 6).

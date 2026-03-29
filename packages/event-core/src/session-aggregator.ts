@@ -77,6 +77,10 @@ export class EventSessionAggregator {
   }
 
   push(event: SpectyraEvent): void {
+    // Chat flows often emit optimization/provider events without a prior session_started; still bind ids.
+    if (event.sessionId?.trim() && !this.sessionId) this.sessionId = event.sessionId.trim();
+    if (event.runId?.trim() && !this.runId) this.runId = event.runId.trim();
+
     this.telemetryMode = event.security.telemetryMode;
     this.promptSnapshotMode = event.security.promptSnapshotMode;
     this.integration = mapIntegration(event.source.integrationType);

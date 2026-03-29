@@ -28,7 +28,8 @@ import { interval, Subscription } from 'rxjs';
         <mat-card-actions>
           <button mat-raised-button color="primary" (click)="refresh()">Refresh</button>
           <a mat-button routerLink="/desktop/openclaw">OpenClaw setup</a>
-          <a mat-raised-button color="accent" routerLink="/desktop/live-savings">Live savings</a>
+          <a mat-button routerLink="/desktop/runs">Run history</a>
+          <a mat-raised-button color="accent" routerLink="/desktop/live">Live</a>
         </mat-card-actions>
       </mat-card>
 

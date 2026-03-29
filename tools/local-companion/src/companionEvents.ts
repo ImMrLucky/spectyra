@@ -4,10 +4,14 @@
 
 import type { Response } from "express";
 import { createEventIngestionEngine, type SpectyraEvent } from "@spectyra/event-core";
+import { appendNormalizedEventJsonl } from "@spectyra/event-core/local-persistence";
 import { defaultEventAdapters } from "@spectyra/event-adapters";
 import type { SavingsReport } from "@spectyra/core-types";
+import { loadConfig } from "./config.js";
+import { companionEventsJsonlPath } from "./localStore.js";
 
 const sseClients = new Set<Response>();
+const companionCfg = loadConfig();
 
 /** Full adapter stack (SDK envelopes, companion, OpenClaw JSONL, Claude, OpenAI tracing, generic JSONL). */
 export const companionEventEngine = createEventIngestionEngine({
@@ -16,6 +20,11 @@ export const companionEventEngine = createEventIngestionEngine({
 });
 
 companionEventEngine.subscribe((event: SpectyraEvent) => {
+  if (companionCfg.telemetryMode !== "off" && companionCfg.persistNormalizedEvents) {
+    void appendNormalizedEventJsonl(companionEventsJsonlPath(), event).catch(() => {
+      /* disk full / permission — do not break bus */
+    });
+  }
   const line = `data: ${JSON.stringify({ v: 1, event })}\n\n`;
   for (const res of sseClients) {
     try {

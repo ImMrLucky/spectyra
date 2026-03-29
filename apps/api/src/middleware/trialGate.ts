@@ -10,7 +10,7 @@
 import { Response, NextFunction } from "express";
 import { hasActiveAccess } from "../services/storage/orgsRepo.js";
 import { getEntitlement, canRunOptimized } from "../services/entitlement.js";
-import type { AuthenticatedRequest } from "./auth.js";
+import { billingAccessOpts, type AuthenticatedRequest } from "./auth.js";
 
 /**
  * Require active access (trial or subscription) for live provider calls.
@@ -32,7 +32,7 @@ export function requireActiveAccess(
     return;
   }
 
-  if (!hasActiveAccess(org, { userEmail: req.auth?.email })) {
+  if (!hasActiveAccess(org, billingAccessOpts(req))) {
     const trialEnd = org.trial_ends_at ? new Date(org.trial_ends_at) : null;
     const trialEnded = trialEnd ? trialEnd < new Date() : false;
 
