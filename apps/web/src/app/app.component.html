@@ -15,6 +15,7 @@
       <a mat-button routerLink="/desktop/onboarding" routerLinkActive="active">Setup</a>
       <a mat-button routerLink="/desktop/openclaw" routerLinkActive="active">OpenClaw</a>
       <a mat-button routerLink="/desktop/runs" routerLinkActive="active">Runs</a>
+      <a mat-button *ngIf="showSuperuserLink" routerLink="/superuser" routerLinkActive="active">Superuser</a>
       <a mat-button routerLink="/login" routerLinkActive="active">Sign in</a>
     </mat-toolbar>
     <main class="desktop-main">

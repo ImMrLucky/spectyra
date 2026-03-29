@@ -98,6 +98,21 @@ export class AppComponent implements OnInit, OnDestroy, AfterViewInit {
   ngOnInit() {
     if (this.isDesktop) {
       this.isAuthenticated = true;
+      this.ownerService.getIsOwner().subscribe((is) => {
+        this.showAdminLink = is;
+        this.cdr.markForCheck();
+      });
+      this.authSub = this.supabase.getSession().subscribe((session) => {
+        if (session) {
+          this.supabase.getUser().subscribe((user) => {
+            this.userEmail = user?.email ?? null;
+            this.updateAdminVisibility(user?.email ?? undefined);
+          });
+        } else {
+          this.userEmail = null;
+          this.updateAdminVisibility(null);
+        }
+      });
       return;
     }
     // Check screen size and auto-collapse on mobile

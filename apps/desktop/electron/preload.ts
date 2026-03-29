@@ -38,9 +38,6 @@ contextBridge.exposeInMainWorld("spectyra", {
     openDataDir: () => ipcRenderer.invoke("app:open-data-dir"),
   },
 
-  onLog: (cb: (msg: string) => void) => {
-    ipcRenderer.on("companion-log", (_e, msg: string) => cb(msg));
-  },
   onStatus: (cb: (status: { running: boolean; port?: number; code?: number }) => void) => {
     ipcRenderer.on("companion-status", (_e, s) => cb(s));
   },

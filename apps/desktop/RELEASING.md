@@ -38,6 +38,28 @@ Do not commit large installers to git. Prefer CDN / object storage / GitHub Rele
 - The **NSIS `.exe`** is often **smaller than the `.zip`** of the same app. If the zip is still tight on a **~100 MB** limit, prefer shipping the **installer** via **GitHub Releases** (or another CDN) instead of the portable zip.
 - **Stale zip:** electron-builder may skip re-zipping when an existing `*-win-x64.zip` looks newer than `win-unpacked`. From `apps/desktop`, run **`pnpm run dist:win`** (or delete that zip, then run `electron-builder --win`) so the zip always matches the latest build.
 
+## macOS code signing & notarization (no Gatekeeper warning)
+
+Unsigned `.dmg` / `.app` builds trigger **“Apple could not verify…”** on end-user Macs. To ship a build that opens without right‑click → Open, you need:
+
+1. **Apple Developer Program** membership (paid).
+2. A **Developer ID Application** certificate installed in your Mac keychain (Xcode → Settings → Accounts → Manage Certificates, or create via Apple Developer portal).
+3. **Notarization** so Gatekeeper accepts the app on first launch.
+
+**electron-builder** will sign and submit for notarization when you build **on macOS** with the usual environment variables set (see [electron-builder code signing](https://www.electron.build/code-signing)):
+
+| Variable | Purpose |
+|----------|---------|
+| `CSC_LINK` | Path to a `.p12` export of your **Developer ID Application** cert, **or** `keychain:` / path to identity |
+| `CSC_KEY_PASSWORD` | Password for the `.p12` file (if used) |
+| `APPLE_ID` | Apple ID used for notarization |
+| `APPLE_APP_SPECIFIC_PASSWORD` | App-specific password (Apple ID → Security) |
+| `APPLE_TEAM_ID` | 10-character Team ID |
+
+If these are **not** set, `pnpm desktop:dist` still produces a working `.dmg`, but users must bypass Gatekeeper once (documented in **[docs/INSTALL_AND_SETUP.md](../../docs/INSTALL_AND_SETUP.md)**).
+
+`electron-builder.yml` sets `mac.gatekeeperAssess: false` so the **build machine** does not fail the pre-staple assessment; end-user Gatekeeper is satisfied by **signing + notarization**, not by this flag alone.
+
 ## When to rebuild
 
 - Changes under `apps/desktop/electron/**`, `apps/desktop/package.json`, `electron-builder.yml`

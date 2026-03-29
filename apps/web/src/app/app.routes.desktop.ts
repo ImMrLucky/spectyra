@@ -14,6 +14,8 @@ import { DesktopSecurityPage } from './features/desktop/security/desktop-securit
 import { DesktopSettingsPage } from './features/desktop/settings/desktop-settings.page';
 import { IntegrationsPage } from './features/integrations/integrations.page';
 import { LoginPage } from './features/auth/login.page';
+import { SuperuserPage } from './features/superuser/superuser.page';
+import { superuserGuard } from './core/guards/superuser.guard';
 
 /** Electron renderer — local-first shell (hash routing in main.ts). */
 export const desktopRoutes: Routes = [
@@ -35,4 +37,5 @@ export const desktopRoutes: Routes = [
   { path: 'login', component: LoginPage },
   { path: 'integrations/:slug', component: IntegrationsPage, canActivate: [authGuard] },
   { path: 'integrations', component: IntegrationsPage, canActivate: [authGuard] },
+  { path: 'superuser', component: SuperuserPage, canActivate: [authGuard, superuserGuard] },
 ];

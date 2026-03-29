@@ -3,10 +3,11 @@
  * Spawns Local Companion as a child process (Electron's Node runtime via ELECTRON_RUN_AS_NODE).
  */
 
-import { app, BrowserWindow, ipcMain, shell } from "electron";
+import { app, BrowserWindow, ipcMain, shell, dialog } from "electron";
 import path from "path";
 import { spawn, ChildProcess } from "child_process";
 import { promises as fs } from "fs";
+import { existsSync } from "fs";
 import { homedir } from "os";
 import { defaultAliasModels, OPENCLAW_CONFIG_EXAMPLE_JSON } from "@spectyra/shared";
 import type { SpectyraRunMode, TelemetryMode, PromptSnapshotMode } from "@spectyra/core-types";
@@ -28,6 +29,35 @@ const CONFIG_DIR = path.join(homedir(), ".spectyra", "desktop");
 const CONFIG_FILE = path.join(CONFIG_DIR, "config.json");
 const DATA_DIR = path.join(homedir(), ".spectyra", "companion");
 
+/** Avoid a second Spectyra instance binding the same companion port. */
+const singleInstanceLock = app.requestSingleInstanceLock();
+if (!singleInstanceLock) {
+  app.quit();
+  process.exit(0);
+}
+
+async function readJsonBody<T>(res: Response): Promise<{ ok: boolean; data?: T; error?: string }> {
+  const text = await res.text();
+  if (!text.trim()) {
+    return { ok: false, error: `Empty response (${res.status})` };
+  }
+  try {
+    return { ok: true, data: JSON.parse(text) as T };
+  } catch {
+    return { ok: false, error: `Invalid JSON (${res.status})` };
+  }
+}
+
+app.on("second-instance", () => {
+  if (mainWindow) {
+    if (mainWindow.isMinimized()) mainWindow.restore();
+    mainWindow.show();
+    mainWindow.focus();
+  } else {
+    createWindow();
+  }
+});
+
 const _defaults = defaultAliasModels("openai");
 let config: AppConfig = {
   runMode: "on",
@@ -47,8 +77,12 @@ async function loadConfig(): Promise<void> {
   try {
     await fs.mkdir(CONFIG_DIR, { recursive: true });
     const raw = await fs.readFile(CONFIG_FILE, "utf-8");
-    const saved = JSON.parse(raw);
+    const saved = JSON.parse(raw) as Partial<AppConfig>;
     config = { ...config, ...saved };
+    const p = config.port;
+    if (typeof p !== "number" || !Number.isInteger(p) || p < 1 || p > 65535) {
+      config.port = 4111;
+    }
     if (!["openai", "anthropic", "groq"].includes(config.provider)) {
       config.provider = "openai";
     }
@@ -118,16 +152,43 @@ function stopCompanion(): void {
 function startCompanion(): void {
   stopCompanion();
   const { script, cwd } = companionPaths();
-  companionProcess = spawn(process.execPath, [script], {
-    cwd,
-    env: companionEnv(),
-    stdio: ["ignore", "pipe", "pipe"],
-  });
+  if (!existsSync(script)) {
+    const msg = `Local Companion is missing at:\n${script}\n\nReinstall the app, or from dev run: pnpm --filter @spectyra/local-companion build && pnpm desktop:dist`;
+    if (app.isPackaged) {
+      dialog.showErrorBox("Spectyra — companion missing", msg);
+    } else {
+      console.error("[spectyra]", msg);
+    }
+    mainWindow?.webContents.send("companion-status", { running: false, code: -2 });
+    return;
+  }
+  try {
+    companionProcess = spawn(process.execPath, [script], {
+      cwd,
+      env: companionEnv(),
+      stdio: ["ignore", "pipe", "pipe"],
+    });
+  } catch (err) {
+    const m = err instanceof Error ? err.message : String(err);
+    dialog.showErrorBox("Spectyra — companion failed to start", m);
+    mainWindow?.webContents.send("companion-status", { running: false, code: -3 });
+    return;
+  }
   companionProcess.stderr?.on("data", (d) => {
     if (!app.isPackaged) console.error("[companion]", d.toString());
   });
   companionProcess.stdout?.on("data", (d) => {
     if (!app.isPackaged) console.log("[companion]", d.toString());
+  });
+  companionProcess.on("error", (err) => {
+    companionProcess = null;
+    const m = err.message;
+    if (app.isPackaged) {
+      dialog.showErrorBox("Spectyra — companion process error", m);
+    } else {
+      console.error("[spectyra] companion spawn error", err);
+    }
+    mainWindow?.webContents.send("companion-status", { running: false, code: -1 });
   });
   companionProcess.on("exit", (code) => {
     companionProcess = null;
@@ -151,6 +212,18 @@ async function waitForHealth(timeoutMs = 30000): Promise<boolean> {
   return false;
 }
 
+function resolveRendererIndexHtml(): string {
+  const base = path.join(__dirname, "..", "dist", "renderer");
+  const candidates = [
+    path.join(base, "browser", "index.html"),
+    path.join(base, "index.html"),
+  ];
+  for (const p of candidates) {
+    if (existsSync(p)) return p;
+  }
+  return candidates[0];
+}
+
 function createWindow(): void {
   mainWindow = new BrowserWindow({
     width: 1100,
@@ -158,6 +231,7 @@ function createWindow(): void {
     minWidth: 800,
     minHeight: 600,
     title: "Spectyra",
+    show: false,
     titleBarStyle: process.platform === "darwin" ? "hiddenInset" : "default",
     webPreferences: {
       preload: path.join(__dirname, "preload.js"),
@@ -166,13 +240,43 @@ function createWindow(): void {
     },
   });
 
+  mainWindow.once("ready-to-show", () => {
+    mainWindow?.show();
+  });
+
   const devUrl = process.env.SPECTYRA_ELECTRON_DEV_URL;
   if (devUrl) {
-    void mainWindow.loadURL(devUrl);
+    void mainWindow.loadURL(devUrl).catch((err) => {
+      dialog.showErrorBox(
+        "Spectyra",
+        `Could not load the dev UI.\n\n${err instanceof Error ? err.message : String(err)}`,
+      );
+      mainWindow?.show();
+    });
     mainWindow.webContents.openDevTools({ mode: "detach" });
   } else {
-    const indexHtml = path.join(__dirname, "..", "dist", "renderer", "browser", "index.html");
-    void mainWindow.loadFile(indexHtml);
+    const indexHtml = resolveRendererIndexHtml();
+    if (!existsSync(indexHtml)) {
+      dialog.showErrorBox(
+        "Spectyra — UI missing",
+        `The app package is missing the web UI files.\n\nExpected something like:\n${indexHtml}\n\nReinstall Spectyra, or rebuild with: pnpm desktop:dist`,
+      );
+      mainWindow.show();
+      return;
+    }
+    mainWindow.webContents.on("did-fail-load", (_e, code, desc, url) => {
+      dialog.showErrorBox(
+        "Spectyra — page failed to load",
+        `Could not load the UI (${code}): ${desc}\n\n${url}`,
+      );
+    });
+    void mainWindow.loadFile(indexHtml).catch((err) => {
+      dialog.showErrorBox(
+        "Spectyra — UI failed",
+        `Failed to open the UI file.\n\n${err instanceof Error ? err.message : String(err)}\n\nPath: ${indexHtml}`,
+      );
+      mainWindow?.show();
+    });
   }
 
   mainWindow.on("closed", () => {
@@ -212,6 +316,12 @@ ipcMain.handle("config:get", () => ({
 }));
 ipcMain.handle("config:save", async (_e, partial: Partial<AppConfig>) => {
   config = { ...config, ...partial };
+  if (partial.port !== undefined) {
+    const n = Number(partial.port);
+    if (Number.isInteger(n) && n > 0 && n < 65536) {
+      config.port = n;
+    }
+  }
   if (partial.provider !== undefined && partial.aliasSmartModel === undefined && partial.aliasFastModel === undefined) {
     const defs = defaultAliasModels(config.provider);
     config.aliasSmartModel = defs.smart;
@@ -267,7 +377,11 @@ ipcMain.handle("license:activate", async (_e, licenseKey: string) => {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ license_key: licenseKey }),
     });
-    const data = (await res.json()) as { valid?: boolean; entitlement?: unknown; error?: string };
+    const parsed = await readJsonBody<{ valid?: boolean; entitlement?: unknown; error?: string }>(res);
+    if (!parsed.ok) {
+      return { ok: false, error: parsed.error || "Invalid response from server" };
+    }
+    const data = parsed.data!;
     if (data.valid) {
       config.licenseKey = licenseKey;
       await saveConfig();
@@ -291,7 +405,11 @@ ipcMain.handle("license:check", async () => {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ license_key: config.licenseKey }),
     });
-    const data = (await res.json()) as { valid?: boolean; entitlement?: unknown; error?: string };
+    const parsed = await readJsonBody<{ valid?: boolean; entitlement?: unknown; error?: string }>(res);
+    if (!parsed.ok) {
+      return { ok: true, offline: true, message: parsed.error || "Could not parse license response" };
+    }
+    const data = parsed.data!;
     return data.valid ? { ok: true, entitlement: data.entitlement } : { ok: false, error: data.error };
   } catch {
     return { ok: true, offline: true, message: "Offline — using cached entitlement" };
@@ -333,8 +451,10 @@ app.whenReady().then(async () => {
 });
 
 app.on("window-all-closed", () => {
-  stopCompanion();
-  app.quit();
+  if (process.platform !== "darwin") {
+    stopCompanion();
+    app.quit();
+  }
 });
 
 app.on("activate", () => {
