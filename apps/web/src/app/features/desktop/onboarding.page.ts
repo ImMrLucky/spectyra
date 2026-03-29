@@ -112,20 +112,83 @@ import { environment } from '../../../environments/environment';
   `,
   styles: [
     `
-      .wrap { max-width: 560px; margin: 0 auto; padding: 24px; }
-      h1 { margin: 0 0 8px; }
-      .sub { color: #666; margin-bottom: 16px; }
-      .choice-grid { display: grid; gap: 12px; margin-bottom: 16px; }
-      .choice { cursor: pointer; transition: box-shadow 0.15s; }
-      .choice:hover { box-shadow: 0 2px 8px rgba(0,0,0,0.12); }
-      .choice mat-card-title { font-size: 16px; }
-      .choice mat-card-content { font-size: 13px; color: #555; }
-      .hint { font-size: 13px; color: #666; margin: 12px 0 16px; line-height: 1.45; }
-      .back { margin-bottom: 12px; }
-      .card { margin-bottom: 16px; }
+      .wrap {
+        max-width: 560px;
+        margin: 0 auto;
+        padding: 24px 20px 48px;
+        font-family: var(--font-body);
+      }
+
+      h1 {
+        margin: 0 0 8px;
+        font-family: var(--font-display);
+        font-size: 1.3rem;
+        font-weight: 700;
+        color: var(--text-primary);
+      }
+
+      .sub {
+        color: var(--text-secondary);
+        font-size: 13px;
+        margin-bottom: 20px;
+        line-height: 1.5;
+      }
+
+      .choice-grid {
+        display: grid;
+        gap: 10px;
+        margin-bottom: 16px;
+      }
+
+      .choice {
+        cursor: pointer;
+        background: var(--bg-card) !important;
+        border: 1px solid var(--border) !important;
+        transition: border-color 0.15s ease;
+      }
+
+      .choice:hover {
+        border-color: var(--border-bright) !important;
+      }
+
+      .choice mat-card-title {
+        font-size: 14px;
+        color: var(--text-primary);
+      }
+
+      .choice mat-card-content {
+        font-size: 12px;
+        color: var(--text-secondary);
+      }
+
+      .hint {
+        font-size: 12px;
+        color: var(--text-muted);
+        margin: 12px 0 16px;
+        line-height: 1.5;
+      }
+
+      .back {
+        margin-bottom: 14px;
+        color: var(--text-muted) !important;
+      }
+
+      .card {
+        margin-bottom: 16px;
+        background: var(--bg-card) !important;
+        border: 1px solid var(--border) !important;
+      }
+
       .full { width: 100%; display: block; margin-bottom: 8px; }
-      .notice { font-size: 13px; color: #555; margin: 16px 0; line-height: 1.5; }
-      .err { color: #b00020; }
+
+      .notice {
+        font-size: 12px;
+        color: var(--text-muted);
+        margin: 16px 0;
+        line-height: 1.5;
+      }
+
+      .err { color: var(--color-danger); font-size: 12px; }
     `,
   ],
 })

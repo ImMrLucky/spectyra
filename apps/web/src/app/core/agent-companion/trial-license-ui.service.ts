@@ -1,33 +1,26 @@
 import { Injectable } from '@angular/core';
 
-/** Optional ISO date — set by Desktop or tests; cloud org trial can be merged later. */
 const TRIAL_ENDS_LS = 'spectyra.local_trial_ends_at';
+const TRIAL_STARTED_LS = 'spectyra.local_trial_started';
+const TRIAL_DAYS = 7;
 
 export type MetricsPresentation = 'actual' | 'projected';
 
 export interface LiveProductTopline {
-  /** Companion reachable and monitoring not disabled. */
   spectyraMonitoring: boolean;
-  /** runMode from companion. */
   runMode: string;
-  /** From companion /health. */
   licenseAllowsFullOptimization: boolean;
-  /** When true, savings numbers are realized (not dry-run / not license-limited observe). */
   metricsPresentation: MetricsPresentation;
-  /** Short label for the top bar. */
   optimizationHeadline: string;
-  /** Trial badge copy, or null. */
   trialBadge: 'Trial Active' | 'Trial Ended' | null;
-  /** Subtle line e.g. post-trial observe. */
   trustLine: string;
+  trialDaysLeft: number | null;
+  trialActive: boolean;
 }
 
-/**
- * Maps companion /health + local trial hint into consistent UI labels (spec §7, §13).
- */
 @Injectable({ providedIn: 'root' })
 export class TrialLicenseUiService {
-  /** Persist 7-day trial end when Desktop or shell sets it (ISO string). */
+
   setLocalTrialEndsAt(iso: string | null): void {
     if (typeof localStorage === 'undefined') return;
     if (iso) localStorage.setItem(TRIAL_ENDS_LS, iso);
@@ -39,18 +32,44 @@ export class TrialLicenseUiService {
     return localStorage.getItem(TRIAL_ENDS_LS);
   }
 
+  ensureTrialStarted(): void {
+    if (typeof localStorage === 'undefined') return;
+    if (localStorage.getItem(TRIAL_STARTED_LS)) return;
+    const end = new Date(Date.now() + TRIAL_DAYS * 86400000).toISOString();
+    this.setLocalTrialEndsAt(end);
+    localStorage.setItem(TRIAL_STARTED_LS, new Date().toISOString());
+  }
+
+  trialDaysRemaining(): number | null {
+    const end = this.getLocalTrialEndsAt();
+    if (!end) return null;
+    const ms = Date.parse(end) - Date.now();
+    if (Number.isNaN(ms)) return null;
+    return Math.max(0, Math.ceil(ms / 86400000));
+  }
+
+  isTrialActive(): boolean {
+    const days = this.trialDaysRemaining();
+    return days !== null && days > 0;
+  }
+
   computeTopline(health: Record<string, unknown> | null): LiveProductTopline {
+    this.ensureTrialStarted();
+
     const runMode = String(health?.['runMode'] ?? 'on');
     const lic = health?.['licenseAllowsFullOptimization'] === true;
     const monitoring =
       health?.['monitoringEnabled'] !== false && health?.['telemetryMode'] !== 'off';
 
-    const realized = runMode === 'on' && lic;
+    const trialActive = this.isTrialActive();
+    const trialDaysLeft = this.trialDaysRemaining();
+    const effectiveLic = lic || trialActive;
+    const realized = runMode === 'on' && effectiveLic;
     const metricsPresentation: MetricsPresentation = realized ? 'actual' : 'projected';
 
     let optimizationHeadline = 'Optimization ON';
     if (runMode === 'off') optimizationHeadline = 'Optimization off';
-    else if (!lic || runMode === 'observe') optimizationHeadline = 'Observe only';
+    else if (!effectiveLic || runMode === 'observe') optimizationHeadline = 'Observe only';
 
     const trialEnd = this.getLocalTrialEndsAt();
     let trialBadge: LiveProductTopline['trialBadge'] = null;
@@ -65,17 +84,22 @@ export class TrialLicenseUiService {
       'Your agent keeps working — Spectyra never blocks the underlying provider call when optimization is off.';
     if (!realized && runMode !== 'off') {
       trustLine =
-        'Spectyra is monitoring and showing projected savings. Add a valid license and keep run mode on to realize savings.';
+        'Spectyra is monitoring and showing projected savings. Upgrade or add a valid license to realize savings.';
+    }
+    if (trialActive && !lic) {
+      trustLine = `Trial active — ${trialDaysLeft} day${trialDaysLeft !== 1 ? 's' : ''} remaining. Full optimization enabled.`;
     }
 
     return {
       spectyraMonitoring: !!health && monitoring,
       runMode,
-      licenseAllowsFullOptimization: lic,
+      licenseAllowsFullOptimization: effectiveLic,
       metricsPresentation,
       optimizationHeadline,
       trialBadge,
       trustLine,
+      trialDaysLeft,
+      trialActive,
     };
   }
 }
