@@ -139,7 +139,7 @@
 
   &.btn-primary {
     background-color: var(--spectyra-navy);
-    color: var(--spectyra-blue-pale);
+    color: #fff;
 
     &:hover:not(:disabled) {
       background-color: var(--spectyra-navy-mid);
@@ -164,7 +164,7 @@
 
   &.btn-danger {
     background-color: var(--color-danger);
-    color: var(--spectyra-blue-pale);
+    color: #fff;
 
     &:hover:not(:disabled) {
       background-color: var(--color-danger-border);
