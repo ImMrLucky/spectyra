@@ -26,7 +26,10 @@
   -webkit-app-region: no-drag;
 }
 
-.dt-logo-mark {
+.dt-logo-icon {
+  width: 22px;
+  height: 22px;
+  object-fit: contain;
   flex-shrink: 0;
 }
 
@@ -132,6 +135,15 @@
       cursor: pointer;
       color: #fff;
       text-decoration: none;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+
+      .logo-icon {
+        width: 28px;
+        height: 28px;
+        object-fit: contain;
+      }
     }
   }
 
