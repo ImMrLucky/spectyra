@@ -225,6 +225,10 @@ function resolveRendererIndexHtml(): string {
 }
 
 function createWindow(): void {
+  const iconPath = app.isPackaged
+    ? path.join(process.resourcesPath, "..", "assets", "icon.png")
+    : path.join(__dirname, "..", "assets", "icon.png");
+
   mainWindow = new BrowserWindow({
     width: 1100,
     height: 780,
@@ -232,6 +236,7 @@ function createWindow(): void {
     minHeight: 600,
     title: "Spectyra",
     show: false,
+    icon: iconPath,
     titleBarStyle: process.platform === "darwin" ? "hiddenInset" : "default",
     webPreferences: {
       preload: path.join(__dirname, "preload.js"),
