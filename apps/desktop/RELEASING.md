@@ -38,6 +38,20 @@ Do not commit large installers to git. Prefer CDN / object storage / GitHub Rele
 - The **NSIS `.exe`** is often **smaller than the `.zip`** of the same app. If the zip is still tight on a **~100 MB** limit, prefer shipping the **installer** via **GitHub Releases** (or another CDN) instead of the portable zip.
 - **Stale zip:** electron-builder may skip re-zipping when an existing `*-win-x64.zip` looks newer than `win-unpacked`. From `apps/desktop`, run **`pnpm run dist:win`** (or delete that zip, then run `electron-builder --win`) so the zip always matches the latest build.
 
+### App icon & DMG (macOS)
+
+The mac icon is **`apps/desktop/assets/icon.png`** (512×512 minimum; we ship 1024×1024). `electron-builder.yml` sets **`mac.icon: assets/icon.png`** so the **`.app`**, **Dock**, and **DMG window** all use the current asset.
+
+If you change the PNG but the **DMG still shows an old blue/generic icon**, remove stale outputs and rebuild so **`.icns`** is regenerated:
+
+```bash
+cd apps/desktop
+rm -rf release/mac release/*.dmg release/*.blockmap release/.icon-icns 2>/dev/null
+pnpm run dist
+```
+
+Then copy the new **`Spectyra-*-mac-x64.dmg`** to **`apps/web/src/assets/downloads/Spectyra-mac.dmg`** (or your CDN) for the download page.
+
 ## macOS code signing & notarization (no Gatekeeper warning)
 
 Unsigned `.dmg` / `.app` builds trigger **“Apple could not verify…”** on end-user Macs. To ship a build that opens without right‑click → Open, you need:

@@ -35,6 +35,8 @@ asar: true
 
 mac:
   category: public.app-category.developer-tools
+  # Explicit path so DMG / Finder always use the repo icon (1024×1024 PNG → .icns at pack time).
+  icon: assets/icon.png
   target:
     - dmg
     - zip
