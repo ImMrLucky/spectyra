@@ -12,3 +12,10 @@ apps/desktop/deploy-out/
 apps/desktop/dist-electron/
 apps/desktop/resources/companion/
 apps/desktop/release/
+*.dmg
+*.exe
+*.blockmap
+*.zip.blockmap
+apps/web/src/assets/downloads/*.dmg
+apps/web/src/assets/downloads/*.exe
+apps/web/src/assets/downloads/*.zip
