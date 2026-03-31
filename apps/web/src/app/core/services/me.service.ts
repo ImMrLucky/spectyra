@@ -61,6 +61,11 @@ export class MeService {
       tap(response => {
         this.meSubject.next(response);
         this.cacheTimestamp = now;
+        if (!environment.isDesktop && response.org && !response.needs_bootstrap) {
+          this.http
+            .post<{ applied: boolean }>(`${environment.apiUrl}/auth/sync-billing-exempt`, {})
+            .subscribe({ error: () => undefined });
+        }
       }),
       catchError(error => {
         // Clear cache on error

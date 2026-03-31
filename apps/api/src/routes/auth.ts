@@ -9,6 +9,7 @@ import {
   createOrg,
   getOrgById,
   hasActiveAccess,
+  setOrgPlatformExempt,
   createProject,
   createApiKey,
   getOrgApiKeys,
@@ -34,8 +35,35 @@ import { audit } from "../services/audit/audit.js";
 import { requireOrgRole } from "../middleware/requireRole.js";
 import { getEntitlement } from "../services/entitlement.js";
 import type { SupabaseAdminUser } from "../types/supabase.js";
+import { isBillingExemptEmail } from "../billing/billingExempt.js";
 
 export const authRouter = Router();
+
+/** If the user's email is in BILLING_EXEMPT_EMAILS, mark their org platform_exempt (API-key flows). */
+async function applyPlatformExemptIfBillingListed(
+  userId: string,
+  orgId: string,
+): Promise<void> {
+  const base = process.env.SUPABASE_URL?.replace(/\/$/, "");
+  const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+  if (!base || !serviceKey) return;
+  try {
+    const response = await fetch(`${base}/auth/v1/admin/users/${userId}`, {
+      headers: {
+        Authorization: `Bearer ${serviceKey}`,
+        apikey: serviceKey,
+      },
+    });
+    if (!response.ok) return;
+    const user = (await response.json()) as SupabaseAdminUser;
+    const email = user.email || user.user_metadata?.email;
+    if (email && isBillingExemptEmail(email)) {
+      await setOrgPlatformExempt(orgId, true);
+    }
+  } catch {
+    // fail open — billing exempt via JWT still works without this
+  }
+}
 
 /** Desktop installer URLs for the web app Download page (set on API host, e.g. Railway). */
 function desktopDownloadsPayload(): {
@@ -163,6 +191,8 @@ authRouter.post("/bootstrap", requireUserSession, async (req: AuthenticatedReque
       INSERT INTO org_memberships (org_id, user_id, role)
       VALUES ($1, $2, 'OWNER')
     `, [org.id, userId]);
+
+    await applyPlatformExemptIfBillingListed(userId, org.id);
     
     // Enterprise Security: Audit log
     try {
@@ -207,6 +237,37 @@ authRouter.post("/bootstrap", requireUserSession, async (req: AuthenticatedReque
   } catch (error: any) {
     safeLog("error", "Bootstrap error", { error: error.message });
     res.status(500).json({ error: error.message || "Internal server error" });
+  }
+});
+
+/**
+ * POST /v1/auth/sync-billing-exempt
+ *
+ * If BILLING_EXEMPT_EMAILS includes the signed-in user's email, sets org.platform_exempt.
+ * Idempotent; use after deploy so existing accounts get comp access without DB edits.
+ */
+authRouter.post("/sync-billing-exempt", requireUserSession, async (req: AuthenticatedRequest, res) => {
+  try {
+    if (!req.auth?.userId) {
+      return res.status(401).json({ error: "Not authenticated" });
+    }
+    const email = req.auth.email?.trim();
+    if (!email || !isBillingExemptEmail(email)) {
+      return res.json({ applied: false, reason: "email_not_in_billing_exempt_list" });
+    }
+    const row = await queryOne<{ org_id: string }>(
+      `SELECT org_id FROM org_memberships WHERE user_id = $1 LIMIT 1`,
+      [req.auth.userId],
+    );
+    if (!row) {
+      return res.status(404).json({ error: "No organization" });
+    }
+    await setOrgPlatformExempt(row.org_id, true);
+    return res.json({ applied: true, org_id: row.org_id });
+  } catch (error: unknown) {
+    const message = error instanceof Error ? error.message : "Internal server error";
+    safeLog("error", "sync-billing-exempt", { error: message });
+    return res.status(500).json({ error: message });
   }
 });
 

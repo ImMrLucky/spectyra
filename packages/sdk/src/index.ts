@@ -56,6 +56,22 @@ export type { SdkMoatPhase34Payload } from "./analytics/sdkMoatSummaries.js";
 export type { ExecutionGraphSummaryPayload } from "@spectyra/execution-graph";
 export type { StateDeltaAnalyticsSummary } from "@spectyra/state-delta";
 
+// Workflow policy (Phase 6) — parity with Local Companion / Desktop companion
+export {
+  evaluateWorkflowPolicyFromEvents,
+  type WorkflowPolicyMode,
+} from "./workflow/sdkWorkflowPolicyFromEvents.js";
+export { workflowPolicySummaryFromSdkBuffer } from "./workflow/workflowPolicyFromSdkBuffer.js";
+export { WorkflowPolicyBlockedError } from "./workflow/WorkflowPolicyBlockedError.js";
+export type {
+  WorkflowPolicyResult,
+  WorkflowPolicyViolation,
+  WorkflowPolicyConfig,
+} from "@spectyra/workflow-policy";
+
+// OpenClaw-style model aliases (`spectyra/smart`, `spectyra/fast`) — same as companion
+export { resolveSpectyraModel, defaultAliasModels } from "@spectyra/shared";
+
 // Provider adapters (direct-provider, no Spectyra cloud)
 export { createOpenAIAdapter } from "./adapters/openai.js";
 export { createAnthropicAdapter } from "./adapters/anthropic.js";

@@ -49,7 +49,20 @@
                   "with": "src/app/app.routes.desktop-bundle.ts"
                 }
               ],
-              "sourceMap": false
+              "sourceMap": false,
+              "assets": [
+                "src/favicon.ico",
+                {
+                  "glob": "**/*",
+                  "input": "src/assets",
+                  "output": "/assets",
+                  "ignore": [
+                    "**/downloads/*.dmg",
+                    "**/downloads/*.exe",
+                    "**/downloads/*.zip"
+                  ]
+                }
+              ]
             }
           }
         },

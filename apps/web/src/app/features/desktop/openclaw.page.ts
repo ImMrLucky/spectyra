@@ -1,7 +1,18 @@
 import { Component, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { RouterModule } from '@angular/router';
+import {
+  buildOpenClawFullInstallLine,
+  buildOpenClawOnboardCli,
+  buildOpenClawOnboardPowerShell,
+  OPENCLAW_INSTALL_BASH,
+  OPENCLAW_INSTALL_POWERSHELL,
+  OPENCLAW_NODE_VERSION_MIN,
+  type OpenClawInstallPlatform,
+  type OpenClawOnboardOptions,
+} from '@spectyra/shared';
 import { DesktopBridgeService } from '../../core/desktop/desktop-bridge.service';
+import { CompanionAnalyticsService } from '../../core/analytics/companion-analytics.service';
 import { environment } from '../../../environments/environment';
 
 @Component({
@@ -196,6 +207,140 @@ import { environment } from '../../../environments/environment';
         position: relative;
       }
 
+      .oc-run-hint {
+        margin-top: 0;
+        margin-bottom: 16px;
+      }
+
+      .oc-run-hint a {
+        color: var(--spectyra-blue);
+      }
+
+      .oc-node-prereq {
+        background: rgba(55, 138, 221, 0.06);
+        border: 1px solid var(--border);
+        border-radius: var(--radius-input);
+        padding: 12px 14px;
+        margin-bottom: 16px;
+      }
+
+      .oc-node-label {
+        font-size: 10px;
+        text-transform: uppercase;
+        letter-spacing: 0.06em;
+        color: var(--text-muted);
+        display: block;
+        margin-bottom: 6px;
+      }
+
+      .oc-node-text {
+        margin: 0;
+        font-size: 12px;
+        line-height: 1.55;
+        color: var(--text-secondary);
+      }
+
+      .oc-node-text a {
+        color: var(--spectyra-blue);
+      }
+
+      .oc-code-actions {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 10px;
+        align-items: center;
+        margin-top: 12px;
+      }
+
+      .oc-advanced {
+        background: var(--bg-card);
+        border: 1px solid var(--border);
+        border-radius: var(--radius-input);
+        padding: 12px 14px 14px;
+        margin-bottom: 16px;
+      }
+
+      .oc-advanced summary {
+        cursor: pointer;
+        font-size: 13px;
+        font-weight: 500;
+        color: var(--text-primary);
+        list-style: none;
+      }
+
+      .oc-advanced summary::-webkit-details-marker {
+        display: none;
+      }
+
+      .oc-adv-intro {
+        margin-top: 12px;
+        margin-bottom: 12px;
+      }
+
+      .oc-field {
+        margin-bottom: 12px;
+      }
+
+      .oc-field-label {
+        display: block;
+        font-size: 11px;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+        color: var(--text-muted);
+        margin-bottom: 6px;
+      }
+
+      .oc-select,
+      .oc-input {
+        width: 100%;
+        max-width: 420px;
+        box-sizing: border-box;
+        padding: 8px 10px;
+        border-radius: 6px;
+        border: 1px solid var(--border);
+        background: var(--bg-elevated);
+        color: var(--text-primary);
+        font-family: var(--font-body);
+        font-size: 13px;
+      }
+
+      .oc-radio-row {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 14px;
+        align-items: center;
+      }
+
+      .oc-radio {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        font-size: 13px;
+        color: var(--text-secondary);
+        cursor: pointer;
+      }
+
+      .oc-one-liner-hint {
+        font-size: 11px;
+        margin-top: 10px;
+        margin-bottom: 0;
+      }
+
+      .oc-one-liner-code {
+        display: block;
+        margin-top: 6px;
+        font-size: 10px;
+        line-height: 1.45;
+        word-break: break-word;
+        white-space: pre-wrap;
+      }
+
+      .oc-error {
+        color: var(--color-danger, #c62828);
+        font-size: 12px;
+        margin: 0 0 12px;
+      }
+
       .oc-code-label {
         font-size: 10px;
         text-transform: uppercase;
@@ -312,33 +457,8 @@ import { environment } from '../../../environments/environment';
         margin-top: 12px;
       }
 
-      /* ── Attach choice ── */
-      .oc-attach-label {
-        font-size: 12px;
-        color: var(--text-muted);
-        margin: 16px 0 8px;
-      }
-
-      .oc-attach-options { display: grid; gap: 8px; margin-bottom: 16px; }
-
-      .oc-attach-btn {
-        display: flex;
-        flex-direction: column;
-        gap: 4px;
-        padding: 12px 14px;
-        background: var(--bg-card);
-        border: 1px solid var(--border);
-        border-radius: 6px;
-        cursor: pointer;
-        text-align: left;
-        transition: border-color 0.15s ease;
-        font-family: var(--font-body);
-
-        &:hover { border-color: var(--border-bright); }
-        &.selected { border-color: var(--spectyra-blue); }
-
-        strong { font-size: 12px; color: var(--text-primary); }
-        span { font-size: 11px; color: var(--text-secondary); }
+      .oc-hint a {
+        color: var(--spectyra-blue);
       }
 
       /* ── Troubleshoot ── */
@@ -503,11 +623,21 @@ import { environment } from '../../../environments/environment';
 export class DesktopOpenClawPage implements OnInit {
   step = 1;
   userPath: 'new' | 'existing' | null = null;
-  attachMode: 'proxy' | 'observe' = 'proxy';
+  /** Set from actual Electron companion port (see ngOnInit). */
   baseV1 = `${environment.companionBaseUrl}/v1`;
   json = '';
   health: Record<string, unknown> | null = null;
   modelsMessage = '';
+
+  /** From Electron main process — drives “where to run” copy. */
+  installPlatform: 'darwin' | 'win32' | 'linux' | 'other' = 'other';
+  canRunOnboardTerminal = false;
+  terminalOnboardError: string | null = null;
+
+  /** Optional `openclaw onboard` flags (shared with Electron terminal runner). */
+  onboardFlow: 'default' | 'quickstart' | 'manual' = 'default';
+  onboardMode: 'local' | 'remote' = 'local';
+  remoteUrl = '';
 
   readonly stepLabels = ['Overview', 'Install', 'Companion', 'Configure', 'Validate', 'Troubleshoot', 'Go live'];
 
@@ -540,16 +670,114 @@ export class DesktopOpenClawPage implements OnInit {
     { label: 'Config', command: 'openclaw config path' },
   ];
 
-  constructor(private desktop: DesktopBridgeService) {}
+  constructor(
+    private desktop: DesktopBridgeService,
+    private companionAnalytics: CompanionAnalyticsService,
+  ) {}
 
   async ngOnInit() {
     this.json = (await this.desktop.openClawExample()) || '';
+    this.canRunOnboardTerminal = this.desktop.isElectronRenderer;
+    const info = await this.desktop.getAppInfo();
+    const p = info?.['platform'];
+    if (p === 'darwin' || p === 'win32' || p === 'linux') {
+      this.installPlatform = p;
+    }
+    const origin = await this.companionAnalytics.resolveCompanionOrigin();
+    this.baseV1 = `${origin}/v1`;
     await this.refreshHealth();
+  }
+
+  readonly openClawNodeMin = OPENCLAW_NODE_VERSION_MIN;
+
+  get installFirstLine(): string {
+    return this.installPlatform === 'win32' ? OPENCLAW_INSTALL_POWERSHELL : OPENCLAW_INSTALL_BASH;
+  }
+
+  get platformForOpenClaw(): OpenClawInstallPlatform {
+    if (this.installPlatform === 'darwin' || this.installPlatform === 'win32' || this.installPlatform === 'linux') {
+      return this.installPlatform;
+    }
+    return 'other';
+  }
+
+  getOnboardOpts(): OpenClawOnboardOptions {
+    const o: OpenClawOnboardOptions = {};
+    if (this.onboardFlow === 'quickstart') o.flow = 'quickstart';
+    if (this.onboardFlow === 'manual') o.flow = 'manual';
+    if (this.onboardMode === 'remote') {
+      o.mode = 'remote';
+      o.remoteUrl = this.remoteUrl.trim();
+    }
+    return o;
+  }
+
+  get onboardCliDisplayLine(): string {
+    try {
+      if (this.installPlatform === 'win32') {
+        return buildOpenClawOnboardPowerShell(this.getOnboardOpts());
+      }
+      return buildOpenClawOnboardCli(this.getOnboardOpts());
+    } catch {
+      return 'openclaw onboard …';
+    }
+  }
+
+  get fullInstallOneLineDisplay(): string {
+    try {
+      return buildOpenClawFullInstallLine(this.getOnboardOpts(), this.platformForOpenClaw);
+    } catch {
+      return '';
+    }
+  }
+
+  get onboardCommandError(): string | null {
+    try {
+      if (this.installPlatform === 'win32') {
+        buildOpenClawOnboardPowerShell(this.getOnboardOpts());
+      } else {
+        buildOpenClawOnboardCli(this.getOnboardOpts());
+      }
+      return null;
+    } catch (e) {
+      return e instanceof Error ? e.message : String(e);
+    }
+  }
+
+  async copyFullInstallLine() {
+    this.terminalOnboardError = null;
+    try {
+      await navigator.clipboard.writeText(
+        buildOpenClawFullInstallLine(this.getOnboardOpts(), this.platformForOpenClaw),
+      );
+    } catch (e) {
+      this.terminalOnboardError = e instanceof Error ? e.message : String(e);
+    }
+  }
+
+  async runOnboardInTerminal() {
+    this.terminalOnboardError = null;
+    const opts = this.getOnboardOpts();
+    try {
+      if (this.installPlatform === 'win32') {
+        buildOpenClawOnboardPowerShell(opts);
+      } else {
+        buildOpenClawOnboardCli(opts);
+      }
+    } catch (e) {
+      this.terminalOnboardError = e instanceof Error ? e.message : String(e);
+      return;
+    }
+    const r = await this.desktop.runOpenClawOnboardInTerminal(opts);
+    if (!r.ok) {
+      this.terminalOnboardError = r.error ?? 'Could not open a terminal.';
+    }
   }
 
   async refreshHealth() {
     try {
-      const h = await fetch(`${environment.companionBaseUrl}/health`).then((r) => (r.ok ? r.json() : null));
+      const origin = await this.companionAnalytics.resolveCompanionOrigin();
+      const h = await fetch(`${origin}/health`).then((r) => (r.ok ? r.json() : null));
       this.health = h;
     } catch {
       this.health = null;
@@ -560,7 +788,8 @@ export class DesktopOpenClawPage implements OnInit {
     this.modelsMessage = '';
     await this.refreshHealth();
     try {
-      const m = await fetch(`${environment.companionBaseUrl}/v1/models`).then((r) => (r.ok ? r.json() : null));
+      const origin = await this.companionAnalytics.resolveCompanionOrigin();
+      const m = await fetch(`${origin}/v1/models`).then((r) => (r.ok ? r.json() : null));
       const ids = (m?.data || []).map((x: { id: string }) => x.id).join(', ');
       this.modelsMessage = ids ? `OK — models: ${ids}` : 'Reached companion but no models list.';
     } catch {

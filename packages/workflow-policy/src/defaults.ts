@@ -10,4 +10,7 @@ export const defaultWorkflowPolicyConfig: WorkflowPolicyConfig = {
   maxRepeatLoopGroups: 8,
   maxSingleTransitionWireChars: 500_000,
   blockOnSeverity: "warn",
+  maxSessionSteps: 50,
+  maxAvgTransitionWireChars: 100_000,
+  maxConsecutiveLowValueSteps: 3,
 };

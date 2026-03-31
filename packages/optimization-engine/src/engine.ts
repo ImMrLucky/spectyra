@@ -30,8 +30,11 @@ import { shouldSkipTransformForLearning } from "@spectyra/learning";
 
 import { whitespaceNormalize } from "./transforms/whitespace-normalize.js";
 import { dedupConsecutive } from "./transforms/dedup-consecutive.js";
+import { assistantSelfQuoteDedup } from "./transforms/assistant-self-quote-dedup.js";
 import { systemDedup } from "./transforms/system-dedup.js";
 import { toolOutputTruncate } from "./transforms/tool-output-truncate.js";
+import { jsonMinify } from "./transforms/json-minify.js";
+import { errorStackCompressor } from "./transforms/error-stack-compressor.js";
 import { contextWindowTrim } from "./transforms/context-window-trim.js";
 import { stableTurnSummarize } from "./transforms/stable-turn-summarize.js";
 import { spectralSCC } from "./transforms/spectral-scc.js";
@@ -55,8 +58,11 @@ import {
 const fullTransformPipeline: OptimizationTransform[] = [
   whitespaceNormalize,
   dedupConsecutive,
+  assistantSelfQuoteDedup,
   systemDedup,
   toolOutputTruncate,
+  jsonMinify,
+  errorStackCompressor,
   spectralSCC,
   refpackTransform,
   phrasebookTransform,
@@ -109,7 +115,7 @@ function estimateTokens(text: string): number {
 function requestTokenEstimate(req: CanonicalRequest): number {
   let chars = 0;
   for (const m of req.messages) chars += (m.text?.length ?? 0);
-  return estimateTokens(String(chars));
+  return Math.ceil(chars / 4);
 }
 
 // ── Flow signals ─────────────────────────────────────────────────────────────

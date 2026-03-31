@@ -8,7 +8,7 @@
 
 ### 1. Create Your Account
 
-1. Go to [Spectyra](https://spectyra.netlify.app/)
+1. Go to [Spectyra](https://spectyra.ai/)
 2. Click "Sign Up"
 3. Enter your email, password, and **organization name** (and optional project name)
 

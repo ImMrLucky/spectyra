@@ -2,14 +2,21 @@ import type { SignedGraph } from "../types.js";
 import { matVec, rayleighQuotient, orthogonalizeToOnes } from "./powerIteration.js";
 import { normalize } from "../math.js";
 
-function buildTransitionMatrix(n: number, edges: SignedGraph["edges"]): number[][] {
+const SELF_LOOP_ALPHA = 0.15;
+const LAZY_MIXING = 0.5;
+
+function buildLazyTransitionMatrix(n: number, edges: SignedGraph["edges"]): number[][] {
   const W: number[][] = Array.from({ length: n }, () => Array(n).fill(0));
   for (const e of edges) {
-    if (e.w > 0) {
-      W[e.i][e.j] += e.w;
-      W[e.j][e.i] += e.w;
-    }
+    const absW = Math.abs(e.w);
+    W[e.i][e.j] += absW;
+    W[e.j][e.i] += absW;
   }
+
+  for (let i = 0; i < n; i++) {
+    W[i][i] += SELF_LOOP_ALPHA;
+  }
+
   const P: number[][] = Array.from({ length: n }, () => Array(n).fill(0));
   for (let i = 0; i < n; i++) {
     const rowSum = W[i].reduce((sum, w) => sum + w, 0);
@@ -19,6 +26,11 @@ function buildTransitionMatrix(n: number, edges: SignedGraph["edges"]): number[]
       P[i][i] = 1.0;
     }
   }
+
+  for (let i = 0; i < n; i++)
+    for (let j = 0; j < n; j++)
+      P[i][j] = LAZY_MIXING * (i === j ? 1 : 0) + (1 - LAZY_MIXING) * P[i][j];
+
   return P;
 }
 
@@ -42,7 +54,14 @@ function estimateLambda2P(P: number[][], maxIters: number = 30): number {
 
 export function computeRandomWalkGap(graph: SignedGraph): number {
   if (graph.n <= 1 || graph.edges.length === 0) return 0.5;
-  const P = buildTransitionMatrix(graph.n, graph.edges);
-  const lambda2P = estimateLambda2P(P, 30);
-  return Math.max(0, Math.min(1, 1 - lambda2P));
+  const P = buildLazyTransitionMatrix(graph.n, graph.edges);
+
+  const NUM_STARTS = 3;
+  let gapSum = 0;
+  for (let s = 0; s < NUM_STARTS; s++) {
+    const lambda2P = estimateLambda2P(P, 30);
+    gapSum += Math.max(0, Math.min(1, 1 - lambda2P));
+  }
+
+  return gapSum / NUM_STARTS;
 }

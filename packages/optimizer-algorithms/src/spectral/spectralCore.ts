@@ -163,12 +163,22 @@ export function spectralAnalyze(
 
 function computeNodeCurvatureLocal(nodeIdx: number, W: number[][], n: number): number {
   let degree = 0;
-  let negEdges = 0;
+  let edgeSum = 0;
+  const neighbors: number[] = [];
   for (let j = 0; j < n; j++) {
     if (j !== nodeIdx && W[nodeIdx][j] !== 0) {
       degree++;
-      if (W[nodeIdx][j] < 0) negEdges++;
+      edgeSum += Math.abs(W[nodeIdx][j]);
+      neighbors.push(j);
     }
   }
-  return degree - negEdges * 2;
+  let commonNeighborPenalty = 0;
+  for (const j of neighbors) {
+    let common = 0;
+    for (const k of neighbors) {
+      if (k !== j && W[j][k] !== 0) common++;
+    }
+    commonNeighborPenalty += common * 0.1;
+  }
+  return degree - edgeSum - commonNeighborPenalty;
 }

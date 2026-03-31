@@ -15,6 +15,7 @@ import { MatIconModule } from '@angular/material/icon';
 import { MatToolbarModule } from '@angular/material/toolbar';
 import { OwnerService } from './core/services/owner.service';
 import { SuperuserService } from './core/api/superuser.service';
+import { DesktopBridgeService } from './core/desktop/desktop-bridge.service';
 
 interface NavItem {
   label: string;
@@ -49,6 +50,9 @@ export class AppComponent implements OnInit, OnDestroy, AfterViewInit {
   @ViewChild('sidenav') sidenav?: MatSidenav;
 
   readonly isDesktop = environment.isDesktop;
+
+  /** macOS: traffic lights (hiddenInset) need extra inset so brand clears the controls */
+  desktopIsDarwin = false;
 
   isAuthenticated = false;
   userEmail: string | null = null;
@@ -88,10 +92,17 @@ export class AppComponent implements OnInit, OnDestroy, AfterViewInit {
     private cdr: ChangeDetectorRef,
     private ownerService: OwnerService,
     private superuserService: SuperuserService,
+    private desktopBridge: DesktopBridgeService,
   ) {}
 
   ngOnInit() {
     if (this.isDesktop) {
+      void this.desktopBridge.getAppInfo().then((info) => {
+        if (info?.['platform'] === 'darwin') {
+          this.desktopIsDarwin = true;
+          this.cdr.markForCheck();
+        }
+      });
       this.isAuthenticated = true;
       this.ownerService.getIsOwner().subscribe((is) => {
         this.showAdminLink = is;

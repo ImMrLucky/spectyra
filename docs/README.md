@@ -23,6 +23,8 @@ Keep this folder **user-facing and current**.
 ### Configuration
 
 - **Environment variables**: [`ENVIRONMENT_VARIABLES.md`](./ENVIRONMENT_VARIABLES.md)
+- **Install (Desktop, companion, OpenClaw)**: [`INSTALL_AND_SETUP.md`](./INSTALL_AND_SETUP.md)
+- **Agent runtimes (OpenClaw, Claude, OpenAI Agents, etc.)**: [`AGENT_RUNTIMES.md`](./AGENT_RUNTIMES.md)
 
 ### Moat architecture (engineering)
 

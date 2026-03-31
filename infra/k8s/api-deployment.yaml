@@ -174,4 +174,4 @@ metadata:
   name: api-config
   namespace: spectyra
 data:
-  ALLOWED_ORIGINS: "https://app.spectyra.com,https://spectyra.com,https://spectyra.netlify.app"
+  ALLOWED_ORIGINS: "https://app.spectyra.com,https://spectyra.com,https://spectyra.ai"

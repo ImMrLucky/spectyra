@@ -44,6 +44,22 @@ export class DesktopBridgeService {
     return this.api.openclaw.getExampleConfig();
   }
 
+  async runOpenClawOnboardInTerminal(opts?: {
+    flow?: 'quickstart' | 'manual';
+    mode?: 'remote';
+    remoteUrl?: string;
+  }): Promise<{ ok: boolean; error?: string }> {
+    if (!this.api?.openclaw.runOnboardInTerminal) {
+      return { ok: false, error: 'Available only in the Spectyra Desktop app.' };
+    }
+    return this.api.openclaw.runOnboardInTerminal(opts);
+  }
+
+  async getAppInfo(): Promise<Record<string, unknown> | null> {
+    if (!this.api) return null;
+    return this.api.app.info();
+  }
+
   async setProviderKey(provider: string, key: string): Promise<boolean> {
     if (!this.api) return false;
     return this.api.providerKey.set(provider, key);

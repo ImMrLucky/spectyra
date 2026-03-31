@@ -17,6 +17,7 @@ import { contextBloatDetectors } from "./detectors/context-bloat.js";
 import { agentFlowDetectors } from "./detectors/agent-flow.js";
 import { structuralDetectors } from "./detectors/structural.js";
 import { outputConstraintDetectors } from "./detectors/output-constraints.js";
+import { advancedDetectors } from "./detectors/advanced.js";
 
 const allDetectors: FeatureDetector[] = [
   ...duplicationDetectors,
@@ -24,6 +25,7 @@ const allDetectors: FeatureDetector[] = [
   ...agentFlowDetectors,
   ...structuralDetectors,
   ...outputConstraintDetectors,
+  ...advancedDetectors,
 ];
 
 const customDetectors: FeatureDetector[] = [];

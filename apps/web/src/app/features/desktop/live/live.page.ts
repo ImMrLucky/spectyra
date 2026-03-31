@@ -14,6 +14,7 @@ import { CompanionAnalyticsService } from '../../../core/analytics/companion-ana
 import { CloudAnalyticsSyncService } from '../../../core/analytics/cloud-analytics-sync.service';
 import { SupabaseService } from '../../../services/supabase.service';
 import { environment } from '../../../../environments/environment';
+import { DesktopFirstRunService } from '../../../core/desktop/desktop-first-run.service';
 import type { LiveSessionState } from '@spectyra/event-core';
 import type { SessionAnalyticsRecord, StepAnalyticsRecord } from '@spectyra/analytics-core';
 import type { ExecutionGraphSummary, StateDeltaSummary, WorkflowPolicySummary } from '../../../core/analytics/companion-analytics.service';
@@ -61,6 +62,9 @@ export class LivePage implements OnInit, OnDestroy {
   canSyncAccount = false;
   syncing = false;
 
+  /** Desktop: show until user dismisses or completes Agent Companion guidance. */
+  showAgentCompanionSetupBanner = false;
+
   private poll?: Subscription;
 
   constructor(
@@ -70,9 +74,12 @@ export class LivePage implements OnInit, OnDestroy {
     public cloudSync: CloudAnalyticsSyncService,
     private supabase: SupabaseService,
     private cdr: ChangeDetectorRef,
+    private firstRun: DesktopFirstRunService,
   ) {}
 
   ngOnInit() {
+    this.showAgentCompanionSetupBanner =
+      this.isDesktop && !this.firstRun.hasAcknowledgedAgentCompanionGuide();
     this.syncToCloud = typeof localStorage !== 'undefined' && localStorage.getItem(SYNC_LS) === 'true';
     void this.bootstrap();
     this.poll = interval(4000).subscribe(() => void this.refresh(false));
@@ -156,6 +163,12 @@ export class LivePage implements OnInit, OnDestroy {
     this.syncToCloud = on;
     localStorage.setItem(SYNC_LS, on ? 'true' : 'false');
     if (on) void this.trySyncLatestSession();
+  }
+
+  dismissAgentCompanionSetupBanner() {
+    this.firstRun.acknowledgeAgentCompanionGuide();
+    this.showAgentCompanionSetupBanner = false;
+    this.cdr.markForCheck();
   }
 
   async openPromptComparison(runId: string) {

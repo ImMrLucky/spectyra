@@ -43,8 +43,19 @@ export const systemDedup: OptimizationTransform = {
       deduped.push(msg);
     }
 
+    const merged: CanonicalMessage[] = [];
+    const usedSystemTexts = new Set<string>();
+    for (const msg of request.messages) {
+      if (msg.role === "system") {
+        const text = msg.text ?? "";
+        if (usedSystemTexts.has(text)) continue;
+        usedSystemTexts.add(text);
+      }
+      merged.push(msg);
+    }
+
     return {
-      request: { ...request, messages: [...deduped, ...nonSystemMsgs] },
+      request: { ...request, messages: merged },
       applied: removedChars > 0,
       notes: removedChars > 0 ? [`merged ${systemMsgs.length - deduped.length} duplicate system messages`] : [],
       estimatedTokenDelta: -Math.ceil(removedChars / 4),

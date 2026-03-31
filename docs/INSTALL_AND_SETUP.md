@@ -20,8 +20,8 @@ This guide is for **end users** who should not need to clone the repo or run `pn
 
 ### End users
 
-1. **Signed in on the web app:** Open **[spectyra.netlify.app/download](https://spectyra.netlify.app/download)** (after login) — **Desktop app** is also in the sidebar. Download links appear when your team has configured installer URLs on the API server.
-2. **Or** use your **product download page** — for example **[spectyra.netlify.app](https://spectyra.netlify.app/)** (or the link your team emails after purchase or trial). The canonical production site may change later; use whatever URL your team publishes.
+1. **Signed in on the web app:** Open **[spectyra.ai/download](https://spectyra.ai/download)** (after login) — **Desktop app** is also in the sidebar. Download links appear when your team has configured installer URLs on the API server.
+2. **Or** use your **product download page** — for example **[spectyra.ai](https://spectyra.ai/)** (or the link your team emails after purchase or trial).
 3. Open **`Spectyra-*.dmg`** (macOS) or **`.exe` / installer** (Windows) and install like any other app.
 4. On first launch, the app guides you through **provider API keys** (BYOK) and optional **license** activation.
 
@@ -108,6 +108,36 @@ More detail: [`tools/local-companion/README.md`](../tools/local-companion/README
 
 ---
 
+## OpenClaw (official installer)
+
+**Spectyra does not replace OpenClaw** — it sits beside it: after OpenClaw is installed, you point it at the **Spectyra Local Companion** (custom OpenAI-compatible base URL) for optimization and local analytics.
+
+### Prerequisites
+
+- **Node.js 22.14 or newer** (required by OpenClaw; install from [nodejs.org](https://nodejs.org/) if needed).
+
+### Install OpenClaw
+
+**macOS / Linux (bash):**
+
+```bash
+curl -fsSL https://openclaw.ai/install.sh | bash
+```
+
+**Windows (PowerShell):**
+
+```powershell
+iwr -useb https://openclaw.ai/install.ps1 | iex
+```
+
+Then run **`openclaw onboard`** (with any flags your team uses). After that, configure OpenClaw’s provider endpoint to Spectyra as in [Configure your tool (OpenClaw-style)](#configure-your-tool-openclaw-style) above.
+
+The **Spectyra Desktop** app’s OpenClaw wizard uses the same official install URLs and can open a terminal or PowerShell for you.
+
+More context: [AGENT_RUNTIMES.md](./AGENT_RUNTIMES.md).
+
+---
+
 ## SDK (npm)
 
 **Goal:** Optimize inside your Node/TS app with a few lines of code.
@@ -146,15 +176,15 @@ Full API: [`packages/sdk/README.md`](../packages/sdk/README.md).
 
 ## Maintainer: Supabase auth (sign-up links & email branding)
 
-The Angular app passes **`emailRedirectTo`** on **sign-up** and **magic-link** sign-in so confirmation links use the **current browser origin** (e.g. `https://spectyra.netlify.app/`). If there is no `http(s)` origin (unusual), it falls back to **`publicSiteUrl`** in `apps/web/src/environments/environment*.ts`.
+The Angular app passes **`emailRedirectTo`** on **sign-up** and **magic-link** sign-in so confirmation links use the **current browser origin** (e.g. `https://spectyra.ai/`). If there is no `http(s)` origin (unusual), it falls back to **`publicSiteUrl`** in `apps/web/src/environments/environment*.ts`.
 
 You must align the **Supabase project** with your real URLs and (optionally) your own email delivery:
 
 1. **Authentication → URL Configuration**
-   - **Site URL:** set to your production site (e.g. `https://spectyra.netlify.app`), **not** `http://localhost:3000` — that default is why confirmation links used to send users to localhost.
+   - **Site URL:** set to your production site (e.g. `https://spectyra.ai`), **not** `http://localhost:3000` — that default is why confirmation links used to send users to localhost.
    - **Redirect URLs:** allow the origins users actually use, for example:
-     - `https://spectyra.netlify.app/**`
-     - `https://*.netlify.app/**` (preview deploys)
+     - `https://spectyra.ai/**`
+     - `https://*.netlify.app/**` (Netlify preview deploys, if you use them)
      - `http://localhost:4200/**` (local `ng serve`)
 
 2. **Emails from Spectyra instead of a generic Supabase sender**  

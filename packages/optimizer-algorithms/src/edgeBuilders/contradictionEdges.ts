@@ -1,6 +1,9 @@
 import type { SemanticUnit, GraphEdge, SpectralOptions, PathKind } from "../types.js";
+import { cosine } from "../math.js";
 
 const NEGATIONS = ["not", "never", "no", "can't", "cannot", "won't", "didn't", "isn't", "aren't", "wasn't", "weren't", "shouldn't", "wouldn't", "don't", "doesn't"];
+
+const OVERRIDE_CUES = ["actually", "instead", "correction", "corrected", "update:", "updated:", "fix:", "fixed", "rather", "scratch that", "ignore previous", "disregard"];
 
 const CONTRADICTION_PATTERNS = [
   { pos: ["always", "must", "required"], neg: ["never", "optional", "forbidden"] },
@@ -9,6 +12,10 @@ const CONTRADICTION_PATTERNS = [
   { pos: ["before", "prior", "first"], neg: ["after", "later", "last"] },
   { pos: ["active", "enabled", "on"], neg: ["inactive", "disabled", "off"] },
   { pos: ["valid", "correct", "right"], neg: ["invalid", "incorrect", "wrong"] },
+  { pos: ["above"], neg: ["below"] },
+  { pos: ["sync", "synchronous"], neg: ["async", "asynchronous"] },
+  { pos: ["public"], neg: ["private"] },
+  { pos: ["mutable"], neg: ["immutable"] },
 ];
 
 function extractNumbers(text: string): number[] {
@@ -44,6 +51,24 @@ function keywordOverlap(a: string, b: string): number {
   return inter;
 }
 
+function hasOverrideCue(text: string): boolean {
+  const t = text.toLowerCase();
+  return OVERRIDE_CUES.some(cue => t.includes(cue));
+}
+
+function computeTemporalPenalty(unitA: SemanticUnit, unitB: SemanticUnit): number {
+  const newer = unitA.createdAtTurn > unitB.createdAtTurn ? unitA : unitB;
+  if (hasOverrideCue(newer.text)) return 0.2;
+  return 0;
+}
+
+function embeddingDissimilarity(unitA: SemanticUnit, unitB: SemanticUnit): number {
+  if (!unitA.embedding || !unitB.embedding) return 0;
+  const sim = cosine(unitA.embedding, unitB.embedding);
+  if (sim < 0.3) return 0.25 * (1 - sim / 0.3);
+  return 0;
+}
+
 export function buildContradictionEdges(units: SemanticUnit[], opts: SpectralOptions, path: PathKind): GraphEdge[] {
   const edges: GraphEdge[] = [];
   const n = units.length;
@@ -52,7 +77,10 @@ export function buildContradictionEdges(units: SemanticUnit[], opts: SpectralOpt
       const a = units[i].text;
       const b = units[j].text;
       const overlap = keywordOverlap(a, b);
-      if (overlap < 1) continue;
+      const embDissim = embeddingDissimilarity(units[i], units[j]);
+
+      if (overlap < 1 && embDissim === 0) continue;
+
       let contradictionWeight = 0;
       const na = extractNumbers(a);
       const nb = extractNumbers(b);
@@ -71,6 +99,10 @@ export function buildContradictionEdges(units: SemanticUnit[], opts: SpectralOpt
       const negConflict = (hasNegation(a) && !hasNegation(b)) || (!hasNegation(a) && hasNegation(b));
       if (negConflict) contradictionWeight += 0.3;
       if (hasSemanticContradiction(a, b)) contradictionWeight += 0.35;
+
+      contradictionWeight += embDissim;
+      contradictionWeight += computeTemporalPenalty(units[i], units[j]);
+
       const kindI = units[i].kind;
       const kindJ = units[j].kind;
       const bothCodey = (kindI === "code" || kindI === "patch") && (kindJ === "code" || kindJ === "patch");

@@ -30,6 +30,12 @@ contextBridge.exposeInMainWorld("spectyra", {
 
   openclaw: {
     getExampleConfig: () => ipcRenderer.invoke("openclaw:example-config") as Promise<string>,
+    runOnboardInTerminal: (opts?: {
+      flow?: "quickstart" | "manual";
+      mode?: "remote";
+      remoteUrl?: string;
+    }) =>
+      ipcRenderer.invoke("openclaw:run-onboard-terminal", opts) as Promise<{ ok: boolean; error?: string }>,
   },
 
   app: {

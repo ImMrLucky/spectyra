@@ -65,9 +65,10 @@ function applyPhraseBookEncoding(messages: ChatMsg[], phraseBook: PhraseBook): {
     if (msg.role === "system") { newMessages.push(msg); continue; }
     let content = msg.content;
     for (const entry of phraseBook.entries) {
-      const regex = new RegExp(escapeRegex(entry.phrase), "gi");
+      const pattern = escapeRegex(entry.phrase);
       const newContent = replaceOnlyOutsideCodeFences(content, (text) => {
-        if (regex.test(text)) return text.replace(regex, `⟦P${entry.id}⟧`);
+        const testRe = new RegExp(pattern, "gi");
+        if (testRe.test(text)) return text.replace(new RegExp(pattern, "gi"), `⟦P${entry.id}⟧`);
         return text;
       });
       if (newContent !== content) { content = newContent; replacementsMade++; }

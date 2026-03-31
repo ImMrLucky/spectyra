@@ -27,7 +27,7 @@ metadata:
     
     # CORS headers (if needed)
     nginx.ingress.kubernetes.io/enable-cors: "true"
-    nginx.ingress.kubernetes.io/cors-allow-origin: "https://app.spectyra.com,https://spectyra.com,https://spectyra.netlify.app"
+    nginx.ingress.kubernetes.io/cors-allow-origin: "https://app.spectyra.com,https://spectyra.com,https://spectyra.ai"
     nginx.ingress.kubernetes.io/cors-allow-methods: "GET, POST, PUT, DELETE, PATCH, OPTIONS"
     nginx.ingress.kubernetes.io/cors-allow-headers: "Content-Type, Authorization, X-SPECTYRA-API-KEY, X-PROVIDER-KEY"
 spec:

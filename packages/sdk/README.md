@@ -81,6 +81,54 @@ const custom = moatPhase34SummariesFromEvents(events);
 
 ---
 
+## Workflow policy (Phase 6)
+
+Local Companion evaluates **workflow policy** before each upstream provider call (`SPECTYRA_WORKFLOW_POLICY=enforce` by default). The SDK exposes the same evaluator and optional enforcement on `complete()`:
+
+```ts
+import {
+  createSpectyra,
+  workflowPolicySummaryFromSdkBuffer,
+  WorkflowPolicyBlockedError,
+} from "@spectyra/sdk";
+
+// Read-only summary (same idea as GET /v1/analytics/workflow-policy/summary on the companion)
+const policy = workflowPolicySummaryFromSdkBuffer("observe");
+
+// Match desktop/companion default: block the provider when rules trip
+const spectyra = createSpectyra({
+  runMode: "on",
+  licenseKey: process.env.SPECTYRA_LICENSE_KEY,
+  workflowPolicy: { mode: "enforce" },
+});
+
+try {
+  await spectyra.complete(input, adapter);
+} catch (e) {
+  if (e instanceof WorkflowPolicyBlockedError) {
+    console.error(e.result.violations);
+  }
+  throw e;
+}
+```
+
+---
+
+## Model aliases (`spectyra/smart`, `spectyra/fast`)
+
+The companion resolves OpenClaw-style model ids to your real provider models. The SDK re-exports the same helpers:
+
+```ts
+import { resolveSpectyraModel, defaultAliasModels } from "@spectyra/sdk";
+
+const { provider, upstreamModel, requestedModel } = resolveSpectyraModel("spectyra/smart", {
+  provider: "openai",
+  ...defaultAliasModels("openai"),
+});
+```
+
+---
+
 ## Run Modes
 
 | Mode | Optimization | Provider Call | Use Case |

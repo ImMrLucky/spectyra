@@ -19,7 +19,14 @@ export interface SpectyraPreload {
     check: () => Promise<Record<string, unknown>>;
     clear: () => Promise<boolean>;
   };
-  openclaw: { getExampleConfig: () => Promise<string> };
+  openclaw: {
+    getExampleConfig: () => Promise<string>;
+    runOnboardInTerminal: (opts?: {
+      flow?: "quickstart" | "manual";
+      mode?: "remote";
+      remoteUrl?: string;
+    }) => Promise<{ ok: boolean; error?: string }>;
+  };
   app: {
     info: () => Promise<Record<string, unknown>>;
     companionBaseUrl: () => Promise<string>;

@@ -26,7 +26,7 @@
 ### First-Time Setup
 
 1. **Get Your Spectyra API Key:**
-   - Go to [Spectyra](https://spectyra.netlify.app/)
+   - Go to [Spectyra](https://spectyra.ai/)
    - Sign up for an account
    - **Save your API key** (shown only once!)
 

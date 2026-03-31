@@ -5,11 +5,18 @@
 
 import { app, BrowserWindow, ipcMain, shell, dialog } from "electron";
 import path from "path";
-import { spawn, ChildProcess } from "child_process";
+import { spawn, execFile, ChildProcess } from "child_process";
 import { promises as fs } from "fs";
 import { existsSync } from "fs";
-import { homedir } from "os";
-import { defaultAliasModels, OPENCLAW_CONFIG_EXAMPLE_JSON } from "@spectyra/shared";
+import { homedir, tmpdir } from "os";
+import {
+  defaultAliasModels,
+  OPENCLAW_CONFIG_EXAMPLE_JSON,
+  buildOpenClawFullInstallLine,
+  buildOpenClawWindowsInstallPs1Content,
+  type OpenClawOnboardOptions,
+  type OpenClawInstallPlatform,
+} from "@spectyra/shared";
 import type { SpectyraRunMode, TelemetryMode, PromptSnapshotMode } from "@spectyra/core-types";
 
 interface AppConfig {
@@ -313,6 +320,76 @@ ipcMain.handle("companion:health", async () => {
 });
 
 ipcMain.handle("openclaw:example-config", () => OPENCLAW_CONFIG_EXAMPLE_JSON);
+
+function electronOpenClawPlatform(): OpenClawInstallPlatform {
+  if (process.platform === "darwin") return "darwin";
+  if (process.platform === "win32") return "win32";
+  if (process.platform === "linux") return "linux";
+  return "other";
+}
+
+/** Opens Terminal (macOS), PowerShell script (Windows), or x-terminal-emulator (Linux) with the OpenClaw install line. */
+ipcMain.handle(
+  "openclaw:run-onboard-terminal",
+  async (_e, opts?: OpenClawOnboardOptions): Promise<{ ok: boolean; error?: string }> => {
+    if (process.platform === "win32") {
+      let psContent: string;
+      try {
+        psContent = buildOpenClawWindowsInstallPs1Content(opts ?? {});
+      } catch (e) {
+        return { ok: false, error: e instanceof Error ? e.message : String(e) };
+      }
+      try {
+        const tmpDir = await fs.mkdtemp(path.join(tmpdir(), "spectyra-openclaw-"));
+        const psPath = path.join(tmpDir, "openclaw-onboard.ps1");
+        await fs.writeFile(psPath, psContent, "utf8");
+        const child = spawn("powershell.exe", ["-NoExit", "-ExecutionPolicy", "Bypass", "-File", psPath], {
+          detached: true,
+          stdio: "ignore",
+        });
+        child.unref();
+        return { ok: true };
+      } catch (err) {
+        return { ok: false, error: err instanceof Error ? err.message : String(err) };
+      }
+    }
+
+    let line: string;
+    try {
+      line = buildOpenClawFullInstallLine(opts ?? {}, electronOpenClawPlatform());
+    } catch (e) {
+      return { ok: false, error: e instanceof Error ? e.message : String(e) };
+    }
+    try {
+    if (process.platform === "darwin") {
+      const escaped = line.replace(/\\/g, "\\\\").replace(/"/g, '\\"');
+      execFile("osascript", ["-e", `tell application "Terminal" to do script "${escaped}"`]);
+      return { ok: true };
+    }
+
+    /** Linux / other: try common terminal emulators */
+    const bashArgs = ["-lc", line];
+    if (existsSync("/usr/bin/x-terminal-emulator")) {
+      execFile("/usr/bin/x-terminal-emulator", ["-e", "bash", ...bashArgs]);
+      return { ok: true };
+    }
+    if (existsSync("/usr/bin/gnome-terminal")) {
+      execFile("/usr/bin/gnome-terminal", ["--", "bash", ...bashArgs]);
+      return { ok: true };
+    }
+    if (existsSync("/usr/bin/konsole")) {
+      execFile("/usr/bin/konsole", ["-e", "bash", ...bashArgs]);
+      return { ok: true };
+    }
+    return {
+      ok: false,
+      error: "No supported terminal found. Run the install command manually in a terminal.",
+    };
+    } catch (err) {
+      return { ok: false, error: err instanceof Error ? err.message : String(err) };
+    }
+  },
+);
 
 ipcMain.handle("config:get", () => ({
   ...config,

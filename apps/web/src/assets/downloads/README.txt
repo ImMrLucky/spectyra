@@ -1,5 +1,10 @@
 Desktop installers for the /download page (same-origin URLs in environment.*)
 
+The Electron desktop build (ng build --configuration desktop) does NOT bundle these
+files — see angular.json "desktop" assets ignore — so the Mac .app is not hundreds
+of MB larger from embedding a copy of itself. Production web/Netlify builds still
+include them when present under src/assets/downloads/.
+
 Expected filenames (see desktopDownloadsSameOrigin):
   Spectyra-mac.dmg
   Spectyra-windows.exe

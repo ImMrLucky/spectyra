@@ -10,6 +10,7 @@ import {
   type RuntimeOption,
   type ValidationCheck,
 } from '../../../core/agent-companion/agent-companion.service';
+import { DesktopFirstRunService } from '../../../core/desktop/desktop-first-run.service';
 
 @Component({
   selector: 'app-agent-companion-landing',
@@ -17,13 +18,32 @@ import {
   imports: [CommonModule, RouterModule],
   template: `
     <div class="wizard">
+      <!-- First launch: orient users before the runtime wizard -->
+      <div class="ac-welcome" *ngIf="showFirstRunWelcome">
+        <div class="ac-welcome-inner">
+          <div class="ac-welcome-copy">
+            <h2 class="ac-welcome-title">Welcome to Spectyra</h2>
+            <p class="ac-welcome-text">
+              <strong>Agent Companion</strong> is the right place to start: pick your agent runtime (OpenClaw, Claude, OpenAI, SDK, …),
+              connect the Local Companion, then open <strong>Live</strong> to monitor sessions in real time.
+            </p>
+          </div>
+          <div class="ac-welcome-actions">
+            <button type="button" class="btn-primary" (click)="continueToLiveDashboard()">
+              Continue to Live dashboard
+            </button>
+            <span class="ac-welcome-hint">or follow the steps below</span>
+          </div>
+        </div>
+      </div>
+
       <!-- Progress bar -->
       <div class="wizard-progress">
         <div class="wp-track">
           <div class="wp-fill" [style.width]="progressPct + '%'"></div>
         </div>
         <div class="wp-steps">
-          <span class="wp-step" *ngFor="let s of stepLabels; let i = index"
+          <span class="wp-step" *ngFor="let s of wizardStepLabels; let i = index"
                 [class.active]="i <= currentStepIndex"
                 [class.current]="i === currentStepIndex">
             {{ s }}
@@ -65,7 +85,7 @@ import {
         </div>
       </div>
 
-      <!-- Step 3: Connection Style -->
+      <!-- Step 3: Connection Style (not used for OpenClaw — new/existing picks the path there) -->
       <div class="step" *ngIf="svc.state.step === 'select-connection'">
         <button class="back-btn" (click)="goBack('select-path')">← Back</button>
         <h1 class="step-title">How should Spectyra connect?</h1>
@@ -81,12 +101,38 @@ import {
 
       <!-- Step 4: Configure (runtime-specific) -->
       <div class="step" *ngIf="svc.state.step === 'configure'">
-        <button class="back-btn" (click)="goBack('select-connection')">← Back</button>
+        <button class="back-btn" (click)="configureBack()">← Back</button>
         <h1 class="step-title">Configure {{ selectedRuntime?.label }}</h1>
 
         <div class="config-section" *ngIf="svc.state.runtime === 'openclaw'">
-          <p class="step-sub">Follow the OpenClaw-specific wizard for detailed setup.</p>
-          <button class="btn-primary" routerLink="/desktop/openclaw">Open OpenClaw wizard</button>
+          <p class="step-sub">
+            Use the step-by-step OpenClaw wizard to install, point OpenClaw at the Local Companion, and validate.
+            <strong>Observe vs full optimization</strong> is controlled later in
+            <a routerLink="/desktop/settings">Desktop settings</a> (run mode), not in this wizard.
+          </p>
+          <div class="ac-keys-card">
+            <span class="ac-keys-label">Account &amp; keys</span>
+            <ul class="ac-keys-list">
+              <li>
+                <strong>Sign in (optional)</strong> — Use <a routerLink="/login">Log in</a> if you want cloud dashboard sync
+                or a Spectyra web account. The desktop app works locally without signing in.
+              </li>
+              <li>
+                <strong>Provider API key</strong> — Required for OpenClaw to reach OpenAI, Anthropic, or Groq.
+                Set it in <a routerLink="/desktop/settings">Desktop settings</a> (stored only on this Mac).
+              </li>
+              <li>
+                <strong>Spectyra license</strong> — Enter a license key in settings if you use paid optimization;
+                this is separate from a developer &quot;API key&quot; used only when calling Spectyra from your own code via the SDK.
+              </li>
+            </ul>
+          </div>
+          <div class="ac-openclaw-actions">
+            <button class="btn-primary" routerLink="/desktop/openclaw">Start OpenClaw wizard</button>
+            <button type="button" class="btn-secondary" (click)="svc.goToStep('validate'); svc.runValidation()">
+              Validate connection
+            </button>
+          </div>
         </div>
 
         <div class="config-section" *ngIf="svc.state.runtime === 'claude'">
@@ -235,6 +281,56 @@ const result = await spectyra.optimize(messages);</pre>
         margin: 0 auto;
         padding: 24px 20px 48px;
         font-family: var(--font-body);
+      }
+
+      /* ── First-run welcome ── */
+      .ac-welcome {
+        background: linear-gradient(135deg, rgba(55, 138, 221, 0.12) 0%, rgba(55, 138, 221, 0.04) 100%);
+        border: 1px solid var(--spectyra-blue-border, rgba(55, 138, 221, 0.35));
+        border-radius: var(--radius-card);
+        padding: 18px 20px;
+        margin-bottom: 28px;
+      }
+
+      .ac-welcome-inner {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: flex-end;
+        justify-content: space-between;
+        gap: 16px;
+      }
+
+      .ac-welcome-copy {
+        flex: 1;
+        min-width: 220px;
+      }
+
+      .ac-welcome-title {
+        margin: 0 0 8px;
+        font-family: var(--font-display);
+        font-size: 1.15rem;
+        font-weight: 700;
+        color: var(--text-primary);
+      }
+
+      .ac-welcome-text {
+        margin: 0;
+        font-size: 13px;
+        line-height: 1.55;
+        color: var(--text-secondary);
+      }
+
+      .ac-welcome-actions {
+        display: flex;
+        flex-direction: column;
+        align-items: flex-end;
+        gap: 6px;
+        flex-shrink: 0;
+      }
+
+      .ac-welcome-hint {
+        font-size: 11px;
+        color: var(--text-muted);
       }
 
       /* ── Progress ── */
@@ -392,6 +488,46 @@ const result = await spectyra.optimize(messages);</pre>
 
       /* ── Configure ── */
       .config-section { margin-top: 8px; }
+
+      .config-section .step-sub a {
+        color: var(--spectyra-blue);
+      }
+
+      .ac-keys-card {
+        background: var(--bg-card);
+        border: 1px solid var(--border);
+        border-radius: var(--radius-card);
+        padding: 14px 16px;
+        margin-bottom: 18px;
+      }
+
+      .ac-keys-label {
+        font-size: 10px;
+        text-transform: uppercase;
+        letter-spacing: 0.06em;
+        color: var(--text-muted);
+        display: block;
+        margin-bottom: 10px;
+      }
+
+      .ac-keys-list {
+        margin: 0;
+        padding-left: 1.1rem;
+        color: var(--text-secondary);
+        font-size: 12px;
+        line-height: 1.65;
+      }
+
+      .ac-keys-list li { margin-bottom: 8px; }
+      .ac-keys-list li:last-child { margin-bottom: 0; }
+      .ac-keys-list a { color: var(--spectyra-blue); }
+
+      .ac-openclaw-actions {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 10px;
+        align-items: center;
+      }
 
       .config-h2 {
         font-size: 14px;
@@ -627,23 +763,44 @@ const result = await spectyra.optimize(messages);</pre>
   ],
 })
 export class AgentCompanionLandingPage implements OnInit {
-  readonly stepLabels = ['Runtime', 'Path', 'Connection', 'Configure', 'Validate', 'Go live'];
+  private readonly stepsDefault = ['Runtime', 'Path', 'Connection', 'Configure', 'Validate', 'Go live'];
+  private readonly stepsOpenClaw = ['Runtime', 'Path', 'Setup', 'Validate', 'Go live'];
   readonly runtimeOptions = RUNTIME_OPTIONS;
+
+  /** Shown until the user acknowledges the guided path (localStorage). */
+  showFirstRunWelcome = false;
 
   constructor(
     public svc: AgentCompanionService,
     private router: Router,
+    private firstRun: DesktopFirstRunService,
   ) {}
 
   ngOnInit() {
     this.svc.reset();
+    this.showFirstRunWelcome = !this.firstRun.hasAcknowledgedAgentCompanionGuide();
   }
 
   get selectedRuntime(): RuntimeOption | null {
     return this.svc.selectedRuntime();
   }
 
+  get wizardStepLabels(): string[] {
+    return this.svc.state.runtime === 'openclaw' ? this.stepsOpenClaw : this.stepsDefault;
+  }
+
   get currentStepIndex(): number {
+    if (this.svc.state.runtime === 'openclaw') {
+      const map: Record<WizardStep, number> = {
+        'select-runtime': 0,
+        'select-path': 1,
+        'select-connection': 1,
+        'configure': 2,
+        'validate': 3,
+        'go-live': 4,
+      };
+      return map[this.svc.state.step] ?? 0;
+    }
     const map: Record<WizardStep, number> = {
       'select-runtime': 0,
       'select-path': 1,
@@ -656,7 +813,7 @@ export class AgentCompanionLandingPage implements OnInit {
   }
 
   get progressPct(): number {
-    return ((this.currentStepIndex + 1) / this.stepLabels.length) * 100;
+    return ((this.currentStepIndex + 1) / this.wizardStepLabels.length) * 100;
   }
 
   get availableConnections(): ConnectionStyle[] {
@@ -673,13 +830,18 @@ export class AgentCompanionLandingPage implements OnInit {
 
   selectConnection(style: ConnectionStyle) {
     this.svc.selectConnection(style);
-    if (this.svc.state.runtime === 'openclaw' && style !== 'observe') {
-      this.svc.goToStep('configure');
-    }
   }
 
   connectionLabel(style: ConnectionStyle) {
     return this.svc.connectionLabel(style);
+  }
+
+  configureBack() {
+    if (this.svc.state.runtime === 'openclaw') {
+      this.svc.goToStep('select-path');
+      return;
+    }
+    this.svc.goToStep('select-connection');
   }
 
   goBack(step: WizardStep) {
@@ -691,7 +853,15 @@ export class AgentCompanionLandingPage implements OnInit {
   }
 
   navigateToLive() {
-    this.router.navigateByUrl('/desktop/live');
+    this.firstRun.acknowledgeAgentCompanionGuide();
+    void this.router.navigateByUrl('/desktop/live');
+  }
+
+  /** Skip the wizard for now; still mark onboarding so startup defaults to Live. */
+  continueToLiveDashboard() {
+    this.firstRun.acknowledgeAgentCompanionGuide();
+    this.showFirstRunWelcome = false;
+    void this.router.navigateByUrl('/desktop/live');
   }
 
   async copyText(text: string) {

@@ -53,7 +53,8 @@ export const RUNTIME_OPTIONS: RuntimeOption[] = [
     label: 'OpenClaw',
     description: 'Local CLI agent with custom provider support. Point OpenClaw at the Spectyra companion on localhost.',
     icon: 'terminal',
-    connectionStyles: ['launch', 'attach', 'observe'],
+    /** Setup wizard uses new vs existing only; in-path vs observe is chosen in Desktop settings after install. */
+    connectionStyles: ['launch', 'attach'],
     adapterKind: 'spectyra.openclaw.jsonl.v1',
   },
   {
@@ -145,6 +146,12 @@ export class AgentCompanionService {
 
   selectPath(path: SetupPath): void {
     this.state.setupPath = path;
+    if (this.state.runtime === 'openclaw') {
+      /** Skip Launch/Attach/Observe here — new path uses the OpenClaw wizard; existing defaults to attach. */
+      this.state.connectionStyle = path === 'new' ? 'launch' : 'attach';
+      this.state.step = 'configure';
+      return;
+    }
     this.state.step = 'select-connection';
   }
 

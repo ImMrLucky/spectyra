@@ -170,12 +170,19 @@ billingRouter.post("/checkout", async (req: AuthenticatedRequest, res) => {
         },
       ],
       subscription_data: {
+        ...((): { trial_period_days?: number } => {
+          const rawStr = process.env.STRIPE_TRIAL_DAYS?.trim();
+          const raw = parseInt(rawStr && rawStr.length > 0 ? rawStr : "7", 10);
+          const days =
+            Number.isFinite(raw) && raw > 0 ? Math.min(365, raw) : null;
+          return days !== null ? { trial_period_days: days } : {};
+        })(),
         metadata: {
           spectyra_org_id: org.id,
         },
       },
-      success_url: success_url || `${req.headers.origin || "https://spectyra.netlify.app"}/billing/success?session_id={CHECKOUT_SESSION_ID}`,
-      cancel_url: cancel_url || `${req.headers.origin || "https://spectyra.netlify.app"}/billing/cancel`,
+      success_url: success_url || `${req.headers.origin || "https://spectyra.ai"}/billing/success?session_id={CHECKOUT_SESSION_ID}`,
+      cancel_url: cancel_url || `${req.headers.origin || "https://spectyra.ai"}/billing/cancel`,
       metadata: {
         spectyra_org_id: org.id,
       },

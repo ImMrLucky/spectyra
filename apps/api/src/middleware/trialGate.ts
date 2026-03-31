@@ -11,6 +11,10 @@ import { Response, NextFunction } from "express";
 import { hasActiveAccess } from "../services/storage/orgsRepo.js";
 import { getEntitlement, canRunOptimized } from "../services/entitlement.js";
 import { billingAccessOpts, type AuthenticatedRequest } from "./auth.js";
+import {
+  isBillingExemptEmail,
+  isBillingExemptOrgId,
+} from "../billing/billingExempt.js";
 
 /**
  * Require active access (trial or subscription) for live provider calls.
@@ -83,6 +87,19 @@ export async function requireOptimizedRunQuota(
   const mode = (req.body?.runMode ?? req.body?.run_mode ?? "on") as string;
 
   if (mode !== "on") {
+    next();
+    return;
+  }
+
+  const org = req.context?.org;
+  const bopts = billingAccessOpts(req);
+  if (
+    org &&
+    (org.platform_exempt ||
+      isBillingExemptOrgId(org.id) ||
+      (bopts.userEmail && isBillingExemptEmail(bopts.userEmail)) ||
+      bopts.platformBillingExempt)
+  ) {
     next();
     return;
   }

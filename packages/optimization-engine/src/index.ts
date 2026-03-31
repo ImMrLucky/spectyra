@@ -20,8 +20,11 @@ export {
 
 export { whitespaceNormalize } from "./transforms/whitespace-normalize.js";
 export { dedupConsecutive } from "./transforms/dedup-consecutive.js";
+export { assistantSelfQuoteDedup } from "./transforms/assistant-self-quote-dedup.js";
 export { systemDedup } from "./transforms/system-dedup.js";
 export { toolOutputTruncate } from "./transforms/tool-output-truncate.js";
+export { jsonMinify } from "./transforms/json-minify.js";
+export { errorStackCompressor } from "./transforms/error-stack-compressor.js";
 export { contextWindowTrim } from "./transforms/context-window-trim.js";
 export { stableTurnSummarize } from "./transforms/stable-turn-summarize.js";
 export { spectralSCC } from "./transforms/spectral-scc.js";

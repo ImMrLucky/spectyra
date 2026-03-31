@@ -8,6 +8,18 @@
   background: var(--bg);
 }
 
+/* macOS: Electron uses titleBarStyle: hiddenInset — reserve space for traffic lights */
+.desktop-app--darwin {
+  .dt-titlebar {
+    padding-left: 78px;
+    padding-top: 10px;
+    padding-bottom: 8px;
+    height: auto;
+    min-height: 40px;
+    box-sizing: border-box;
+  }
+}
+
 /* ── Titlebar (38px, draggable) ── */
 .dt-titlebar {
   display: flex;

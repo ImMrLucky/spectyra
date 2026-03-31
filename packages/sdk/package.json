@@ -1,6 +1,6 @@
 {
   "name": "@spectyra/sdk",
-  "version": "0.1.2",
+  "version": "0.1.3",
   "description": "Spectyra SDK for real-time LLM optimization",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
@@ -41,7 +41,9 @@
     "@spectyra/core-types": "workspace:*",
     "@spectyra/canonical-model": "workspace:*",
     "@spectyra/feature-detection": "workspace:*",
-    "@spectyra/optimization-engine": "workspace:*"
+    "@spectyra/optimization-engine": "workspace:*",
+    "@spectyra/shared": "workspace:*",
+    "@spectyra/workflow-policy": "workspace:*"
   },
   "devDependencies": {
     "@types/node": "^20.0.0",

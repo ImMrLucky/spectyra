@@ -5,3 +5,4 @@ export { contextBloatDetectors } from "./detectors/context-bloat.js";
 export { agentFlowDetectors } from "./detectors/agent-flow.js";
 export { structuralDetectors } from "./detectors/structural.js";
 export { outputConstraintDetectors } from "./detectors/output-constraints.js";
+export { advancedDetectors } from "./detectors/advanced.js";

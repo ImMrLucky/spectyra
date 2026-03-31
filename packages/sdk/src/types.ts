@@ -16,6 +16,7 @@ import type {
   PromptComparison,
   SecurityLabels,
 } from "@spectyra/core-types";
+import type { WorkflowPolicyMode } from "@spectyra/workflow-policy";
 import type { GlobalLearningSnapshot, LearningProfile } from "@spectyra/canonical-model";
 
 // Re-export core-types so downstream consumers only need @spectyra/sdk
@@ -71,6 +72,14 @@ export interface SpectyraConfig {
 
   /** Optional aggregate benchmarks (non-sensitive); tune detector thresholds with local profile. */
   globalLearningSnapshot?: GlobalLearningSnapshot;
+
+  /**
+   * Phase 6 — workflow policy (same engine as Local Companion / Desktop embedded companion).
+   * - `observe`: evaluate only; never blocks the provider.
+   * - `enforce`: `complete()` throws `WorkflowPolicyBlockedError` before `adapter.call` when rules trip.
+   * Omit to disable (no policy checks).
+   */
+  workflowPolicy?: { mode: WorkflowPolicyMode };
 
   // --- Legacy fields (deprecated, kept for backward compat) ---
 

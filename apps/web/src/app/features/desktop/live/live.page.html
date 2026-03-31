@@ -3,6 +3,20 @@
 </div>
 
 <div class="live-page" *ngIf="snapshot as snap">
+  <!-- First-run: users who open Live before Agent Companion -->
+  <div class="setup-guide-banner" *ngIf="showAgentCompanionSetupBanner">
+    <div class="sgb-content">
+      <span class="sgb-title">Set up your agent first</span>
+      <p class="sgb-text">
+        Use <strong>Agent Companion</strong> to choose your runtime (OpenClaw, Claude, …), connect the Local Companion, then come back here for real-time monitoring.
+      </p>
+    </div>
+    <div class="sgb-actions">
+      <a class="btn-sgb-primary" routerLink="/desktop/agent-companion">Get started</a>
+      <button type="button" class="btn-sgb-secondary" (click)="dismissAgentCompanionSetupBanner()">Dismiss</button>
+    </div>
+  </div>
+
   <!-- Chips + savings row -->
   <app-live-top-bar [topline]="snap.topline" [health]="health" [session]="activeSession()"></app-live-top-bar>
 

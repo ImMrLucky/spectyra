@@ -13,6 +13,8 @@ export interface TransformPreference {
   avgTokenSavings: number;
   avgQualityScore?: number;
   sampleCount: number;
+  /** Accumulated counts of feature IDs that co-occurred with this transform. */
+  featureHitCounts?: Record<string, number>;
 }
 
 export interface StablePatternSummary {

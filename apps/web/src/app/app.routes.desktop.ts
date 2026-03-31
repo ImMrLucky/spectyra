@@ -10,6 +10,7 @@ import { DesktopSessionsPage } from './features/desktop/sessions/sessions.page';
 import { DesktopHistoryPage } from './features/desktop/history/history.page';
 import { DesktopComparePage } from './features/desktop/compare/compare.page';
 import { AgentCompanionLandingPage } from './features/desktop/agent-companion/agent-companion-landing.page';
+import { DesktopHomeRedirectComponent } from './features/desktop/desktop-home-redirect.component';
 import { DesktopSecurityPage } from './features/desktop/security/desktop-security.page';
 import { DesktopSettingsPage } from './features/desktop/settings/desktop-settings.page';
 import { IntegrationsPage } from './features/integrations/integrations.page';
@@ -19,7 +20,7 @@ import { superuserGuard } from './core/guards/superuser.guard';
 
 /** Electron renderer — local-first shell (hash routing in main.ts). */
 export const desktopRoutes: Routes = [
-  { path: '', redirectTo: 'desktop/live', pathMatch: 'full' },
+  { path: '', pathMatch: 'full', component: DesktopHomeRedirectComponent },
   { path: 'desktop/dashboard', component: DesktopDashboardPage },
   { path: 'desktop/live', component: LivePage },
   { path: 'desktop/live-savings', redirectTo: 'desktop/live', pathMatch: 'full' },

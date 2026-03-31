@@ -10,7 +10,7 @@
 export const environment = {
   production: true,
   /** Production web origin — used for auth email links when origin is not http(s) (e.g. desktop file://). */
-  publicSiteUrl: 'https://spectyra.netlify.app',
+  publicSiteUrl: 'https://spectyra.ai',
   isDesktop: false,
   companionBaseUrl: 'http://127.0.0.1:4111',
   apiUrl: 'https://spectyra.up.railway.app/v1',
@@ -29,7 +29,7 @@ export const environment = {
   desktopDownloadsSameOrigin: {
     macPath: '/assets/downloads/Spectyra-mac.dmg',
     windowsInstallerPath: '/assets/downloads/Spectyra-windows.exe',
-    /** Portable zip — leave empty if not in Netlify assets (use API `DESKTOP_DOWNLOAD_WINDOWS_ZIP_URL`). */
+    /** Portable zip — leave empty if not in static assets (use API `DESKTOP_DOWNLOAD_WINDOWS_ZIP_URL`). */
     windowsPortablePath: '',
   },
 };

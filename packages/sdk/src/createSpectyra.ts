@@ -101,10 +101,21 @@ export function createSpectyra(config: SpectyraConfig = {}): SpectyraInstance {
   const legacyMode = config.mode;
   const endpoint = config.endpoint;
   const apiKey = config.apiKey;
+  const telemetryMode = config.telemetry?.mode ?? "local";
 
   if (legacyMode === "api") {
     if (!endpoint) throw new Error("endpoint is required for API mode");
     if (!apiKey) throw new Error("apiKey is required for API mode");
+  }
+
+  if (telemetryMode === "cloud_redacted") {
+    const hasSpectyraCredential =
+      Boolean(config.licenseKey?.trim()) || Boolean(config.apiKey?.trim());
+    if (!hasSpectyraCredential) {
+      throw new Error(
+        'Spectyra: telemetry.mode "cloud_redacted" requires licenseKey or apiKey (Spectyra credentials, not a provider key).',
+      );
+    }
   }
 
   return {

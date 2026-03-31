@@ -15,6 +15,7 @@ import type {
   LicenseStatus,
 } from "@spectyra/core-types";
 import { queryOne } from "./storage/db.js";
+import { isBillingExemptOrgId } from "../billing/billingExempt.js";
 
 interface OrgRow {
   id: string;
@@ -68,7 +69,8 @@ export async function getEntitlement(orgId: string): Promise<EntitlementInfo> {
     SELECT id, plan, subscription_status, trial_ends_at,
            COALESCE(optimized_runs_used, 0) AS optimized_runs_used,
            optimized_runs_limit,
-           sdk_access_enabled
+           sdk_access_enabled,
+           COALESCE(platform_exempt, false) AS platform_exempt
     FROM orgs WHERE id = $1
   `, [orgId]);
 
@@ -90,7 +92,7 @@ export async function getEntitlement(orgId: string): Promise<EntitlementInfo> {
   const limits = PLAN_LIMITS[plan];
   const trial = resolveTrialState(org);
 
-  if (org.platform_exempt) {
+  if (org.platform_exempt || isBillingExemptOrgId(org.id)) {
     return {
       plan: "enterprise",
       trialState: "converted",

@@ -12,6 +12,9 @@ Local-first desktop app: **Electron** shell + **Local Companion** child process 
 | `../web` (desktop build) | Angular output → `dist/renderer/` (includes **Live savings**: SSE + detailed local metrics; optional redacted cloud sync when signed in) |
 | `resources/companion/` | Produced by `scripts/prepare-companion.cjs` (`pnpm deploy` of `@spectyra/local-companion`) |
 | `electron-builder.yml` | Packaging: macOS DMG+zip, Windows NSIS+zip |
+| `assets/icon.png` | 1024×1024 master for macOS/Windows icons (transparent background, rounded alpha mask) |
+
+**Regenerating the icon:** If you replace `assets/icon.png` with a flat square on black, run `python3 scripts/process-app-icon.py` from `apps/desktop` (requires [Pillow](https://pypi.org/project/pillow/)) to strip the black via flood-fill and apply rounded-corner alpha.
 
 ## Dev (two terminals)
 
@@ -46,6 +49,7 @@ Prerequisites: `pnpm install`, local-companion built, Angular desktop build, and
 
 ## Runtime behavior (main process)
 
+- **First launch (renderer):** Until `localStorage['spectyra.desktop.guide.agentCompanionAck'] === '1'`, the default route opens **Agent Companion** instead of Live. Users can continue to Live from the welcome card, complete the wizard, or dismiss the optional banner on Live. Clearing that key restores first-run routing.
 - **Single instance:** A second launch focuses the existing window instead of starting another copy (avoids two Local Companions fighting for the same port).
 - **macOS:** Closing the last window does **not** quit the app (standard dock behavior); the Local Companion keeps running for `localhost` tools. Use **Quit** from the menu or **Cmd+Q** to exit fully.
 

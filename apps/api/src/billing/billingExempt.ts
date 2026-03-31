@@ -1,7 +1,12 @@
 /**
  * Founder / comp access without Stripe — configure via env (comma-separated).
- * BILLING_EXEMPT_EMAILS: user emails (case-insensitive), e.g. founder@company.com
- * BILLING_EXEMPT_ORG_IDS: org UUIDs for API-key-only flows where email is unavailable
+ *
+ * - BILLING_EXEMPT_EMAILS: user emails (case-insensitive). JWT routes get unlimited
+ *   optimized runs; new bootstraps get org.platform_exempt; existing users are synced
+ *   when the web app loads /auth/me (POST /v1/auth/sync-billing-exempt).
+ * - BILLING_EXEMPT_ORG_IDS: org UUIDs for API-key-only flows (no Supabase email on the request).
+ *
+ * Or use Superuser → platform_exempt on an org, or set platform_exempt in the database.
  */
 
 function parseList(env: string | undefined): Set<string> {

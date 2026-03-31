@@ -4,6 +4,8 @@
     "outDir": "./out-tsc/app",
     "types": [],
     "paths": {
+      "@spectyra/shared": ["../../packages/shared/src/index.ts"],
+      "@spectyra/shared/*": ["../../packages/shared/src/*"],
       "@spectyra/integration-metadata": ["../../packages/integration-metadata/src/index.ts"],
       "@spectyra/integration-metadata/*": ["../../packages/integration-metadata/src/*"],
       "@spectyra/analytics-core": ["../../packages/analytics-core/src/index.ts"],

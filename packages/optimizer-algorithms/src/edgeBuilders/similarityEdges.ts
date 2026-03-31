@@ -23,8 +23,10 @@ export function buildSimilarityEdges(units: SemanticUnit[], opts: SpectralOption
   const n = units.length;
   const baseW = path === "code" ? 1.0 : 0.8;
   for (let i = 0; i < n; i++) {
+    if (!units[i].embedding || units[i].embedding!.length === 0) continue;
     for (let j = i + 1; j < n; j++) {
-      const sim = cosine(units[i].embedding, units[j].embedding);
+      if (!units[j].embedding || units[j].embedding!.length === 0) continue;
+      const sim = cosine(units[i].embedding!, units[j].embedding!);
       if (sim >= opts.similarityEdgeMin) {
         let w = baseW * sim;
         if (path === "code") {

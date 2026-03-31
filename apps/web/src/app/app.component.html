@@ -1,5 +1,5 @@
 <ng-container *ngIf="isDesktop; else webShell">
-  <div class="desktop-app">
+  <div class="desktop-app" [class.desktop-app--darwin]="desktopIsDarwin">
     <div class="dt-titlebar">
       <div class="dt-brand">
         <img src="assets/spectyra-icon.png" alt="Spectyra" class="dt-logo-icon" />

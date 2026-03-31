@@ -14,9 +14,8 @@
   <div class="oc-step-content" *ngIf="step === 1">
     <h1 class="oc-title">OpenClaw + Spectyra</h1>
     <p class="oc-sub">
-      OpenClaw is a local CLI agent that supports custom provider endpoints.
-      Spectyra's Local Companion acts as an in-path optimization proxy — OpenClaw
-      sends requests to Spectyra, which optimizes, then calls your real provider.
+      OpenClaw is your AI assistant.<br />
+      Spectyra makes it faster, smarter, and more cost-efficient, using your existing AI provider (Claude, OpenAI, Gemini, and more). Uses your own API keys. No data stored.
     </p>
     <div class="oc-info-card">
       <span class="oc-info-label">How it works</span>
@@ -56,12 +55,103 @@
     <div *ngIf="userPath === 'new'">
       <h1 class="oc-title">Install OpenClaw</h1>
       <p class="oc-sub">Get OpenClaw running on your machine first.</p>
+
+      <p class="oc-sub oc-run-hint" *ngIf="installPlatform === 'darwin'">
+        <strong>Where to run:</strong> Open <strong>Terminal</strong> (Applications → Utilities → Terminal), or a terminal panel in your editor.
+        Paste the commands below into that window — or use <strong>Run OpenClaw onboard</strong> to open Terminal and run them for you.
+      </p>
+      <p class="oc-sub oc-run-hint" *ngIf="installPlatform === 'win32'">
+        <strong>Where to run:</strong> Open <strong>PowerShell</strong> (Windows — official OpenClaw installer uses PowerShell).
+        Paste the commands below — or use <strong>Run OpenClaw onboard</strong> to run them in a new PowerShell window.
+        Git Bash is optional if you prefer a Unix-style shell for manual steps.
+      </p>
+      <p class="oc-sub oc-run-hint" *ngIf="installPlatform === 'linux'">
+        <strong>Where to run:</strong> Open a <strong>terminal</strong> (bash). Paste the commands below — or use <strong>Run OpenClaw onboard</strong> to open a terminal emulator when available.
+      </p>
+      <p class="oc-sub oc-run-hint" *ngIf="installPlatform === 'other'">
+        <strong>Where to run:</strong> On macOS/Linux use <strong>Terminal</strong> with the bash line below; on Windows use <strong>PowerShell</strong> with the PowerShell line. Or use WSL on Windows if you prefer bash.
+      </p>
+
+      <div class="oc-node-prereq">
+        <span class="oc-node-label">Prerequisite</span>
+        <p class="oc-node-text">
+          OpenClaw requires <strong>Node.js {{ openClawNodeMin }} or newer</strong>
+          (<a href="https://nodejs.org/" target="_blank" rel="noopener noreferrer">nodejs.org</a>).
+          Install Node first, then run the install and onboard commands below.
+        </p>
+      </div>
+
+      <details class="oc-advanced">
+        <summary>Customize onboard (optional)</summary>
+        <p class="oc-sub oc-adv-intro">
+          Add common <code>openclaw onboard</code> flags here. For anything else, run commands yourself in a terminal or adjust
+          <code>openclaw config</code> / your config file after install.
+        </p>
+        <div class="oc-field">
+          <label class="oc-field-label" for="oc-flow">Flow</label>
+          <select id="oc-flow" class="oc-select" [value]="onboardFlow" (change)="onboardFlow = $any($event.target).value">
+            <option value="default">Default (no extra flags)</option>
+            <option value="quickstart">quickstart</option>
+            <option value="manual">manual</option>
+          </select>
+        </div>
+        <div class="oc-field">
+          <span class="oc-field-label">Mode</span>
+          <div class="oc-radio-row">
+            <label class="oc-radio">
+              <input type="radio" name="oc-onboard-mode" [checked]="onboardMode === 'local'" (change)="onboardMode = 'local'" />
+              Local
+            </label>
+            <label class="oc-radio">
+              <input type="radio" name="oc-onboard-mode" [checked]="onboardMode === 'remote'" (change)="onboardMode = 'remote'" />
+              Remote gateway
+            </label>
+          </div>
+        </div>
+        <div class="oc-field" *ngIf="onboardMode === 'remote'">
+          <label class="oc-field-label" for="oc-remote-url">Remote WebSocket URL</label>
+          <input
+            id="oc-remote-url"
+            class="oc-input"
+            type="url"
+            autocomplete="off"
+            placeholder="wss://gateway-host:18789"
+            [value]="remoteUrl"
+            (input)="remoteUrl = $any($event.target).value"
+          />
+        </div>
+      </details>
+
       <div class="oc-code-card">
         <span class="oc-code-label">Install and onboard</span>
-        <pre class="oc-code">curl -fsSL https://openclaw.sh/install | sh
-openclaw onboard</pre>
-        <button class="btn-copy" (click)="copyCmd('curl -fsSL https://openclaw.sh/install | sh && openclaw onboard')">Copy</button>
+        <pre class="oc-code">{{ installFirstLine }}
+{{ onboardCliDisplayLine }}</pre>
+        <p class="oc-hint oc-one-liner-hint" *ngIf="!onboardCommandError && fullInstallOneLineDisplay">
+          <strong>Copy</strong> and <strong>Run</strong> use one shell line:
+          <code class="oc-one-liner-code">{{ fullInstallOneLineDisplay }}</code>
+        </p>
+        <p class="oc-error" *ngIf="onboardCommandError">{{ onboardCommandError }}</p>
+        <div class="oc-code-actions">
+          <button
+            type="button"
+            class="btn-primary"
+            *ngIf="canRunOnboardTerminal"
+            [disabled]="!!onboardCommandError"
+            (click)="runOnboardInTerminal()"
+          >
+            Run OpenClaw onboard
+          </button>
+          <button
+            type="button"
+            class="btn-secondary"
+            [disabled]="!!onboardCommandError"
+            (click)="copyFullInstallLine()"
+          >
+            Copy full command
+          </button>
+        </div>
       </div>
+      <p class="oc-error" *ngIf="terminalOnboardError">{{ terminalOnboardError }}</p>
       <p class="oc-hint">After <code>openclaw onboard</code>, OpenClaw will ask for your provider API key and preferred model. Complete that first.</p>
     </div>
 
@@ -101,6 +191,11 @@ openclaw onboard</pre>
       </span>
     </div>
 
+    <p class="oc-hint">
+      Provider API keys (OpenAI / Anthropic / Groq) are set in
+      <a routerLink="/desktop/settings">Desktop settings</a>. The companion forwards to your provider after optimization.
+    </p>
+
     <button class="btn-secondary" (click)="refreshHealth()">Re-check</button>
     <button class="btn-primary" (click)="step = 4" [disabled]="health?.['status'] !== 'ok'" style="margin-left: 10px">Next →</button>
   </div>
@@ -128,19 +223,10 @@ openclaw onboard</pre>
       </p>
     </div>
 
-    <div class="oc-attach-choice" *ngIf="userPath === 'existing'">
-      <p class="oc-attach-label">Connection mode:</p>
-      <div class="oc-attach-options">
-        <button class="oc-attach-btn" [class.selected]="attachMode === 'proxy'" (click)="attachMode = 'proxy'">
-          <strong>In-path proxy</strong>
-          <span>Full optimization + monitoring. Routes through companion.</span>
-        </button>
-        <button class="oc-attach-btn" [class.selected]="attachMode === 'observe'" (click)="attachMode = 'observe'">
-          <strong>Observe / log attach</strong>
-          <span>Monitoring only. OpenClaw calls provider directly.</span>
-        </button>
-      </div>
-    </div>
+    <p class="oc-sub" style="margin-top: 12px">
+      Run mode (off / observe / on) is set in
+      <a routerLink="/desktop/settings">Desktop settings</a> — not in this wizard.
+    </p>
 
     <button class="btn-primary" (click)="step = 5">Next →</button>
   </div>
@@ -198,7 +284,7 @@ openclaw onboard</pre>
       </div>
       <div class="oc-ts-item">
         <h3>API key errors</h3>
-        <p>The companion needs your provider API key. Go to <a routerLink="/desktop/onboarding">Settings</a> to configure it.</p>
+        <p>The companion needs your provider API key. Go to <a routerLink="/desktop/settings">Desktop settings</a> to configure it.</p>
       </div>
       <div class="oc-ts-item">
         <h3>Useful commands</h3>
@@ -221,9 +307,8 @@ openclaw onboard</pre>
       <span class="oc-gl-dot"></span>
       <h1 class="oc-gl-title">OpenClaw + Spectyra — ready</h1>
       <p class="oc-gl-sub">
-        Your OpenClaw agent is {{ attachMode === 'observe' ? 'being observed by' : 'routed through' }}
-        the Spectyra Local Companion. Start using OpenClaw normally — Spectyra monitors and
-        {{ attachMode === 'observe' ? 'shows projected savings' : 'optimizes in real time' }}.
+        Your OpenClaw traffic is routed through the Spectyra Local Companion. Start using OpenClaw normally —
+        adjust run mode (observe vs optimization) anytime in Desktop settings.
       </p>
       <button class="btn-primary" routerLink="/desktop/live">Open Live dashboard</button>
       <p class="oc-gl-hint">

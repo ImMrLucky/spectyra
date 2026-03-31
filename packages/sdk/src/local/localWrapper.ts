@@ -42,7 +42,18 @@ import {
   toHistoricalSignals,
 } from "@spectyra/learning";
 import { estimateCost } from "./tokenEstimator.js";
-import { emitSdkEventsForStandaloneComplete } from "../events/sdkEvents.js";
+import { emitSdkEventsForStandaloneComplete, sdkEventEngine } from "../events/sdkEvents.js";
+import { evaluateWorkflowPolicyFromEvents } from "../workflow/sdkWorkflowPolicyFromEvents.js";
+import { WorkflowPolicyBlockedError } from "../workflow/WorkflowPolicyBlockedError.js";
+
+function assertWorkflowPolicyAllows(config: SpectyraConfig): void {
+  const wp = config.workflowPolicy;
+  if (!wp) return;
+  const policy = evaluateWorkflowPolicyFromEvents(sdkEventEngine.snapshot(), wp.mode);
+  if (policy.shouldBlock) {
+    throw new WorkflowPolicyBlockedError(policy);
+  }
+}
 
 /**
  * Run a provider call wrapped with Spectyra optimization logic.
@@ -65,6 +76,7 @@ export async function localComplete<TClient, TResult>(
     : "observe_only";
 
   if (runMode === "off" && licenseStatus === "active") {
+    assertWorkflowPolicyAllows(config);
     const { result, usage } = await adapter.call({
       client: input.client,
       model: input.model,
@@ -105,6 +117,8 @@ export async function localComplete<TClient, TResult>(
 
   // The engine already enforces: unlicensed → optimizedRequest === originalRequest
   const messagesToSend = fromCanonicalMessages(pipeline.optimizedRequest.messages);
+
+  assertWorkflowPolicyAllows(config);
 
   if (profile) {
     const updates = learningUpdatesFromPipelineRun({

@@ -33,18 +33,25 @@ export function applyUpdate(
   const existing = profile.transformPreferences[update.transformId];
   const alpha = 0.2;
 
+  const featureHits: Record<string, number> = { ...(existing?.featureHitCounts ?? {}) };
+  for (const fid of update.featureIds) {
+    featureHits[fid] = (featureHits[fid] ?? 0) + 1;
+  }
+
   if (!existing) {
     profile.transformPreferences[update.transformId] = {
       successRate: update.success ? 1 : 0,
       avgTokenSavings: update.tokensSaved,
       avgQualityScore: update.qualityScore,
       sampleCount: 1,
+      featureHitCounts: featureHits,
     };
   } else {
     const updated: TransformPreference = {
       successRate: existing.successRate * (1 - alpha) + (update.success ? 1 : 0) * alpha,
       avgTokenSavings: existing.avgTokenSavings * (1 - alpha) + update.tokensSaved * alpha,
       sampleCount: existing.sampleCount + 1,
+      featureHitCounts: featureHits,
     };
     if (update.qualityScore != null) {
       updated.avgQualityScore = (existing.avgQualityScore ?? 0.8) * (1 - alpha) + update.qualityScore * alpha;

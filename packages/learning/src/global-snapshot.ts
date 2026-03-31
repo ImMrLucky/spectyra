@@ -44,6 +44,11 @@ export function aggregateProfiles(
         b.totalQuality += pref.avgQualityScore * pref.sampleCount;
         b.qualityCount += pref.sampleCount;
       }
+      if (pref.featureHitCounts) {
+        for (const [fid, count] of Object.entries(pref.featureHitCounts)) {
+          b.featureHits.set(fid, (b.featureHits.get(fid) ?? 0) + count);
+        }
+      }
     }
   }
 

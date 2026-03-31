@@ -49,4 +49,10 @@ export type WorkflowPolicyConfig = {
   maxSingleTransitionWireChars?: number;
   /** In enforce mode, only severities at or above this produce shouldBlock. */
   blockOnSeverity?: PolicySeverity;
+  /** Max session steps before warning (default 50). */
+  maxSessionSteps?: number;
+  /** Max average wireEstimateChars across all transitions (default 100000). */
+  maxAvgTransitionWireChars?: number;
+  /** Max consecutive low-value/redundant steps before warning (default 3). */
+  maxConsecutiveLowValueSteps?: number;
 };

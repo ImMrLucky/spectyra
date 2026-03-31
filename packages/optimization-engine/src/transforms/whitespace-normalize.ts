@@ -13,12 +13,23 @@ import type {
   FeatureDetectionResult,
 } from "@spectyra/canonical-model";
 
-function normalizeWhitespace(text: string): string {
+function normalizeWhitespaceRaw(text: string): string {
   return text
     .replace(/[ \t]+/g, " ")
     .replace(/\n{3,}/g, "\n\n")
     .replace(/[ \t]+\n/g, "\n")
     .trim();
+}
+
+/**
+ * Split text into alternating prose / code-fence segments, normalize only the
+ * prose segments, and reassemble. Code fences (``` blocks) are preserved as-is.
+ */
+function normalizeWhitespace(text: string): string {
+  const parts = text.split(/(```[\s\S]*?```)/g);
+  return parts
+    .map((segment, i) => (i % 2 === 1 ? segment : normalizeWhitespaceRaw(segment)))
+    .join("");
 }
 
 export const whitespaceNormalize: OptimizationTransform = {
