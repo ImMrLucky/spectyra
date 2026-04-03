@@ -57,7 +57,11 @@ export function resolveOnboardingState(input: OnboardingStateInput): OnboardingS
   return 'ready';
 }
 
-export function actionsForState(state: OnboardingState): OnboardingAction[] {
+export function actionsForState(
+  state: OnboardingState,
+  opts?: { isDesktop?: boolean },
+): OnboardingAction[] {
+  const isDesktop = opts?.isDesktop === true;
   switch (state) {
     case 'checking':
       return [{ type: 'run_diagnostics', label: 'Refresh', primary: true }];
@@ -68,7 +72,11 @@ export function actionsForState(state: OnboardingState): OnboardingAction[] {
       ];
     case 'desktop_installed_companion_not_running':
       return [
-        { type: 'open_desktop', label: 'Open Spectyra', primary: true },
+        {
+          type: 'open_desktop',
+          label: isDesktop ? 'Start Local Companion' : 'Open Spectyra',
+          primary: true,
+        },
         { type: 'retry', label: 'Retry detection' },
       ];
     case 'not_signed_in':
@@ -119,7 +127,7 @@ const CHECKLIST_DEF: Array<{
     ok: (s) => s.companionRunning,
     failedState: 'desktop_installed_companion_not_running',
   },
-  { id: 'signed_in', label: 'Signed in', ok: (s) => s.signedIn, failedState: 'not_signed_in' },
+  { id: 'signed_in', label: 'Spectyra account (optional)', ok: (s) => s.signedIn, failedState: 'not_signed_in' },
   {
     id: 'provider',
     label: 'AI provider connected',
@@ -155,11 +163,12 @@ export function buildOnboardingStatus(
   state: OnboardingState,
   partial: Omit<OnboardingStatus, 'state' | 'actions' | 'message'>,
   message?: string,
+  actionOpts?: { isDesktop?: boolean },
 ): OnboardingStatus {
   return {
     state,
     ...partial,
     message,
-    actions: actionsForState(state),
+    actions: actionsForState(state, actionOpts),
   };
 }

@@ -1,6 +1,9 @@
 /**
  * Build and deploy @spectyra/local-companion into apps/desktop/resources/companion
  * for electron-builder extraResources. Run from repo root via pnpm.
+ *
+ * The companion is bundled with esbuild (all @spectyra/* workspace packages inlined).
+ * Only npm deps (express, cors) are kept external and shipped via pnpm deploy.
  */
 const { spawnSync } = require("child_process");
 const path = require("path");
@@ -15,8 +18,18 @@ function run(cmd, args) {
 }
 
 fs.rmSync(target, { recursive: true, force: true });
+
+// Build (esbuild bundle: companion.cjs with @spectyra/* inlined)
 run("pnpm", ["--filter", "@spectyra/local-companion", "build"]);
+
+// Deploy npm deps (express, cors, etc.) into target with node_modules
 run("pnpm", ["--filter", "@spectyra/local-companion", "deploy", "apps/desktop/resources/companion"]);
+
+/** Remove @spectyra/* packages from deployed node_modules — they're bundled in companion.cjs. */
+const nm = path.join(target, "node_modules", "@spectyra");
+if (fs.existsSync(nm)) {
+  fs.rmSync(nm, { recursive: true, force: true });
+}
 
 /** Drop source maps from the deployed tree (not needed at runtime; smaller desktop bundle). */
 function removeFilesRecursive(dir, predicate) {
@@ -52,8 +65,8 @@ const JUNK_DIR = new Set([
 ]);
 
 function pruneNodeModulesJunk(roots) {
-  const nm = path.join(roots, "node_modules");
-  if (!fs.existsSync(nm)) return;
+  const nmDir = path.join(roots, "node_modules");
+  if (!fs.existsSync(nmDir)) return;
 
   function walk(dir) {
     let entries;
@@ -82,7 +95,7 @@ function pruneNodeModulesJunk(roots) {
       }
     }
   }
-  walk(nm);
+  walk(nmDir);
 }
 
 pruneNodeModulesJunk(target);

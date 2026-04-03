@@ -235,6 +235,42 @@
               <div class="user-info">
                 <h3>{{ user.email || user.user_id }}</h3>
                 <p class="user-id">ID: {{ user.user_id }}</p>
+                <span class="access-badge" *ngIf="user.access_state === 'paused'">Paused — Observe (read-only)</span>
+                <span class="access-badge active" *ngIf="user.access_state !== 'paused'">Active</span>
+              </div>
+              <div class="user-actions">
+                <button
+                  type="button"
+                  class="btn btn-sm btn-secondary"
+                  *ngIf="user.access_state !== 'paused'"
+                  (click)="setUserAccess(user, 'paused')"
+                  [disabled]="userActionBusy === user.user_id">
+                  Pause
+                </button>
+                <button
+                  type="button"
+                  class="btn btn-sm btn-primary"
+                  *ngIf="user.access_state === 'paused'"
+                  (click)="setUserAccess(user, 'active')"
+                  [disabled]="userActionBusy === user.user_id">
+                  Reactivate
+                </button>
+                <button
+                  type="button"
+                  class="btn btn-sm btn-danger"
+                  (click)="askDeleteUser(user)"
+                  [disabled]="userActionBusy === user.user_id">
+                  Delete user
+                </button>
+              </div>
+            </div>
+            <div class="delete-user-confirm" *ngIf="deleteConfirmUserId === user.user_id">
+              <p>Permanently delete this user? App data is removed; sole-owner orgs are deleted entirely.</p>
+              <div class="confirm-actions">
+                <button type="button" class="btn btn-danger btn-sm" (click)="deleteUser(user)" [disabled]="userActionBusy === user.user_id">
+                  {{ userActionBusy === user.user_id ? 'Deleting…' : 'Yes, delete' }}
+                </button>
+                <button type="button" class="btn btn-secondary btn-sm" (click)="cancelDeleteUser()" [disabled]="userActionBusy === user.user_id">Cancel</button>
               </div>
             </div>
             <div class="user-orgs" *ngIf="user.orgs.length > 0">

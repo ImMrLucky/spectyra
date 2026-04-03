@@ -77,6 +77,8 @@ export interface AuthenticatedRequest extends Request {
     providerKeyFingerprint?: string;
     /** From platform_roles table */
     platformRole?: PlatformRoleName;
+    /** Set when DB says paused and request is not from platform staff (superuser/admin) */
+    accountAccessState?: "active" | "paused";
   };
 }
 
@@ -465,6 +467,33 @@ export async function requireUserSession(
         }
       } catch {
         /* non-fatal */
+      }
+
+      // Paused accounts: Observe-only (GET/HEAD/OPTIONS); mutating JWT requests blocked
+      try {
+        const { queryOne } = await import("../services/storage/db.js");
+        const staffBypass =
+          req.auth.platformRole === "superuser" || req.auth.platformRole === "admin";
+        if (!staffBypass) {
+          const flag = await queryOne<{ access_state: string }>(
+            `SELECT access_state FROM user_account_flags WHERE user_id = $1`,
+            [userId],
+          );
+          if (flag?.access_state === "paused") {
+            req.auth.accountAccessState = "paused";
+            const m = req.method.toUpperCase();
+            if (m !== "GET" && m !== "HEAD" && m !== "OPTIONS") {
+              res.status(403).json({
+                error: "account_paused",
+                message:
+                  "Your account is paused. You can still browse and view data (Observe mode). Write actions are disabled until an administrator reactivates your account.",
+              });
+              return;
+            }
+          }
+        }
+      } catch {
+        /* table missing / transient — fail open for auth */
       }
 
       // Also attach to context for backward compatibility

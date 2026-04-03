@@ -67,45 +67,46 @@ export class RegisterPage {
         this.loading = false;
         return;
       }
-      
-      // If user was created but no session, email confirmation is likely required
-      if (user && !session) {
-        this.successMessage =
-          'Account created! Please check your email to confirm your account, then try logging in.';
-        this.loading = false;
-        return;
+
+      // 2. Get access token — auto-confirm if email verification is blocking
+      let token: string | null = session?.access_token ?? null;
+
+      if (user && !token) {
+        // Email confirmation is enabled in Supabase — auto-confirm server-side
+        try {
+          const confirmRes = await fetch(`${environment.apiUrl}/auth/auto-confirm`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ email: this.email }),
+          });
+          if (!confirmRes.ok) {
+            console.warn('[register] auto-confirm failed', confirmRes.status);
+          }
+        } catch (e) {
+          console.warn('[register] auto-confirm error', e);
+        }
+
+        // Now sign in to get a session
+        const { error: signInError } = await this.supabase.signIn(this.email, this.password);
+        if (signInError) {
+          console.warn('[register] post-confirm sign-in failed', signInError);
+        }
+        await new Promise(resolve => setTimeout(resolve, 500));
+        token = await this.supabase.getAccessToken();
       }
 
-      // 2. Get access token (from signup response or by fetching fresh session)
-      let token: string | null = null;
-      
-      // Use session from signup response if available
-      if (session?.access_token) {
-        token = session.access_token;
-        console.log('Using session from signup response');
-      } else {
-        // Wait a moment for Supabase to process and update auth state
-        await new Promise(resolve => setTimeout(resolve, 500));
-        
-        // Try to get fresh session from Supabase
+      if (!token) {
+        await new Promise(resolve => setTimeout(resolve, 1000));
         token = await this.supabase.getAccessToken();
-        
-        if (!token) {
-          // Wait a bit more and try once more
-          await new Promise(resolve => setTimeout(resolve, 1000));
-          token = await this.supabase.getAccessToken();
-        }
       }
 
       if (!token) {
         savePendingBootstrap({ orgName: this.orgName, projectName: this.projectName });
         this.successMessage =
-          'Account created! Confirm your email, then sign in — your company name is saved; we will create your organization after you log in.';
+          'Account created! Please sign in to complete setup.';
         this.loading = false;
         return;
       }
-      
-      console.log('Got access token, proceeding with bootstrap');
 
       // 3. Bootstrap org/project via API
       const headers = new HttpHeaders({

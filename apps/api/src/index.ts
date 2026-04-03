@@ -32,6 +32,7 @@ import { serverOptimizeRouter } from "./routes/serverOptimize.js";
 import { rateLimit } from "./middleware/rateLimit.js";
 import { initDb } from "./services/storage/db.js";
 import { ensurePlatformRolesSchema } from "./services/storage/ensurePlatformRolesSchema.js";
+import { ensureUserAccountFlagsSchema } from "./services/storage/userAccountRepo.js";
 
 const app = express();
 
@@ -130,6 +131,7 @@ app.use("/v1", serverOptimizeRouter); // POST /v1/optimize — full pipeline (SD
 
 async function startServer(): Promise<void> {
   await ensurePlatformRolesSchema();
+  await ensureUserAccountFlagsSchema();
   app.listen(config.port, "0.0.0.0", () => {
     console.log(`Spectyra API listening on port ${config.port}`);
   });

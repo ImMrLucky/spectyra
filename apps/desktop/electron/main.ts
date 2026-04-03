@@ -118,13 +118,13 @@ function companionPaths(): { script: string; cwd: string } {
   if (app.isPackaged) {
     const root = path.join(process.resourcesPath, "companion");
     return {
-      script: path.join(root, "dist", "companion.js"),
+      script: path.join(root, "dist", "companion.cjs"),
       cwd: root,
     };
   }
   const root = repoRootFromMain();
   return {
-    script: path.join(root, "tools", "local-companion", "dist", "companion.js"),
+    script: path.join(root, "tools", "local-companion", "dist", "companion.cjs"),
     cwd: path.join(root, "tools", "local-companion"),
   };
 }
@@ -305,9 +305,14 @@ function createWindow(): void {
 
 // ── IPC ───────────────────────────────────────────────────────────────────────
 
-ipcMain.handle("companion:start", () => {
+ipcMain.handle("companion:start", async () => {
+  const { script } = companionPaths();
+  if (!existsSync(script)) {
+    return { ok: false as const, reason: "missing" as const };
+  }
   startCompanion();
-  return true;
+  const healthy = await waitForHealth(30000);
+  return healthy ? ({ ok: true as const } as const) : ({ ok: false as const, reason: "health_timeout" as const } as const);
 });
 ipcMain.handle("companion:stop", () => {
   stopCompanion();
@@ -323,6 +328,51 @@ ipcMain.handle("companion:health", async () => {
     return await res.json();
   } catch {
     return null;
+  }
+});
+
+/**
+ * Fetch diagnostics from the Local Companion using Node (main process).
+ * The renderer cannot reliably fetch http://127.0.0.1 from file:// (packaged app) due to web security.
+ */
+ipcMain.handle("companion:get-setup-status", async () => {
+  const port = config.port;
+  const base = `http://127.0.0.1:${port}`;
+  try {
+    const [rs, ro] = await Promise.all([
+      fetch(`${base}/diagnostics/status`),
+      fetch(`${base}/diagnostics/integrations/openclaw`),
+    ]);
+    let statusJson: Record<string, unknown> | null = null;
+    let openclawJson: { detected?: boolean; connected?: boolean } | null = null;
+    if (rs.ok) {
+      try {
+        statusJson = (await rs.json()) as Record<string, unknown>;
+      } catch {
+        return { fetchOk: false as const, error: "invalid JSON from diagnostics/status" };
+      }
+    }
+    if (ro.ok) {
+      try {
+        openclawJson = (await ro.json()) as { detected?: boolean; connected?: boolean };
+      } catch {
+        return { fetchOk: false as const, error: "invalid JSON from diagnostics/integrations/openclaw" };
+      }
+    }
+    return {
+      fetchOk: true as const,
+      statusOk: rs.ok,
+      statusHttp: rs.status,
+      statusJson,
+      openclawOk: ro.ok,
+      openclawHttp: ro.status,
+      openclawJson,
+    };
+  } catch (e) {
+    return {
+      fetchOk: false as const,
+      error: e instanceof Error ? e.message : String(e),
+    };
   }
 });
 

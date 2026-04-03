@@ -2,7 +2,7 @@ import { Component, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { Router, RouterLink } from '@angular/router';
-import { AdminService, AdminOrg, AdminOrgDetail, AdminUser } from '../../core/api/admin.service';
+import { AdminService, AdminOrg, AdminOrgDetail, AdminUser, AccountAccessState } from '../../core/api/admin.service';
 import { SupabaseService } from '../../services/supabase.service';
 import { SnackbarService } from '../../core/services/snackbar.service';
 import { AuthService } from '../../core/auth/auth.service';
@@ -41,6 +41,8 @@ export class AdminPage implements OnInit {
   activeTab: 'orgs' | 'users' = 'orgs';
   users: AdminUser[] = [];
   loadingUsers = false;
+  userActionBusy: string | null = null;
+  deleteConfirmUserId: string | null = null;
 
   constructor(
     private adminService: AdminService,
@@ -259,6 +261,48 @@ export class AdminPage implements OnInit {
       day: 'numeric',
       hour: '2-digit',
       minute: '2-digit',
+    });
+  }
+
+  setUserAccess(user: AdminUser, state: AccountAccessState) {
+    this.userActionBusy = user.user_id;
+    this.adminService.setUserAccess(user.user_id, state).subscribe({
+      next: () => {
+        user.access_state = state;
+        this.userActionBusy = null;
+        this.snackbar.showSuccess(
+          state === 'paused' ? 'User paused (Observe / read-only).' : 'User reactivated.',
+        );
+      },
+      error: (err) => {
+        this.userActionBusy = null;
+        this.snackbar.showError(err.error?.error || 'Failed to update user');
+      },
+    });
+  }
+
+  askDeleteUser(user: AdminUser) {
+    this.deleteConfirmUserId = user.user_id;
+  }
+
+  cancelDeleteUser() {
+    this.deleteConfirmUserId = null;
+  }
+
+  deleteUser(user: AdminUser) {
+    this.userActionBusy = user.user_id;
+    this.adminService.deleteUser(user.user_id).subscribe({
+      next: (r) => {
+        this.users = this.users.filter((u) => u.user_id !== user.user_id);
+        this.deleteConfirmUserId = null;
+        this.userActionBusy = null;
+        const od = r.orgs_deleted?.length ? ` Orgs removed: ${r.orgs_deleted.length}.` : '';
+        this.snackbar.showSuccess(`User deleted.${od}`);
+      },
+      error: (err) => {
+        this.userActionBusy = null;
+        this.snackbar.showError(err.error?.error || 'Failed to delete user');
+      },
     });
   }
 }

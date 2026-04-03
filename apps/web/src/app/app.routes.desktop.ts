@@ -15,6 +15,7 @@ import { DesktopSecurityPage } from './features/desktop/security/desktop-securit
 import { DesktopSettingsPage } from './features/desktop/settings/desktop-settings.page';
 import { IntegrationsPage } from './features/integrations/integrations.page';
 import { LoginPage } from './features/auth/login.page';
+import { RegisterPage } from './features/auth/register.page';
 import { SuperuserPage } from './features/superuser/superuser.page';
 import { superuserGuard } from './core/guards/superuser.guard';
 
@@ -36,7 +37,9 @@ export const desktopRoutes: Routes = [
   /** Legacy detailed view — keep route for bookmarks; forwards to hero Live. */
   { path: 'desktop/live-legacy', component: LiveSavingsPage },
   { path: 'login', component: LoginPage },
+  { path: 'register', component: RegisterPage },
   { path: 'integrations/:slug', component: IntegrationsPage, canActivate: [authGuard] },
   { path: 'integrations', component: IntegrationsPage, canActivate: [authGuard] },
   { path: 'superuser', component: SuperuserPage, canActivate: [authGuard, superuserGuard] },
+  { path: '**', redirectTo: '', pathMatch: 'full' },
 ];

@@ -272,6 +272,78 @@ authRouter.post("/sync-billing-exempt", requireUserSession, async (req: Authenti
 });
 
 /**
+ * POST /v1/auth/auto-confirm
+ *
+ * Uses the Supabase Admin API (service role key) to confirm a newly-created
+ * user's email so they can sign in immediately without clicking an email link.
+ *
+ * Body: { email: string }
+ * Returns 200 { confirmed: true } on success.
+ */
+authRouter.post("/auto-confirm", async (req, res) => {
+  try {
+    const { email } = req.body as { email?: string };
+    if (!email || !email.trim()) {
+      return res.status(400).json({ error: "email is required" });
+    }
+
+    const base = process.env.SUPABASE_URL?.replace(/\/$/, "");
+    const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+    if (!base || !serviceKey) {
+      return res.status(500).json({ error: "Server Supabase config missing" });
+    }
+
+    const listRes = await fetch(
+      `${base}/auth/v1/admin/users?page=1&per_page=5`,
+      {
+        headers: {
+          Authorization: `Bearer ${serviceKey}`,
+          apikey: serviceKey,
+        },
+      },
+    );
+    if (!listRes.ok) {
+      safeLog("error", "auto-confirm: admin list users failed", { status: listRes.status });
+      return res.status(502).json({ error: "Could not query user list" });
+    }
+    const body = await listRes.json() as { users?: Array<{ id: string; email?: string; email_confirmed_at?: string | null }> };
+    const users = body.users ?? [];
+    const target = users.find(
+      (u) => u.email?.toLowerCase() === email.trim().toLowerCase(),
+    );
+    if (!target) {
+      return res.status(404).json({ error: "User not found — sign up first" });
+    }
+    if (target.email_confirmed_at) {
+      return res.json({ confirmed: true, already: true });
+    }
+
+    const confirmRes = await fetch(
+      `${base}/auth/v1/admin/users/${target.id}`,
+      {
+        method: "PUT",
+        headers: {
+          Authorization: `Bearer ${serviceKey}`,
+          apikey: serviceKey,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ email_confirm: true }),
+      },
+    );
+    if (!confirmRes.ok) {
+      safeLog("error", "auto-confirm: admin confirm failed", { status: confirmRes.status });
+      return res.status(502).json({ error: "Could not confirm user" });
+    }
+    safeLog("info", "auto-confirm: user confirmed", { email: email.trim() });
+    return res.json({ confirmed: true });
+  } catch (error: unknown) {
+    const message = error instanceof Error ? error.message : "Internal server error";
+    safeLog("error", "auto-confirm error", { error: message });
+    return res.status(500).json({ error: message });
+  }
+});
+
+/**
  * POST /v1/auth/register
  * 
  * Register a new organization and create default project + API key

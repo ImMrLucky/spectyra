@@ -1,10 +1,24 @@
+/** Result of main-process fetch to companion diagnostics (avoid renderer fetch from file://). */
+export type CompanionSetupStatusIpc =
+  | {
+      fetchOk: true;
+      statusOk: boolean;
+      statusHttp: number;
+      statusJson: Record<string, unknown> | null;
+      openclawOk: boolean;
+      openclawHttp: number;
+      openclawJson: { detected?: boolean; connected?: boolean } | null;
+    }
+  | { fetchOk: false; error: string };
+
 /** Exposed by apps/desktop/electron/preload.ts */
 export interface SpectyraPreload {
   companion: {
-    start: () => Promise<boolean>;
+    start: () => Promise<{ ok: true } | { ok: false; reason: "missing" | "health_timeout" }>;
     stop: () => Promise<boolean>;
     status: () => Promise<{ running: boolean; port?: number }>;
     health: () => Promise<Record<string, unknown> | null>;
+    getSetupStatus: () => Promise<CompanionSetupStatusIpc>;
   };
   config: {
     get: () => Promise<Record<string, unknown>>;

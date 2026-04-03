@@ -14,9 +14,9 @@
     "anthropic",
     "optimization"
   ],
-  "main": "dist/companion.js",
+  "main": "dist/companion.cjs",
   "bin": {
-    "spectyra-companion": "./dist/companion.js"
+    "spectyra-companion": "./dist/companion.cjs"
   },
   "files": [
     "dist",
@@ -25,7 +25,8 @@
   "scripts": {
     "dev": "tsx watch src/companion.ts",
     "start": "tsx src/companion.ts",
-    "build": "tsc",
+    "build": "node scripts/bundle.mjs",
+    "build:tsc": "tsc",
     "typecheck": "tsc --noEmit",
     "test": "tsx src/__tests__/inference-pipeline.test.ts"
   },

@@ -25,7 +25,7 @@
     [title]="headline().title"
     [body]="headline().body"
     [actions]="onboarding.status().actions"
-    [disabled]="onboarding.status().state === 'checking'"
+    [disabled]="onboarding.status().state === 'checking' || onboarding.companionStartBusy()"
     (actionClick)="onAction($event)"
   />
 

@@ -74,16 +74,21 @@ When `sdk_access_enabled = false`, these endpoints return 403:
    - Delete organization
 
 2. **Users Tab**:
-   - List all users
-   - View user email (if available)
-   - View user's organization memberships
-   - View roles per organization
+   - List all users (from org memberships; auth-only accounts without a membership do not appear — delete those by user id via API or Supabase Dashboard if needed)
+   - View user email (if available), access state (active / paused)
+   - **Pause** / **Reactivate**: Paused users keep their JWT but **mutating** API calls return `403` with `account_paused` (read-only “Observe” for the cloud API). Platform `superuser` / `admin` rows bypass pause for staff operations.
+   - **Delete user**: Removes `org_memberships`, `platform_roles` row for that email, `user_account_flags`, deletes **sole-member orgs** entirely (same data removal as org delete), then deletes the user in **Supabase Auth**. Deleting a user **only** in Supabase Dashboard does **not** remove Spectyra org data or memberships; use this flow or clean Postgres manually.
+
+### Admin API (owner or platform superuser)
+
+- `PATCH /v1/admin/users/:userId/access` — body `{ "access_state": "active" | "paused" }`
+- `DELETE /v1/admin/users/:userId` — full delete (cannot remove the last platform superuser; cannot target yourself)
 
 ### Access Control
 
-- Admin link only visible to the configured owner (`OWNER_EMAIL`)
-- Admin page shows "Access denied" if non-owner tries to access
-- All admin operations require owner authentication
+- Admin routes use `requireOwner`: **`OWNER_EMAIL`** match **or** platform **`superuser`** (e.g. `gkh1974@gmail.com` in `platform_roles`).
+- Admin link visibility in the web app may still follow owner UI rules; the API always enforces owner/superuser as above.
+- All admin operations require authenticated owner/superuser
 
 ## User Testing Flow
 
@@ -126,10 +131,10 @@ When `sdk_access_enabled = false`, these endpoints return 403:
    - Toggle SDK access on/off
    - Edit org name
    - Delete org (danger zone)
-4. **Manage Users**:
-   - View all users
-   - See which orgs each user belongs to
-   - See user roles
+4. **Manage Users** (pause, reactivate, delete — see Users Tab above):
+   - View all users, orgs, and roles
+   - Pause / reactivate cloud access (Observe read-only when paused)
+   - Delete user (full app + auth cleanup)
 
 ## Environment Variables
 

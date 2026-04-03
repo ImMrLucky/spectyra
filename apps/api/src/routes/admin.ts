@@ -1,6 +1,6 @@
 import { Router } from "express";
 import { query, queryOne } from "../services/storage/db.js";
-import {requireAdminToken, requireOwner, requireUserSession} from "../middleware/auth.js";
+import {requireAdminToken, requireOwner, requireUserSession, type AuthenticatedRequest} from "../middleware/auth.js";
 import { safeLog, redactSecrets } from "../utils/redaction.js";
 import {
   getOrgById,
@@ -12,8 +12,27 @@ import {
   hashApiKey,
 } from "../services/storage/orgsRepo.js";
 import type { SupabaseAdminUser } from "../types/supabase.js";
+import {
+  deleteUserDataAndMemberships,
+  setAccountAccessState,
+  type AccountAccessState,
+} from "../services/storage/userAccountRepo.js";
+import { getPlatformRoleByEmail, countSuperusers } from "../services/storage/platformRolesRepo.js";
 
 export const adminRouter = Router();
+
+function supabaseAdminHeaders(): { base: string; headers: Record<string, string> } | null {
+  const base = process.env.SUPABASE_URL?.replace(/\/$/, "");
+  const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
+  if (!base || !key) return null;
+  return {
+    base,
+    headers: {
+      Authorization: `Bearer ${key}`,
+      apikey: key,
+    },
+  };
+}
 
 /**
  * Admin-only debug endpoint.
@@ -348,6 +367,7 @@ adminRouter.get("/users", requireUserSession, requireOwner, async (req, res) => 
     const usersMap = new Map<string, {
       user_id: string;
       email?: string;
+      access_state?: AccountAccessState;
       orgs: Array<{
         org_id: string;
         org_name: string;
@@ -373,6 +393,22 @@ adminRouter.get("/users", requireUserSession, requireOwner, async (req, res) => 
     }
 
     const users = Array.from(usersMap.values());
+
+    const userIds = Array.from(usersMap.keys());
+    if (userIds.length > 0) {
+      try {
+        const flags = await query<{ user_id: string; access_state: AccountAccessState }>(
+          `SELECT user_id, access_state FROM user_account_flags WHERE user_id = ANY($1::uuid[])`,
+          [userIds],
+        );
+        for (const row of flags.rows) {
+          const u = usersMap.get(row.user_id);
+          if (u) u.access_state = row.access_state;
+        }
+      } catch {
+        /* ignore */
+      }
+    }
 
     // Try to get emails from Supabase (optional, won't fail if unavailable)
     const supabaseUrl = process.env.SUPABASE_URL;
@@ -404,5 +440,113 @@ adminRouter.get("/users", requireUserSession, requireOwner, async (req, res) => 
   } catch (error: any) {
     safeLog("error", "Admin list users error", { error: error.message });
     res.status(500).json({ error: error.message || "Internal server error" });
+  }
+});
+
+/**
+ * PATCH /v1/admin/users/:userId/access
+ *
+ * Pause (read-only / Observe) or reactivate a cloud account.
+ */
+adminRouter.patch(
+  "/users/:userId/access",
+  requireUserSession,
+  requireOwner,
+  async (req: AuthenticatedRequest, res) => {
+    try {
+      const userId = req.params.userId?.trim();
+      const { access_state } = req.body as { access_state?: AccountAccessState };
+      if (!userId) {
+        return res.status(400).json({ error: "user id required" });
+      }
+      if (access_state !== "active" && access_state !== "paused") {
+        return res.status(400).json({ error: "access_state must be active or paused" });
+      }
+      if (req.auth?.userId === userId) {
+        return res.status(400).json({ error: "Cannot pause or reactivate your own account from this panel" });
+      }
+
+      const cfg = supabaseAdminHeaders();
+      if (!cfg) {
+        return res.status(503).json({ error: "Supabase admin not configured" });
+      }
+      const uRes = await fetch(`${cfg.base}/auth/v1/admin/users/${userId}`, { headers: cfg.headers });
+      if (!uRes.ok) {
+        return res.status(uRes.status === 404 ? 404 : 502).json({ error: "User not found in auth provider" });
+      }
+
+      await setAccountAccessState(userId, access_state);
+      safeLog("info", "admin user access_state updated", { userId, access_state });
+      return res.json({ user_id: userId, access_state });
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : "Internal server error";
+      safeLog("error", "Admin patch user access", { error: message });
+      return res.status(500).json({ error: message });
+    }
+  },
+);
+
+/**
+ * DELETE /v1/admin/users/:userId
+ *
+ * Removes Spectyra DB rows (memberships; sole-owner orgs deleted entirely), platform_roles, flags,
+ * then deletes the Supabase Auth user. Does not remove auth-only users with no app rows except auth delete.
+ */
+adminRouter.delete("/users/:userId", requireUserSession, requireOwner, async (req: AuthenticatedRequest, res) => {
+  try {
+    const userId = req.params.userId?.trim();
+    if (!userId) {
+      return res.status(400).json({ error: "user id required" });
+    }
+    if (req.auth?.userId === userId) {
+      return res.status(400).json({ error: "Use another admin account to delete your own user" });
+    }
+
+    const cfg = supabaseAdminHeaders();
+    if (!cfg) {
+      return res.status(503).json({ error: "Supabase admin not configured" });
+    }
+
+    const uRes = await fetch(`${cfg.base}/auth/v1/admin/users/${userId}`, { headers: cfg.headers });
+    if (!uRes.ok) {
+      return res.status(uRes.status === 404 ? 404 : 502).json({ error: "User not found in auth provider" });
+    }
+    const target = (await uRes.json()) as SupabaseAdminUser;
+    const email = target.email || target.user_metadata?.email || null;
+
+    const targetPlatformRole = await getPlatformRoleByEmail(email);
+    if (targetPlatformRole === "superuser" && (await countSuperusers()) <= 1) {
+      return res.status(400).json({ error: "Cannot delete the last platform superuser" });
+    }
+
+    const summary = await deleteUserDataAndMemberships({ userId, email });
+
+    const delRes = await fetch(`${cfg.base}/auth/v1/admin/users/${userId}`, {
+      method: "DELETE",
+      headers: cfg.headers,
+    });
+    if (!delRes.ok) {
+      const errText = await delRes.text().catch(() => "");
+      safeLog("error", "admin delete user: Supabase DELETE failed", {
+        status: delRes.status,
+        errText: errText.slice(0, 200),
+      });
+      return res.status(502).json({
+        error: "App data was removed but deleting the auth user failed. Retry or remove the user in Supabase Dashboard.",
+        partial: { ...summary },
+      });
+    }
+
+    safeLog("info", "admin deleted user", { userId, email: email ?? undefined });
+    return res.json({
+      deleted: true,
+      user_id: userId,
+      orgs_deleted: summary.orgsDeleted,
+      memberships_removed: summary.membershipsRemoved,
+    });
+  } catch (error: unknown) {
+    const message = error instanceof Error ? error.message : "Internal server error";
+    safeLog("error", "Admin delete user", { error: message });
+    return res.status(500).json({ error: message });
   }
 });

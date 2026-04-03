@@ -4,8 +4,10 @@ import { firstValueFrom, take } from 'rxjs';
 import { generateOpenClawConfigString } from '@spectyra/openclaw-bridge';
 import { environment } from '../../../../environments/environment';
 import { AuthService } from '../../../core/auth/auth.service';
+import { supabase } from '../../../core/supabase/supabase.client';
 import { CompanionAnalyticsService } from '../../../core/analytics/companion-analytics.service';
 import { DesktopBridgeService } from '../../../core/desktop/desktop-bridge.service';
+import type { CompanionSetupStatusIpc } from '../../../../spectyra-window';
 import type {
   IntegrationDiagnostics,
   OnboardingActionType,
@@ -34,6 +36,9 @@ export class IntegrationOnboardingService {
   /** Set from route query e.g. `?from=clawhub` — skips “OpenClaw not installed” detection gap. */
   assumeOpenClawFromFlow = false;
 
+  /** True while Electron is (re)starting the companion and waiting for /health (can take several seconds). */
+  readonly companionStartBusy = signal(false);
+
   private checkingStatus(): OnboardingStatus {
     return buildOnboardingStatus(
       'checking',
@@ -46,6 +51,7 @@ export class IntegrationOnboardingService {
         openclawConnected: false,
       },
       'Checking your local setup…',
+      { isDesktop: environment.isDesktop },
     );
   }
 
@@ -78,8 +84,19 @@ export class IntegrationOnboardingService {
     let openclawDetected = false;
     let openclawConnected = false;
     let desktopInstalled = environment.isDesktop;
-    let signedIn =
-      environment.isDesktop ? true : !!(authSnap.user && authSnap.hasAccess);
+    /**
+     * Web: Spectyra API session from AuthService.
+     * Desktop: AuthService always injects a local placeholder user — use Supabase session for a real account.
+     */
+    let signedIn = !!(authSnap.user && authSnap.hasAccess);
+    if (environment.isDesktop) {
+      try {
+        const { data: s } = await supabase.auth.getSession();
+        signedIn = !!s.session?.user;
+      } catch {
+        signedIn = false;
+      }
+    }
     let openclawCli = false;
 
     const origin = await this.companion.resolveCompanionOrigin();
@@ -95,40 +112,56 @@ export class IntegrationOnboardingService {
     }
 
     try {
-      const [rs, ro] = await Promise.all([
-        fetch(`${origin}/diagnostics/status`, { signal: AbortSignal.timeout(8000) }),
-        fetch(`${origin}/diagnostics/integrations/openclaw`, { signal: AbortSignal.timeout(8000) }),
-      ]);
+      const useMainProcessDiagnostics =
+        environment.isDesktop &&
+        typeof window !== 'undefined' &&
+        typeof window.spectyra?.companion?.getSetupStatus === 'function';
 
-      companionRunning = rs.ok;
-      if (rs.ok) {
-        const j = (await rs.json()) as Record<string, unknown>;
-        if (typeof j['desktopInstalled'] === 'boolean') {
-          desktopInstalled = desktopInstalled || (j['desktopInstalled'] as boolean);
-        }
-        if (typeof j['signedIn'] === 'boolean') {
-          signedIn = signedIn || (j['signedIn'] as boolean);
-        }
-        providerConfigured = j['providerConfigured'] === true;
-        const m = j['mode'];
-        if (m === 'off' || m === 'observe' || m === 'on') mode = m;
-        if (typeof j['companionBaseUrl'] === 'string') companionBaseUrl = j['companionBaseUrl'] as string;
-        if (Array.isArray(j['modelAliases'])) {
-          modelAliases = (j['modelAliases'] as unknown[]).filter((x): x is string => typeof x === 'string');
-        }
+      if (useMainProcessDiagnostics) {
+        const ipc = await window.spectyra!.companion.getSetupStatus!();
+        const merged = this.mergeCompanionSetupFromIpc(ipc, openclawCli, desktopInstalled);
+        companionRunning = merged.companionRunning;
+        desktopInstalled = merged.desktopInstalled;
+        providerConfigured = merged.providerConfigured;
+        mode = merged.mode;
+        companionBaseUrl = merged.companionBaseUrl;
+        modelAliases = merged.modelAliases;
+        openclawDetected = merged.openclawDetected;
+        openclawConnected = merged.openclawConnected;
+        errors.push(...merged.extraErrors);
       } else {
-        errors.push(`diagnostics/status HTTP ${rs.status}`);
-      }
+        const [rs, ro] = await Promise.all([
+          fetch(`${origin}/diagnostics/status`, { signal: AbortSignal.timeout(8000) }),
+          fetch(`${origin}/diagnostics/integrations/openclaw`, { signal: AbortSignal.timeout(8000) }),
+        ]);
 
-      if (ro.ok) {
-        const o = (await ro.json()) as {
-          detected?: boolean;
-          connected?: boolean;
-        };
-        openclawDetected = o.detected === true || openclawCli;
-        openclawConnected = o.connected === true;
-      } else {
-        errors.push(`diagnostics/integrations/openclaw HTTP ${ro.status}`);
+        companionRunning = rs.ok;
+        if (rs.ok) {
+          const j = (await rs.json()) as Record<string, unknown>;
+          if (typeof j['desktopInstalled'] === 'boolean') {
+            desktopInstalled = desktopInstalled || (j['desktopInstalled'] as boolean);
+          }
+          providerConfigured = j['providerConfigured'] === true;
+          const m = j['mode'];
+          if (m === 'off' || m === 'observe' || m === 'on') mode = m;
+          if (typeof j['companionBaseUrl'] === 'string') companionBaseUrl = j['companionBaseUrl'] as string;
+          if (Array.isArray(j['modelAliases'])) {
+            modelAliases = (j['modelAliases'] as unknown[]).filter((x): x is string => typeof x === 'string');
+          }
+        } else {
+          errors.push(`diagnostics/status HTTP ${rs.status}`);
+        }
+
+        if (ro.ok) {
+          const o = (await ro.json()) as {
+            detected?: boolean;
+            connected?: boolean;
+          };
+          openclawDetected = o.detected === true || openclawCli;
+          openclawConnected = o.connected === true;
+        } else {
+          errors.push(`diagnostics/integrations/openclaw HTTP ${ro.status}`);
+        }
       }
     } catch (e) {
       companionRunning = false;
@@ -173,17 +206,22 @@ export class IntegrationOnboardingService {
     this.lastRefreshAt.set(new Date());
 
     this.status.set(
-      buildOnboardingStatus(state, {
-        desktopInstalled,
-        companionRunning,
-        signedIn,
-        providerConfigured,
-        openclawDetected,
-        openclawConnected,
-        mode,
-        companionBaseUrl,
-        modelAliases,
-      }),
+      buildOnboardingStatus(
+        state,
+        {
+          desktopInstalled,
+          companionRunning,
+          signedIn,
+          providerConfigured,
+          openclawDetected,
+          openclawConnected,
+          mode,
+          companionBaseUrl,
+          modelAliases,
+        },
+        undefined,
+        { isDesktop: environment.isDesktop },
+      ),
     );
   }
 
@@ -206,7 +244,112 @@ export class IntegrationOnboardingService {
   }
 
   async openDesktopApp(): Promise<void> {
+    const canStartCompanion =
+      environment.isDesktop &&
+      typeof window !== 'undefined' &&
+      !!window.spectyra?.companion?.start;
+
+    if (canStartCompanion) {
+      this.companionStartBusy.set(true);
+      try {
+        try {
+          const result = await window.spectyra!.companion.start();
+          if (result && typeof result === 'object' && 'ok' in result && result.ok === false) {
+            console.warn('[integration-onboarding] companion.start:', result);
+          }
+        } catch (e) {
+          console.error('[integration-onboarding] companion.start failed', e);
+        }
+        await this.waitForCompanionHealthFromMain(22_000);
+        await this.refreshOpenClawStatus();
+      } finally {
+        this.companionStartBusy.set(false);
+      }
+      return;
+    }
     if (typeof window !== 'undefined') window.focus();
+  }
+
+  private mergeCompanionSetupFromIpc(
+    ipc: CompanionSetupStatusIpc,
+    openclawCli: boolean,
+    desktopInstalledIn: boolean,
+  ): {
+    companionRunning: boolean;
+    desktopInstalled: boolean;
+    providerConfigured: boolean;
+    mode?: 'off' | 'observe' | 'on';
+    companionBaseUrl?: string;
+    modelAliases?: string[];
+    openclawDetected: boolean;
+    openclawConnected: boolean;
+    extraErrors: string[];
+  } {
+    const extraErrors: string[] = [];
+    if (!ipc.fetchOk) {
+      return {
+        companionRunning: false,
+        desktopInstalled: desktopInstalledIn,
+        providerConfigured: false,
+        openclawDetected: false,
+        openclawConnected: false,
+        extraErrors: [ipc.error || 'Could not reach Local Companion (diagnostics)'],
+      };
+    }
+    const companionRunning = ipc.statusOk === true;
+    let desktopInstalled = desktopInstalledIn;
+    let providerConfigured = false;
+    let mode: 'off' | 'observe' | 'on' | undefined;
+    let companionBaseUrl: string | undefined;
+    let modelAliases: string[] | undefined;
+    if (ipc.statusOk && ipc.statusJson) {
+      const j = ipc.statusJson;
+      if (typeof j['desktopInstalled'] === 'boolean') {
+        desktopInstalled = desktopInstalled || (j['desktopInstalled'] as boolean);
+      }
+      providerConfigured = j['providerConfigured'] === true;
+      const m = j['mode'];
+      if (m === 'off' || m === 'observe' || m === 'on') mode = m;
+      if (typeof j['companionBaseUrl'] === 'string') companionBaseUrl = j['companionBaseUrl'] as string;
+      if (Array.isArray(j['modelAliases'])) {
+        modelAliases = (j['modelAliases'] as unknown[]).filter((x): x is string => typeof x === 'string');
+      }
+    } else {
+      extraErrors.push(`diagnostics/status HTTP ${ipc.statusHttp}`);
+    }
+    let openclawDetected = false;
+    let openclawConnected = false;
+    if (ipc.openclawOk && ipc.openclawJson) {
+      const o = ipc.openclawJson;
+      openclawDetected = o.detected === true || openclawCli;
+      openclawConnected = o.connected === true;
+    } else {
+      extraErrors.push(`diagnostics/integrations/openclaw HTTP ${ipc.openclawHttp}`);
+    }
+    return {
+      companionRunning,
+      desktopInstalled,
+      providerConfigured,
+      mode,
+      companionBaseUrl,
+      modelAliases,
+      openclawDetected,
+      openclawConnected,
+      extraErrors,
+    };
+  }
+
+  /**
+   * After main process spawns the companion, HTTP may not listen for 1–3+ seconds.
+   * Poll Electron's /health fetch (same as main waitForHealth) before refreshing UI.
+   */
+  private async waitForCompanionHealthFromMain(timeoutMs: number): Promise<void> {
+    const start = Date.now();
+    while (Date.now() - start < timeoutMs) {
+      const h = await this.desktop.companionHealth();
+      if (h != null) return;
+      await new Promise((r) => setTimeout(r, 450));
+    }
   }
 
   async openDownloadPage(): Promise<void> {

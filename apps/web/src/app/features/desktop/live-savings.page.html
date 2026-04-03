@@ -190,7 +190,7 @@
       <mat-card-content>
         <p class="ls-muted">
           Derived from the in-memory normalized event buffer: {{ eg.nodeCount }} nodes, {{ eg.edgeCount }} edges,
-          {{ eg.stepOrder?.length || 0 }} steps. <span *ngIf="eg.repeatLoops?.length">Repeat loops: {{ eg.repeatLoops.length }}.</span>
+          {{ eg.stepOrder.length || 0 }} steps. <span *ngIf="eg.repeatLoops.length">Repeat loops: {{ eg.repeatLoops.length }}.</span>
         </p>
         <ul class="ls-session-list" *ngIf="eg.scores && (eg.scores | keyvalue).length">
           <li *ngFor="let kv of eg.scores | keyvalue">

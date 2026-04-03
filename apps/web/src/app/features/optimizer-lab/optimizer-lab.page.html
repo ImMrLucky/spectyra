@@ -327,27 +327,27 @@
               <div class="metrics-grid">
                 <div class="metric-card">
                   <div class="metric-label">Input Tokens Before</div>
-                  <div class="metric-value">{{ formatNumber(result.diff?.summary?.inputTokensBefore ?? 0) }}</div>
+                  <div class="metric-value">{{ formatNumber(result.diff.summary.inputTokensBefore) }}</div>
                 </div>
                 <div class="metric-card">
                   <div class="metric-label">Input Tokens After</div>
-                  <div class="metric-value success">{{ formatNumber(result.diff?.summary?.inputTokensAfter ?? 0) }}</div>
+                  <div class="metric-value success">{{ formatNumber(result.diff.summary.inputTokensAfter) }}</div>
                 </div>
                 <div class="metric-card">
                   <div class="metric-label">Est. Cost Before</div>
-                  <div class="metric-value">{{ formatCost(result.original?.tokenEstimate?.estimatedCostUsd ?? 0) }}</div>
+                  <div class="metric-value">{{ formatCost(result.original.tokenEstimate.estimatedCostUsd) }}</div>
                 </div>
                 <div class="metric-card">
                   <div class="metric-label">Est. Cost After</div>
-                  <div class="metric-value success">{{ formatCost(result.optimized?.tokenEstimate?.estimatedCostUsd ?? 0) }}</div>
+                  <div class="metric-value success">{{ formatCost(result.optimized.tokenEstimate.estimatedCostUsd) }}</div>
                 </div>
                 <div class="metric-card">
                   <div class="metric-label">Latency</div>
-                  <div class="metric-value">{{ result.meta?.latencyMs ?? 0 }}ms</div>
+                  <div class="metric-value">{{ result.meta.latencyMs }}ms</div>
                 </div>
                 <div class="metric-card">
                   <div class="metric-label">View Mode</div>
-                  <div class="metric-value">{{ result.viewMode ?? '—' }}</div>
+                  <div class="metric-value">{{ result.viewMode }}</div>
                 </div>
               </div>
 
@@ -356,23 +356,23 @@
                 <div class="scc-panels-grid">
                   <div class="scc-panel">
                     <span class="scc-panel-label">SCC State size</span>
-                    <span class="scc-panel-value">{{ result.diff?.summary?.sccStateChars ?? '—' }} chars</span>
+                    <span class="scc-panel-value">{{ result.diff.summary.sccStateChars ?? '—' }} chars</span>
                   </div>
                   <div class="scc-panel">
                     <span class="scc-panel-label">Dropped turns</span>
-                    <span class="scc-panel-value">{{ result.diff?.summary?.sccDroppedTurns ?? '—' }}</span>
+                    <span class="scc-panel-value">{{ result.diff.summary.sccDroppedTurns ?? '—' }}</span>
                   </div>
-                  <div class="scc-panel" *ngIf="result.meta?.demoType === 'code'">
+                  <div class="scc-panel" *ngIf="result.meta.demoType === 'code'">
                     <span class="scc-panel-label">Failing signals count</span>
-                    <span class="scc-panel-value">{{ result.diff?.summary?.failingSignalsCount ?? '—' }}</span>
+                    <span class="scc-panel-value">{{ result.diff.summary.failingSignalsCount ?? '—' }}</span>
                   </div>
                   <div class="scc-panel">
                     <span class="scc-panel-label">λ₂ → aggressiveness</span>
-                    <span class="scc-panel-value">{{ result.diff?.summary?.lambda2 != null ? (result.diff.summary.lambda2 | number:'1.3-3') : '—' }}</span>
+                    <span class="scc-panel-value">{{ result.diff.summary.lambda2 != null ? (result.diff.summary.lambda2 | number:'1.3-3') : '—' }}</span>
                   </div>
                   <div class="scc-panel">
                     <span class="scc-panel-label">Tokens before / after</span>
-                    <span class="scc-panel-value">{{ formatNumber(result.diff?.summary?.inputTokensBefore ?? 0) }} / {{ formatNumber(result.diff?.summary?.inputTokensAfter ?? 0) }}</span>
+                    <span class="scc-panel-value">{{ formatNumber(result.diff.summary.inputTokensBefore) }} / {{ formatNumber(result.diff.summary.inputTokensAfter) }}</span>
                   </div>
                 </div>
               </div>
@@ -381,11 +381,11 @@
                 <h3>Applied Transforms</h3>
                 <div class="transforms-list">
                   <span 
-                    *ngFor="let transform of (result.diff?.appliedTransforms ?? [])"
+                    *ngFor="let transform of result.diff.appliedTransforms"
                     class="transform-badge">
                     {{ transform }}
                   </span>
-                  <span *ngIf="!(result.diff?.appliedTransforms?.length)" class="no-transforms">
+                  <span *ngIf="!(result.diff.appliedTransforms.length)" class="no-transforms">
                     No transforms applied
                   </span>
                 </div>
@@ -398,24 +398,24 @@
                     <strong>{{ hasSavings ? 'Tokens removed:' : 'Tokens change:' }}</strong>
                     {{ tokensChangeDescription }}
                   </li>
-                  <li *ngIf="result.diff?.summary?.refsUsed != null">
+                  <li *ngIf="result.diff.summary.refsUsed != null">
                     <strong>RefPack entries:</strong> {{ result.diff.summary.refsUsed }}
                     (repeated blocks replaced by refs)
                   </li>
-                  <li *ngIf="result.diff?.summary?.phrasebookEntries != null">
+                  <li *ngIf="result.diff.summary.phrasebookEntries != null">
                     <strong>PhraseBook entries:</strong> {{ result.diff.summary.phrasebookEntries }}
                     (repeated phrases encoded)
                   </li>
-                  <li *ngIf="result.meta?.demoType === 'code'">
+                  <li *ngIf="result.meta.demoType === 'code'">
                     <strong>CodeMap:</strong>
-                    <span *ngIf="result.diff?.summary?.codemapSnippetsKept != null">{{ result.diff.summary.codemapSnippetsKept }} snippets kept</span>
-                    <span *ngIf="result.diff?.summary?.codemapOmittedBlocks != null">, {{ result.diff.summary.codemapOmittedBlocks }} blocks omitted</span>
-                    <span *ngIf="result.diff?.summary?.codemapSnippetsKept == null && result.diff?.summary?.codemapOmittedBlocks == null">—</span>
+                    <span *ngIf="result.diff.summary.codemapSnippetsKept != null">{{ result.diff.summary.codemapSnippetsKept }} snippets kept</span>
+                    <span *ngIf="result.diff.summary.codemapOmittedBlocks != null">, {{ result.diff.summary.codemapOmittedBlocks }} blocks omitted</span>
+                    <span *ngIf="result.diff.summary.codemapSnippetsKept == null && result.diff.summary.codemapOmittedBlocks == null">—</span>
                   </li>
                 </ul>
               </div>
 
-              <div *ngIf="result.diff?.summary?.optimizationSteps?.length" class="per-layer-section">
+              <div *ngIf="result.diff.summary.optimizationSteps?.length" class="per-layer-section">
                 <h4>Per-layer (profit gates)</h4>
                 <ul class="per-layer-list">
                   <li *ngFor="let step of result.diff.summary.optimizationSteps" [class.skipped]="!step.useAfter">
@@ -427,15 +427,15 @@
                 </ul>
               </div>
 
-              <div *ngIf="result.diff?.summary?.refsUsed != null" class="detail-row">
+              <div *ngIf="result.diff.summary.refsUsed != null" class="detail-row">
                 <span class="detail-label">RefPack Entries:</span>
                 <span class="detail-value">{{ result.diff.summary.refsUsed }}</span>
               </div>
-              <div *ngIf="result.diff?.summary?.phrasebookEntries != null" class="detail-row">
+              <div *ngIf="result.diff.summary.phrasebookEntries != null" class="detail-row">
                 <span class="detail-label">Phrasebook Entries:</span>
                 <span class="detail-value">{{ result.diff.summary.phrasebookEntries }}</span>
               </div>
-              <div *ngIf="result.diff?.summary?.codemapSnippetsKept != null" class="detail-row">
+              <div *ngIf="result.diff.summary.codemapSnippetsKept != null" class="detail-row">
                 <span class="detail-label">CodeMap Symbols:</span>
                 <span class="detail-value">{{ result.diff.summary.codemapSnippetsKept }}</span>
               </div>
@@ -458,16 +458,16 @@
               <div class="trust-section preserved-section">
                 <h4><mat-icon class="list-icon success">check_circle</mat-icon> Preserved (Unchanged)</h4>
                 <ul>
-                  <li *ngFor="let item of (result.diff?.safetySummary?.preserved ?? [])">{{ item }}</li>
+                  <li *ngFor="let item of (result.diff.safetySummary.preserved ?? [])">{{ item }}</li>
                 </ul>
               </div>
 
               <div class="trust-section changed-section">
                 <h4><mat-icon class="list-icon">sync</mat-icon> Changed (Optimized)</h4>
                 <ul>
-                  <li *ngFor="let item of (result.diff?.safetySummary?.changed ?? [])">{{ item }}</li>
+                  <li *ngFor="let item of (result.diff.safetySummary.changed ?? [])">{{ item }}</li>
                 </ul>
-                <p *ngIf="!(result.diff?.safetySummary?.changed?.length)" class="no-items">
+                <p *ngIf="!(result.diff.safetySummary.changed?.length)" class="no-items">
                   No changes applied
                 </p>
               </div>
@@ -475,7 +475,7 @@
               <div class="trust-section risk-section">
                 <h4><mat-icon class="list-icon">info</mat-icon> Important Notes</h4>
                 <ul>
-                  <li *ngFor="let item of (result.diff?.safetySummary?.riskNotes ?? [])">{{ item }}</li>
+                  <li *ngFor="let item of (result.diff.safetySummary.riskNotes ?? [])">{{ item }}</li>
                 </ul>
               </div>
             </div>
@@ -486,7 +486,7 @@
                 <h3>Before: Raw conversation history (what you’d send without Spectyra)</h3>
                 <button 
                   class="btn-sm"
-                  (click)="copyToClipboard(getRenderedText(result.original?.renderedText ?? ''))">
+                  (click)="copyToClipboard(getRenderedText(result.original.renderedText))">
                   <mat-icon class="btn-icon-sm">content_copy</mat-icon>
                   Copy
                 </button>
@@ -496,7 +496,7 @@
               </p>
               <div class="message-list">
                 <div 
-                  *ngFor="let msg of (result.original?.messages ?? [])"
+                  *ngFor="let msg of (result.original.messages ?? [])"
                   class="message-item"
                   [class.system]="msg.role === 'system'"
                   [class.user]="msg.role === 'user'"
@@ -515,7 +515,7 @@
                 <button 
                   *ngIf="result.viewMode !== 'DEMO_VIEW'"
                   class="btn-sm"
-                  (click)="copyToClipboard(getRenderedText(result.optimized?.renderedText ?? ''))">
+                  (click)="copyToClipboard(getRenderedText(result.optimized.renderedText))">
                   <mat-icon class="btn-icon-sm">content_copy</mat-icon>
                   Copy
                 </button>
@@ -528,14 +528,14 @@
                 This represents the prompt for the <b>next</b> model call, not a rewritten transcript of the entire chat.
               </p>
               
-              <div *ngIf="isRedacted(result.optimized?.messages)" class="redacted-notice">
+              <div *ngIf="isRedacted(result.optimized.messages)" class="redacted-notice">
                 <mat-icon class="redacted-icon" aria-hidden="true">lock</mat-icon>
                 <span>Content redacted for IP protection in DEMO_VIEW mode</span>
               </div>
               
               <div class="message-list">
                 <div 
-                  *ngFor="let msg of getMessages(result.optimized?.messages ?? [])"
+                  *ngFor="let msg of getMessages(result.optimized.messages ?? [])"
                   class="message-item"
                   [class.system]="msg.role === 'system'"
                   [class.user]="msg.role === 'user'"
@@ -564,12 +564,12 @@
                   </div>
                   <div class="diff-stat">
                     <span class="stat-label">Savings:</span>
-                    <span class="stat-value" [class.success]="hasSavings">{{ hasSavings ? formatPercent(result.diff?.summary?.pctSaved ?? 0) : '—' }}</span>
+                    <span class="stat-value" [class.success]="hasSavings">{{ hasSavings ? formatPercent(result.diff.summary.pctSaved) : '—' }}</span>
                   </div>
                 </div>
               </div>
               
-              <div *ngIf="result.diff?.unifiedDiff" class="unified-diff">
+              <div *ngIf="result.diff.unifiedDiff" class="unified-diff">
                 <pre>{{ result.diff.unifiedDiff }}</pre>
               </div>
             </div>
@@ -581,70 +581,70 @@
                 <span class="internal-badge">Internal Only</span>
               </div>
 
-              <div *ngIf="result?.debug?.spectral" class="debug-section">
+              <div *ngIf="result.debug?.spectral" class="debug-section">
                 <h4>Spectral Analysis</h4>
                 <div class="debug-grid">
                   <div class="debug-item">
                     <span class="debug-label">Nodes:</span>
-                    <span class="debug-value">{{ result?.debug?.spectral?.nNodes ?? '—' }}</span>
+                    <span class="debug-value">{{ result.debug?.spectral?.nNodes ?? '—' }}</span>
                   </div>
                   <div class="debug-item">
                     <span class="debug-label">Edges:</span>
-                    <span class="debug-value">{{ result?.debug?.spectral?.nEdges ?? '—' }}</span>
+                    <span class="debug-value">{{ result.debug?.spectral?.nEdges ?? '—' }}</span>
                   </div>
                   <div class="debug-item">
                     <span class="debug-label">Stability Index:</span>
-                    <span class="debug-value">{{ result?.debug?.spectral?.stabilityIndex != null ? (result?.debug?.spectral?.stabilityIndex | number:'1.3-3') : '—' }}</span>
+                    <span class="debug-value">{{ result.debug?.spectral?.stabilityIndex != null ? (result.debug?.spectral?.stabilityIndex | number:'1.3-3') : '—' }}</span>
                   </div>
                   <div class="debug-item">
                     <span class="debug-label">Lambda2:</span>
-                    <span class="debug-value">{{ result?.debug?.spectral?.lambda2 != null ? (result?.debug?.spectral?.lambda2 | number:'1.3-3') : 'N/A' }}</span>
+                    <span class="debug-value">{{ result.debug?.spectral?.lambda2 != null ? (result.debug?.spectral?.lambda2 | number:'1.3-3') : 'N/A' }}</span>
                   </div>
                   <div class="debug-item">
                     <span class="debug-label">Recommendation:</span>
-                    <span class="debug-value recommendation">{{ result?.debug?.spectral?.recommendation ?? '—' }}</span>
+                    <span class="debug-value recommendation">{{ result.debug?.spectral?.recommendation ?? '—' }}</span>
                   </div>
                   <div class="debug-item">
                     <span class="debug-label">Stable/Unstable:</span>
-                    <span class="debug-value">{{ result?.debug?.spectral?.stableCount ?? '—' }}/{{ result?.debug?.spectral?.unstableCount ?? '—' }}</span>
+                    <span class="debug-value">{{ result.debug?.spectral?.stableCount ?? '—' }}/{{ result.debug?.spectral?.unstableCount ?? '—' }}</span>
                   </div>
                 </div>
               </div>
 
-              <div *ngIf="result?.debug?.budgets" class="debug-section">
+              <div *ngIf="result.debug?.budgets" class="debug-section">
                 <h4>Computed Budgets</h4>
                 <div class="debug-grid">
                   <div class="debug-item">
                     <span class="debug-label">Keep Last Turns:</span>
-                    <span class="debug-value">{{ result?.debug?.budgets?.keepLastTurns ?? '—' }}</span>
+                    <span class="debug-value">{{ result.debug?.budgets?.keepLastTurns ?? '—' }}</span>
                   </div>
                   <div class="debug-item">
                     <span class="debug-label">Max RefPack Entries:</span>
-                    <span class="debug-value">{{ result?.debug?.budgets?.maxRefpackEntries ?? '—' }}</span>
+                    <span class="debug-value">{{ result.debug?.budgets?.maxRefpackEntries ?? '—' }}</span>
                   </div>
                   <div class="debug-item">
                     <span class="debug-label">Compression:</span>
-                    <span class="debug-value">{{ formatDebugPercent(result?.debug?.budgets?.compressionAggressiveness) }}</span>
+                    <span class="debug-value">{{ formatDebugPercent(result.debug?.budgets?.compressionAggressiveness) }}</span>
                   </div>
                   <div class="debug-item">
                     <span class="debug-label">Phrasebook:</span>
-                    <span class="debug-value">{{ formatDebugPercent(result?.debug?.budgets?.phrasebookAggressiveness) }}</span>
+                    <span class="debug-value">{{ formatDebugPercent(result.debug?.budgets?.phrasebookAggressiveness) }}</span>
                   </div>
                   <div class="debug-item">
                     <span class="debug-label">CodeMap Detail:</span>
-                    <span class="debug-value">{{ formatDebugPercent(result?.debug?.budgets?.codemapDetailLevel) }}</span>
+                    <span class="debug-value">{{ formatDebugPercent(result.debug?.budgets?.codemapDetailLevel) }}</span>
                   </div>
                 </div>
               </div>
 
-              <div *ngIf="result?.debug?.transforms" class="debug-section">
+              <div *ngIf="result.debug?.transforms" class="debug-section">
                 <h4>Transform Metrics</h4>
-                <pre class="debug-json">{{ result?.debug?.transforms | json }}</pre>
+                <pre class="debug-json">{{ result.debug?.transforms | json }}</pre>
               </div>
 
-              <div *ngIf="result?.debug?.runDebug" class="debug-section">
+              <div *ngIf="result.debug?.runDebug" class="debug-section">
                 <h4>Run Debug</h4>
-                <pre class="debug-json">{{ result?.debug?.runDebug | json }}</pre>
+                <pre class="debug-json">{{ result.debug?.runDebug | json }}</pre>
               </div>
             </div>
           </div>

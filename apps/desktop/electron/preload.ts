@@ -10,6 +10,7 @@ contextBridge.exposeInMainWorld("spectyra", {
     stop: () => ipcRenderer.invoke("companion:stop"),
     status: () => ipcRenderer.invoke("companion:status"),
     health: () => ipcRenderer.invoke("companion:health"),
+    getSetupStatus: () => ipcRenderer.invoke("companion:get-setup-status"),
   },
 
   config: {

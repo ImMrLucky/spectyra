@@ -41,9 +41,13 @@ export interface AdminOrgDetail extends AdminOrg {
   };
 }
 
+export type AccountAccessState = 'active' | 'paused';
+
 export interface AdminUser {
   user_id: string;
   email?: string;
+  /** Cloud API access: paused = read-only (Observe), active = normal */
+  access_state?: AccountAccessState;
   orgs: Array<{
     org_id: string;
     org_name: string;
@@ -138,5 +142,29 @@ export class AdminService {
     return this.http.get<{ users: AdminUser[] }>(`${this.baseUrl}/admin/users`, {
       headers: this.getHeaders(),
     });
+  }
+
+  /** Pause (read-only / Observe) or reactivate a user’s cloud account */
+  setUserAccess(userId: string, access_state: AccountAccessState): Observable<{ user_id: string; access_state: AccountAccessState }> {
+    return this.http.patch<{ user_id: string; access_state: AccountAccessState }>(
+      `${this.baseUrl}/admin/users/${encodeURIComponent(userId)}/access`,
+      { access_state },
+      { headers: this.getHeaders() },
+    );
+  }
+
+  /** Remove app data + Supabase Auth user (owner / superuser only) */
+  deleteUser(userId: string): Observable<{
+    deleted: boolean;
+    user_id: string;
+    orgs_deleted: string[];
+    memberships_removed: number;
+  }> {
+    return this.http.delete<{
+      deleted: boolean;
+      user_id: string;
+      orgs_deleted: string[];
+      memberships_removed: number;
+    }>(`${this.baseUrl}/admin/users/${encodeURIComponent(userId)}`, { headers: this.getHeaders() });
   }
 }

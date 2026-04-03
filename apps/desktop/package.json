@@ -11,8 +11,9 @@
     "build:renderer": "pnpm --dir ../web exec ng build --configuration desktop",
     "build": "pnpm run compile:electron && pnpm run prepare:companion && pnpm run build:renderer",
     "pack": "pnpm run build && electron-builder --dir",
-    "dist": "pnpm run build && electron-builder --publish never",
-    "dist:win": "pnpm run build && node scripts/clean-win-zip-artifacts.cjs && electron-builder --win --publish never",
+    "clean:release": "node scripts/clean-release.cjs",
+    "dist": "pnpm run build && node scripts/clean-release.cjs && electron-builder --publish never",
+    "dist:win": "pnpm run build && node scripts/clean-release.cjs && electron-builder --win --publish never",
     "dev": "pnpm run compile:electron && cross-env SPECTYRA_ELECTRON_DEV_URL=http://127.0.0.1:4200 electron .",
     "typecheck": "tsc -p tsconfig.electron.json --noEmit"
   },

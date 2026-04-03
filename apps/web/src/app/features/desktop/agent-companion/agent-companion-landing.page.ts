@@ -777,7 +777,6 @@ export class AgentCompanionLandingPage implements OnInit {
   ) {}
 
   ngOnInit() {
-    this.svc.reset();
     this.showFirstRunWelcome = !this.firstRun.hasAcknowledgedAgentCompanionGuide();
   }
 
