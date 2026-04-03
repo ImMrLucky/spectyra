@@ -128,7 +128,7 @@ import { DesktopFirstRunService } from '../../../core/desktop/desktop-first-run.
             </ul>
           </div>
           <div class="ac-openclaw-actions">
-            <button class="btn-primary" routerLink="/desktop/openclaw">Start OpenClaw wizard</button>
+            <button class="btn-primary" routerLink="/desktop/openclaw">OpenClaw setup</button>
             <button type="button" class="btn-secondary" (click)="svc.goToStep('validate'); svc.runValidation()">
               Validate connection
             </button>

@@ -175,6 +175,9 @@ importers:
       '@spectyra/integration-metadata':
         specifier: workspace:*
         version: link:../../packages/integration-metadata
+      '@spectyra/openclaw-bridge':
+        specifier: workspace:*
+        version: link:../../packages/openclaw-bridge
       '@spectyra/shared':
         specifier: workspace:*
         version: link:../../packages/shared
@@ -328,6 +331,19 @@ importers:
       '@spectyra/canonical-model':
         specifier: workspace:*
         version: link:../canonical-model
+    devDependencies:
+      tsx:
+        specifier: ^4.7.1
+        version: 4.21.0
+      typescript:
+        specifier: ~5.4.0
+        version: 5.4.5
+
+  packages/openclaw-bridge:
+    dependencies:
+      '@spectyra/integration-metadata':
+        specifier: workspace:*
+        version: link:../integration-metadata
     devDependencies:
       tsx:
         specifier: ^4.7.1

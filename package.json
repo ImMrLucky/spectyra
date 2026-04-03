@@ -29,6 +29,8 @@
     "test:learning-loop": "pnpm --filter @spectyra/learning run test:learning-loop && pnpm --filter @spectyra/optimization-engine run test:learning-gate",
     "test:moat-through-5": "pnpm test:moat-through-4 && pnpm test:learning-loop",
     "test:workflow-policy": "pnpm --filter @spectyra/workflow-policy run test:workflow-policy",
+    "test:openclaw-bridge": "pnpm --filter @spectyra/openclaw-bridge run test",
+    "test:local-companion-inference": "pnpm --filter @spectyra/local-companion run test",
     "test:moat-through-6": "pnpm test:moat-through-5 && pnpm test:workflow-policy",
     "test:sdk-moat-summaries": "pnpm --filter @spectyra/sdk run test:sdk-moat-summaries",
     "test:preserve-core": "pnpm --filter @spectyra/optimizer-algorithms run test:preserve-smoke",

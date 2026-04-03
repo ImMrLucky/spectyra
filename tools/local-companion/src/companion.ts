@@ -17,10 +17,11 @@ import express from "express";
 import cors from "cors";
 import crypto from "crypto";
 import type { SavingsReport, PromptComparison } from "@spectyra/core-types";
-import { resolveSpectyraModel } from "@spectyra/shared";
 import { loadConfig, type CompanionConfig } from "./config.js";
-import { optimize, type ChatMessage } from "./optimizer.js";
-import { callProvider } from "./providers.js";
+import { type ChatMessage } from "./optimizer.js";
+import { callProvider, isProviderKeyConfigured } from "./providers.js";
+import { resolveAndOptimizeLocally } from "./inferencePipeline.js";
+import { mapCompanionInferenceError } from "./httpErrors.js";
 import {
   saveRun,
   savePromptComparison,
@@ -51,6 +52,7 @@ import {
 } from "@spectyra/state-delta";
 import { evaluateWorkflowPolicyFromEvents } from "./workflowPolicyFromEvents.js";
 import { activateLicense } from "@spectyra/optimization-engine";
+import { recordOpenClawTrafficIfApplicable, getOpenClawIntegrationDiagnostics } from "./openclawTraffic.js";
 
 const cfg: CompanionConfig = loadConfig();
 
@@ -65,6 +67,13 @@ function licenseSnapshot(): {
   }
   return { licenseKeyPresent: true, licenseAllowsFullOptimization: activateLicense(key) };
 }
+
+/** Upstream API key present for the configured provider (never exposes the key). */
+function providerConfigured(): boolean {
+  const p = cfg.provider;
+  if (p !== "openai" && p !== "anthropic" && p !== "groq") return false;
+  return isProviderKeyConfigured(p);
+}
 const sessionRegistry = new CompanionSessionRegistry(cfg);
 const app = express();
 
@@ -75,6 +84,7 @@ app.use(express.json({ limit: "10mb" }));
 
 app.get("/health", (_req, res) => {
   const lic = licenseSnapshot();
+  const pc = providerConfigured();
   res.json({
     status: "ok",
     service: "spectyra-local-companion",
@@ -89,6 +99,10 @@ app.get("/health", (_req, res) => {
     licenseAllowsFullOptimization: lic.licenseAllowsFullOptimization,
     /** True when telemetry is not off — normalized events + live analytics available. */
     monitoringEnabled: cfg.telemetryMode !== "off",
+    provider: cfg.provider,
+    providerConfigured: pc,
+    /** Ready for inference: valid provider + local API key present. */
+    companionReady: pc,
   });
 });
 
@@ -104,6 +118,7 @@ app.get("/config", (_req, res) => {
     provider: cfg.provider,
     aliasSmartModel: cfg.aliasSmartModel,
     aliasFastModel: cfg.aliasFastModel,
+    aliasQualityModel: cfg.aliasQualityModel,
     inferencePath: "direct_provider",
     providerBillingOwner: "customer",
     cloudRelay: "none",
@@ -129,13 +144,78 @@ app.get("/v1/models", (_req, res) => {
         created: now,
         owned_by: "spectyra-local",
       },
+      {
+        id: "spectyra/quality",
+        object: "model",
+        created: now,
+        owned_by: "spectyra-local",
+      },
     ],
+  });
+});
+
+// ── Integration diagnostics (safe metadata only; no secrets) ─────────────────
+
+app.get("/v1/diagnostics/integration", (_req, res) => {
+  const lic = licenseSnapshot();
+  const pc = providerConfigured();
+  res.json({
+    spectyraLocalFirst: true,
+    cloudPromptRelay: false,
+    inferencePath: "direct_provider" as const,
+    integrationSurface: "openai_and_anthropic_compatible",
+    runMode: cfg.runMode,
+    provider: cfg.provider,
+    providerConfigured: pc,
+    companionReady: pc,
+    licenseKeyPresent: lic.licenseKeyPresent,
+    licenseAllowsFullOptimization: lic.licenseAllowsFullOptimization,
+    modelAliases: ["spectyra/smart", "spectyra/fast", "spectyra/quality"],
+    endpoints: {
+      openaiCompatible: "/v1/chat/completions",
+      anthropicCompatible: "/v1/messages",
+      models: "/v1/models",
+    },
+  });
+});
+
+/** Aggregated safe status for onboarding UIs (no secrets). */
+app.get("/diagnostics/status", (_req, res) => {
+  const lic = licenseSnapshot();
+  const pc = providerConfigured();
+  const desktopManaged = process.env.SPECTYRA_DESKTOP_MANAGED === "1";
+  const accountSignedIn =
+    process.env.SPECTYRA_ACCOUNT_SIGNED_IN === "1" ? true : process.env.SPECTYRA_ACCOUNT_SIGNED_IN === "0" ? false : undefined;
+  const base = `http://${cfg.bindHost}:${cfg.port}`;
+  res.json({
+    desktopInstalled: desktopManaged,
+    companionRunning: true,
+    signedIn: accountSignedIn,
+    providerConfigured: pc,
+    providerType: cfg.provider,
+    mode: cfg.runMode,
+    companionBaseUrl: base,
+    modelAliases: ["spectyra/smart", "spectyra/fast", "spectyra/quality"],
+    licenseKeyPresent: lic.licenseKeyPresent,
+    inferencePath: "direct_provider" as const,
+  });
+});
+
+app.get("/diagnostics/integrations/openclaw", (_req, res) => {
+  const o = getOpenClawIntegrationDiagnostics();
+  const pc = providerConfigured();
+  res.json({
+    detected: o.detected,
+    connected: o.connected && pc,
+    configPresent: o.configPresent,
+    lastSeenRequestAt: o.lastSeenRequestAt,
   });
 });
 
 // ── OpenAI-compatible endpoint ───────────────────────────────────────────────
 
 app.post("/v1/chat/completions", async (req, res) => {
+  recordOpenClawTrafficIfApplicable(req);
   try {
     const rawModel: string = req.body.model || "gpt-4o-mini";
     const messages: ChatMessage[] = (req.body.messages || []).map((m: any) => ({
@@ -143,12 +223,7 @@ app.post("/v1/chat/completions", async (req, res) => {
       content: typeof m.content === "string" ? m.content : JSON.stringify(m.content),
     }));
 
-    const resolved = resolveSpectyraModel(rawModel, {
-      provider: cfg.provider,
-      aliasSmartModel: cfg.aliasSmartModel,
-      aliasFastModel: cfg.aliasFastModel,
-    });
-    const optResult = optimize(messages, cfg.runMode, cfg.licenseKey);
+    const { resolved, optResult } = resolveAndOptimizeLocally(cfg, messages, rawModel);
 
     const policy = evaluateWorkflowPolicyFromEvents(companionEventEngine.snapshot(), cfg.workflowPolicyMode);
     if (policy.shouldBlock) {
@@ -202,14 +277,16 @@ app.post("/v1/chat/completions", async (req, res) => {
         inferencePath: "direct_provider",
       },
     });
-  } catch (err: any) {
-    res.status(500).json({ error: { message: err.message, type: "companion_error" } });
+  } catch (err: unknown) {
+    const mapped = mapCompanionInferenceError(err);
+    res.status(mapped.status).json(mapped.body);
   }
 });
 
 // ── Anthropic-compatible endpoint ────────────────────────────────────────────
 
 app.post("/v1/messages", async (req, res) => {
+  recordOpenClawTrafficIfApplicable(req);
   try {
     const rawModel: string = req.body.model || "claude-3-5-sonnet-latest";
     const messages: ChatMessage[] = [];
@@ -221,12 +298,7 @@ app.post("/v1/messages", async (req, res) => {
       });
     }
 
-    const resolved = resolveSpectyraModel(rawModel, {
-      provider: cfg.provider,
-      aliasSmartModel: cfg.aliasSmartModel,
-      aliasFastModel: cfg.aliasFastModel,
-    });
-    const optResult = optimize(messages, cfg.runMode, cfg.licenseKey);
+    const { resolved, optResult } = resolveAndOptimizeLocally(cfg, messages, rawModel);
 
     const policyMsg = evaluateWorkflowPolicyFromEvents(companionEventEngine.snapshot(), cfg.workflowPolicyMode);
     if (policyMsg.shouldBlock) {
@@ -273,8 +345,9 @@ app.post("/v1/messages", async (req, res) => {
         inferencePath: "direct_provider",
       },
     });
-  } catch (err: any) {
-    res.status(500).json({ error: { message: err.message, type: "companion_error" } });
+  } catch (err: unknown) {
+    const mapped = mapCompanionInferenceError(err);
+    res.status(mapped.status).json(mapped.body);
   }
 });
 

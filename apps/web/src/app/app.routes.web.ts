@@ -18,6 +18,7 @@ import { SecuritySettingsPage } from './features/settings/security.page';
 import { ProviderKeysPage } from './features/settings/provider-keys.page';
 import { BillingPage } from './features/billing/billing.page';
 import { DownloadPage } from './features/download/download.page';
+import { OpenClawOnboardingPage } from './features/openclaw/openclaw-onboarding.page';
 import { SuperuserPage } from './features/superuser/superuser.page';
 import { authGuard } from './core/guards/auth.guard';
 import { superuserGuard } from './core/guards/superuser.guard';
@@ -29,6 +30,7 @@ export const webRoutes: Routes = [
 
   { path: 'studio', component: StudioPage, canActivate: [authGuard] },
   { path: 'observe', component: OptimizerLabPage, canActivate: [authGuard] },
+  { path: 'integrations/openclaw/setup', component: OpenClawOnboardingPage, canActivate: [authGuard] },
   { path: 'integrations/:slug', component: IntegrationsPage, canActivate: [authGuard] },
   { path: 'integrations', component: IntegrationsPage, canActivate: [authGuard] },
   { path: 'download', component: DownloadPage, canActivate: [authGuard] },

@@ -1,0 +1,62 @@
+.oco {
+  max-width: 720px;
+  margin: 0 auto;
+  padding: 28px 20px 48px;
+  font-family: var(--font-body);
+}
+
+.oco-header {
+  margin-bottom: 28px;
+}
+
+.oco-title {
+  margin: 0 0 10px;
+  font-family: var(--font-display);
+  font-size: 1.65rem;
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+.oco-sub {
+  margin: 0;
+  font-size: 14px;
+  line-height: 1.55;
+  color: var(--text-secondary);
+}
+
+.oco-section {
+  margin-bottom: 20px;
+}
+
+.oco-h2 {
+  font-size: 12px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--text-muted);
+  margin: 0 0 12px;
+}
+
+.oco-ready {
+  padding: 14px 16px;
+  border-radius: var(--radius-input);
+  border: 1px solid var(--spectyra-teal-border, rgba(45, 212, 191, 0.35));
+  background: rgba(45, 212, 191, 0.06);
+}
+
+.oco-ready-badge {
+  font-weight: 600;
+  color: var(--spectyra-teal, #2dd4bf);
+}
+
+.oco-mode,
+.oco-models {
+  margin: 8px 0 0;
+  font-size: 13px;
+  color: var(--text-secondary);
+}
+
+.oco-models code {
+  font-family: var(--font-mono);
+  font-size: 11px;
+}

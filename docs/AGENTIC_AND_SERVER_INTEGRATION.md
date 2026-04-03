@@ -18,6 +18,7 @@ Spectyra supports **seamless** analytics across OpenClaw-style agents, Claude-st
 
 - **Install OpenClaw** from **openclaw.ai**: macOS/Linux use `curl -fsSL https://openclaw.ai/install.sh | bash`; Windows PowerShell uses `iwr -useb https://openclaw.ai/install.ps1 | iex`. OpenClaw requires **Node.js 22.14+**. See [INSTALL_AND_SETUP.md](./INSTALL_AND_SETUP.md#openclaw-official-installer).
 - **Then** point the agent at **Spectyra’s Local Companion** — Spectyra does not ship OpenClaw; it integrates **after** OpenClaw is installed.
+- **Architecture (local-first, thin bridge):** prompts go **OpenClaw → Local Companion → provider**; `@spectyra/openclaw-bridge` is only config/diagnostics glue. See [OPENCLAW_LOCAL_ARCHITECTURE.md](./OPENCLAW_LOCAL_ARCHITECTURE.md).
 
 ## 3. OpenClaw ↔ Claude-style harness “seamless” behavior
 

@@ -13,7 +13,9 @@ import {
 } from '@spectyra/shared';
 import { DesktopBridgeService } from '../../core/desktop/desktop-bridge.service';
 import { CompanionAnalyticsService } from '../../core/analytics/companion-analytics.service';
+import { LocalCompanionDiagnosticsService } from '../../core/desktop/local-companion-diagnostics.service';
 import { environment } from '../../../environments/environment';
+import type { OpenClawWizardBlocker, OpenClawWizardStatus } from '@spectyra/openclaw-bridge';
 
 @Component({
   selector: 'app-desktop-openclaw',
@@ -626,8 +628,11 @@ export class DesktopOpenClawPage implements OnInit {
   /** Set from actual Electron companion port (see ngOnInit). */
   baseV1 = `${environment.companionBaseUrl}/v1`;
   json = '';
+  /** Legacy shape for templates — derived from {@link wizardStatus}. */
   health: Record<string, unknown> | null = null;
   modelsMessage = '';
+  wizardStatus: OpenClawWizardStatus | null = null;
+  diagnosticsSummary = '';
 
   /** From Electron main process — drives “where to run” copy. */
   installPlatform: 'darwin' | 'win32' | 'linux' | 'other' = 'other';
@@ -673,10 +678,19 @@ export class DesktopOpenClawPage implements OnInit {
   constructor(
     private desktop: DesktopBridgeService,
     private companionAnalytics: CompanionAnalyticsService,
+    private localDiagnostics: LocalCompanionDiagnosticsService,
   ) {}
 
+  get installGuide() {
+    return this.localDiagnostics.installGuide;
+  }
+
   async ngOnInit() {
-    this.json = (await this.desktop.openClawExample()) || '';
+    try {
+      this.json = await this.localDiagnostics.buildOpenClawConfigJson();
+    } catch {
+      this.json = (await this.desktop.openClawExample()) || '';
+    }
     this.canRunOnboardTerminal = this.desktop.isElectronRenderer;
     const info = await this.desktop.getAppInfo();
     const p = info?.['platform'];
@@ -685,7 +699,7 @@ export class DesktopOpenClawPage implements OnInit {
     }
     const origin = await this.companionAnalytics.resolveCompanionOrigin();
     this.baseV1 = `${origin}/v1`;
-    await this.refreshHealth();
+    await this.refreshDiagnostics();
   }
 
   readonly openClawNodeMin = OPENCLAW_NODE_VERSION_MIN;
@@ -774,31 +788,64 @@ export class DesktopOpenClawPage implements OnInit {
     }
   }
 
-  async refreshHealth() {
+  async refreshDiagnostics() {
     try {
-      const origin = await this.companionAnalytics.resolveCompanionOrigin();
-      const h = await fetch(`${origin}/health`).then((r) => (r.ok ? r.json() : null));
-      this.health = h;
+      this.wizardStatus = await this.localDiagnostics.runDiagnostics();
+      const h = this.wizardStatus.health;
+      const ok = this.wizardStatus.blocker === 'none';
+      this.health = {
+        status: ok ? 'ok' : 'degraded',
+        runMode: h.runMode,
+        companionReady: h.companionReady,
+        providerConfigured: h.providerConfigured,
+        licenseKeyPresent: h.licenseKeyPresent,
+      };
+      const m = this.wizardStatus.models;
+      this.modelsMessage =
+        m.ok && m.modelIds.length > 0
+          ? `OK — models: ${m.modelIds.join(', ')}`
+          : m.message || 'Models probe incomplete.';
+      this.diagnosticsSummary = this.describeWizardBlocker(this.wizardStatus.blocker);
     } catch {
+      this.wizardStatus = null;
       this.health = null;
+      this.modelsMessage = '';
+      this.diagnosticsSummary = 'Could not run diagnostics.';
+    }
+  }
+
+  /** @deprecated Use refreshDiagnostics — kept for template compatibility */
+  async refreshHealth() {
+    await this.refreshDiagnostics();
+  }
+
+  describeWizardBlocker(blocker: OpenClawWizardBlocker): string {
+    switch (blocker) {
+      case 'none':
+        return 'Local Companion is reachable, provider is configured, and model aliases are available.';
+      case 'companion_unreachable':
+        return 'Spectyra Local Companion is not reachable on localhost. Open the Spectyra desktop app or start the companion.';
+      case 'companion_not_ready':
+        return 'Companion responded but is not fully ready (check run mode and that the process finished starting).';
+      case 'provider_not_configured':
+        return 'Set your provider API key in Desktop settings so the companion can forward requests to your AI provider.';
+      default:
+        return '';
     }
   }
 
   async test() {
-    this.modelsMessage = '';
-    await this.refreshHealth();
-    try {
-      const origin = await this.companionAnalytics.resolveCompanionOrigin();
-      const m = await fetch(`${origin}/v1/models`).then((r) => (r.ok ? r.json() : null));
-      const ids = (m?.data || []).map((x: { id: string }) => x.id).join(', ');
-      this.modelsMessage = ids ? `OK — models: ${ids}` : 'Reached companion but no models list.';
-    } catch {
-      this.modelsMessage = 'Could not reach /v1/models.';
-    }
+    await this.refreshDiagnostics();
   }
 
   async copy() {
-    if (!this.json) this.json = (await this.desktop.openClawExample()) || '';
+    if (!this.json) {
+      try {
+        this.json = await this.localDiagnostics.buildOpenClawConfigJson();
+      } catch {
+        this.json = (await this.desktop.openClawExample()) || '';
+      }
+    }
     await navigator.clipboard.writeText(this.json);
   }
 

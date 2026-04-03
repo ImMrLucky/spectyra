@@ -4,7 +4,8 @@
   "scripts": {
     "dev": "ng serve",
     "build": "ng build",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "test:onboarding-map": "tsx src/app/features/integrations/services/map-onboarding-state.test.ts"
   },
   "dependencies": {
     "@spectyra/integration-metadata": "workspace:*",
@@ -20,6 +21,7 @@
     "@angular/platform-browser": "^17.0.0",
     "@angular/platform-browser-dynamic": "^17.0.0",
     "@angular/router": "^17.0.0",
+    "@spectyra/openclaw-bridge": "workspace:*",
     "@spectyra/shared": "workspace:*",
     "@supabase/supabase-js": "^2.39.0",
     "rxjs": "^7.8.1",

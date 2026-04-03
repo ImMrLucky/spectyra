@@ -104,7 +104,7 @@ Health check: `curl http://127.0.0.1:4111/health`
 
 4. Optional: set **mode** (off / observe / on) via companion config or Desktop — see [USER_GUIDE.md](./USER_GUIDE.md).
 
-More detail: [`tools/local-companion/README.md`](../tools/local-companion/README.md).
+More detail: [`tools/local-companion/README.md`](../tools/local-companion/README.md) and [OpenClaw local-first architecture](./OPENCLAW_LOCAL_ARCHITECTURE.md).
 
 ---
 

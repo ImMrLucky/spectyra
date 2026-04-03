@@ -2,7 +2,7 @@ import { Routes } from '@angular/router';
 import { authGuard } from './core/guards/auth.guard';
 import { DesktopDashboardPage } from './features/desktop/dashboard.page';
 import { DesktopOnboardingPage } from './features/desktop/onboarding.page';
-import { DesktopOpenClawPage } from './features/desktop/openclaw.page';
+import { OpenClawOnboardingPage } from './features/openclaw/openclaw-onboarding.page';
 import { DesktopRunsPage } from './features/desktop/runs.page';
 import { LiveSavingsPage } from './features/desktop/live-savings.page';
 import { LivePage } from './features/desktop/live/live.page';
@@ -31,7 +31,7 @@ export const desktopRoutes: Routes = [
   { path: 'desktop/security', component: DesktopSecurityPage },
   { path: 'desktop/settings', component: DesktopSettingsPage },
   { path: 'desktop/onboarding', component: DesktopOnboardingPage },
-  { path: 'desktop/openclaw', component: DesktopOpenClawPage },
+  { path: 'desktop/openclaw', component: OpenClawOnboardingPage },
   { path: 'desktop/runs', component: DesktopRunsPage },
   /** Legacy detailed view — keep route for bookmarks; forwards to hero Live. */
   { path: 'desktop/live-legacy', component: LiveSavingsPage },

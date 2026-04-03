@@ -4,6 +4,7 @@
  */
 
 import { app, BrowserWindow, ipcMain, shell, dialog } from "electron";
+import { execFileSync } from "child_process";
 import path from "path";
 import { spawn, execFile, ChildProcess } from "child_process";
 import { promises as fs } from "fs";
@@ -26,6 +27,7 @@ interface AppConfig {
   provider: string;
   aliasSmartModel: string;
   aliasFastModel: string;
+  aliasQualityModel: string;
   port: number;
   licenseKey: string | null;
   /** Stored only on disk under ~/.spectyra/desktop — never sent to Spectyra cloud. */
@@ -73,6 +75,7 @@ let config: AppConfig = {
   provider: "openai",
   aliasSmartModel: _defaults.smart,
   aliasFastModel: _defaults.fast,
+  aliasQualityModel: _defaults.quality,
   port: 4111,
   licenseKey: null,
 };
@@ -96,6 +99,7 @@ async function loadConfig(): Promise<void> {
     const defs = defaultAliasModels(config.provider);
     if (!config.aliasSmartModel) config.aliasSmartModel = defs.smart;
     if (!config.aliasFastModel) config.aliasFastModel = defs.fast;
+    if (!config.aliasQualityModel) config.aliasQualityModel = defs.quality;
   } catch {
     // first launch
   }
@@ -137,7 +141,10 @@ function companionEnv(): NodeJS.ProcessEnv {
     SPECTYRA_PROVIDER: config.provider,
     SPECTYRA_ALIAS_SMART_MODEL: config.aliasSmartModel,
     SPECTYRA_ALIAS_FAST_MODEL: config.aliasFastModel,
+    SPECTYRA_ALIAS_QUALITY_MODEL: config.aliasQualityModel,
     SPECTYRA_BIND_HOST: "127.0.0.1",
+    SPECTYRA_DESKTOP_MANAGED: "1",
+    SPECTYRA_ACCOUNT_SIGNED_IN: "1",
     SPECTYRA_KEY_SOURCE: "session",
     SPECTYRA_PROVIDER_KEYS_JSON: JSON.stringify(keys),
     SPECTYRA_LICENSE_KEY: config.licenseKey || "",
@@ -321,6 +328,19 @@ ipcMain.handle("companion:health", async () => {
 
 ipcMain.handle("openclaw:example-config", () => OPENCLAW_CONFIG_EXAMPLE_JSON);
 
+ipcMain.handle("openclaw:detect-cli", async () => {
+  try {
+    if (process.platform === "win32") {
+      execFileSync("where", ["openclaw"], { stdio: "ignore" });
+    } else {
+      execFileSync("which", ["openclaw"], { stdio: "ignore" });
+    }
+    return { available: true };
+  } catch {
+    return { available: false };
+  }
+});
+
 function electronOpenClawPlatform(): OpenClawInstallPlatform {
   if (process.platform === "darwin") return "darwin";
   if (process.platform === "win32") return "win32";
@@ -404,10 +424,16 @@ ipcMain.handle("config:save", async (_e, partial: Partial<AppConfig>) => {
       config.port = n;
     }
   }
-  if (partial.provider !== undefined && partial.aliasSmartModel === undefined && partial.aliasFastModel === undefined) {
+  if (
+    partial.provider !== undefined &&
+    partial.aliasSmartModel === undefined &&
+    partial.aliasFastModel === undefined &&
+    partial.aliasQualityModel === undefined
+  ) {
     const defs = defaultAliasModels(config.provider);
     config.aliasSmartModel = defs.smart;
     config.aliasFastModel = defs.fast;
+    config.aliasQualityModel = defs.quality;
   }
   await saveConfig();
   stopCompanion();

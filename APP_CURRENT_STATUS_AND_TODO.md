@@ -1,7 +1,7 @@
 # Spectyra — Current App Status & TODO
 
 **Purpose:** Snapshot of features, architecture, and follow-up work for new chat sessions.  
-**Last updated:** 2026-03-30
+**Last updated:** 2026-03-31
 
 ---
 
@@ -177,6 +177,57 @@ Migrations under `apps/api/src/services/storage/migrations/` (e.g. analytics ses
 
 ---
 
+## Tech stack evaluation — LiteLLM & Langfuse
+
+**Purpose:** Track two popular open-source projects to **evaluate later** whether they belong in Spectyra’s stack and **how** to integrate without duplicating our moat (local optimization, BYOK, canonical request model).
+
+| Project | Repo | One-line role |
+|---------|------|----------------|
+| **LiteLLM** | [BerriAI/litellm](https://github.com/BerriAI/litellm) | Python SDK + **AI Gateway / proxy**: unified OpenAI-style API to **100+ LLM backends**, with routing, cost tracking, virtual keys, guardrails, logging; deployable as a central service. |
+| **Langfuse** | [langfuse/langfuse](https://github.com/langfuse/langfuse) | **LLM engineering platform**: traces, observability, evals, prompt management, datasets, playground; self-hostable; integrates with OpenAI SDK, LangChain, **LiteLLM**, Vercel AI SDK, etc. |
+
+### Why they might matter for Spectyra
+
+- **LiteLLM** overlaps *conceptually* with “one gateway, many providers,” but Spectyra’s product is **optimization + policy + savings**, not provider routing alone. LiteLLM could still be useful as an **optional upstream/downstream** for teams that already run it, or as a **reference** for model-alias and multi-provider behavior—not a replacement for `@spectyra` optimizer logic.
+- **Langfuse** overlaps with **analytics, sessions, and traces**. Spectyra already has normalized events, execution-graph summaries, and optional cloud sync. Langfuse could complement **deep trace UI / eval workflows** for power users, or stay **out of stack** if we keep analytics self-contained.
+
+### Decision: **if** to add
+
+Use this checklist when revisiting (product + eng):
+
+| Question | LiteLLM | Langfuse |
+|----------|---------|----------|
+| Do we need it for **core** product, or only **enterprise / self-hosted** deployments? | Often **optional** unless we standardize on their proxy. | Often **optional** unless we want a full **trace/eval** product surface. |
+| Does it **duplicate** what we already ship? | Partially (multi-provider gateway vs our API + adapters). | Partially (traces vs our event spine + analytics). |
+| **Operational cost** (hosting, upgrades, security review)? | Medium — Python proxy, DB/config as per their docs. | Medium–high — full stack (see their Docker/K8s docs). |
+| **Data residency / BYOK story** — does it fit “customer keys, minimal raw prompt retention”? | Configurable; review what passes through proxy. | Self-host possible; align retention with `docs/DATA_HANDLING.md`. |
+| **License** — OK for our usage? | Review [LiteLLM license](https://github.com/BerriAI/litellm/blob/main/LICENSE) + enterprise features if needed. | OSS + `ee` folder — see [Langfuse LICENSE](https://github.com/langfuse/langfuse/blob/main/LICENSE). |
+
+**Default stance until decided:** **Do not** block shipping on either; treat as **integrations or optional sidecars**, not core dependencies.
+
+### Decision: **how** to add (options to explore)
+
+**LiteLLM (if we adopt)**
+
+1. **Sidecar / optional gateway** — Customer or we deploy LiteLLM; clients point OpenAI-compatible tools at LiteLLM → LiteLLM forwards to providers; Spectyra stays **before** or **after** that hop depending on architecture (document per deployment).
+2. **Docs-only** — Document “Spectyra + LiteLLM” patterns for users who already use [LiteLLM proxy](https://docs.litellm.ai/docs/simple_proxy); no code dependency.
+3. **Deep integration** — Only if we explicitly productize “Spectyra-managed LiteLLM” (high effort; revisit after demand).
+
+**Langfuse (if we adopt)**
+
+1. **Export / webhook** — Emit anonymized or allowlisted spans from our pipeline into Langfuse API (similar to existing analytics patterns).
+2. **Parallel observability** — Power users self-host Langfuse; we document env vars and OpenTelemetry/SDK hooks if we add them.
+3. **Replace internal analytics** — Only if we deliberately sunset parts of our trace UI (major product decision).
+
+### Next steps (when someone picks this up)
+
+- [ ] Read upstream README + license for each: [LiteLLM](https://github.com/BerriAI/litellm), [Langfuse](https://github.com/langfuse/langfuse).
+- [ ] Map 1:1 against `docs/EVENT_INGESTION_ARCHITECTURE.md`, `docs/LOCAL_ANALYTICS_AND_SYNC.md`, and `apps/api` chat/agent routes.
+- [ ] Prototype smallest integration: **docs** or **single optional env flag** path before any hard dependency.
+- [ ] Record the **decision** (in this section or ADR): adopt / defer / reject, with date.
+
+---
+
 ## Technical notes for contributors
 
 - **Electron main:** Must not `require()` raw ESM from workspace packages; main/preload are bundled with **esbuild** (see `apps/desktop/scripts/build-electron.mjs`).
@@ -227,6 +278,7 @@ These items capture known gaps and polish areas from product specs and repo evol
 
 11. Keep **`spectyra-brand.md`** in sync with `spectyra-theme.scss` when tokens change.
 12. Optional: link this file from `README.md` for onboarding.
+13. **LiteLLM / Langfuse stack evaluation** — See **Tech stack evaluation — LiteLLM & Langfuse** (earlier in this file); update checkboxes and decision date when evaluated.
 
 ---
 

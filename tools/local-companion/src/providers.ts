@@ -25,7 +25,7 @@ function parseSessionKeys(): Record<string, string> {
 
 const sessionKeys = parseSessionKeys();
 
-function getProviderKey(provider: string): string {
+export function getProviderKey(provider: string): string {
   const fromSession = sessionKeys[provider];
   if (fromSession) return fromSession;
   switch (provider) {
@@ -34,6 +34,11 @@ function getProviderKey(provider: string): string {
     case "groq": return process.env.GROQ_API_KEY || "";
     default: return "";
   }
+}
+
+/** True when an API key is available for the given provider id (no key material returned). */
+export function isProviderKeyConfigured(provider: string): boolean {
+  return getProviderKey(provider).length > 0;
 }
 
 export async function callProvider(

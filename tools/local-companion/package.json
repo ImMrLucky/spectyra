@@ -26,7 +26,8 @@
     "dev": "tsx watch src/companion.ts",
     "start": "tsx src/companion.ts",
     "build": "tsc",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "test": "tsx src/__tests__/inference-pipeline.test.ts"
   },
   "dependencies": {
     "@spectyra/event-adapters": "workspace:*",

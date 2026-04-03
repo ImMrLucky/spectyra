@@ -30,6 +30,8 @@ export interface CompanionConfig {
   aliasSmartModel: string;
   /** Real model id for OpenClaw alias `spectyra/fast`. */
   aliasFastModel: string;
+  /** Real model id for OpenClaw alias `spectyra/quality`. */
+  aliasQualityModel: string;
   /** Optional license key for full optimization (set by Electron desktop). */
   licenseKey?: string;
   providerKeySource: "env" | "session";
@@ -57,6 +59,7 @@ export function loadConfig(): CompanionConfig {
     provider,
     aliasSmartModel: process.env.SPECTYRA_ALIAS_SMART_MODEL?.trim() || defaults.smart,
     aliasFastModel: process.env.SPECTYRA_ALIAS_FAST_MODEL?.trim() || defaults.fast,
+    aliasQualityModel: process.env.SPECTYRA_ALIAS_QUALITY_MODEL?.trim() || defaults.quality,
     licenseKey: process.env.SPECTYRA_LICENSE_KEY?.trim() || undefined,
     providerKeySource: (process.env.SPECTYRA_KEY_SOURCE as "env" | "session") || "env",
     debugLogPrompts: process.env.DEBUG_LOG_PROMPTS === "true",

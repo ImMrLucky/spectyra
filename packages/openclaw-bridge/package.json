@@ -1,0 +1,27 @@
+{
+  "name": "@spectyra/openclaw-bridge",
+  "version": "0.1.0",
+  "description": "Thin OpenClaw adapter: localhost diagnostics and config for Spectyra Local Companion (no optimization, no cloud prompt path).",
+  "type": "module",
+  "main": "./src/index.ts",
+  "types": "./src/index.ts",
+  "files": ["src"],
+  "exports": {
+    ".": {
+      "types": "./src/index.ts",
+      "default": "./src/index.ts"
+    }
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "test": "tsx src/__tests__/openclaw-bridge.test.ts"
+  },
+  "dependencies": {
+    "@spectyra/integration-metadata": "workspace:*"
+  },
+  "devDependencies": {
+    "tsx": "^4.7.1",
+    "typescript": "~5.4.0"
+  },
+  "license": "MIT"
+}

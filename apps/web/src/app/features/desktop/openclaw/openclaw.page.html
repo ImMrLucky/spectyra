@@ -27,8 +27,7 @@
         <span class="oc-flow-node">Your provider (OpenAI / Anthropic)</span>
       </div>
       <p class="oc-info-detail">
-        Inference goes direct to your provider. No Spectyra cloud relay.
-        Billing stays on your account.
+        {{ installGuide.privacySummary }}
       </p>
     </div>
 
@@ -185,18 +184,21 @@
       </div>
       <span class="oc-sc-detail" *ngIf="health?.['status'] === 'ok'">
         Listening at {{ baseV1 | slice:0:-3 }} · Mode: {{ health?.['runMode'] }}
+        <span *ngIf="health?.['providerConfigured'] === false"> · Provider key missing</span>
       </span>
       <span class="oc-sc-detail" *ngIf="health?.['status'] !== 'ok'">
         Expected at {{ baseV1 | slice:0:-3 }}. Start the Spectyra desktop app or run the companion manually.
       </span>
     </div>
 
+    <p class="oc-sub oc-run-hint" *ngIf="diagnosticsSummary">{{ diagnosticsSummary }}</p>
+
     <p class="oc-hint">
       Provider API keys (OpenAI / Anthropic / Groq) are set in
       <a routerLink="/desktop/settings">Desktop settings</a>. The companion forwards to your provider after optimization.
     </p>
 
-    <button class="btn-secondary" (click)="refreshHealth()">Re-check</button>
+    <button class="btn-secondary" (click)="refreshDiagnostics()">Run diagnostics / retry</button>
     <button class="btn-primary" (click)="step = 4" [disabled]="health?.['status'] !== 'ok'" style="margin-left: 10px">Next →</button>
   </div>
 
@@ -220,6 +222,15 @@
       <p class="oc-info-detail">
         Usually <code>~/.openclaw/config.json</code> or <code>~/.config/openclaw/config.json</code>.<br>
         Run <code>openclaw config path</code> to find yours.
+      </p>
+    </div>
+
+    <div class="oc-info-card compact" style="margin-top: 14px">
+      <span class="oc-info-label">Optimization modes (Local Companion)</span>
+      <p class="oc-info-detail">
+        <strong>ON</strong> — {{ installGuide.modeExplanations.on }}<br />
+        <strong>OBSERVE</strong> — {{ installGuide.modeExplanations.observe }}<br />
+        <strong>OFF</strong> — {{ installGuide.modeExplanations.off }}
       </p>
     </div>
 
@@ -253,7 +264,10 @@
 
     <div class="oc-validate-actions">
       <button class="btn-secondary" (click)="test()">Run validation</button>
+      <button class="btn-secondary" (click)="refreshDiagnostics()" style="margin-left: 8px">Run diagnostics</button>
     </div>
+
+    <p class="oc-sub oc-run-hint" *ngIf="diagnosticsSummary" style="margin-top: 10px">{{ diagnosticsSummary }}</p>
 
     <div class="oc-cmd-grid" style="margin-top: 16px">
       <div class="oc-cmd-card" *ngFor="let cmd of troubleshootCommands">

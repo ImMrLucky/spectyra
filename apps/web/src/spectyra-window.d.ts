@@ -21,6 +21,7 @@ export interface SpectyraPreload {
   };
   openclaw: {
     getExampleConfig: () => Promise<string>;
+    detectCli?: () => Promise<{ available: boolean }>;
     runOnboardInTerminal: (opts?: {
       flow?: "quickstart" | "manual";
       mode?: "remote";

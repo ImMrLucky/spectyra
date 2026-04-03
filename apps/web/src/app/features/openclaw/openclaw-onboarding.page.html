@@ -1,0 +1,39 @@
+<div class="oco">
+  <header class="oco-header">
+    <h1 class="oco-title">Connect OpenClaw to Spectyra</h1>
+    <p class="oco-sub">{{ productSubtitle }}</p>
+  </header>
+
+  <section class="oco-section">
+    <h2 class="oco-h2">Readiness</h2>
+    <app-onboarding-checklist [items]="checklist()" />
+  </section>
+
+  <section class="oco-section" *ngIf="onboarding.status().state === 'ready'">
+    <div class="oco-ready">
+      <span class="oco-ready-badge">Spectyra is active</span>
+      <p class="oco-mode" *ngIf="onboarding.status().mode as runMode">
+        Mode: <strong>{{ runMode }}</strong>
+      </p>
+      <p class="oco-models" *ngIf="onboarding.status().modelAliases?.length">
+        Models: <code>{{ onboarding.status().modelAliases!.join(', ') }}</code>
+      </p>
+    </div>
+  </section>
+
+  <app-onboarding-action-card
+    [title]="headline().title"
+    [body]="headline().body"
+    [actions]="onboarding.status().actions"
+    [disabled]="onboarding.status().state === 'checking'"
+    (actionClick)="onAction($event)"
+  />
+
+  <app-onboarding-diagnostics
+    [diagnostics]="onboarding.lastDiagnostics()"
+    [lastRefresh]="onboarding.lastRefreshAt()"
+    [companionBaseUrl]="onboarding.lastDiagnostics()?.companionBaseUrl ?? null"
+    [modelAliases]="onboarding.lastDiagnostics()?.modelAliases"
+    (retry)="onDiagRetry()"
+  />
+</div>

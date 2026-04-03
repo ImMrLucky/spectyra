@@ -38,6 +38,12 @@ export const OPENCLAW_CONFIG_JSON = `{
             "name": "Spectyra Fast",
             "contextWindow": 128000,
             "maxTokens": 8192
+          },
+          {
+            "id": "quality",
+            "name": "Spectyra Quality",
+            "contextWindow": 128000,
+            "maxTokens": 8192
           }
         ]
       }

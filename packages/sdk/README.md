@@ -121,9 +121,12 @@ The companion resolves OpenClaw-style model ids to your real provider models. Th
 ```ts
 import { resolveSpectyraModel, defaultAliasModels } from "@spectyra/sdk";
 
+const aliases = defaultAliasModels("openai");
 const { provider, upstreamModel, requestedModel } = resolveSpectyraModel("spectyra/smart", {
   provider: "openai",
-  ...defaultAliasModels("openai"),
+  aliasSmartModel: aliases.smart,
+  aliasFastModel: aliases.fast,
+  aliasQualityModel: aliases.quality,
 });
 ```
 

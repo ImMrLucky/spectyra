@@ -6,14 +6,22 @@
 
 export type UpstreamProviderId = "openai" | "anthropic" | "groq";
 
-export function defaultAliasModels(provider: string): { smart: string; fast: string } {
+export function defaultAliasModels(provider: string): { smart: string; fast: string; quality: string } {
   switch (provider) {
     case "anthropic":
-      return { smart: "claude-3-5-sonnet-20241022", fast: "claude-3-5-haiku-20241022" };
+      return {
+        smart: "claude-3-5-sonnet-20241022",
+        fast: "claude-3-5-haiku-20241022",
+        quality: "claude-3-5-sonnet-20241022",
+      };
     case "groq":
-      return { smart: "llama-3.1-70b-versatile", fast: "llama-3.1-8b-instant" };
+      return {
+        smart: "llama-3.1-70b-versatile",
+        fast: "llama-3.1-8b-instant",
+        quality: "llama-3.1-70b-versatile",
+      };
     default:
-      return { smart: "gpt-4o-mini", fast: "gpt-4o-mini" };
+      return { smart: "gpt-4o-mini", fast: "gpt-4o-mini", quality: "gpt-4o" };
   }
 }
 
@@ -28,6 +36,8 @@ export interface ResolveSpectyraModelInput {
   provider: string;
   aliasSmartModel: string;
   aliasFastModel: string;
+  /** Maps `spectyra/quality` — higher-latency / higher-capability upstream default per provider. */
+  aliasQualityModel: string;
 }
 
 /**
@@ -41,12 +51,17 @@ export function resolveSpectyraModel(
   const m = model.trim();
   if (m.startsWith("spectyra/")) {
     const alias = m.slice("spectyra/".length);
-    if (alias !== "smart" && alias !== "fast") {
+    if (alias !== "smart" && alias !== "fast" && alias !== "quality") {
       throw new Error(
-        `Unknown Spectyra model alias: spectyra/${alias}. Use spectyra/smart or spectyra/fast.`,
+        `Unknown Spectyra model alias: spectyra/${alias}. Use spectyra/smart, spectyra/fast, or spectyra/quality.`,
       );
     }
-    const upstreamModel = alias === "smart" ? cfg.aliasSmartModel : cfg.aliasFastModel;
+    const upstreamModel =
+      alias === "smart"
+        ? cfg.aliasSmartModel
+        : alias === "fast"
+          ? cfg.aliasFastModel
+          : cfg.aliasQualityModel;
     const provider = cfg.provider as UpstreamProviderId;
     if (provider !== "openai" && provider !== "anthropic" && provider !== "groq") {
       throw new Error(`Invalid provider: ${cfg.provider}`);

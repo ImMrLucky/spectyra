@@ -217,7 +217,7 @@ export class DesktopOnboardingPage implements OnInit {
     if (base.startsWith('http')) {
       const paths: Record<typeof which, string> = {
         sdk: '/integrations/sdk',
-        openclaw: '/integrations/openclaw',
+        openclaw: '/integrations/openclaw/setup',
         server: '/integrations/server-sidecar',
         events: '/integrations/events',
       };

@@ -76,8 +76,9 @@ pnpm start
 | Method | Path | Purpose |
 |--------|------|---------|
 | GET | `/health` | Status, mode, inference path |
-| GET | `/config` | Companion configuration (includes `provider`, `aliasSmartModel`, `aliasFastModel`) |
-| GET | `/v1/models` | OpenAI-style model list (`spectyra/smart`, `spectyra/fast` for OpenClaw) |
+| GET | `/config` | Companion configuration (includes `provider`, alias models) |
+| GET | `/v1/models` | OpenAI-style model list (`spectyra/smart`, `spectyra/fast`, `spectyra/quality`) |
+| GET | `/v1/diagnostics/integration` | Safe setup metadata for wizards (no secrets) |
 | POST | `/v1/chat/completions` | OpenAI-compatible chat |
 | POST | `/v1/messages` | Anthropic-compatible messages |
 | GET | `/v1/analytics/live-events` | SSE stream of normalized `SpectyraEvent` (local) |
