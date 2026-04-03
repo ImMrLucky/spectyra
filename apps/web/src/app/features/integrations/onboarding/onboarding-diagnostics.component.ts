@@ -12,7 +12,7 @@ import type { IntegrationDiagnostics } from '../models/integration-onboarding.ty
       <div class="od-body">
         <p class="od-meta" *ngIf="lastRefresh">Last refresh: {{ lastRefresh | date : 'medium' }}</p>
         <p class="od-meta" *ngIf="companionBaseUrl">Local base URL: <code>{{ companionBaseUrl }}</code></p>
-        <p class="od-meta" *ngIf="modelAliases?.length">Model aliases: <code>{{ modelAliases.join(', ') }}</code></p>
+        <p class="od-meta" *ngIf="modelAliases?.length">Model aliases: <code>{{ (modelAliases ?? []).join(', ') }}</code></p>
         <button type="button" class="od-retry" (click)="retry.emit()">Retry</button>
         <label class="od-toggle"
           ><input type="checkbox" [checked]="showRaw" (change)="showRaw = $any($event.target).checked" /> Show raw

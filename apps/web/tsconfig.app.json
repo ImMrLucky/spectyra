@@ -11,8 +11,11 @@
       "@spectyra/analytics-core": ["../../packages/analytics-core/src/index.ts"],
       "@spectyra/analytics-core/*": ["../../packages/analytics-core/src/*"],
       "@spectyra/event-core": ["../../packages/event-core/src/index.ts"],
-      "@spectyra/event-core/*": ["../../packages/event-core/src/*"]
+      "@spectyra/event-core/*": ["../../packages/event-core/src/*"],
+      "@spectyra/openclaw-bridge": ["../../packages/openclaw-bridge/src/index.ts"],
+      "@spectyra/openclaw-bridge/*": ["../../packages/openclaw-bridge/src/*"]
     }
   },
-  "include": ["src/**/*.ts"]
+  "include": ["src/**/*.ts"],
+  "exclude": ["src/**/*.test.ts"]
 }

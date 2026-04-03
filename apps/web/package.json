@@ -4,7 +4,7 @@
   "scripts": {
     "dev": "ng serve",
     "build": "ng build",
-    "typecheck": "tsc --noEmit",
+    "typecheck": "tsc --noEmit -p tsconfig.app.json",
     "test:onboarding-map": "tsx src/app/features/integrations/services/map-onboarding-state.test.ts"
   },
   "dependencies": {
