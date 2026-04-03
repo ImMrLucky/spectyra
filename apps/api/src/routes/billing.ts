@@ -240,7 +240,11 @@ billingRouter.post("/webhook", async (req, res) => {
             org.id,
             subscription.id,
             subscription.status,
-            isActive
+            isActive,
+            {
+              currentPeriodEndUnix: subscription.current_period_end ?? null,
+              cancelAtPeriodEnd: subscription.cancel_at_period_end ?? null,
+            },
           );
           safeLog("info", "Subscription updated", {
             org_id: org.id,
@@ -257,7 +261,10 @@ billingRouter.post("/webhook", async (req, res) => {
         
         const org = await getOrgByStripeCustomerId(customerId);
         if (org) {
-          await updateOrgSubscription(org.id, null, "canceled", false);
+          await updateOrgSubscription(org.id, null, "canceled", false, {
+            currentPeriodEndUnix: null,
+            cancelAtPeriodEnd: false,
+          });
           safeLog("info", "Subscription canceled", { org_id: org.id });
         }
         break;

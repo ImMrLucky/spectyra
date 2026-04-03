@@ -475,20 +475,27 @@ export async function requireUserSession(
         const staffBypass =
           req.auth.platformRole === "superuser" || req.auth.platformRole === "admin";
         if (!staffBypass) {
-          const flag = await queryOne<{ access_state: string }>(
-            `SELECT access_state FROM user_account_flags WHERE user_id = $1`,
+          const flag = await queryOne<{ access_state: string; pause_savings_until: string | null }>(
+            `SELECT access_state, pause_savings_until FROM user_account_flags WHERE user_id = $1`,
             [userId],
           );
           if (flag?.access_state === "paused") {
-            req.auth.accountAccessState = "paused";
-            const m = req.method.toUpperCase();
-            if (m !== "GET" && m !== "HEAD" && m !== "OPTIONS") {
-              res.status(403).json({
-                error: "account_paused",
-                message:
-                  "Your account is paused. You can still browse and view data (Observe mode). Write actions are disabled until an administrator reactivates your account.",
-              });
-              return;
+            const graceEnd = flag.pause_savings_until ? new Date(flag.pause_savings_until) : null;
+            const inSavingsGrace = graceEnd !== null && !Number.isNaN(graceEnd.getTime()) && graceEnd > new Date();
+            if (inSavingsGrace) {
+              // Full app access including savings until grace ends; Stripe billing already paused separately
+              /* do not set accountAccessState / do not block */
+            } else {
+              req.auth.accountAccessState = "paused";
+              const m = req.method.toUpperCase();
+              if (m !== "GET" && m !== "HEAD" && m !== "OPTIONS") {
+                res.status(403).json({
+                  error: "account_paused",
+                  message:
+                    "Your account pause grace period has ended. You can still browse and view data (Observe mode). Write actions are disabled until an administrator reactivates your account.",
+                });
+                return;
+              }
             }
           }
         }

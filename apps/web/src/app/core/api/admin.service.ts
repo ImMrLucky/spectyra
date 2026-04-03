@@ -48,6 +48,8 @@ export interface AdminUser {
   email?: string;
   /** Cloud API access: paused = read-only (Observe), active = normal */
   access_state?: AccountAccessState;
+  /** While paused: full app/savings until this ISO time; then read-only until reactivated */
+  pause_savings_until?: string | null;
   orgs: Array<{
     org_id: string;
     org_name: string;
@@ -144,13 +146,32 @@ export class AdminService {
     });
   }
 
-  /** Pause (read-only / Observe) or reactivate a user’s cloud account */
-  setUserAccess(userId: string, access_state: AccountAccessState): Observable<{ user_id: string; access_state: AccountAccessState }> {
-    return this.http.patch<{ user_id: string; access_state: AccountAccessState }>(
-      `${this.baseUrl}/admin/users/${encodeURIComponent(userId)}/access`,
-      { access_state },
-      { headers: this.getHeaders() },
-    );
+  /** Pause (Stripe collection paused; 30-day full savings access) or reactivate */
+  setUserAccess(
+    userId: string,
+    access_state: AccountAccessState,
+  ): Observable<{
+    user_id: string;
+    access_state: AccountAccessState;
+    pause_savings_until: string | null;
+    stripe: {
+      subscriptionIdsPaused: string[];
+      subscriptionIdsResumed: string[];
+      orgIds: string[];
+      warnings: string[];
+    };
+  }> {
+    return this.http.patch<{
+      user_id: string;
+      access_state: AccountAccessState;
+      pause_savings_until: string | null;
+      stripe: {
+        subscriptionIdsPaused: string[];
+        subscriptionIdsResumed: string[];
+        orgIds: string[];
+        warnings: string[];
+      };
+    }>(`${this.baseUrl}/admin/users/${encodeURIComponent(userId)}/access`, { access_state }, { headers: this.getHeaders() });
   }
 
   /** Remove app data + Supabase Auth user (owner / superuser only) */

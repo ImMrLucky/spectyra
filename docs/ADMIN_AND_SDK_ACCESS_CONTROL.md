@@ -76,7 +76,10 @@ When `sdk_access_enabled = false`, these endpoints return 403:
 2. **Users Tab**:
    - List all users (from org memberships; auth-only accounts without a membership do not appear — delete those by user id via API or Supabase Dashboard if needed)
    - View user email (if available), access state (active / paused)
-   - **Pause** / **Reactivate**: Paused users keep their JWT but **mutating** API calls return `403` with `account_paused` (read-only “Observe” for the cloud API). Platform `superuser` / `admin` rows bypass pause for staff operations.
+   - **Pause** / **Reactivate**:
+     - **Stripe**: For each org where the user is **OWNER** and `stripe_subscription_id` is set, the API calls Stripe `pause_collection` so **no new invoices** are collected while paused. On reactivate, collection is resumed.
+     - **30-day savings grace**: `pause_savings_until` is set to **30 days** after pause. Until that time, the user keeps **full cloud API access** (including mutating routes and savings features). After the grace date, mutating JWT requests return `403` with `account_paused` (read-only “Observe”) until an admin reactivates.
+     - Platform `superuser` / `admin` rows **bypass** pause for staff operations.
    - **Delete user**: Removes `org_memberships`, `platform_roles` row for that email, `user_account_flags`, deletes **sole-member orgs** entirely (same data removal as org delete), then deletes the user in **Supabase Auth**. Deleting a user **only** in Supabase Dashboard does **not** remove Spectyra org data or memberships; use this flow or clean Postgres manually.
 
 ### Admin API (owner or platform superuser)

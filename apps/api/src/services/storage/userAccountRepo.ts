@@ -6,6 +6,20 @@ import { query, queryOne } from "./db.js";
 import { deleteOrg } from "./orgsRepo.js";
 import { invalidatePlatformRoleCache } from "./platformRolesRepo.js";
 import { safeLog } from "../../utils/redaction.js";
+import {
+  pauseStripeSubscriptionsForOwnerOrgs,
+  resumeStripeSubscriptionsForOwnerOrgs,
+  type StripePauseResult,
+} from "../../billing/stripeSubscriptionPause.js";
+
+/** Full app + savings access after admin pause until this instant; then read-only Observe until reactivated. */
+export const PAUSE_SAVINGS_GRACE_DAYS = 30;
+
+function addUtcDays(base: Date, days: number): Date {
+  const d = new Date(base.getTime());
+  d.setUTCDate(d.getUTCDate() + days);
+  return d;
+}
 
 /**
  * Idempotent DDL (no FK to auth.users — works on any Postgres; migrations add FK on Supabase).
@@ -22,6 +36,10 @@ export async function ensureUserAccountFlagsSchema(): Promise<void> {
   await query(`
     CREATE INDEX IF NOT EXISTS idx_user_account_flags_state ON user_account_flags (access_state)
   `);
+  await query(`
+    ALTER TABLE user_account_flags
+    ADD COLUMN IF NOT EXISTS pause_savings_until TIMESTAMPTZ
+  `);
 }
 
 export type AccountAccessState = "active" | "paused";
@@ -37,19 +55,39 @@ export async function getAccountAccessState(userId: string): Promise<AccountAcce
 export async function setAccountAccessState(
   userId: string,
   state: AccountAccessState,
-): Promise<void> {
-  const pausedAt = state === "paused" ? new Date().toISOString() : null;
+): Promise<{ stripe: StripePauseResult }> {
+  const now = new Date();
+  const pausedAt = state === "paused" ? now.toISOString() : null;
+  const pauseSavingsUntil =
+    state === "paused" ? addUtcDays(now, PAUSE_SAVINGS_GRACE_DAYS).toISOString() : null;
+
   await query(
     `
-    INSERT INTO user_account_flags (user_id, access_state, paused_at, updated_at)
-    VALUES ($1, $2, $3, now())
+    INSERT INTO user_account_flags (user_id, access_state, paused_at, pause_savings_until, updated_at)
+    VALUES ($1, $2, $3, $4, now())
     ON CONFLICT (user_id) DO UPDATE SET
       access_state = EXCLUDED.access_state,
       paused_at = EXCLUDED.paused_at,
+      pause_savings_until = EXCLUDED.pause_savings_until,
       updated_at = now()
     `,
-    [userId, state, pausedAt],
+    [userId, state, pausedAt, pauseSavingsUntil],
   );
+
+  let stripe: StripePauseResult;
+  if (state === "paused") {
+    stripe = await pauseStripeSubscriptionsForOwnerOrgs(userId);
+    if (stripe.warnings.length) {
+      safeLog("warn", "setAccountAccessState: Stripe pause warnings", { userId, warnings: stripe.warnings });
+    }
+  } else {
+    stripe = await resumeStripeSubscriptionsForOwnerOrgs(userId);
+    if (stripe.warnings.length) {
+      safeLog("warn", "setAccountAccessState: Stripe resume warnings", { userId, warnings: stripe.warnings });
+    }
+  }
+
+  return { stripe };
 }
 
 /**

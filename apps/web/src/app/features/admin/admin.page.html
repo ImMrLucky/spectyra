@@ -224,6 +224,10 @@
     <div class="tab-content" *ngIf="activeTab === 'users'">
       <div class="section">
         <h2>Users</h2>
+        <p class="users-lead">
+          All Supabase accounts (including users who have not joined an org yet). Pause, reactivate, or delete;
+          deleting removes app data and the auth user.
+        </p>
         <div class="loading" *ngIf="loadingUsers">
           <p>Loading users...</p>
         </div>
@@ -235,7 +239,8 @@
               <div class="user-info">
                 <h3>{{ user.email || user.user_id }}</h3>
                 <p class="user-id">ID: {{ user.user_id }}</p>
-                <span class="access-badge" *ngIf="user.access_state === 'paused'">Paused — Observe (read-only)</span>
+                <span class="access-badge grace" *ngIf="isSavingsGrace(user)">Paused — full savings until {{ formatDate(user.pause_savings_until!) }}</span>
+                <span class="access-badge" *ngIf="user.access_state === 'paused' && !isSavingsGrace(user)">Paused — Observe (read-only)</span>
                 <span class="access-badge active" *ngIf="user.access_state !== 'paused'">Active</span>
               </div>
               <div class="user-actions">

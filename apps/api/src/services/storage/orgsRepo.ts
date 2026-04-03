@@ -39,7 +39,8 @@ export async function createOrg(name: string, trialDays: number = 7): Promise<Or
  */
 export async function getAllOrgs(): Promise<Org[]> {
   const result = await query<Org>(`
-    SELECT id, name, created_at, trial_ends_at, stripe_customer_id, subscription_status, sdk_access_enabled, platform_exempt
+    SELECT id, name, created_at, trial_ends_at, stripe_customer_id, stripe_subscription_id,
+           subscription_current_period_end, cancel_at_period_end, subscription_status, sdk_access_enabled, platform_exempt
     FROM orgs 
     ORDER BY created_at DESC
   `);
@@ -52,7 +53,8 @@ export async function getAllOrgs(): Promise<Org[]> {
  */
 export async function getOrgById(id: string): Promise<Org | null> {
   const result = await queryOne<Org>(`
-    SELECT id, name, created_at, trial_ends_at, stripe_customer_id, subscription_status, sdk_access_enabled, platform_exempt
+    SELECT id, name, created_at, trial_ends_at, stripe_customer_id, stripe_subscription_id,
+           subscription_current_period_end, cancel_at_period_end, subscription_status, sdk_access_enabled, platform_exempt
     FROM orgs 
     WHERE id = $1
   `, [id]);
@@ -107,6 +109,15 @@ export function hasActiveAccess(org: Org, opts?: HasActiveAccessOpts): boolean {
   }
 
   if (org.subscription_status === "active") {
+    return true;
+  }
+
+  // Paused subscription (Stripe or DB) but still inside paid period — savings/features until period end
+  if (
+    org.subscription_status === "paused" &&
+    org.subscription_current_period_end &&
+    new Date(org.subscription_current_period_end) > new Date()
+  ) {
     return true;
   }
 
@@ -408,7 +419,8 @@ export async function deleteOrg(orgId: string): Promise<void> {
  */
 export async function getOrgByStripeCustomerId(customerId: string): Promise<Org | null> {
   const result = await queryOne<Org>(`
-    SELECT id, name, created_at, trial_ends_at, stripe_customer_id, subscription_status, sdk_access_enabled, platform_exempt
+    SELECT id, name, created_at, trial_ends_at, stripe_customer_id, stripe_subscription_id,
+           subscription_current_period_end, cancel_at_period_end, subscription_status, sdk_access_enabled, platform_exempt
     FROM orgs 
     WHERE stripe_customer_id = $1
   `, [customerId]);
@@ -442,13 +454,17 @@ export async function setOrgPlatformExempt(orgId: string, exempt: boolean): Prom
 }
 
 /**
- * Update org subscription status
+ * Update org subscription status (and Stripe ids from webhooks).
  */
 export async function updateOrgSubscription(
   orgId: string,
   subscriptionId: string | null,
   status: string,
-  isActive: boolean
+  isActive: boolean,
+  stripeExtras?: {
+    currentPeriodEndUnix?: number | null;
+    cancelAtPeriodEnd?: boolean | null;
+  },
 ): Promise<void> {
   // Map Stripe subscription status to DB. Trialing must count as paid access.
   let subscriptionStatus: Org["subscription_status"] = "trial";
@@ -461,11 +477,38 @@ export async function updateOrgSubscription(
     subscriptionStatus = "canceled";
   } else if (status === "past_due") {
     subscriptionStatus = "past_due";
+  } else if (status === "paused") {
+    subscriptionStatus = "paused";
   }
-  
-  await query(`
-    UPDATE orgs 
-    SET subscription_status = $1
-    WHERE id = $2
-  `, [subscriptionStatus, orgId]);
+
+  const periodEnd: string | null =
+    stripeExtras?.currentPeriodEndUnix != null && Number.isFinite(stripeExtras.currentPeriodEndUnix)
+      ? new Date(stripeExtras.currentPeriodEndUnix * 1000).toISOString()
+      : null;
+
+  await query(
+    `
+    UPDATE orgs
+    SET subscription_status = $1,
+        stripe_subscription_id = $2,
+        subscription_current_period_end = CASE
+          WHEN $1::text = 'canceled' THEN NULL
+          WHEN $3::timestamptz IS NULL THEN subscription_current_period_end
+          ELSE $3::timestamptz
+        END,
+        cancel_at_period_end = CASE
+          WHEN $1::text = 'canceled' THEN false
+          WHEN $4::boolean IS NULL THEN cancel_at_period_end
+          ELSE $4::boolean
+        END
+    WHERE id = $5
+    `,
+    [
+      subscriptionStatus,
+      subscriptionId,
+      periodEnd,
+      stripeExtras?.cancelAtPeriodEnd ?? null,
+      orgId,
+    ],
+  );
 }

@@ -1,83 +1,71 @@
 /**
  * Owner Service
- * 
+ *
  * Checks if the current user is an owner by probing an owner-only endpoint.
- * Owner access is enforced server-side (configured via OWNER_EMAIL).
+ * Owner access is enforced server-side (configured via OWNER_EMAIL / platform superuser).
  */
 
-import { Injectable } from '@angular/core';
-import { BehaviorSubject, Observable } from 'rxjs';
-import { firstValueFrom } from 'rxjs';
+import { Injectable, OnDestroy } from '@angular/core';
+import { BehaviorSubject, Subject, Subscription, from } from 'rxjs';
+import { debounceTime, exhaustMap, tap } from 'rxjs/operators';
 import { SupabaseService } from '../../services/supabase.service';
 import { HttpClient } from '@angular/common/http';
 import { environment } from '../../../environments/environment';
+import { firstValueFrom } from 'rxjs';
 
 @Injectable({
   providedIn: 'root',
 })
-export class OwnerService {
+export class OwnerService implements OnDestroy {
   private isOwner$ = new BehaviorSubject<boolean>(false);
-  private checking = false;
+  private readonly refresh$ = new Subject<void>();
+  private sub: Subscription;
 
   constructor(
     private supabase: SupabaseService,
-    private http: HttpClient
+    private http: HttpClient,
   ) {
-    this.checkOwnerStatus();
+    // Coalesce rapid refresh() calls (e.g. AppComponent auth churn) into one HTTP request
+    this.sub = this.refresh$
+      .pipe(
+        debounceTime(80),
+        exhaustMap(() => from(this.probeOnce())),
+        tap((isOwner) => this.isOwner$.next(isOwner)),
+      )
+      .subscribe();
   }
 
-  /**
-   * Check if current user is owner
-   * Attempts to access admin endpoint - if 403, not owner; if 200, is owner
-   */
-  private checkOwnerStatus() {
-    if (this.checking) return;
-    
-    this.checking = true;
-    
-    // Check if user is authenticated
-    this.supabase.getSession().subscribe(async (session) => {
-      if (!session) {
-        this.isOwner$.next(false);
-        this.checking = false;
-        return;
-      }
+  ngOnDestroy(): void {
+    this.sub.unsubscribe();
+  }
 
-      // Try to access admin endpoint (will return 403 if not owner)
-      try {
-        await firstValueFrom(this.http.get(`${environment.apiUrl}/admin/orgs`, {
+  private async probeOnce(): Promise<boolean> {
+    const session = await firstValueFrom(this.supabase.getSession());
+    if (!session) {
+      return false;
+    }
+    try {
+      await firstValueFrom(
+        this.http.get(`${environment.apiUrl}/admin/orgs`, {
           observe: 'response',
-        }));
-        
-        // If we get here without error, user is owner
-        this.isOwner$.next(true);
-      } catch (error: any) {
-        // 403 means not owner, other errors also mean not owner
-        this.isOwner$.next(false);
-      } finally {
-        this.checking = false;
-      }
-    });
+        }),
+      );
+      return true;
+    } catch {
+      return false;
+    }
   }
 
-  /**
-   * Get observable for owner status
-   */
-  getIsOwner(): Observable<boolean> {
+  getIsOwner(): ReturnType<BehaviorSubject<boolean>['asObservable']> {
     return this.isOwner$.asObservable();
   }
 
-  /**
-   * Check if user is owner (synchronous, uses cached value)
-   */
   isOwner(): boolean {
     return this.isOwner$.value;
   }
 
-  /**
-   * Refresh owner status
-   */
-  refresh() {
-    this.checkOwnerStatus();
+  /** Queued + debounced; safe to call many times per tick */
+  refresh(): void {
+    this.refresh$.next();
   }
 }

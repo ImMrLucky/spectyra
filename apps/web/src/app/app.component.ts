@@ -5,8 +5,8 @@ import { AuthService } from './core/auth/auth.service';
 import { SupabaseService } from './services/supabase.service';
 import { OrgSwitcherComponent } from './components/org-switcher.component';
 import { environment } from '../environments/environment';
-import { Subscription, combineLatest } from 'rxjs';
-import { map } from 'rxjs/operators';
+import { Subscription, combineLatest, of } from 'rxjs';
+import { debounceTime, distinctUntilChanged, switchMap, map, tap } from 'rxjs/operators';
 import { MatSnackBarModule } from '@angular/material/snack-bar';
 import { MatDialogModule } from '@angular/material/dialog';
 import { MatSidenavModule, MatSidenavContainer, MatSidenav } from '@angular/material/sidenav';
@@ -130,45 +130,60 @@ export class AppComponent implements OnInit, OnDestroy, AfterViewInit {
       this.cdr.markForCheck();
     });
 
-    // Check both Supabase session and API key auth
-    this.authSub = combineLatest([
-      this.supabase.getSession(),
-      this.authService.authState
-    ]).pipe(
-      map(([session, authState]) => {
-        // Authenticated if either Supabase session exists OR API key exists
+    // Single pipeline: no nested getUser() subscriptions (avoids N× admin/superuser calls per auth tick)
+    this.authSub = combineLatest([this.supabase.getSession(), this.authService.authState]).pipe(
+      debounceTime(0),
+      distinctUntilChanged(
+        (a, b) =>
+          (a[0]?.user?.id ?? null) === (b[0]?.user?.id ?? null) &&
+          (a[1]?.apiKey ?? null) === (b[1]?.apiKey ?? null) &&
+          (a[1]?.user?.id ?? null) === (b[1]?.user?.id ?? null),
+      ),
+      switchMap(([session, authState]) => {
         const hasSupabase = !!session;
         const hasApiKey = !!authState.apiKey;
-        return { hasSupabase, hasApiKey, authState };
-      })
-    ).subscribe(({ hasSupabase, hasApiKey, authState }) => {
-      this.isAuthenticated = hasSupabase || hasApiKey;
-      
-      if (hasSupabase) {
-        // Get email from Supabase user
-        this.supabase.getUser().subscribe(user => {
-          this.userEmail = user?.email || null;
-          this.updateAdminVisibility(user?.email);
+        if (!hasSupabase && !hasApiKey) {
+          return of({ kind: 'none' as const });
+        }
+        if (hasSupabase) {
+          return this.supabase.getUser().pipe(
+            map((user) => ({ kind: 'jwt' as const, email: user?.email ?? null })),
+          );
+        }
+        return of({
+          kind: 'apikey' as const,
+          rawEmail: authState.user?.email ?? null,
         });
-      } else if (hasApiKey && authState.user) {
-        // Extract org name from email (format: orgName@spectyra.local)
-        const email = authState.user.email || null;
-        this.userEmail = email ? email.split('@')[0] : null;
-        this.updateAdminVisibility(null);
-      } else {
-        this.userEmail = null;
-        this.updateAdminVisibility(null);
-      }
-    });
+      }),
+      tap((state) => {
+        if (state.kind === 'none') {
+          this.isAuthenticated = false;
+          this.userEmail = null;
+          this.updateAdminVisibility(null);
+          this.cdr.markForCheck();
+          return;
+        }
+        this.isAuthenticated = true;
+        if (state.kind === 'apikey') {
+          const email = state.rawEmail;
+          this.userEmail = email ? email.split('@')[0] : null;
+          this.updateAdminVisibility(null);
+        } else {
+          this.userEmail = state.email;
+          this.updateAdminVisibility(state.email);
+        }
+        this.cdr.markForCheck();
+      }),
+    ).subscribe();
   }
 
   private updateAdminVisibility(email: string | null | undefined) {
-    if (!email) {
+    this.ownerService.refresh();
+    if (!email?.trim()) {
       this.showSuperuserLink = false;
-      this.ownerService.refresh();
+      this.cdr.markForCheck();
       return;
     }
-    this.ownerService.refresh();
     this.superuserService.refresh().subscribe((r) => {
       this.showSuperuserLink = !!r.is_superuser;
       this.cdr.markForCheck();

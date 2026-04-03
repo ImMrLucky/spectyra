@@ -368,6 +368,7 @@ adminRouter.get("/users", requireUserSession, requireOwner, async (req, res) => 
       user_id: string;
       email?: string;
       access_state?: AccountAccessState;
+      pause_savings_until?: string | null;
       orgs: Array<{
         org_id: string;
         org_name: string;
@@ -392,46 +393,89 @@ adminRouter.get("/users", requireUserSession, requireOwner, async (req, res) => 
       });
     }
 
-    const users = Array.from(usersMap.values());
+    const supabaseUrl = process.env.SUPABASE_URL;
+    const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+
+    // Merge Auth users who have no org_memberships yet (so admins can see/delete them)
+    if (supabaseUrl && supabaseServiceKey) {
+      try {
+        const listRes = await fetch(
+          `${supabaseUrl.replace(/\/$/, "")}/auth/v1/admin/users?per_page=200&page=1`,
+          {
+            headers: {
+              Authorization: `Bearer ${supabaseServiceKey}`,
+              apikey: supabaseServiceKey,
+            },
+          },
+        );
+        if (listRes.ok) {
+          const body = (await listRes.json()) as {
+            users?: Array<{ id: string; email?: string; user_metadata?: { email?: string } }>;
+          };
+          for (const au of body.users ?? []) {
+            const email = au.email || au.user_metadata?.email;
+            if (!usersMap.has(au.id)) {
+              usersMap.set(au.id, {
+                user_id: au.id,
+                email,
+                orgs: [],
+              });
+            } else {
+              const row = usersMap.get(au.id)!;
+              if (!row.email && email) row.email = email;
+            }
+          }
+        }
+      } catch {
+        /* ignore directory merge */
+      }
+    }
+
+    let users = Array.from(usersMap.values());
 
     const userIds = Array.from(usersMap.keys());
     if (userIds.length > 0) {
       try {
-        const flags = await query<{ user_id: string; access_state: AccountAccessState }>(
-          `SELECT user_id, access_state FROM user_account_flags WHERE user_id = ANY($1::uuid[])`,
+        const flags = await query<{
+          user_id: string;
+          access_state: AccountAccessState;
+          pause_savings_until: string | null;
+        }>(
+          `SELECT user_id, access_state, pause_savings_until FROM user_account_flags WHERE user_id = ANY($1::uuid[])`,
           [userIds],
         );
         for (const row of flags.rows) {
           const u = usersMap.get(row.user_id);
-          if (u) u.access_state = row.access_state;
+          if (u) {
+            u.access_state = row.access_state;
+            u.pause_savings_until = row.pause_savings_until;
+          }
         }
       } catch {
         /* ignore */
       }
     }
 
-    // Try to get emails from Supabase (optional, won't fail if unavailable)
-    const supabaseUrl = process.env.SUPABASE_URL;
-    const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
-    
+    // Fill emails for membership-only rows if directory list missed them
     if (supabaseUrl && supabaseServiceKey) {
       for (const user of users) {
+        if (user.email) continue;
         try {
           const response = await fetch(
-            `${supabaseUrl.replace(/\/$/, '')}/auth/v1/admin/users/${user.user_id}`,
+            `${supabaseUrl.replace(/\/$/, "")}/auth/v1/admin/users/${user.user_id}`,
             {
               headers: {
-                'Authorization': `Bearer ${supabaseServiceKey}`,
-                'apikey': supabaseServiceKey,
+                Authorization: `Bearer ${supabaseServiceKey}`,
+                apikey: supabaseServiceKey,
               },
-            }
+            },
           );
           if (response.ok) {
             const supabaseUser = await response.json() as SupabaseAdminUser;
             user.email = supabaseUser.email || supabaseUser.user_metadata?.email;
           }
-        } catch (e) {
-          // Ignore errors fetching email
+        } catch {
+          /* ignore */
         }
       }
     }
@@ -475,9 +519,18 @@ adminRouter.patch(
         return res.status(uRes.status === 404 ? 404 : 502).json({ error: "User not found in auth provider" });
       }
 
-      await setAccountAccessState(userId, access_state);
+      const { stripe } = await setAccountAccessState(userId, access_state);
+      const until = await queryOne<{ pause_savings_until: string | null }>(
+        `SELECT pause_savings_until FROM user_account_flags WHERE user_id = $1`,
+        [userId],
+      );
       safeLog("info", "admin user access_state updated", { userId, access_state });
-      return res.json({ user_id: userId, access_state });
+      return res.json({
+        user_id: userId,
+        access_state,
+        pause_savings_until: until?.pause_savings_until ?? null,
+        stripe,
+      });
     } catch (error: unknown) {
       const message = error instanceof Error ? error.message : "Internal server error";
       safeLog("error", "Admin patch user access", { error: message });

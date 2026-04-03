@@ -267,18 +267,40 @@ export class AdminPage implements OnInit {
   setUserAccess(user: AdminUser, state: AccountAccessState) {
     this.userActionBusy = user.user_id;
     this.adminService.setUserAccess(user.user_id, state).subscribe({
-      next: () => {
-        user.access_state = state;
+      next: (r) => {
+        user.access_state = r.access_state;
+        user.pause_savings_until = r.pause_savings_until;
         this.userActionBusy = null;
-        this.snackbar.showSuccess(
-          state === 'paused' ? 'User paused (Observe / read-only).' : 'User reactivated.',
-        );
+        if (state === 'paused') {
+          const until = r.pause_savings_until
+            ? new Date(r.pause_savings_until).toLocaleString()
+            : '';
+          let msg = until
+            ? `Paused: Stripe collection stopped. Full app savings access until ${until}, then read-only until reactivated.`
+            : 'Paused: Stripe updated. Savings grace applied.';
+          if (r.stripe?.warnings?.length) {
+            msg += ` Stripe: ${r.stripe.warnings.join('; ')}`;
+          }
+          this.snackbar.showSuccess(msg);
+        } else {
+          this.snackbar.showSuccess(
+            r.stripe?.warnings?.length
+              ? `Reactivated. ${r.stripe.warnings.join('; ')}`
+              : 'User reactivated; Stripe collection resumed where applicable.',
+          );
+        }
       },
       error: (err) => {
         this.userActionBusy = null;
         this.snackbar.showError(err.error?.error || 'Failed to update user');
       },
     });
+  }
+
+  /** Paused user still in 30-day full-access window */
+  isSavingsGrace(user: AdminUser): boolean {
+    if (user.access_state !== 'paused' || !user.pause_savings_until) return false;
+    return new Date(user.pause_savings_until) > new Date();
   }
 
   askDeleteUser(user: AdminUser) {
