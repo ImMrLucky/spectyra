@@ -52,7 +52,7 @@ export class LoginPage implements OnInit, OnDestroy {
     private supabase: SupabaseService,
     private http: HttpClient,
     private router: Router,
-    private route: ActivatedRoute,
+    readonly route: ActivatedRoute,
     private snackbarService: SnackbarService,
     private meService: MeService
   ) {}
@@ -142,9 +142,9 @@ export class LoginPage implements OnInit, OnDestroy {
           this.trialActive = me.trial_active;
           this.trialEndsAt = me.org.trial_ends_at;
           this.needsBootstrap = false;
+          this.autoRedirectIfReturnUrl();
         }
       } catch (err: any) {
-        // Legacy API: 404 + needs_bootstrap before we switched GET /me to 200
         if (err.status === 404 && err.error?.needs_bootstrap) {
           this.needsBootstrap = true;
           this.applyPendingOrgPrefill();
@@ -154,6 +154,13 @@ export class LoginPage implements OnInit, OnDestroy {
       }
     } catch (err: any) {
       this.error = 'Failed to check organization status';
+    }
+  }
+
+  private autoRedirectIfReturnUrl(): void {
+    const raw = this.route.snapshot.queryParams['returnUrl'];
+    if (typeof raw === 'string' && raw.startsWith('/') && !raw.startsWith('//')) {
+      void this.router.navigateByUrl(raw);
     }
   }
 

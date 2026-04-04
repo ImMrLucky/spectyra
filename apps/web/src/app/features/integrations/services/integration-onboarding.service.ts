@@ -357,7 +357,8 @@ export class IntegrationOnboardingService {
   }
 
   async navigateSignIn(): Promise<void> {
-    await this.router.navigate(['/login']);
+    const returnUrl = this.router.url;
+    await this.router.navigate(['/login'], { queryParams: { returnUrl } });
   }
 
   async navigateProviderSettings(): Promise<void> {

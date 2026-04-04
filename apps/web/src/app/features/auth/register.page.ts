@@ -1,7 +1,7 @@
 import { Component } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-import { Router, RouterModule } from '@angular/router';
+import { Router, RouterModule, ActivatedRoute } from '@angular/router';
 import { SupabaseService } from '../../services/supabase.service';
 import { HttpClient, HttpHeaders } from '@angular/common/http';
 import { environment } from '../../../environments/environment';
@@ -37,6 +37,7 @@ export class RegisterPage {
     private authService: AuthService,
     private meService: MeService,
     private router: Router,
+    readonly route: ActivatedRoute,
     private snackbarService: SnackbarService
   ) {}
 
@@ -163,6 +164,9 @@ export class RegisterPage {
   }
 
   goToApp() {
-    this.router.navigate(['/overview']);
+    const raw = this.route.snapshot.queryParams['returnUrl'];
+    const target =
+      typeof raw === 'string' && raw.startsWith('/') && !raw.startsWith('//') ? raw : '/overview';
+    void this.router.navigateByUrl(target);
   }
 }

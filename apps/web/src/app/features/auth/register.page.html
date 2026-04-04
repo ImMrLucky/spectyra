@@ -84,7 +84,7 @@
     </div>
     
     <div class="login-link">
-      Already have an account? <a routerLink="/login">Login</a>
+      Already have an account? <a [routerLink]="['/login']" [queryParams]="{ returnUrl: route.snapshot.queryParams['returnUrl'] }">Login</a>
     </div>
   </div>
 </div>

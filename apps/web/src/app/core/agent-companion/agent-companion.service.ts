@@ -99,6 +99,33 @@ export const RUNTIME_OPTIONS: RuntimeOption[] = [
   },
 ];
 
+const LS_WIZARD_STATE = 'spectyra_agent_companion_wizard';
+
+function saveWizardState(state: AgentCompanionState): void {
+  try {
+    localStorage.setItem(LS_WIZARD_STATE, JSON.stringify({
+      step: state.step,
+      runtime: state.runtime,
+      setupPath: state.setupPath,
+      connectionStyle: state.connectionStyle,
+    }));
+  } catch { /* ignore */ }
+}
+
+function loadWizardState(): Partial<AgentCompanionState> | null {
+  try {
+    const raw = localStorage.getItem(LS_WIZARD_STATE);
+    if (!raw) return null;
+    return JSON.parse(raw);
+  } catch {
+    return null;
+  }
+}
+
+function clearWizardState(): void {
+  try { localStorage.removeItem(LS_WIZARD_STATE); } catch { /* ignore */ }
+}
+
 const CONNECTION_LABELS: Record<ConnectionStyle, { label: string; description: string }> = {
   launch: {
     label: 'Launch',
@@ -116,15 +143,23 @@ const CONNECTION_LABELS: Record<ConnectionStyle, { label: string; description: s
 
 @Injectable({ providedIn: 'root' })
 export class AgentCompanionService {
-  state: AgentCompanionState = {
-    step: 'select-runtime',
-    runtime: null,
-    setupPath: null,
-    connectionStyle: null,
-    checks: [],
-    companionHealthy: false,
-    companionOrigin: '',
-  };
+  state: AgentCompanionState;
+
+  constructor(
+    private companion: CompanionAnalyticsService,
+    private bridge: DesktopBridgeService,
+  ) {
+    const saved = loadWizardState();
+    this.state = {
+      step: (saved?.step as WizardStep) ?? 'select-runtime',
+      runtime: (saved?.runtime as RuntimeType) ?? null,
+      setupPath: (saved?.setupPath as SetupPath) ?? null,
+      connectionStyle: (saved?.connectionStyle as ConnectionStyle) ?? null,
+      checks: [],
+      companionHealthy: false,
+      companionOrigin: '',
+    };
+  }
 
   get runtimeOptions(): RuntimeOption[] {
     return RUNTIME_OPTIONS;
@@ -142,27 +177,31 @@ export class AgentCompanionService {
   selectRuntime(type: RuntimeType): void {
     this.state.runtime = type;
     this.state.step = 'select-path';
+    saveWizardState(this.state);
   }
 
   selectPath(path: SetupPath): void {
     this.state.setupPath = path;
     if (this.state.runtime === 'openclaw') {
-      /** Skip Launch/Attach/Observe here — new path uses the OpenClaw wizard; existing defaults to attach. */
       this.state.connectionStyle = path === 'new' ? 'launch' : 'attach';
       this.state.step = 'configure';
+      saveWizardState(this.state);
       return;
     }
     this.state.step = 'select-connection';
+    saveWizardState(this.state);
   }
 
   selectConnection(style: ConnectionStyle): void {
     this.state.connectionStyle = style;
     this.state.step = 'validate';
+    saveWizardState(this.state);
     void this.runValidation();
   }
 
   goToStep(step: WizardStep): void {
     this.state.step = step;
+    saveWizardState(this.state);
   }
 
   reset(): void {
@@ -175,12 +214,8 @@ export class AgentCompanionService {
       companionHealthy: false,
       companionOrigin: '',
     };
+    clearWizardState();
   }
-
-  constructor(
-    private companion: CompanionAnalyticsService,
-    private bridge: DesktopBridgeService,
-  ) {}
 
   async runValidation(): Promise<void> {
     this.state.checks = [

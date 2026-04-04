@@ -114,7 +114,7 @@ import { DesktopFirstRunService } from '../../../core/desktop/desktop-first-run.
             <span class="ac-keys-label">Account &amp; keys</span>
             <ul class="ac-keys-list">
               <li>
-                <strong>Sign in (optional)</strong> — Use <a routerLink="/login">Log in</a> if you want cloud dashboard sync
+                <strong>Sign in (optional)</strong> — Use <a [routerLink]="['/login']" [queryParams]="{ returnUrl: '/desktop/agent-companion' }">Log in</a> if you want cloud dashboard sync
                 or a Spectyra web account. The desktop app works locally without signing in.
               </li>
               <li>
