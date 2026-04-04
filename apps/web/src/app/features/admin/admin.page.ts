@@ -1,4 +1,4 @@
-import { Component, OnInit } from '@angular/core';
+import { Component, OnInit, OnDestroy, ChangeDetectorRef } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { Router, RouterLink } from '@angular/router';
@@ -8,6 +8,8 @@ import { SnackbarService } from '../../core/services/snackbar.service';
 import { AuthService } from '../../core/auth/auth.service';
 import { SuperuserService } from '../../core/api/superuser.service';
 import {MatIcon} from "@angular/material/icon";
+import { Subscription } from 'rxjs';
+import { distinctUntilChanged } from 'rxjs/operators';
 
 @Component({
   selector: 'app-admin',
@@ -16,7 +18,7 @@ import {MatIcon} from "@angular/material/icon";
   templateUrl: './admin.page.html',
   styleUrls: ['./admin.page.scss'],
 })
-export class AdminPage implements OnInit {
+export class AdminPage implements OnInit, OnDestroy {
   isOwner = false;
   isAuthenticated = false;
   
@@ -53,43 +55,67 @@ export class AdminPage implements OnInit {
   deleteConfirmUserId: string | null = null;
   canManageRoles = false;
 
+  private sessionSub?: Subscription;
+  private listOrgsSub?: Subscription;
+
   constructor(
     private adminService: AdminService,
     private supabase: SupabaseService,
     private snackbar: SnackbarService,
     private authService: AuthService,
     private superuserService: SuperuserService,
-    private router: Router
+    private router: Router,
+    private cdr: ChangeDetectorRef,
   ) {}
 
   ngOnInit() {
-    // Check if user is authenticated
-    this.supabase.getSession().subscribe(session => {
-      this.isAuthenticated = !!session;
-      if (session) {
-        this.checkOwnerAndLoad();
-      } else {
-        this.isOwner = false;
-        this.accessMessage = null;
-      }
-    });
+    // onAuthStateChange emits TOKEN_REFRESHED etc. — same user id must not re-run load or we
+    // flash loading=false→true and can flip isOwner false on a transient failed retry.
+    this.sessionSub = this.supabase
+      .getSession()
+      .pipe(
+        distinctUntilChanged(
+          (a, b) =>
+            (a?.user?.id ?? '') === (b?.user?.id ?? '') && !!a === !!b,
+        ),
+      )
+      .subscribe((session) => {
+        this.isAuthenticated = !!session;
+        if (session) {
+          this.checkOwnerAndLoad();
+        } else {
+          this.isOwner = false;
+          this.accessMessage = null;
+          this.orgs = [];
+          this.users = [];
+        }
+        this.cdr.markForCheck();
+      });
+  }
+
+  ngOnDestroy(): void {
+    this.sessionSub?.unsubscribe();
+    this.listOrgsSub?.unsubscribe();
   }
 
   checkOwnerAndLoad() {
-    // Try to load orgs - if successful, user is owner
+    this.listOrgsSub?.unsubscribe();
     this.loading = true;
     this.orgsListError = null;
     this.accessMessage = null;
     this.superuserService.getIsSuperuser().subscribe((is) => {
       this.canManageRoles = is;
+      this.cdr.markForCheck();
     });
-    this.adminService.listOrgs().subscribe({
+    this.listOrgsSub = this.adminService.listOrgs().subscribe({
       next: (response) => {
+        const list = response?.orgs;
         this.isOwner = true;
-        this.orgs = response.orgs;
+        this.orgs = Array.isArray(list) ? list : [];
         this.loading = false;
         this.accessMessage = null;
         this.orgsListError = null;
+        this.cdr.markForCheck();
       },
       error: (err) => {
         this.isOwner = false;
@@ -99,6 +125,7 @@ export class AdminPage implements OnInit {
         } else {
           this.accessMessage = err.error?.error || 'Failed to verify owner status';
         }
+        this.cdr.markForCheck();
       },
     });
   }
@@ -109,8 +136,10 @@ export class AdminPage implements OnInit {
 
     this.adminService.listOrgs().subscribe({
       next: (response) => {
-        this.orgs = response.orgs;
+        const list = response?.orgs;
+        this.orgs = Array.isArray(list) ? list : [];
         this.loading = false;
+        this.cdr.markForCheck();
       },
       error: (err) => {
         this.orgsListError = err.error?.error || 'Failed to load organizations';
@@ -118,6 +147,7 @@ export class AdminPage implements OnInit {
         if (err.status === 403) {
           this.logout();
         }
+        this.cdr.markForCheck();
       },
     });
   }
@@ -263,12 +293,19 @@ export class AdminPage implements OnInit {
     this.usersError = null;
     this.adminService.listUsers().subscribe({
       next: (response) => {
-        this.users = response.users;
+        const raw = response?.users;
+        const list = Array.isArray(raw) ? raw : [];
+        this.users = list.map((u) => ({
+          ...u,
+          orgs: Array.isArray(u.orgs) ? u.orgs : [],
+        }));
         this.loadingUsers = false;
+        this.cdr.markForCheck();
       },
       error: (err) => {
         this.usersError = err.error?.error || 'Failed to load users';
         this.loadingUsers = false;
+        this.cdr.markForCheck();
       },
     });
   }

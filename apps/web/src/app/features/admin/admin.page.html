@@ -295,17 +295,17 @@
                 <button type="button" class="btn btn-secondary btn-sm" (click)="cancelDeleteUser()" [disabled]="userActionBusy === user.user_id">Cancel</button>
               </div>
             </div>
-            <div class="user-orgs" *ngIf="user.orgs.length > 0">
+            <div class="user-orgs" *ngIf="(user.orgs?.length ?? 0) > 0">
               <h4>Organizations:</h4>
               <ul>
-                <li *ngFor="let org of user.orgs">
+                <li *ngFor="let org of user.orgs ?? []">
                   <strong>{{ org.org_name }}</strong> 
                   <span class="role-badge">{{ org.role }}</span>
                   <span class="org-date">Joined: {{ formatDate(org.created_at) }}</span>
                 </li>
               </ul>
             </div>
-            <div class="user-orgs" *ngIf="user.orgs.length === 0">
+            <div class="user-orgs" *ngIf="(user.orgs?.length ?? 0) === 0">
               <p class="no-orgs">No organizations</p>
             </div>
           </div>
