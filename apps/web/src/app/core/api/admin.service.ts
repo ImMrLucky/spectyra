@@ -50,6 +50,8 @@ export interface AdminUser {
   access_state?: AccountAccessState;
   /** While paused: full app/savings until this ISO time; then read-only until reactivated */
   pause_savings_until?: string | null;
+  /** Platform role from platform_roles table (null = regular user) */
+  platform_role?: string | null;
   orgs: Array<{
     org_id: string;
     org_name: string;
@@ -172,6 +174,18 @@ export class AdminService {
         warnings: string[];
       };
     }>(`${this.baseUrl}/admin/users/${encodeURIComponent(userId)}/access`, { access_state }, { headers: this.getHeaders() });
+  }
+
+  /** Grant or revoke admin platform role */
+  setUserRole(
+    userId: string,
+    role: 'admin' | null,
+  ): Observable<{ user_id: string; email: string; platform_role: string | null }> {
+    return this.http.patch<{ user_id: string; email: string; platform_role: string | null }>(
+      `${this.baseUrl}/admin/users/${encodeURIComponent(userId)}/role`,
+      { role },
+      { headers: this.getHeaders() },
+    );
   }
 
   /** Remove app data + Supabase Auth user (owner / superuser only) */

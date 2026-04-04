@@ -242,8 +242,21 @@
                 <span class="access-badge grace" *ngIf="isSavingsGrace(user)">Paused — full savings until {{ formatDate(user.pause_savings_until!) }}</span>
                 <span class="access-badge" *ngIf="user.access_state === 'paused' && !isSavingsGrace(user)">Paused — Observe (read-only)</span>
                 <span class="access-badge active" *ngIf="user.access_state !== 'paused'">Active</span>
+                <span class="platform-role-badge admin" *ngIf="user.platform_role === 'admin'">Admin</span>
+                <span class="platform-role-badge superuser" *ngIf="user.platform_role === 'superuser'">Superuser</span>
+                <span class="platform-role-badge exempt" *ngIf="user.platform_role === 'exempt'">Exempt</span>
               </div>
               <div class="user-actions">
+                <button
+                  type="button"
+                  class="btn btn-sm"
+                  [class.btn-secondary]="user.platform_role === 'admin'"
+                  [class.btn-primary]="user.platform_role !== 'admin'"
+                  *ngIf="canManageRoles && user.platform_role !== 'superuser'"
+                  (click)="toggleAdmin(user)"
+                  [disabled]="userActionBusy === user.user_id">
+                  {{ user.platform_role === 'admin' ? 'Remove Admin' : 'Make Admin' }}
+                </button>
                 <button
                   type="button"
                   class="btn btn-sm btn-secondary"

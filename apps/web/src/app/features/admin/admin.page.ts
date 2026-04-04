@@ -6,6 +6,7 @@ import { AdminService, AdminOrg, AdminOrgDetail, AdminUser, AccountAccessState }
 import { SupabaseService } from '../../services/supabase.service';
 import { SnackbarService } from '../../core/services/snackbar.service';
 import { AuthService } from '../../core/auth/auth.service';
+import { SuperuserService } from '../../core/api/superuser.service';
 import {MatIcon} from "@angular/material/icon";
 
 @Component({
@@ -43,12 +44,14 @@ export class AdminPage implements OnInit {
   loadingUsers = false;
   userActionBusy: string | null = null;
   deleteConfirmUserId: string | null = null;
+  canManageRoles = false;
 
   constructor(
     private adminService: AdminService,
     private supabase: SupabaseService,
     private snackbar: SnackbarService,
     private authService: AuthService,
+    private superuserService: SuperuserService,
     private router: Router
   ) {}
 
@@ -68,6 +71,9 @@ export class AdminPage implements OnInit {
   checkOwnerAndLoad() {
     // Try to load orgs - if successful, user is owner
     this.loading = true;
+    this.superuserService.getIsSuperuser().subscribe((is) => {
+      this.canManageRoles = is;
+    });
     this.adminService.listOrgs().subscribe({
       next: (response) => {
         this.isOwner = true;
@@ -301,6 +307,27 @@ export class AdminPage implements OnInit {
   isSavingsGrace(user: AdminUser): boolean {
     if (user.access_state !== 'paused' || !user.pause_savings_until) return false;
     return new Date(user.pause_savings_until) > new Date();
+  }
+
+  toggleAdmin(user: AdminUser) {
+    const isCurrentlyAdmin = user.platform_role === 'admin';
+    const newRole = isCurrentlyAdmin ? null : 'admin';
+    this.userActionBusy = user.user_id;
+    this.adminService.setUserRole(user.user_id, newRole).subscribe({
+      next: (r) => {
+        user.platform_role = r.platform_role;
+        this.userActionBusy = null;
+        this.snackbar.showSuccess(
+          r.platform_role === 'admin'
+            ? `${r.email} is now an Admin.`
+            : `Admin access removed for ${r.email}.`,
+        );
+      },
+      error: (err) => {
+        this.userActionBusy = null;
+        this.snackbar.showError(err.error?.error || 'Failed to update role');
+      },
+    });
   }
 
   askDeleteUser(user: AdminUser) {

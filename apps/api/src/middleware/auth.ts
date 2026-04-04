@@ -735,8 +735,8 @@ export async function requireOwner(
       return;
     }
 
-    if (req.auth?.platformRole === "superuser") {
-      safeLog("info", "Owner access granted (platform superuser)", { userId: req.auth.userId });
+    if (req.auth?.platformRole === "superuser" || req.auth?.platformRole === "admin") {
+      safeLog("info", "Owner access granted (platform " + req.auth.platformRole + ")", { userId: req.auth.userId });
       next();
       return;
     }

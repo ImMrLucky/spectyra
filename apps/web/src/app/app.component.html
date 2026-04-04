@@ -78,11 +78,25 @@
           <nav class="sidebar-nav">
             <ng-container *ngFor="let item of navItems; let i = index">
               <div
-                *ngIf="isAuthenticated && item.section && !sidebarCollapsed"
+                *ngIf="
+                  isAuthenticated &&
+                  item.section &&
+                  !sidebarCollapsed &&
+                  (item.section !== 'Admin' || showAdminLink || showSuperuserLink)
+                "
                 class="nav-section-label"
                 [class.first]="i === 0"
               >{{ item.section }}</div>
-              <div *ngIf="isAuthenticated && item.section && sidebarCollapsed && i > 0" class="nav-section-divider"></div>
+              <div
+                *ngIf="
+                  isAuthenticated &&
+                  item.section &&
+                  sidebarCollapsed &&
+                  i > 0 &&
+                  (item.section !== 'Admin' || showAdminLink || showSuperuserLink)
+                "
+                class="nav-section-divider"
+              ></div>
 
               <a
                 *ngIf="(!item.requiresAuth || isAuthenticated) && (!item.adminOnly || showAdminLink) && (!item.superuserOnly || showSuperuserLink)"

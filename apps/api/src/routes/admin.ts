@@ -17,7 +17,14 @@ import {
   setAccountAccessState,
   type AccountAccessState,
 } from "../services/storage/userAccountRepo.js";
-import { getPlatformRoleByEmail, countSuperusers } from "../services/storage/platformRolesRepo.js";
+import {
+  getPlatformRoleByEmail,
+  countSuperusers,
+  upsertPlatformRole,
+  deletePlatformRole,
+  invalidatePlatformRoleCache,
+  listPlatformRoles,
+} from "../services/storage/platformRolesRepo.js";
 
 export const adminRouter = Router();
 
@@ -369,6 +376,7 @@ adminRouter.get("/users", requireUserSession, requireOwner, async (req, res) => 
       email?: string;
       access_state?: AccountAccessState;
       pause_savings_until?: string | null;
+      platform_role?: string | null;
       orgs: Array<{
         org_id: string;
         org_name: string;
@@ -480,6 +488,17 @@ adminRouter.get("/users", requireUserSession, requireOwner, async (req, res) => 
       }
     }
 
+    // Attach platform_role for each user that has an email
+    try {
+      const allRoles = await listPlatformRoles();
+      const rolesByEmail = new Map(allRoles.map((r) => [r.email.toLowerCase(), r.role]));
+      for (const user of users) {
+        user.platform_role = user.email ? rolesByEmail.get(user.email.toLowerCase()) ?? null : null;
+      }
+    } catch {
+      /* platform_roles table may not exist yet */
+    }
+
     res.json({ users });
   } catch (error: any) {
     safeLog("error", "Admin list users error", { error: error.message });
@@ -534,6 +553,79 @@ adminRouter.patch(
     } catch (error: unknown) {
       const message = error instanceof Error ? error.message : "Internal server error";
       safeLog("error", "Admin patch user access", { error: message });
+      return res.status(500).json({ error: message });
+    }
+  },
+);
+
+/**
+ * PATCH /v1/admin/users/:userId/role
+ *
+ * Grant or revoke a platform role (admin) for a user.
+ * Body: { "role": "admin" } to grant, { "role": null } to revoke.
+ * Only superusers and OWNER_EMAIL can change roles — regular admins cannot.
+ */
+adminRouter.patch(
+  "/users/:userId/role",
+  requireUserSession,
+  requireOwner,
+  async (req: AuthenticatedRequest, res) => {
+    try {
+      const userId = req.params.userId?.trim();
+      const { role } = req.body as { role?: string | null };
+      if (!userId) {
+        return res.status(400).json({ error: "user id required" });
+      }
+
+      // Only superuser or OWNER_EMAIL may manage roles; regular admins cannot
+      const isSuperuser = req.auth?.platformRole === "superuser";
+      const ownerEmail = process.env.OWNER_EMAIL;
+      const isOwnerEmail = ownerEmail && req.auth?.email
+        && req.auth.email.toLowerCase() === ownerEmail.toLowerCase();
+      if (!isSuperuser && !isOwnerEmail) {
+        return res.status(403).json({ error: "Only superusers or the platform owner can manage admin roles" });
+      }
+
+      const cfg = supabaseAdminHeaders();
+      if (!cfg) {
+        return res.status(503).json({ error: "Supabase admin not configured" });
+      }
+
+      const uRes = await fetch(`${cfg.base}/auth/v1/admin/users/${userId}`, { headers: cfg.headers });
+      if (!uRes.ok) {
+        return res.status(uRes.status === 404 ? 404 : 502).json({ error: "User not found in auth provider" });
+      }
+      const target = (await uRes.json()) as SupabaseAdminUser;
+      const email = target.email || target.user_metadata?.email;
+      if (!email) {
+        return res.status(400).json({ error: "User has no email — cannot assign platform role" });
+      }
+
+      const currentRole = await getPlatformRoleByEmail(email);
+
+      if (role === null || role === undefined || role === "") {
+        // Revoke role
+        if (currentRole === "superuser" && (await countSuperusers()) <= 1) {
+          return res.status(400).json({ error: "Cannot remove the last platform superuser" });
+        }
+        await deletePlatformRole(email);
+        safeLog("info", "admin revoked platform role", { userId, email, previousRole: currentRole });
+        return res.json({ user_id: userId, email, platform_role: null });
+      }
+
+      if (role !== "admin") {
+        return res.status(400).json({
+          error: "Only the 'admin' role can be granted from the Admin panel. Use the Superuser console for superuser/exempt.",
+        });
+      }
+
+      const actorEmail = req.auth?.email ?? "admin";
+      await upsertPlatformRole(email, "admin", actorEmail);
+      safeLog("info", "admin granted platform role", { userId, email, role });
+      return res.json({ user_id: userId, email, platform_role: "admin" });
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : "Internal server error";
+      safeLog("error", "Admin patch user role", { error: message });
       return res.status(500).json({ error: message });
     }
   },
