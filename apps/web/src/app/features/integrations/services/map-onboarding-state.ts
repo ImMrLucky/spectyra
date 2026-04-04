@@ -20,7 +20,7 @@ export const ONBOARDING_COPY: Record<
   },
   not_signed_in: {
     title: 'Sign in to Spectyra',
-    body: 'Sign in to start your trial and enable local optimization.',
+    body: 'A Spectyra account syncs your sessions to the cloud dashboard and unlocks analytics. Sign in or create a free account below.',
   },
   provider_missing: {
     title: 'Add your AI provider',
@@ -81,13 +81,13 @@ export function actionsForState(
       ];
     case 'not_signed_in':
       return [
-        { type: 'sign_in', label: 'Sign in to Spectyra', primary: true },
-        { type: 'open_desktop', label: 'Open desktop app' },
+        { type: 'sign_in', label: 'Sign in', primary: true },
+        ...(isDesktop ? [] : [{ type: 'open_desktop' as const, label: 'Open desktop app' }]),
       ];
     case 'provider_missing':
       return [
         { type: 'configure_provider', label: 'Add your AI provider', primary: true },
-        { type: 'open_desktop', label: 'Open desktop app' },
+        ...(isDesktop ? [] : [{ type: 'open_desktop' as const, label: 'Open desktop app' }]),
       ];
     case 'openclaw_not_detected':
       return [
@@ -127,7 +127,7 @@ const CHECKLIST_DEF: Array<{
     ok: (s) => s.companionRunning,
     failedState: 'desktop_installed_companion_not_running',
   },
-  { id: 'signed_in', label: 'Spectyra account (optional)', ok: (s) => s.signedIn, failedState: 'not_signed_in' },
+  { id: 'signed_in', label: 'Signed in to Spectyra', ok: (s) => s.signedIn, failedState: 'not_signed_in' },
   {
     id: 'provider',
     label: 'AI provider connected',

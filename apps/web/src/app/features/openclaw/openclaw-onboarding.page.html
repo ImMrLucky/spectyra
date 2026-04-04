@@ -21,7 +21,57 @@
     </div>
   </section>
 
+  <!-- Inline sign-in / sign-up when not authenticated -->
+  <section class="oco-section" *ngIf="onboarding.status().state === 'not_signed_in'">
+    <div class="oco-auth-card">
+      <h2 class="oco-auth-title">{{ authMode === 'login' ? 'Sign in' : 'Create account' }}</h2>
+      <p class="oco-auth-desc">
+        {{ authMode === 'login'
+          ? 'Sign in to sync sessions to the cloud dashboard and see analytics.'
+          : 'Create a free Spectyra account to sync sessions and unlock analytics.'
+        }}
+      </p>
+
+      <form class="oco-auth-form" (ngSubmit)="authMode === 'login' ? doSignIn() : doSignUp()">
+        <div class="oco-field">
+          <label for="oco-email">Email</label>
+          <input id="oco-email" type="email" [(ngModel)]="authEmail" name="email"
+                 placeholder="you@example.com" [disabled]="authLoading" required />
+        </div>
+        <div class="oco-field">
+          <label for="oco-pass">Password</label>
+          <input id="oco-pass" type="password" [(ngModel)]="authPassword" name="password"
+                 placeholder="••••••••" [disabled]="authLoading" required minlength="8" />
+        </div>
+        <div class="oco-field" *ngIf="authMode === 'register'">
+          <label for="oco-org">Organization name</label>
+          <input id="oco-org" type="text" [(ngModel)]="authOrgName" name="orgName"
+                 placeholder="My Company" [disabled]="authLoading" required />
+        </div>
+        <div class="oco-auth-error" *ngIf="authError">{{ authError }}</div>
+        <button type="submit" class="btn-primary oco-auth-btn"
+                [disabled]="authLoading || !authEmail || !authPassword || (authMode === 'register' && !authOrgName)">
+          {{ authLoading ? (authMode === 'login' ? 'Signing in…' : 'Creating account…')
+                         : (authMode === 'login' ? 'Sign in' : 'Create account') }}
+        </button>
+      </form>
+
+      <p class="oco-auth-toggle">
+        <ng-container *ngIf="authMode === 'login'">
+          Don't have an account?
+          <button type="button" class="oco-link-btn" (click)="authMode = 'register'; authError = null">Sign up</button>
+        </ng-container>
+        <ng-container *ngIf="authMode === 'register'">
+          Already have an account?
+          <button type="button" class="oco-link-btn" (click)="authMode = 'login'; authError = null">Sign in</button>
+        </ng-container>
+      </p>
+    </div>
+  </section>
+
+  <!-- Standard action card for all other states -->
   <app-onboarding-action-card
+    *ngIf="onboarding.status().state !== 'not_signed_in'"
     [title]="headline().title"
     [body]="headline().body"
     [actions]="onboarding.status().actions"

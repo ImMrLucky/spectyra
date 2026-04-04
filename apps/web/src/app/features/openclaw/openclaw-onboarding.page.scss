@@ -60,3 +60,113 @@
   font-family: var(--font-mono);
   font-size: 11px;
 }
+
+/* ── Inline auth card ── */
+
+.oco-auth-card {
+  background: var(--bg-card, rgba(255, 255, 255, 0.04));
+  border: 1px solid var(--border, rgba(255, 255, 255, 0.08));
+  border-radius: var(--radius-input, 8px);
+  padding: 24px;
+}
+
+.oco-auth-title {
+  margin: 0 0 6px;
+  font-size: 1.1rem;
+  font-weight: 600;
+  color: var(--text-primary, #fff);
+}
+
+.oco-auth-desc {
+  margin: 0 0 18px;
+  font-size: 13px;
+  line-height: 1.55;
+  color: var(--text-secondary, #b8c0cc);
+}
+
+.oco-auth-form {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  max-width: 380px;
+}
+
+.oco-field {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+
+  label {
+    font-size: 12px;
+    font-weight: 500;
+    color: var(--text-secondary, #b8c0cc);
+  }
+
+  input {
+    padding: 8px 10px;
+    border: 1px solid var(--border-bright, rgba(255, 255, 255, 0.15));
+    border-radius: 6px;
+    background: var(--bg-input, rgba(0, 0, 0, 0.25));
+    color: var(--text-primary, #e8eaed);
+    font-size: 13px;
+    font-family: inherit;
+    outline: none;
+    transition: border-color 0.15s;
+
+    &::placeholder {
+      color: var(--text-muted, rgba(255, 255, 255, 0.3));
+    }
+
+    &:focus {
+      border-color: var(--spectyra-blue, #378add);
+    }
+
+    &:disabled {
+      opacity: 0.5;
+    }
+  }
+}
+
+.oco-auth-error {
+  font-size: 12px;
+  color: var(--spectyra-red, #ef4444);
+  line-height: 1.4;
+}
+
+.oco-auth-btn {
+  align-self: flex-start;
+  padding: 9px 20px;
+  border: none;
+  border-radius: 6px;
+  background: var(--spectyra-navy, #1a2744);
+  color: var(--spectyra-blue-pale, #e8f4ff);
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: opacity 0.15s;
+
+  &:disabled {
+    opacity: 0.45;
+    cursor: not-allowed;
+  }
+}
+
+.oco-auth-toggle {
+  margin: 14px 0 0;
+  font-size: 12px;
+  color: var(--text-muted, rgba(255, 255, 255, 0.5));
+}
+
+.oco-link-btn {
+  background: none;
+  border: none;
+  color: var(--spectyra-blue, #378add);
+  font-size: 12px;
+  cursor: pointer;
+  text-decoration: underline;
+  padding: 0;
+
+  &:hover {
+    color: var(--spectyra-blue-pale, #e8f4ff);
+  }
+}

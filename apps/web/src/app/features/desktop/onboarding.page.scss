@@ -1,0 +1,84 @@
+.wrap {
+  max-width: 560px;
+  margin: 0 auto;
+  padding: 24px 20px 48px;
+  font-family: var(--font-body);
+}
+
+h1 {
+  margin: 0 0 8px;
+  font-family: var(--font-display);
+  font-size: 1.3rem;
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+.sub {
+  color: var(--text-secondary);
+  font-size: 13px;
+  margin-bottom: 20px;
+  line-height: 1.5;
+}
+
+.choice-grid {
+  display: grid;
+  gap: 10px;
+  margin-bottom: 16px;
+}
+
+.choice {
+  cursor: pointer;
+  background: var(--bg-card) !important;
+  border: 1px solid var(--border) !important;
+  transition: border-color 0.15s ease;
+
+  &:hover {
+    border-color: var(--border-bright) !important;
+  }
+}
+
+.choice mat-card-title {
+  font-size: 14px;
+  color: var(--text-primary);
+}
+
+.choice mat-card-content {
+  font-size: 12px;
+  color: var(--text-secondary);
+}
+
+.hint {
+  font-size: 12px;
+  color: var(--text-muted);
+  margin: 12px 0 16px;
+  line-height: 1.5;
+}
+
+.back {
+  margin-bottom: 14px;
+  color: var(--text-muted) !important;
+}
+
+.card {
+  margin-bottom: 16px;
+  background: var(--bg-card) !important;
+  border: 1px solid var(--border) !important;
+}
+
+.full {
+  width: 100%;
+  display: block;
+  margin-bottom: 8px;
+}
+
+.notice {
+  font-size: 12px;
+  color: var(--text-muted);
+  margin: 16px 0;
+  line-height: 1.5;
+}
+
+.err {
+  color: var(--color-danger);
+  font-size: 12px;
+}

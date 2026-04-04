@@ -41,20 +41,19 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      # Install OSV scanner binary
-      - name: Install OSV-Scanner
-        # uses an official installer script provided by OSV
-        run: |
-          curl -sSfL https://raw.githubusercontent.com/google/osv-scanner/main/install.sh | sh
-          sudo mv ./osv-scanner /usr/local/bin/osv-scanner
-
-      - name: Run OSV Scanner (lockfile + repo)
-        run: |
-          osv-scanner --lockfile=pnpm-lock.yaml --format=json --output=osv-results.json .
+      - name: Run OSV Scanner
+        uses: google/osv-scanner-action/osv-scanner-action@v2
         continue-on-error: true
+        with:
+          scan-args: |-
+            --lockfile=pnpm-lock.yaml
+            --format=json
+            --output=osv-results.json
+            .
 
       - name: Upload OSV results
         uses: actions/upload-artifact@v4
+        if: always()
         with:
           name: osv-results
           path: osv-results.json

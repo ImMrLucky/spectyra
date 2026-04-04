@@ -1,6 +1,10 @@
-import { Component, OnInit } from '@angular/core';
+import { Component, OnInit, computed, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
+import { FormsModule } from '@angular/forms';
 import { RouterModule, Router } from '@angular/router';
+import { HttpClient, HttpHeaders } from '@angular/common/http';
+import { firstValueFrom } from 'rxjs';
+import { environment } from '../../../../environments/environment';
 import {
   AgentCompanionService,
   RUNTIME_OPTIONS,
@@ -11,11 +15,17 @@ import {
   type ValidationCheck,
 } from '../../../core/agent-companion/agent-companion.service';
 import { DesktopFirstRunService } from '../../../core/desktop/desktop-first-run.service';
+import { DesktopBridgeService } from '../../../core/desktop/desktop-bridge.service';
+import { IntegrationOnboardingService } from '../../integrations/services/integration-onboarding.service';
+import { buildChecklistItems } from '../../integrations/services/map-onboarding-state';
+import { SupabaseService } from '../../../services/supabase.service';
+import { AuthService } from '../../../core/auth/auth.service';
+import { MeService } from '../../../core/services/me.service';
 
 @Component({
   selector: 'app-agent-companion-landing',
   standalone: true,
-  imports: [CommonModule, RouterModule],
+  imports: [CommonModule, FormsModule, RouterModule],
   template: `
     <div class="wizard">
       <!-- First launch: orient users before the runtime wizard -->
@@ -106,31 +116,131 @@ import { DesktopFirstRunService } from '../../../core/desktop/desktop-first-run.
 
         <div class="config-section" *ngIf="svc.state.runtime === 'openclaw'">
           <p class="step-sub">
-            Use the step-by-step OpenClaw wizard to install, point OpenClaw at the Local Companion, and validate.
-            <strong>Observe vs full optimization</strong> is controlled later in
-            <a routerLink="/desktop/settings">Desktop settings</a> (run mode), not in this wizard.
+            We'll check that everything is ready. Complete each item below, then continue.
           </p>
-          <div class="ac-keys-card">
-            <span class="ac-keys-label">Account &amp; keys</span>
-            <ul class="ac-keys-list">
-              <li>
-                <strong>Sign in (optional)</strong> — Use <a [routerLink]="['/login']" [queryParams]="{ returnUrl: '/desktop/agent-companion' }">Log in</a> if you want cloud dashboard sync
-                or a Spectyra web account. The desktop app works locally without signing in.
-              </li>
-              <li>
-                <strong>Provider API key</strong> — Required for OpenClaw to reach OpenAI, Anthropic, or Groq.
-                Set it in <a routerLink="/desktop/settings">Desktop settings</a> (stored only on this Mac).
-              </li>
-              <li>
-                <strong>Spectyra license</strong> — Enter a license key in settings if you use paid optimization;
-                this is separate from a developer &quot;API key&quot; used only when calling Spectyra from your own code via the SDK.
-              </li>
-            </ul>
+
+          <!-- Readiness checklist -->
+          <div class="oc-checklist">
+            <div class="oc-check-row" *ngFor="let item of openclawChecklist()">
+              <span class="oc-check-icon" [ngClass]="'oc-' + item.status">
+                <span *ngIf="item.status === 'success'">✓</span>
+                <span *ngIf="item.status === 'failure'">✗</span>
+                <span *ngIf="item.status === 'pending'">○</span>
+              </span>
+              <span class="oc-check-label">{{ item.label }}</span>
+            </div>
           </div>
-          <div class="ac-openclaw-actions">
-            <button class="btn-primary" routerLink="/desktop/openclaw">OpenClaw setup</button>
-            <button type="button" class="btn-secondary" (click)="svc.goToStep('validate'); svc.runValidation()">
-              Validate connection
+
+          <!-- Inline sign-in / sign-up when not signed in -->
+          <div class="oc-auth-card" *ngIf="onboarding.status().state === 'not_signed_in'">
+            <h3 class="oc-auth-title">{{ ocAuthMode === 'login' ? 'Sign in to Spectyra' : 'Create a Spectyra account' }}</h3>
+            <p class="oc-auth-desc">
+              {{ ocAuthMode === 'login'
+                ? 'Sign in to sync sessions to the cloud dashboard and see analytics.'
+                : 'Create a free account to sync sessions and unlock analytics.' }}
+            </p>
+            <form class="oc-auth-form" (ngSubmit)="ocAuthMode === 'login' ? ocDoSignIn() : ocDoSignUp()">
+              <div class="oc-field">
+                <label for="oc-email">Email</label>
+                <input id="oc-email" type="email" [(ngModel)]="ocAuthEmail" name="email"
+                       placeholder="you@example.com" [disabled]="ocAuthLoading" required />
+              </div>
+              <div class="oc-field">
+                <label for="oc-pass">Password</label>
+                <input id="oc-pass" type="password" [(ngModel)]="ocAuthPassword" name="password"
+                       placeholder="••••••••" [disabled]="ocAuthLoading" required minlength="8" />
+              </div>
+              <div class="oc-field" *ngIf="ocAuthMode === 'register'">
+                <label for="oc-org">Organization name</label>
+                <input id="oc-org" type="text" [(ngModel)]="ocAuthOrgName" name="orgName"
+                       placeholder="My Company" [disabled]="ocAuthLoading" required />
+              </div>
+              <div class="oc-auth-error" *ngIf="ocAuthError">{{ ocAuthError }}</div>
+              <button type="submit" class="btn-primary"
+                      [disabled]="ocAuthLoading || !ocAuthEmail || !ocAuthPassword || (ocAuthMode === 'register' && !ocAuthOrgName)">
+                {{ ocAuthLoading
+                  ? (ocAuthMode === 'login' ? 'Signing in…' : 'Creating account…')
+                  : (ocAuthMode === 'login' ? 'Sign in' : 'Create account') }}
+              </button>
+            </form>
+            <p class="oc-auth-toggle">
+              <ng-container *ngIf="ocAuthMode === 'login'">
+                No account? <button type="button" class="oc-link-btn" (click)="ocAuthMode = 'register'; ocAuthError = null">Sign up</button>
+              </ng-container>
+              <ng-container *ngIf="ocAuthMode === 'register'">
+                Have an account? <button type="button" class="oc-link-btn" (click)="ocAuthMode = 'login'; ocAuthError = null">Sign in</button>
+              </ng-container>
+            </p>
+          </div>
+
+          <!-- Inline provider key setup -->
+          <div class="oc-auth-card" *ngIf="onboarding.status().state === 'provider_missing'">
+            <h3 class="oc-auth-title">Add your AI provider key</h3>
+            <p class="oc-auth-desc">
+              Spectyra needs a provider API key to forward requests to your LLM. The key is stored only on this computer.
+            </p>
+            <form class="oc-auth-form" (ngSubmit)="saveProviderKey()">
+              <div class="oc-field">
+                <label for="oc-provider">Provider</label>
+                <select id="oc-provider" [(ngModel)]="providerChoice" name="provider" [disabled]="providerSaving">
+                  <option value="openai">OpenAI</option>
+                  <option value="anthropic">Anthropic</option>
+                  <option value="groq">Groq</option>
+                </select>
+              </div>
+              <div class="oc-field">
+                <label for="oc-apikey">API key</label>
+                <input id="oc-apikey" type="password" [(ngModel)]="providerApiKey" name="apiKey"
+                       placeholder="sk-..." [disabled]="providerSaving" required />
+              </div>
+              <div class="oc-auth-error" *ngIf="providerError">{{ providerError }}</div>
+              <div class="oc-auth-success" *ngIf="providerSaved && !providerError">
+                Key saved — restarting companion…
+              </div>
+              <button type="submit" class="btn-primary"
+                      [disabled]="providerSaving || !providerApiKey">
+                {{ providerSaving ? 'Saving…' : 'Save key' }}
+              </button>
+            </form>
+          </div>
+
+          <!-- OpenClaw not detected / not connected hints -->
+          <div class="oc-hint-card" *ngIf="onboarding.status().state === 'openclaw_not_detected'">
+            <h3 class="oc-hint-title">Set up OpenClaw</h3>
+            <p class="oc-hint-desc">
+              OpenClaw is not detected yet. Copy the config below and paste it into your OpenClaw configuration file.
+            </p>
+            <button class="btn-primary" (click)="copyOpenClawConfig()">Copy OpenClaw config</button>
+          </div>
+
+          <div class="oc-hint-card" *ngIf="onboarding.status().state === 'openclaw_not_connected'">
+            <h3 class="oc-hint-title">Connect OpenClaw</h3>
+            <p class="oc-hint-desc">
+              OpenClaw is installed but not yet routing through Spectyra. Make sure the config points to the Local Companion, then run a test.
+            </p>
+            <button class="btn-primary" (click)="copyOpenClawConfig()">Copy OpenClaw config</button>
+          </div>
+
+          <!-- Companion not running -->
+          <div class="oc-hint-card" *ngIf="onboarding.status().state === 'desktop_installed_companion_not_running'">
+            <h3 class="oc-hint-title">Local Companion is not running</h3>
+            <p class="oc-hint-desc">
+              The Local Companion needs to be running for OpenClaw to connect. Tap below to start it, or quit and reopen Spectyra.
+            </p>
+            <button class="btn-primary" [disabled]="onboarding.companionStartBusy()"
+                    (click)="onboarding.openDesktopApp()">
+              {{ onboarding.companionStartBusy() ? 'Starting…' : 'Start Local Companion' }}
+            </button>
+          </div>
+
+          <div class="oc-setup-actions">
+            <button class="btn-secondary" (click)="onboarding.refreshOpenClawStatus()"
+                    [disabled]="onboarding.status().state === 'checking'">
+              Refresh status
+            </button>
+            <button class="btn-primary" *ngIf="onboarding.status().state === 'ready'"
+                    (click)="svc.goToStep('validate'); svc.runValidation()">
+              Continue →
             </button>
           </div>
         </div>
@@ -493,40 +603,137 @@ const result = await spectyra.optimize(messages);</pre>
         color: var(--spectyra-blue);
       }
 
-      .ac-keys-card {
+      /* ── OpenClaw inline readiness ── */
+      .oc-checklist {
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+        margin-bottom: 20px;
+      }
+
+      .oc-check-row {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        font-size: 13px;
+        color: var(--text-primary);
+      }
+
+      .oc-check-icon {
+        font-size: 14px;
+        min-width: 18px;
+        text-align: center;
+      }
+      .oc-success { color: var(--spectyra-teal, #2dd4bf); }
+      .oc-failure { color: var(--color-danger, #ef4444); }
+      .oc-pending { color: var(--text-muted); }
+
+      .oc-auth-card, .oc-hint-card {
         background: var(--bg-card);
         border: 1px solid var(--border);
         border-radius: var(--radius-card);
-        padding: 14px 16px;
-        margin-bottom: 18px;
+        padding: 20px;
+        margin-bottom: 16px;
       }
 
-      .ac-keys-label {
-        font-size: 10px;
-        text-transform: uppercase;
-        letter-spacing: 0.06em;
-        color: var(--text-muted);
-        display: block;
-        margin-bottom: 10px;
+      .oc-auth-title, .oc-hint-title {
+        margin: 0 0 6px;
+        font-size: 14px;
+        font-weight: 600;
+        color: var(--text-primary);
       }
 
-      .ac-keys-list {
-        margin: 0;
-        padding-left: 1.1rem;
-        color: var(--text-secondary);
+      .oc-auth-desc, .oc-hint-desc {
+        margin: 0 0 14px;
         font-size: 12px;
-        line-height: 1.65;
+        line-height: 1.55;
+        color: var(--text-secondary);
       }
 
-      .ac-keys-list li { margin-bottom: 8px; }
-      .ac-keys-list li:last-child { margin-bottom: 0; }
-      .ac-keys-list a { color: var(--spectyra-blue); }
+      .oc-hint-desc a { color: var(--spectyra-blue); }
 
-      .ac-openclaw-actions {
+      .oc-auth-form {
+        display: flex;
+        flex-direction: column;
+        gap: 12px;
+        max-width: 360px;
+      }
+
+      .oc-field {
+        display: flex;
+        flex-direction: column;
+        gap: 3px;
+      }
+
+      .oc-field label {
+        font-size: 11px;
+        font-weight: 500;
+        color: var(--text-secondary);
+      }
+
+      .oc-field input {
+        padding: 7px 10px;
+        border: 1px solid var(--border-bright, rgba(255,255,255,0.15));
+        border-radius: 6px;
+        background: var(--bg-input, rgba(0,0,0,0.25));
+        color: var(--text-primary);
+        font-size: 13px;
+        font-family: inherit;
+        outline: none;
+        transition: border-color 0.15s;
+      }
+
+      .oc-field input::placeholder { color: var(--text-muted, rgba(255,255,255,0.3)); }
+      .oc-field input:focus, .oc-field select:focus { border-color: var(--spectyra-blue); }
+      .oc-field input:disabled, .oc-field select:disabled { opacity: 0.5; }
+
+      .oc-field select {
+        padding: 7px 10px;
+        border: 1px solid var(--border-bright, rgba(255,255,255,0.15));
+        border-radius: 6px;
+        background: var(--bg-input, rgba(0,0,0,0.25));
+        color: var(--text-primary);
+        font-size: 13px;
+        font-family: inherit;
+        outline: none;
+        transition: border-color 0.15s;
+        appearance: auto;
+      }
+
+      .oc-auth-error {
+        font-size: 12px;
+        color: var(--spectyra-red, #ef4444);
+      }
+
+      .oc-auth-success {
+        font-size: 12px;
+        color: var(--spectyra-green, #22c55e);
+        font-weight: 500;
+      }
+
+      .oc-auth-toggle {
+        margin: 12px 0 0;
+        font-size: 12px;
+        color: var(--text-muted);
+      }
+
+      .oc-link-btn {
+        background: none;
+        border: none;
+        color: var(--spectyra-blue);
+        font-size: 12px;
+        cursor: pointer;
+        text-decoration: underline;
+        padding: 0;
+      }
+      .oc-link-btn:hover { color: var(--spectyra-blue-pale, #e8f4ff); }
+
+      .oc-setup-actions {
         display: flex;
         flex-wrap: wrap;
         gap: 10px;
         align-items: center;
+        margin-top: 16px;
       }
 
       .config-h2 {
@@ -767,8 +974,32 @@ export class AgentCompanionLandingPage implements OnInit {
   private readonly stepsOpenClaw = ['Runtime', 'Path', 'Setup', 'Validate', 'Go live'];
   readonly runtimeOptions = RUNTIME_OPTIONS;
 
+  private readonly supabase = inject(SupabaseService);
+  private readonly http = inject(HttpClient);
+  private readonly authService = inject(AuthService);
+  private readonly meService = inject(MeService);
+  private readonly desktop = inject(DesktopBridgeService);
+  readonly onboarding = inject(IntegrationOnboardingService);
+
+  readonly openclawChecklist = computed(() => buildChecklistItems(this.onboarding.status()));
+
   /** Shown until the user acknowledges the guided path (localStorage). */
   showFirstRunWelcome = false;
+
+  /* ── Inline auth state ── */
+  ocAuthMode: 'login' | 'register' = 'login';
+  ocAuthEmail = '';
+  ocAuthPassword = '';
+  ocAuthOrgName = '';
+  ocAuthLoading = false;
+  ocAuthError: string | null = null;
+
+  /* ── Inline provider key state ── */
+  providerChoice = 'openai';
+  providerApiKey = '';
+  providerSaving = false;
+  providerError: string | null = null;
+  providerSaved = false;
 
   constructor(
     public svc: AgentCompanionService,
@@ -778,6 +1009,9 @@ export class AgentCompanionLandingPage implements OnInit {
 
   ngOnInit() {
     this.showFirstRunWelcome = !this.firstRun.hasAcknowledgedAgentCompanionGuide();
+    if (this.svc.state.runtime === 'openclaw' && this.svc.state.step === 'configure') {
+      void this.onboarding.refreshOpenClawStatus();
+    }
   }
 
   get selectedRuntime(): RuntimeOption | null {
@@ -825,6 +1059,9 @@ export class AgentCompanionLandingPage implements OnInit {
 
   selectPath(path: 'new' | 'existing') {
     this.svc.selectPath(path);
+    if (this.svc.state.runtime === 'openclaw') {
+      void this.onboarding.refreshOpenClawStatus();
+    }
   }
 
   selectConnection(style: ConnectionStyle) {
@@ -865,5 +1102,121 @@ export class AgentCompanionLandingPage implements OnInit {
 
   async copyText(text: string) {
     await navigator.clipboard.writeText(text);
+  }
+
+  async copyOpenClawConfig() {
+    await this.onboarding.copyOpenClawConfig();
+  }
+
+  async saveProviderKey(): Promise<void> {
+    if (!this.providerApiKey.trim()) return;
+    this.providerSaving = true;
+    this.providerError = null;
+    this.providerSaved = false;
+    try {
+      await this.desktop.saveConfig({ provider: this.providerChoice });
+      const ok = await this.desktop.setProviderKey(this.providerChoice, this.providerApiKey.trim());
+      if (!ok) {
+        this.providerError = 'Could not save key. Make sure the desktop app is running.';
+        return;
+      }
+      this.providerApiKey = '';
+      this.providerSaved = true;
+      await new Promise(r => setTimeout(r, 1500));
+      await this.onboarding.refreshOpenClawStatus();
+    } catch (e: any) {
+      this.providerError = e.message || 'Failed to save key';
+    } finally {
+      this.providerSaving = false;
+    }
+  }
+
+  async ocDoSignIn(): Promise<void> {
+    if (!this.ocAuthEmail || !this.ocAuthPassword) return;
+    this.ocAuthLoading = true;
+    this.ocAuthError = null;
+    try {
+      const { error } = await this.supabase.signIn(this.ocAuthEmail, this.ocAuthPassword);
+      if (error) {
+        this.ocAuthError = error.message || 'Sign-in failed';
+        this.ocAuthLoading = false;
+        return;
+      }
+      this.meService.clearCache();
+      await this.onboarding.refreshOpenClawStatus();
+    } catch (e: any) {
+      this.ocAuthError = e.message || 'Sign-in failed';
+    } finally {
+      this.ocAuthLoading = false;
+    }
+  }
+
+  async ocDoSignUp(): Promise<void> {
+    if (!this.ocAuthEmail || !this.ocAuthPassword || !this.ocAuthOrgName) return;
+    if (this.ocAuthPassword.length < 8) {
+      this.ocAuthError = 'Password must be at least 8 characters';
+      return;
+    }
+    this.ocAuthLoading = true;
+    this.ocAuthError = null;
+    try {
+      const { error: signUpError, session, user } = await this.supabase.signUp(this.ocAuthEmail, this.ocAuthPassword);
+      if (signUpError) {
+        this.ocAuthError = signUpError.message || 'Failed to create account';
+        this.ocAuthLoading = false;
+        return;
+      }
+
+      let token: string | null = session?.access_token ?? null;
+      if (user && !token) {
+        try {
+          const confirmRes = await fetch(`${environment.apiUrl}/auth/auto-confirm`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ email: this.ocAuthEmail }),
+          });
+          if (!confirmRes.ok) console.warn('[agent-companion] auto-confirm failed', confirmRes.status);
+        } catch (e) {
+          console.warn('[agent-companion] auto-confirm error', e);
+        }
+        const { error: signInError } = await this.supabase.signIn(this.ocAuthEmail, this.ocAuthPassword);
+        if (signInError) console.warn('[agent-companion] post-confirm sign-in failed', signInError);
+        await new Promise(r => setTimeout(r, 500));
+        token = await this.supabase.getAccessToken();
+      }
+      if (!token) {
+        await new Promise(r => setTimeout(r, 1000));
+        token = await this.supabase.getAccessToken();
+      }
+      if (!token) {
+        this.ocAuthError = 'Account created but session could not be established. Try signing in.';
+        this.ocAuthMode = 'login';
+        this.ocAuthLoading = false;
+        return;
+      }
+
+      const headers = new HttpHeaders({
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json',
+      });
+      try {
+        const response = await firstValueFrom(this.http.post<any>(
+          `${environment.apiUrl}/auth/bootstrap`,
+          { org_name: this.ocAuthOrgName.trim() },
+          { headers },
+        ));
+        if (response?.api_key) this.authService.setApiKey(response.api_key);
+      } catch (bootstrapErr: any) {
+        if (bootstrapErr.status !== 400 || !bootstrapErr.error?.error?.includes('already exists')) {
+          console.warn('[agent-companion] bootstrap error', bootstrapErr);
+        }
+      }
+      this.meService.clearCache();
+      await this.onboarding.refreshOpenClawStatus();
+    } catch (e: any) {
+      this.ocAuthError = e.message || 'Failed to create account';
+    } finally {
+      this.ocAuthLoading = false;
+    }
   }
 }

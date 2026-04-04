@@ -1,0 +1,86 @@
+<div class="wrap" *ngIf="step === 1">
+  <h1>How do you want to use Spectyra?</h1>
+  <p class="sub">Pick your agent runtime and we'll walk you through setup step by step.</p>
+
+  <div class="choice-grid">
+    <mat-card class="choice" (click)="chooseUseCase('openclaw')">
+      <mat-card-title>OpenClaw or a local agent tool</mat-card-title>
+      <mat-card-content>Point tools at Spectyra on localhost. No app code changes.</mat-card-content>
+    </mat-card>
+    <mat-card class="choice" (click)="chooseUseCase('sdk')">
+      <mat-card-title>With my app code (SDK)</mat-card-title>
+      <mat-card-content>Best fidelity. Wrap LLM calls in your codebase.</mat-card-content>
+    </mat-card>
+    <mat-card class="choice" (click)="chooseUseCase('server')">
+      <mat-card-title>Server or VM agent</mat-card-title>
+      <mat-card-content>Run Spectyra beside cloud or VM workloads.</mat-card-content>
+    </mat-card>
+    <mat-card class="choice" (click)="chooseUseCase('events')">
+      <mat-card-title>Logs / events / traces</mat-card-title>
+      <mat-card-content>Analytics-first. Structured local signals.</mat-card-content>
+    </mat-card>
+  </div>
+  <p class="hint">Or skip to configure your provider API key directly.</p>
+  <button mat-stroked-button color="primary" type="button" (click)="skipToProviderConfig()">Skip to provider config</button>
+</div>
+
+<div class="wrap" *ngIf="step === 2">
+  <button mat-button type="button" (click)="backToStep1()" class="back">&larr; Back</button>
+  <h1>Configure provider</h1>
+  <p class="sub">Set your local provider. Keys are stored only on this computer.</p>
+
+  <mat-card class="card">
+    <mat-card-title>Upstream provider</mat-card-title>
+    <mat-card-content>
+      <mat-form-field appearance="outline" class="full">
+        <mat-label>Provider</mat-label>
+        <mat-select [(ngModel)]="provider">
+          <mat-option value="openai">OpenAI</mat-option>
+          <mat-option value="anthropic">Anthropic</mat-option>
+          <mat-option value="groq">Groq</mat-option>
+        </mat-select>
+      </mat-form-field>
+      <mat-form-field appearance="outline" class="full">
+        <mat-label>API key</mat-label>
+        <input matInput type="password" [(ngModel)]="apiKey" autocomplete="off" />
+      </mat-form-field>
+    </mat-card-content>
+  </mat-card>
+
+  <mat-card class="card">
+    <mat-card-title>Run mode</mat-card-title>
+    <mat-card-content>
+      <mat-form-field appearance="outline" class="full">
+        <mat-label>Mode</mat-label>
+        <mat-select [(ngModel)]="runMode">
+          <mat-option value="on">On &mdash; live optimization (recommended)</mat-option>
+          <mat-option value="off">Off &mdash; pass-through</mat-option>
+          <mat-option value="observe">Observe &mdash; projected savings only</mat-option>
+        </mat-select>
+      </mat-form-field>
+      <mat-form-field appearance="outline" class="full">
+        <mat-label>Telemetry</mat-label>
+        <mat-select [(ngModel)]="telemetryMode">
+          <mat-option value="local">Local (default)</mat-option>
+          <mat-option value="off">Off</mat-option>
+          <mat-option value="cloud_redacted">Cloud &mdash; redacted only</mat-option>
+        </mat-select>
+      </mat-form-field>
+      <mat-form-field appearance="outline" class="full">
+        <mat-label>Prompt snapshots</mat-label>
+        <mat-select [(ngModel)]="promptSnapshots">
+          <mat-option value="local_only">Local only (default)</mat-option>
+          <mat-option value="none">None</mat-option>
+          <mat-option value="cloud_opt_in">Cloud opt-in</mat-option>
+        </mat-select>
+      </mat-form-field>
+    </mat-card-content>
+  </mat-card>
+
+  <p class="notice">
+    Provider billing stays on your account. Spectyra does not route inference through Spectyra servers by default.
+  </p>
+
+  <button mat-raised-button color="primary" (click)="save()" [disabled]="saving">Save &amp; continue</button>
+  <p class="err" *ngIf="error">{{ error }}</p>
+</div>

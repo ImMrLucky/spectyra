@@ -35,7 +35,7 @@ import { TrialLicenseUiService, type LiveProductTopline } from '../../../core/ag
         <div class="settings-card">
           <h3 class="sc-title">Provider & companion</h3>
           <p class="sc-desc">API keys, port, run mode, and telemetry are configured during onboarding.</p>
-          <a class="btn-secondary" routerLink="/desktop/onboarding">Open onboarding</a>
+          <a class="btn-secondary" routerLink="/desktop/onboarding">Configure provider</a>
         </div>
 
         <div class="settings-card">
@@ -43,7 +43,6 @@ import { TrialLicenseUiService, type LiveProductTopline } from '../../../core/ag
           <p class="sc-desc">Connect OpenClaw, Claude, OpenAI, or custom agents.</p>
           <div class="sc-links">
             <a class="btn-link" routerLink="/desktop/agent-companion">Agent Companion wizard</a>
-            <a class="btn-link" routerLink="/desktop/openclaw">OpenClaw setup</a>
           </div>
         </div>
 

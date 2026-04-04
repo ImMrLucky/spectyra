@@ -497,7 +497,7 @@ ipcMain.handle("provider-key:set", async (_e, provider: string, key: string) => 
   await saveConfig();
   stopCompanion();
   startCompanion();
-  void waitForHealth();
+  await waitForHealth();
   return true;
 });
 
