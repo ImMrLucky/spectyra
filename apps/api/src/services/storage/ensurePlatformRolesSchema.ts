@@ -28,6 +28,18 @@ export async function ensurePlatformRolesSchema(): Promise<void> {
     await query(`
       ALTER TABLE orgs ADD COLUMN IF NOT EXISTS platform_exempt BOOLEAN NOT NULL DEFAULT false
     `);
+    await query(`
+      ALTER TABLE orgs ADD COLUMN IF NOT EXISTS sdk_access_enabled BOOLEAN NOT NULL DEFAULT true
+    `);
+    await query(`
+      ALTER TABLE orgs ADD COLUMN IF NOT EXISTS stripe_subscription_id TEXT
+    `);
+    await query(`
+      ALTER TABLE orgs ADD COLUMN IF NOT EXISTS subscription_current_period_end TIMESTAMPTZ
+    `);
+    await query(`
+      ALTER TABLE orgs ADD COLUMN IF NOT EXISTS cancel_at_period_end BOOLEAN NOT NULL DEFAULT false
+    `);
     console.log("✅ Platform roles schema ensured (010)");
   } catch (e: unknown) {
     const msg = e instanceof Error ? e.message : String(e);
