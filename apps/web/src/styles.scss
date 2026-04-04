@@ -252,6 +252,8 @@ body {
   }
 }
 
+/* Legacy tab panels: add .active on the visible pane. Pages that use *ngIf instead
+   (e.g. admin) must override with display: block in their component styles. */
 .tab-content {
   display: none;
   &.active { display: block; }

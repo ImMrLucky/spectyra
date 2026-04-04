@@ -413,8 +413,9 @@
   }
 }
 
-.tab-content {
-  // Tab content wrapper
+/* Global styles.scss hides all .tab-content unless .active; admin uses *ngIf instead of .active. */
+.admin-content .tab-content {
+  display: block;
 }
 
 .sdk-access-control {
