@@ -80,7 +80,8 @@ app.use(cors({
     }
   },
   credentials: true,
-  methods: ["GET", "POST", "PATCH", "DELETE", "PUT"],
+  // HEAD: owner nav probe; OPTIONS: browser preflight for HEAD
+  methods: ["GET", "HEAD", "POST", "PATCH", "DELETE", "PUT", "OPTIONS"],
   allowedHeaders: ["Content-Type", "Authorization", "X-SPECTYRA-API-KEY", "X-PROVIDER-KEY", "X-ADMIN-TOKEN"],
 }));
 

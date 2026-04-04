@@ -90,6 +90,16 @@ analyticsSyncRouter.get("/sessions/:sessionId", async (req: AuthenticatedRequest
   }
 });
 
+function emptySummaryResponse() {
+  return {
+    total_sessions: 0,
+    lifetime_savings_usd: 0,
+    total_input_tokens_before: 0,
+    total_input_tokens_after: 0,
+    avg_token_reduction_pct: 0,
+  };
+}
+
 analyticsSyncRouter.get("/summary", async (req: AuthenticatedRequest, res) => {
   try {
     if (!req.auth?.userId) return res.status(401).json({ error: "Not authenticated" });
@@ -129,7 +139,12 @@ analyticsSyncRouter.get("/summary", async (req: AuthenticatedRequest, res) => {
       avg_token_reduction_pct: tokenReductionPct,
     });
   } catch (error: any) {
-    safeLog("error", "analytics summary error", { error: error.message });
-    res.status(500).json({ error: error.message || "Internal server error" });
+    const msg = error?.message || "";
+    if (/does not exist|relation.*analytics_sessions_sync/i.test(msg)) {
+      safeLog("warn", "analytics summary: table missing, returning empty summary", {});
+      return res.json(emptySummaryResponse());
+    }
+    safeLog("error", "analytics summary error", { error: msg });
+    res.status(500).json({ error: msg || "Internal server error" });
   }
 });

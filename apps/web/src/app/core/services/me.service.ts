@@ -1,7 +1,7 @@
 import { Injectable } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
-import { BehaviorSubject, Observable, of } from 'rxjs';
-import { tap, shareReplay, catchError } from 'rxjs/operators';
+import { BehaviorSubject, Observable, throwError } from 'rxjs';
+import { tap, shareReplay, catchError, finalize } from 'rxjs/operators';
 import { environment } from '../../../environments/environment';
 
 export interface MeResponse {
@@ -37,47 +37,55 @@ export interface MeResponse {
   providedIn: 'root',
 })
 export class MeService {
-  private cache$: Observable<MeResponse> | null = null;
-  private cacheTimestamp: number = 0;
-  private readonly CACHE_TTL = 30000; // 30 seconds
+  /** Completed /auth/me stream — replays until TTL or clearCache */
+  private cachedMe$: Observable<MeResponse> | null = null;
+  /** In-flight request shared by all simultaneous callers */
+  private inFlight$: Observable<MeResponse> | null = null;
+  private cacheTimestamp = 0;
+  private readonly CACHE_TTL = 30000;
   private meSubject = new BehaviorSubject<MeResponse | null>(null);
 
   constructor(private http: HttpClient) {}
 
   /**
-   * Get /auth/me with caching to prevent duplicate calls
-   * Cache is shared across all components
+   * Get /auth/me with TTL cache + in-flight coalescing (avoids duplicate HTTP when
+   * org-switcher, overview, and login all call getMe() in the same tick).
    */
   getMe(forceRefresh: boolean = false): Observable<MeResponse> {
+    if (forceRefresh) {
+      this.clearCache();
+    }
     const now = Date.now();
-    const cacheValid = this.cache$ && (now - this.cacheTimestamp) < this.CACHE_TTL;
-
-    if (cacheValid && !forceRefresh) {
-      return this.cache$!;
+    if (this.cachedMe$ && now - this.cacheTimestamp < this.CACHE_TTL) {
+      return this.cachedMe$;
+    }
+    if (this.inFlight$) {
+      return this.inFlight$;
     }
 
-    // Create new request
-    this.cache$ = this.http.get<MeResponse>(`${environment.apiUrl}/auth/me`).pipe(
-      tap(response => {
+    this.inFlight$ = this.http.get<MeResponse>(`${environment.apiUrl}/auth/me`).pipe(
+      tap((response) => {
         this.meSubject.next(response);
-        this.cacheTimestamp = now;
+        this.cacheTimestamp = Date.now();
         if (!environment.isDesktop && response.org && !response.needs_bootstrap) {
           this.http
             .post<{ applied: boolean }>(`${environment.apiUrl}/auth/sync-billing-exempt`, {})
             .subscribe({ error: () => undefined });
         }
       }),
-      catchError(error => {
-        // Clear cache on error
-        this.cache$ = null;
+      catchError((error) => {
+        this.cachedMe$ = null;
         this.cacheTimestamp = 0;
         this.meSubject.next(null);
-        throw error;
+        return throwError(() => error);
       }),
-      shareReplay(1) // Share the result with all subscribers
+      shareReplay({ bufferSize: 1, refCount: false }),
+      finalize(() => {
+        this.inFlight$ = null;
+      }),
     );
-
-    return this.cache$;
+    this.cachedMe$ = this.inFlight$;
+    return this.inFlight$;
   }
 
   /**
@@ -98,7 +106,8 @@ export class MeService {
    * Clear cache (call after logout or org changes)
    */
   clearCache(): void {
-    this.cache$ = null;
+    this.cachedMe$ = null;
+    this.inFlight$ = null;
     this.cacheTimestamp = 0;
     this.meSubject.next(null);
   }

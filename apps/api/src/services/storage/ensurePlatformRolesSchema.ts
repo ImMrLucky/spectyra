@@ -42,26 +42,31 @@ export async function ensurePlatformRolesSchema(): Promise<void> {
     await query(`
       ALTER TABLE orgs ADD COLUMN IF NOT EXISTS cancel_at_period_end BOOLEAN NOT NULL DEFAULT false
     `);
-    // analytics_sessions_sync (migration 009)
-    await query(`
-      CREATE TABLE IF NOT EXISTS analytics_sessions_sync (
-        id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-        org_id UUID NOT NULL REFERENCES orgs(id) ON DELETE CASCADE,
-        session_id TEXT NOT NULL,
-        run_id TEXT NOT NULL,
-        payload JSONB NOT NULL,
-        sync_state TEXT NOT NULL DEFAULT 'synced',
-        created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
-        updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
-        UNIQUE(org_id, session_id)
-      )
-    `);
-    await query(`
-      CREATE INDEX IF NOT EXISTS idx_analytics_sessions_org_id ON analytics_sessions_sync(org_id)
-    `);
-    await query(`
-      CREATE INDEX IF NOT EXISTS idx_analytics_sessions_created ON analytics_sessions_sync(org_id, created_at DESC)
-    `);
+    // analytics_sessions_sync — TEXT org_id (no FK) so startup works regardless of orgs.id type
+    try {
+      await query(`
+        CREATE TABLE IF NOT EXISTS analytics_sessions_sync (
+          id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+          org_id TEXT NOT NULL,
+          session_id TEXT NOT NULL,
+          run_id TEXT NOT NULL,
+          payload JSONB NOT NULL,
+          sync_state TEXT NOT NULL DEFAULT 'synced',
+          created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+          updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+          UNIQUE(org_id, session_id)
+        )
+      `);
+      await query(`
+        CREATE INDEX IF NOT EXISTS idx_analytics_sessions_org_id ON analytics_sessions_sync(org_id)
+      `);
+      await query(`
+        CREATE INDEX IF NOT EXISTS idx_analytics_sessions_created ON analytics_sessions_sync(org_id, created_at DESC)
+      `);
+    } catch (ae: unknown) {
+      const m = ae instanceof Error ? ae.message : String(ae);
+      safeLog("warn", "analytics_sessions_sync DDL skipped or partial", { error: m });
+    }
 
     console.log("✅ Startup schema ensured");
   } catch (e: unknown) {

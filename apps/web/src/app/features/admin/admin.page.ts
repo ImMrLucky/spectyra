@@ -22,7 +22,14 @@ export class AdminPage implements OnInit {
   
   orgs: AdminOrg[] = [];
   loading = false;
-  error: string | null = null;
+  /** Shown in header when logged in but not allowed to use admin */
+  accessMessage: string | null = null;
+  /** Org list fetch only — must not hide list when detail actions fail */
+  orgsListError: string | null = null;
+  /** Organization details panel */
+  orgDetailsError: string | null = null;
+  /** Users tab */
+  usersError: string | null = null;
   
   selectedOrg: AdminOrg | null = null;
   orgDetails: AdminOrgDetail | null = null;
@@ -63,7 +70,7 @@ export class AdminPage implements OnInit {
         this.checkOwnerAndLoad();
       } else {
         this.isOwner = false;
-        this.error = 'Please log in to access admin panel';
+        this.accessMessage = null;
       }
     });
   }
@@ -71,6 +78,8 @@ export class AdminPage implements OnInit {
   checkOwnerAndLoad() {
     // Try to load orgs - if successful, user is owner
     this.loading = true;
+    this.orgsListError = null;
+    this.accessMessage = null;
     this.superuserService.getIsSuperuser().subscribe((is) => {
       this.canManageRoles = is;
     });
@@ -79,15 +88,16 @@ export class AdminPage implements OnInit {
         this.isOwner = true;
         this.orgs = response.orgs;
         this.loading = false;
-        this.error = null;
+        this.accessMessage = null;
+        this.orgsListError = null;
       },
       error: (err) => {
         this.isOwner = false;
         this.loading = false;
         if (err.status === 403) {
-          this.error = 'Access denied: Owner only.';
+          this.accessMessage = 'Access denied: Owner only.';
         } else {
-          this.error = err.error?.error || 'Failed to verify owner status';
+          this.accessMessage = err.error?.error || 'Failed to verify owner status';
         }
       },
     });
@@ -95,15 +105,15 @@ export class AdminPage implements OnInit {
 
   loadOrgs() {
     this.loading = true;
-    this.error = null;
-    
+    this.orgsListError = null;
+
     this.adminService.listOrgs().subscribe({
       next: (response) => {
         this.orgs = response.orgs;
         this.loading = false;
       },
       error: (err) => {
-        this.error = err.error?.error || 'Failed to load organizations';
+        this.orgsListError = err.error?.error || 'Failed to load organizations';
         this.loading = false;
         if (err.status === 403) {
           this.logout();
@@ -120,7 +130,8 @@ export class AdminPage implements OnInit {
   loadOrgDetails(orgId: string) {
     this.loadingDetails = true;
     this.orgDetails = null;
-    
+    this.orgDetailsError = null;
+
     this.adminService.getOrg(orgId).subscribe({
       next: (details) => {
         this.orgDetails = details;
@@ -128,7 +139,7 @@ export class AdminPage implements OnInit {
         this.loadingDetails = false;
       },
       error: (err) => {
-        this.error = err.error?.error || 'Failed to load organization details';
+        this.orgDetailsError = err.error?.error || 'Failed to load organization details';
         this.loadingDetails = false;
       },
     });
@@ -163,8 +174,9 @@ export class AdminPage implements OnInit {
         this.saving = false;
       },
       error: (err) => {
-        this.error = err.error?.error || 'Failed to update organization';
+        this.orgDetailsError = err.error?.error || 'Failed to update organization';
         this.saving = false;
+        this.snackbar.showError(this.orgDetailsError ?? 'Failed to update organization');
       },
     });
   }
@@ -193,8 +205,9 @@ export class AdminPage implements OnInit {
         this.deleting = false;
       },
       error: (err) => {
-        this.error = err.error?.error || err.error?.message || 'Failed to delete organization';
+        this.orgDetailsError = err.error?.error || err.error?.message || 'Failed to delete organization';
         this.deleting = false;
+        this.snackbar.showError(this.orgDetailsError ?? 'Failed to delete organization');
       },
     });
   }
@@ -216,9 +229,9 @@ export class AdminPage implements OnInit {
         this.snackbar.showSuccess(response.message);
       },
       error: (err) => {
-        this.error = err.error?.error || 'Failed to update SDK access';
         this.togglingSdkAccess = false;
-        this.snackbar.showError(this.error || 'An error occurred');
+        const msg = err.error?.error || 'Failed to update SDK access';
+        this.snackbar.showError(msg);
       },
     });
   }
@@ -240,20 +253,21 @@ export class AdminPage implements OnInit {
 
   switchTab(tab: 'orgs' | 'users') {
     this.activeTab = tab;
-    if (tab === 'users' && this.users.length === 0) {
+    if (tab === 'users' && this.users.length === 0 && !this.loadingUsers) {
       this.loadUsers();
     }
   }
 
   loadUsers() {
     this.loadingUsers = true;
+    this.usersError = null;
     this.adminService.listUsers().subscribe({
       next: (response) => {
         this.users = response.users;
         this.loadingUsers = false;
       },
       error: (err) => {
-        this.error = err.error?.error || 'Failed to load users';
+        this.usersError = err.error?.error || 'Failed to load users';
         this.loadingUsers = false;
       },
     });

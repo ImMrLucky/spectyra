@@ -2,7 +2,9 @@
   <div class="header">
     <h1>Admin Panel</h1>
     <p class="subtitle" *ngIf="!isAuthenticated">Please log in to access admin panel</p>
-    <p class="subtitle" *ngIf="isAuthenticated && !isOwner">Access denied: Owner only</p>
+    <p class="subtitle" *ngIf="isAuthenticated && !isOwner">
+      {{ accessMessage || 'Access denied: Owner only.' }}
+    </p>
   </div>
 
   <div *ngIf="isAuthenticated && isOwner" class="admin-content">
@@ -43,9 +45,9 @@
       <div class="loading" *ngIf="loading">
         <p>Loading organizations...</p>
       </div>
-      <div class="error" *ngIf="error">{{ error }}</div>
-      
-      <div class="org-list" *ngIf="!loading && !error && orgs.length > 0">
+      <div class="error" *ngIf="orgsListError">{{ orgsListError }}</div>
+
+      <div class="org-list" *ngIf="!loading && !orgsListError && orgs.length > 0">
         <div class="org-card" *ngFor="let org of orgs" [class.selected]="selectedOrg?.id === org.id">
           <div class="org-header" (click)="selectOrg(org.id)">
             <div class="org-info">
@@ -76,9 +78,10 @@
           </div>
         </div>
       </div>
-      
-      <div class="empty" *ngIf="!loading && !error && orgs.length === 0">
-        <p>No organizations found</p>
+
+      <div class="empty empty-emphasis" *ngIf="!loading && !orgsListError && orgs.length === 0">
+        <p><strong>No organizations yet</strong></p>
+        <p class="empty-hint">When users create an org (sign-up flow), it will appear here.</p>
       </div>
     </div>
 
@@ -88,7 +91,8 @@
       <div class="loading" *ngIf="loadingDetails">
         <p>Loading details...</p>
       </div>
-      
+      <div class="error" *ngIf="orgDetailsError && !loadingDetails">{{ orgDetailsError }}</div>
+
       <div class="org-details" *ngIf="!loadingDetails && orgDetails">
         <div class="detail-group">
           <label>Name:</label>
@@ -231,9 +235,9 @@
         <div class="loading" *ngIf="loadingUsers">
           <p>Loading users...</p>
         </div>
-        <div class="error" *ngIf="error && activeTab === 'users'">{{ error }}</div>
+        <div class="error" *ngIf="usersError">{{ usersError }}</div>
         
-        <div class="user-list" *ngIf="!loadingUsers && users.length > 0">
+        <div class="user-list" *ngIf="!loadingUsers && !usersError && users.length > 0">
           <div class="user-card" *ngFor="let user of users">
             <div class="user-header">
               <div class="user-info">
@@ -307,8 +311,9 @@
           </div>
         </div>
         
-        <div class="empty" *ngIf="!loadingUsers && users.length === 0">
-          <p>No users found</p>
+        <div class="empty empty-emphasis" *ngIf="!loadingUsers && !usersError && users.length === 0">
+          <p><strong>No users in the directory</strong></p>
+          <p class="empty-hint">Supabase accounts will show here after they exist (including users who have not joined an org yet).</p>
         </div>
       </div>
     </div>

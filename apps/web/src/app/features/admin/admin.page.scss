@@ -314,6 +314,26 @@
   color: var(--text-secondary);
 }
 
+.empty-emphasis {
+  border: 1px dashed var(--border-bright);
+  border-radius: var(--radius-input);
+  background: var(--bg-card);
+  max-width: 520px;
+  margin: 16px auto 0;
+
+  p {
+    margin: 0 0 8px;
+    color: var(--text-primary);
+  }
+
+  .empty-hint {
+    font-size: 14px;
+    color: var(--text-secondary);
+    line-height: 1.5;
+    margin: 0;
+  }
+}
+
 .error {
   color: var(--color-danger);
 }

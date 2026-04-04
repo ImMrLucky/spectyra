@@ -29,6 +29,13 @@ h1 {
     margin: 0;
     color: var(--spectyra-blue);
   }
+
+  &.notice {
+    background: var(--spectyra-blue-pale);
+    border-color: var(--border-bright);
+
+    color: var(--text-primary);
+  }
 }
 
 .grid {

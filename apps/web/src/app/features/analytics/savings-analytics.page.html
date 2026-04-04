@@ -5,7 +5,7 @@
     summaries (tokens, costs, transforms — <em>not</em> raw prompts) can appear here. Local-only usage stays on your machine.
   </p>
 
-  <div class="callout" *ngIf="!loading && !error">
+  <div class="callout" *ngIf="!loading">
     <p>
       <strong>Local-first:</strong> SDK and Local Companion store full run analytics on disk by default.
       This page shows <strong>cloud-synced summaries</strong> only after you opt in.
@@ -13,7 +13,7 @@
   </div>
 
   <div *ngIf="loading" class="muted">Loading…</div>
-  <div *ngIf="error" class="err">{{ error }}</div>
+  <div *ngIf="cloudNotice" class="callout notice">{{ cloudNotice }}</div>
 
   <section *ngIf="summary && !loading" class="grid">
     <div class="card">
