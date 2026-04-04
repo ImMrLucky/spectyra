@@ -11,36 +11,36 @@ export const ONBOARDING_COPY: Record<
   { title: string; body: string }
 > = {
   desktop_not_installed: {
-    title: 'Install Spectyra Desktop',
-    body: 'Install Spectyra Desktop to run optimization locally and manage your AI provider settings.',
+    title: 'Use Spectyra on your computer',
+    body: 'Download the Spectyra Desktop app. Everything runs locally—your keys stay on your machine.',
   },
   desktop_installed_companion_not_running: {
-    title: 'Open Spectyra',
-    body: 'Spectyra Desktop is installed, but Local Companion is not running yet.',
+    title: 'Starting Spectyra',
+    body: 'Give it a moment, then tap Refresh. If nothing changes, quit the app completely and open it again.',
   },
   not_signed_in: {
-    title: 'Sign in to Spectyra',
-    body: 'A Spectyra account syncs your sessions to the cloud dashboard and unlocks analytics. Sign in or create a free account below.',
+    title: 'Optional: create an account',
+    body: 'You can use OpenClaw and save keys without signing in. An account adds cloud sync and the web dashboard when you want it.',
   },
   provider_missing: {
-    title: 'Add your AI provider',
-    body: 'Connect Claude, OpenAI, Gemini, or another provider using your own API key.',
+    title: 'Add your AI key',
+    body: 'Paste the API key from OpenAI, Anthropic, or Groq below. It is stored only on this computer.',
   },
   openclaw_not_detected: {
-    title: 'Set up OpenClaw',
-    body: 'We could not detect an OpenClaw connection yet. Generate or copy your local config to finish setup.',
+    title: 'Install or open OpenClaw',
+    body: 'When you are ready, use the copy button to add Spectyra to OpenClaw, or run the installer from the setup page.',
   },
   openclaw_not_connected: {
-    title: 'Connect OpenClaw to Spectyra',
-    body: 'OpenClaw is installed, but it is not yet sending requests through Spectyra Local Companion.',
+    title: 'Point OpenClaw at Spectyra',
+    body: 'Copy the small settings block we give you into OpenClaw once. After that, traffic runs through Spectyra automatically.',
   },
   ready: {
-    title: 'Spectyra is active',
-    body: 'Your OpenClaw setup is connected and ready to optimize requests locally. Run your next task to start seeing savings.',
+    title: 'You are set',
+    body: 'Open Live to watch activity and savings. You can change modes anytime in Settings.',
   },
   error: {
-    title: 'Something needs attention',
-    body: 'We hit a problem while checking your local setup. Review diagnostics and try again.',
+    title: 'Could not check status',
+    body: 'Tap Refresh or open Settings. If it keeps happening, quit Spectyra and reopen it.',
   },
 };
 
@@ -49,8 +49,17 @@ export function resolveOnboardingState(input: OnboardingStateInput): OnboardingS
   const desktopOk = input.isDesktopApp || input.userAcknowledgedDesktopInstall;
   if (!desktopOk) return 'desktop_not_installed';
   if (!input.companionRunning) return 'desktop_installed_companion_not_running';
-  if (!input.signedIn) return 'not_signed_in';
-  if (!input.providerConfigured) return 'provider_missing';
+  /**
+   * Desktop: provider key before account — local-first; avoids blocking paste-key on sign-in.
+   * Web: account first (org / dashboard), then provider.
+   */
+  if (input.isDesktopApp) {
+    if (!input.providerConfigured) return 'provider_missing';
+    if (!input.signedIn) return 'not_signed_in';
+  } else {
+    if (!input.signedIn) return 'not_signed_in';
+    if (!input.providerConfigured) return 'provider_missing';
+  }
   const ocDetected = input.openclawDetectedFromRuntime || input.assumeOpenClawFromFlow;
   if (!ocDetected) return 'openclaw_not_detected';
   if (!input.openclawConnectedFromRuntime) return 'openclaw_not_connected';
@@ -81,12 +90,12 @@ export function actionsForState(
       ];
     case 'not_signed_in':
       return [
-        { type: 'sign_in', label: 'Sign in', primary: true },
+        { type: 'sign_in', label: isDesktop ? 'Sign in (optional)' : 'Sign in', primary: true },
         ...(isDesktop ? [] : [{ type: 'open_desktop' as const, label: 'Open desktop app' }]),
       ];
     case 'provider_missing':
       return [
-        { type: 'configure_provider', label: 'Add your AI provider', primary: true },
+        { type: 'configure_provider', label: isDesktop ? 'Add API key' : 'Add your AI provider', primary: true },
         ...(isDesktop ? [] : [{ type: 'open_desktop' as const, label: 'Open desktop app' }]),
       ];
     case 'openclaw_not_detected':
@@ -106,15 +115,58 @@ export function actionsForState(
       ];
     case 'error':
       return [
-        { type: 'retry', label: 'Try again', primary: true },
-        { type: 'run_diagnostics', label: 'Run diagnostics' },
+        { type: 'retry', label: 'Refresh', primary: true },
+        { type: 'run_diagnostics', label: 'Connection check' },
       ];
     default:
       return [{ type: 'retry', label: 'Retry', primary: true }];
   }
 }
 
-const CHECKLIST_DEF: Array<{
+const CHECKLIST_COMMON_TAIL: Array<{
+  id: OnboardingChecklistItem['id'];
+  label: string;
+  ok: (st: OnboardingStatus) => boolean;
+  failedState: OnboardingState;
+}> = [
+  {
+    id: 'oc_detect',
+    label: 'OpenClaw detected',
+    ok: (s) => s.openclawDetected,
+    failedState: 'openclaw_not_detected',
+  },
+  {
+    id: 'oc_conn',
+    label: 'OpenClaw connected to Spectyra',
+    ok: (s) => s.openclawConnected,
+    failedState: 'openclaw_not_connected',
+  },
+];
+
+const CHECKLIST_DESKTOP_ORDER: Array<{
+  id: OnboardingChecklistItem['id'];
+  label: string;
+  ok: (st: OnboardingStatus) => boolean;
+  failedState: OnboardingState;
+}> = [
+  { id: 'desktop', label: 'Spectyra Desktop installed', ok: (s) => s.desktopInstalled, failedState: 'desktop_not_installed' },
+  {
+    id: 'companion',
+    label: 'Spectyra engine running',
+    ok: (s) => s.companionRunning,
+    failedState: 'desktop_installed_companion_not_running',
+  },
+  {
+    id: 'provider',
+    label: 'AI key added',
+    ok: (s) => s.providerConfigured,
+    failedState: 'provider_missing',
+  },
+  { id: 'signed_in', label: 'Account (optional)', ok: (s) => s.signedIn, failedState: 'not_signed_in' },
+  ...CHECKLIST_COMMON_TAIL,
+];
+
+const CHECKLIST_WEB_ORDER: Array<{
   id: OnboardingChecklistItem['id'];
   label: string;
   ok: (st: OnboardingStatus) => boolean;
@@ -134,21 +186,11 @@ const CHECKLIST_DEF: Array<{
     ok: (s) => s.providerConfigured,
     failedState: 'provider_missing',
   },
-  {
-    id: 'oc_detect',
-    label: 'OpenClaw detected',
-    ok: (s) => s.openclawDetected,
-    failedState: 'openclaw_not_detected',
-  },
-  {
-    id: 'oc_conn',
-    label: 'OpenClaw connected to Spectyra',
-    ok: (s) => s.openclawConnected,
-    failedState: 'openclaw_not_connected',
-  },
+  ...CHECKLIST_COMMON_TAIL,
 ];
 
-export function buildChecklistItems(st: OnboardingStatus): OnboardingChecklistItem[] {
+export function buildChecklistItems(st: OnboardingStatus, opts?: { isDesktop?: boolean }): OnboardingChecklistItem[] {
+  const CHECKLIST_DEF = opts?.isDesktop ? CHECKLIST_DESKTOP_ORDER : CHECKLIST_WEB_ORDER;
   if (st.state === 'checking') {
     return CHECKLIST_DEF.map((d) => ({ id: d.id, label: d.label, status: 'pending' as const }));
   }

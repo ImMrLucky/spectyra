@@ -31,6 +31,17 @@ import type { OpenClawWizardBlocker, OpenClawWizardStatus } from '@spectyra/open
         font-family: var(--font-body);
       }
 
+      .oc-simple-link {
+        display: inline-block;
+        font-size: 12px;
+        color: var(--spectyra-blue, #5b8def);
+        margin-bottom: 16px;
+        text-decoration: none;
+      }
+      .oc-simple-link:hover {
+        text-decoration: underline;
+      }
+
       /* ── Progress ── */
       .oc-progress {
         display: flex;

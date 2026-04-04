@@ -1,0 +1,51 @@
+appId: com.spectyra.desktop
+productName: Spectyra
+copyright: Copyright © Spectyra
+
+electronVersion: 28.3.3
+
+electronLanguages:
+  - en
+  - en-US
+
+artifactName: ${productName}-Pro-${version}-${os}-${arch}.${ext}
+
+directories:
+  output: release
+  buildResources: assets
+
+files:
+  - dist-electron/**/*
+  - dist/renderer/**/*
+  - package.json
+  - "!**/*.map"
+
+extraResources:
+  - from: resources/companion
+    to: companion
+    filter:
+      - "**/*"
+      - "!**/*.map"
+
+asar: true
+
+mac:
+  category: public.app-category.developer-tools
+  icon: assets/icon.png
+  target:
+    - dmg
+    - zip
+  gatekeeperAssess: false
+
+win:
+  compression: maximum
+  target:
+    - nsis
+    - zip
+  executableName: spectyra
+
+nsis:
+  oneClick: false
+  allowToChangeInstallationDirectory: true
+  createDesktopShortcut: true
+  shortcutName: Spectyra

@@ -134,6 +134,34 @@ importers:
         specifier: ~5.4.0
         version: 5.4.5
 
+  apps/desktop-pro:
+    dependencies:
+      '@spectyra/core-types':
+        specifier: workspace:*
+        version: link:../../packages/core-types
+      '@spectyra/shared':
+        specifier: workspace:*
+        version: link:../../packages/shared
+    devDependencies:
+      '@types/node':
+        specifier: ^20.10.0
+        version: 20.19.30
+      cross-env:
+        specifier: ^7.0.3
+        version: 7.0.3
+      electron:
+        specifier: 28.3.3
+        version: 28.3.3
+      electron-builder:
+        specifier: ^24.13.3
+        version: 24.13.3(electron-builder-squirrel-windows@24.13.3)
+      esbuild:
+        specifier: ^0.27.4
+        version: 0.27.4
+      typescript:
+        specifier: ~5.4.0
+        version: 5.4.5
+
   apps/web:
     dependencies:
       '@angular/animations':

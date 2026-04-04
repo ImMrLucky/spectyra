@@ -554,7 +554,7 @@ async function persistLocally(
 
 // ── Start ────────────────────────────────────────────────────────────────────
 
-app.listen(cfg.port, cfg.bindHost, () => {
+const server = app.listen(cfg.port, cfg.bindHost, () => {
   console.log(`\nSpectyra Local Companion`);
   console.log(`  Listening: http://${cfg.bindHost}:${cfg.port}`);
   console.log(`  Run mode:  ${cfg.runMode}`);
@@ -563,4 +563,11 @@ app.listen(cfg.port, cfg.bindHost, () => {
   console.log(`  Inference: direct to provider (no Spectyra cloud relay)`);
   console.log(`  Billing:   customer account`);
   console.log(`\nSet your LLM app's API base URL to: http://localhost:${cfg.port}/v1\n`);
+});
+server.on("error", (err: NodeJS.ErrnoException) => {
+  console.error(
+    `[spectyra-companion] Cannot bind ${cfg.bindHost}:${cfg.port} — ${err.code ?? "ERR"}: ${err.message}. ` +
+      `Quit any other Local Companion or dev server using this port.`,
+  );
+  process.exit(1);
 });

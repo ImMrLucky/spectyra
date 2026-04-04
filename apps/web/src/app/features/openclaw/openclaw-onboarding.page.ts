@@ -37,7 +37,9 @@ export class OpenClawOnboardingPage implements OnInit {
   private readonly meService = inject(MeService);
   readonly onboarding = inject(IntegrationOnboardingService);
 
-  readonly checklist = computed(() => buildChecklistItems(this.onboarding.status()));
+  readonly checklist = computed(() =>
+    buildChecklistItems(this.onboarding.status(), { isDesktop: environment.isDesktop }),
+  );
 
   readonly headline = computed(() => {
     const st = this.onboarding.status().state;
@@ -46,9 +48,8 @@ export class OpenClawOnboardingPage implements OnInit {
     }
     if (st === 'desktop_installed_companion_not_running' && environment.isDesktop) {
       return {
-        title: 'Local Companion is not reachable',
-        body:
-          'Spectyra starts a small local HTTP service (Local Companion) for OpenClaw\'s base URL and diagnostics. Tap "Start Local Companion" and wait up to ~20 seconds for the checklist to refresh; the process can take a few seconds after a cold start. You can also quit and reopen Spectyra.',
+        title: 'Spectyra is still starting',
+        body: 'Wait a few seconds and tap Refresh. If this stays red, quit Spectyra completely and open it again.',
       };
     }
     const key = st as keyof typeof ONBOARDING_COPY;

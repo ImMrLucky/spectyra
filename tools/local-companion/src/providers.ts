@@ -5,6 +5,7 @@
  * Provider key stays local. Spectyra cloud is never in the inference path.
  */
 
+import { existsSync, readFileSync } from "node:fs";
 import type { ChatMessage } from "./optimizer.js";
 
 export interface ProviderCallResult {
@@ -13,26 +14,56 @@ export interface ProviderCallResult {
   raw: unknown;
 }
 
+function normalizeKeysObject(raw: unknown): Record<string, string> {
+  if (!raw || typeof raw !== "object" || Array.isArray(raw)) return {};
+  const out: Record<string, string> = {};
+  for (const [k, v] of Object.entries(raw as Record<string, unknown>)) {
+    const key = k.trim();
+    if (typeof v === "string" && v.trim()) out[key] = v.trim();
+  }
+  return out;
+}
+
+/**
+ * Desktop writes keys to a file (avoids OS env size / escaping issues) and may also set JSON in env.
+ * Prefer the file when present so keys always match what was saved on disk.
+ */
 function parseSessionKeys(): Record<string, string> {
+  const filePath = process.env.SPECTYRA_PROVIDER_KEYS_FILE?.trim();
+  if (filePath && existsSync(filePath)) {
+    try {
+      const parsed = JSON.parse(readFileSync(filePath, "utf-8")) as unknown;
+      const fromFile = normalizeKeysObject(parsed);
+      if (Object.keys(fromFile).length > 0) return fromFile;
+    } catch {
+      /* fall through */
+    }
+  }
+
   const raw = process.env.SPECTYRA_PROVIDER_KEYS_JSON;
   if (!raw?.trim()) return {};
   try {
-    return JSON.parse(raw) as Record<string, string>;
+    return normalizeKeysObject(JSON.parse(raw) as unknown);
   } catch {
     return {};
   }
 }
 
-const sessionKeys = parseSessionKeys();
-
+/** Parse on each read so a restarted companion process always sees the latest env from the desktop parent. */
 export function getProviderKey(provider: string): string {
-  const fromSession = sessionKeys[provider];
-  if (fromSession) return fromSession;
-  switch (provider) {
-    case "openai": return process.env.OPENAI_API_KEY || "";
-    case "anthropic": return process.env.ANTHROPIC_API_KEY || "";
-    case "groq": return process.env.GROQ_API_KEY || "";
-    default: return "";
+  const keys = parseSessionKeys();
+  const p = provider.trim().toLowerCase();
+  const fromSession = keys[provider] ?? keys[p];
+  if (fromSession && fromSession.length > 0) return fromSession;
+  switch (p) {
+    case "openai":
+      return (process.env.OPENAI_API_KEY || "").trim();
+    case "anthropic":
+      return (process.env.ANTHROPIC_API_KEY || "").trim();
+    case "groq":
+      return (process.env.GROQ_API_KEY || "").trim();
+    default:
+      return "";
   }
 }
 

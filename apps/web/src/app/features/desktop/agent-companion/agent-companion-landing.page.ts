@@ -16,6 +16,7 @@ import {
 } from '../../../core/agent-companion/agent-companion.service';
 import { DesktopFirstRunService } from '../../../core/desktop/desktop-first-run.service';
 import { DesktopBridgeService } from '../../../core/desktop/desktop-bridge.service';
+import { DESKTOP_SETUP, friendlyProviderKeyUserMessage } from '../../../core/desktop/desktop-setup-messages';
 import { IntegrationOnboardingService } from '../../integrations/services/integration-onboarding.service';
 import { buildChecklistItems } from '../../integrations/services/map-onboarding-state';
 import { SupabaseService } from '../../../services/supabase.service';
@@ -116,7 +117,8 @@ import { MeService } from '../../../core/services/me.service';
 
         <div class="config-section" *ngIf="svc.state.runtime === 'openclaw'">
           <p class="step-sub">
-            We'll check that everything is ready. Complete each item below, then continue.
+            Finish each step in order: add your provider key here, point OpenClaw at the Local Companion (copy config if needed),
+            then tap <strong>Continue</strong> when the checklist is green. After validation, open <strong>Live</strong> to watch runs and savings.
           </p>
 
           <!-- Readiness checklist -->
@@ -175,9 +177,9 @@ import { MeService } from '../../../core/services/me.service';
 
           <!-- Inline provider key setup -->
           <div class="oc-auth-card" *ngIf="onboarding.status().state === 'provider_missing'">
-            <h3 class="oc-auth-title">Add your AI provider key</h3>
+            <h3 class="oc-auth-title">Add your AI key</h3>
             <p class="oc-auth-desc">
-              Spectyra needs a provider API key to forward requests to your LLM. The key is stored only on this computer.
+              Paste your OpenAI, Anthropic, or Groq key. It never leaves this computer.
             </p>
             <form class="oc-auth-form" (ngSubmit)="saveProviderKey()">
               <div class="oc-field">
@@ -194,8 +196,12 @@ import { MeService } from '../../../core/services/me.service';
                        placeholder="sk-..." [disabled]="providerSaving" required />
               </div>
               <div class="oc-auth-error" *ngIf="providerError">{{ providerError }}</div>
+              <details class="oc-tech-details" *ngIf="providerTechnical && providerError">
+                <summary>{{ setupCopy.technicalDetailsLabel }}</summary>
+                <pre class="oc-tech-pre">{{ providerTechnical }}</pre>
+              </details>
               <div class="oc-auth-success" *ngIf="providerSaved && !providerError">
-                Key saved — restarting companion…
+                {{ setupCopy.providerSaveSuccess }}
               </div>
               <button type="submit" class="btn-primary"
                       [disabled]="providerSaving || !providerApiKey">
@@ -711,6 +717,22 @@ const result = await spectyra.optimize(messages);</pre>
         font-weight: 500;
       }
 
+      .oc-tech-details {
+        margin: 10px 0;
+        font-size: 11px;
+        color: var(--text-muted);
+      }
+      .oc-tech-details summary { cursor: pointer; margin-bottom: 6px; }
+      .oc-tech-pre {
+        font-size: 10px;
+        white-space: pre-wrap;
+        word-break: break-word;
+        background: rgba(0,0,0,0.2);
+        padding: 8px;
+        border-radius: 6px;
+        margin: 0;
+      }
+
       .oc-auth-toggle {
         margin: 12px 0 0;
         font-size: 12px;
@@ -981,7 +1003,10 @@ export class AgentCompanionLandingPage implements OnInit {
   private readonly desktop = inject(DesktopBridgeService);
   readonly onboarding = inject(IntegrationOnboardingService);
 
-  readonly openclawChecklist = computed(() => buildChecklistItems(this.onboarding.status()));
+  readonly openclawChecklist = computed(() =>
+    buildChecklistItems(this.onboarding.status(), { isDesktop: environment.isDesktop }),
+  );
+  readonly setupCopy = DESKTOP_SETUP;
 
   /** Shown until the user acknowledges the guided path (localStorage). */
   showFirstRunWelcome = false;
@@ -999,6 +1024,8 @@ export class AgentCompanionLandingPage implements OnInit {
   providerApiKey = '';
   providerSaving = false;
   providerError: string | null = null;
+  /** Raw hint from main process — optional disclosure only. */
+  providerTechnical: string | null = null;
   providerSaved = false;
 
   constructor(
@@ -1112,20 +1139,34 @@ export class AgentCompanionLandingPage implements OnInit {
     if (!this.providerApiKey.trim()) return;
     this.providerSaving = true;
     this.providerError = null;
+    this.providerTechnical = null;
     this.providerSaved = false;
     try {
-      await this.desktop.saveConfig({ provider: this.providerChoice });
-      const ok = await this.desktop.setProviderKey(this.providerChoice, this.providerApiKey.trim());
-      if (!ok) {
-        this.providerError = 'Could not save key. Make sure the desktop app is running.';
-        return;
+      for (let attempt = 0; attempt < 3; attempt++) {
+        if (attempt > 0) {
+          await new Promise((r) => setTimeout(r, 2000));
+        }
+        const result = await this.desktop.setProviderKey(this.providerChoice, this.providerApiKey.trim());
+        const friendly = friendlyProviderKeyUserMessage(result);
+        if (friendly.success) {
+          this.providerApiKey = '';
+          this.providerSaved = true;
+          for (let i = 0; i < 10; i++) {
+            await this.onboarding.refreshOpenClawStatus();
+            if (this.onboarding.status().providerConfigured) break;
+            await new Promise((r) => setTimeout(r, 400));
+          }
+          return;
+        }
+        if (attempt === 2) {
+          this.providerError = friendly.message;
+          this.providerTechnical = friendly.technical ?? null;
+          await this.onboarding.refreshOpenClawStatus();
+        }
       }
-      this.providerApiKey = '';
-      this.providerSaved = true;
-      await new Promise(r => setTimeout(r, 1500));
-      await this.onboarding.refreshOpenClawStatus();
-    } catch (e: any) {
-      this.providerError = e.message || 'Failed to save key';
+    } catch (e: unknown) {
+      this.providerError = DESKTOP_SETUP.providerSaveFailed;
+      this.providerTechnical = e instanceof Error ? e.message : String(e);
     } finally {
       this.providerSaving = false;
     }

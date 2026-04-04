@@ -8,6 +8,7 @@ import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatSelectModule } from '@angular/material/select';
 import { MatInputModule } from '@angular/material/input';
 import { DesktopBridgeService } from '../../core/desktop/desktop-bridge.service';
+import { DESKTOP_SETUP, friendlyProviderKeyUserMessage } from '../../core/desktop/desktop-setup-messages';
 
 @Component({
   selector: 'app-desktop-onboarding',
@@ -80,7 +81,16 @@ export class DesktopOnboardingPage implements OnInit {
         promptSnapshots: this.promptSnapshots,
       });
       if (this.apiKey.trim()) {
-        await this.desktop.setProviderKey(this.provider, this.apiKey.trim());
+        for (let attempt = 0; attempt < 3; attempt++) {
+          if (attempt > 0) await new Promise((r) => setTimeout(r, 2000));
+          const pk = await this.desktop.setProviderKey(this.provider, this.apiKey.trim());
+          const friendly = friendlyProviderKeyUserMessage(pk);
+          if (friendly.success) break;
+          if (attempt === 2) {
+            this.error = friendly.message ?? DESKTOP_SETUP.providerSaveFailed;
+            return;
+          }
+        }
       }
       localStorage.setItem('spectyra_desktop_onboarding_done', '1');
       await this.router.navigateByUrl('/desktop/live');

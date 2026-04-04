@@ -46,8 +46,15 @@ function parseWorkflowPolicyMode(raw: string | undefined): WorkflowPolicyMode {
   return "enforce";
 }
 
+/** Normalize so health checks match strict openai|anthropic|groq (env can pick up stray whitespace/newlines). */
+function normalizeProviderId(raw: string | undefined): string {
+  const t = (raw || "openai").trim().toLowerCase();
+  if (t === "anthropic" || t === "groq") return t;
+  return "openai";
+}
+
 export function loadConfig(): CompanionConfig {
-  const provider = process.env.SPECTYRA_PROVIDER || "openai";
+  const provider = normalizeProviderId(process.env.SPECTYRA_PROVIDER);
   const defaults = defaultAliasModels(provider);
   return {
     runMode: (process.env.SPECTYRA_RUN_MODE as SpectyraRunMode) || "on",

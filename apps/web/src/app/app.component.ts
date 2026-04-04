@@ -50,6 +50,7 @@ export class AppComponent implements OnInit, OnDestroy, AfterViewInit {
   @ViewChild('sidenav') sidenav?: MatSidenav;
 
   readonly isDesktop = environment.isDesktop;
+  readonly isDesktopPro = !!(environment as Record<string, unknown>)['isDesktopPro'];
 
   /** macOS: traffic lights (hiddenInset) need extra inset so brand clears the controls */
   desktopIsDarwin = false;

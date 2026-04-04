@@ -1,41 +1,60 @@
 import { Routes } from '@angular/router';
 import { authGuard } from './core/guards/auth.guard';
-import { DesktopDashboardPage } from './features/desktop/dashboard.page';
-import { DesktopOnboardingPage } from './features/desktop/onboarding.page';
-import { OpenClawOnboardingPage } from './features/openclaw/openclaw-onboarding.page';
-import { DesktopRunsPage } from './features/desktop/runs.page';
-import { LiveSavingsPage } from './features/desktop/live-savings.page';
-import { LivePage } from './features/desktop/live/live.page';
-import { DesktopSessionsPage } from './features/desktop/sessions/sessions.page';
-import { DesktopHistoryPage } from './features/desktop/history/history.page';
-import { DesktopComparePage } from './features/desktop/compare/compare.page';
-import { AgentCompanionLandingPage } from './features/desktop/agent-companion/agent-companion-landing.page';
-import { DesktopHomeRedirectComponent } from './features/desktop/desktop-home-redirect.component';
-import { DesktopSecurityPage } from './features/desktop/security/desktop-security.page';
-import { DesktopSettingsPage } from './features/desktop/settings/desktop-settings.page';
-import { IntegrationsPage } from './features/integrations/integrations.page';
-import { LoginPage } from './features/auth/login.page';
-import { RegisterPage } from './features/auth/register.page';
-import { SuperuserPage } from './features/superuser/superuser.page';
 import { superuserGuard } from './core/guards/superuser.guard';
 
-/** Electron renderer — local-first shell (hash routing in main.ts). */
+/* ── OpenClaw Desktop Edition ── */
+import { OpenClawDesktopRedirect } from './features/desktop/openclaw-edition/openclaw-redirect.component';
+import { OpenClawHomePage } from './features/desktop/openclaw-edition/openclaw-home.page';
+import { OpenClawWizardPage } from './features/desktop/openclaw-edition/openclaw-wizard.page';
+import { OpenClawSkillsPage } from './features/desktop/openclaw-hub/skills/openclaw-skills.page';
+import { OpenClawAssistantsPage } from './features/desktop/openclaw-hub/assistants/openclaw-assistants.page';
+import { OpenClawTasksPage } from './features/desktop/openclaw-hub/tasks/openclaw-tasks.page';
+import { LivePage } from './features/desktop/live/live.page';
+import { OpenClawSettingsPage } from './features/desktop/openclaw-edition/openclaw-settings.page';
+
+/* ── Shared / auth ── */
+import { LoginPage } from './features/auth/login.page';
+import { RegisterPage } from './features/auth/register.page';
+import { IntegrationsPage } from './features/integrations/integrations.page';
+import { SuperuserPage } from './features/superuser/superuser.page';
+
+/**
+ * OpenClaw Desktop Edition — simplified routes.
+ * Five main sections: Home, Skills, Assistants, Live, Settings.
+ * Setup wizard is always accessible but not in the nav bar.
+ */
 export const desktopRoutes: Routes = [
-  { path: '', pathMatch: 'full', component: DesktopHomeRedirectComponent },
-  { path: 'desktop/dashboard', component: DesktopDashboardPage },
+  { path: '', pathMatch: 'full', component: OpenClawDesktopRedirect },
+
+  { path: 'desktop/home', component: OpenClawHomePage },
+  { path: 'desktop/setup', component: OpenClawWizardPage },
+  { path: 'desktop/skills', component: OpenClawSkillsPage },
+  { path: 'desktop/assistants', component: OpenClawAssistantsPage },
+  { path: 'desktop/tasks', component: OpenClawTasksPage },
   { path: 'desktop/live', component: LivePage },
+  { path: 'desktop/settings', component: OpenClawSettingsPage },
+
+  /* Legacy redirects so bookmarks still work */
+  { path: 'desktop/openclaw', redirectTo: 'desktop/home', pathMatch: 'full' },
+  { path: 'desktop/openclaw/overview', redirectTo: 'desktop/home', pathMatch: 'full' },
+  { path: 'desktop/openclaw/setup', redirectTo: 'desktop/setup', pathMatch: 'full' },
+  { path: 'desktop/openclaw/setup/guide', redirectTo: 'desktop/setup', pathMatch: 'full' },
+  { path: 'desktop/openclaw/skills', redirectTo: 'desktop/skills', pathMatch: 'full' },
+  { path: 'desktop/openclaw/assistants', redirectTo: 'desktop/assistants', pathMatch: 'full' },
+  { path: 'desktop/openclaw/tasks', redirectTo: 'desktop/tasks', pathMatch: 'full' },
+  { path: 'desktop/openclaw/diagnostics', redirectTo: 'desktop/settings', pathMatch: 'full' },
+  { path: 'desktop/dashboard', redirectTo: 'desktop/home', pathMatch: 'full' },
+  { path: 'desktop/sessions', redirectTo: 'desktop/live', pathMatch: 'full' },
+  { path: 'desktop/history', redirectTo: 'desktop/live', pathMatch: 'full' },
+  { path: 'desktop/compare', redirectTo: 'desktop/live', pathMatch: 'full' },
+  { path: 'desktop/runs', redirectTo: 'desktop/live', pathMatch: 'full' },
+  { path: 'desktop/agent-companion', redirectTo: 'desktop/setup', pathMatch: 'full' },
+  { path: 'desktop/onboarding', redirectTo: 'desktop/setup', pathMatch: 'full' },
+  { path: 'desktop/security', redirectTo: 'desktop/settings', pathMatch: 'full' },
+  { path: 'desktop/openclaw-legacy', redirectTo: 'desktop/setup', pathMatch: 'full' },
   { path: 'desktop/live-savings', redirectTo: 'desktop/live', pathMatch: 'full' },
-  { path: 'desktop/sessions', component: DesktopSessionsPage },
-  { path: 'desktop/history', component: DesktopHistoryPage },
-  { path: 'desktop/compare', component: DesktopComparePage },
-  { path: 'desktop/agent-companion', component: AgentCompanionLandingPage },
-  { path: 'desktop/security', component: DesktopSecurityPage },
-  { path: 'desktop/settings', component: DesktopSettingsPage },
-  { path: 'desktop/onboarding', component: DesktopOnboardingPage },
-  { path: 'desktop/openclaw', component: OpenClawOnboardingPage },
-  { path: 'desktop/runs', component: DesktopRunsPage },
-  /** Legacy detailed view — keep route for bookmarks; forwards to hero Live. */
-  { path: 'desktop/live-legacy', component: LiveSavingsPage },
+  { path: 'desktop/live-legacy', redirectTo: 'desktop/live', pathMatch: 'full' },
+
   { path: 'login', component: LoginPage },
   { path: 'register', component: RegisterPage },
   { path: 'integrations/:slug', component: IntegrationsPage, canActivate: [authGuard] },

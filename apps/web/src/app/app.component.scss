@@ -55,6 +55,14 @@
   text-decoration: none;
 }
 
+.dt-edition {
+  font-weight: 400;
+  font-size: 12px;
+  color: var(--spectyra-blue-light, #85B7EB);
+  letter-spacing: 0;
+  margin-left: 2px;
+}
+
 .dt-spacer { flex: 1; }
 
 /* ── Nav tabs (36px) ── */

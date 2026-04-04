@@ -8,7 +8,7 @@ import { execFileSync } from "child_process";
 import path from "path";
 import { spawn, execFile, ChildProcess } from "child_process";
 import { promises as fs } from "fs";
-import { existsSync } from "fs";
+import { existsSync, mkdirSync, writeFileSync } from "fs";
 import { homedir, tmpdir } from "os";
 import {
   defaultAliasModels,
@@ -36,6 +36,8 @@ interface AppConfig {
 
 const CONFIG_DIR = path.join(homedir(), ".spectyra", "desktop");
 const CONFIG_FILE = path.join(CONFIG_DIR, "config.json");
+/** Written before each companion spawn — companion reads this path (avoids env JSON size/escaping limits). */
+const PROVIDER_KEYS_FILE = path.join(CONFIG_DIR, "provider-keys.json");
 const DATA_DIR = path.join(homedir(), ".spectyra", "companion");
 
 /** Avoid a second Spectyra instance binding the same companion port. */
@@ -129,8 +131,34 @@ function companionPaths(): { script: string; cwd: string } {
   };
 }
 
+/** True if the companion can obtain a key for this provider (saved keys or process env). */
+function hasProviderCredential(provider: string): boolean {
+  const p = provider.toLowerCase();
+  if (!["openai", "anthropic", "groq"].includes(p)) return false;
+  const keys = config.providerKeys || {};
+  if (typeof keys[p] === "string" && keys[p].trim().length > 0) return true;
+  if (p === "openai" && (process.env.OPENAI_API_KEY || "").trim()) return true;
+  if (p === "anthropic" && (process.env.ANTHROPIC_API_KEY || "").trim()) return true;
+  if (p === "groq" && (process.env.GROQ_API_KEY || "").trim()) return true;
+  return false;
+}
+
 function companionEnv(): NodeJS.ProcessEnv {
   const keys = config.providerKeys || {};
+  try {
+    mkdirSync(CONFIG_DIR, { recursive: true });
+  } catch {
+    /* ignore */
+  }
+  try {
+    writeFileSync(PROVIDER_KEYS_FILE, JSON.stringify(keys, null, 2), "utf-8");
+  } catch {
+    /* ignore */
+  }
+  const keysJson = JSON.stringify(keys);
+  const providerNorm = ["openai", "anthropic", "groq"].includes(config.provider)
+    ? config.provider
+    : "openai";
   return {
     ...process.env,
     ELECTRON_RUN_AS_NODE: "1",
@@ -138,7 +166,8 @@ function companionEnv(): NodeJS.ProcessEnv {
     SPECTYRA_TELEMETRY: config.telemetryMode,
     SPECTYRA_PROMPT_SNAPSHOTS: config.promptSnapshots,
     SPECTYRA_PORT: String(config.port),
-    SPECTYRA_PROVIDER: config.provider,
+    SPECTYRA_PROVIDER: providerNorm,
+    SPECTYRA_PROVIDER_KEYS_FILE: PROVIDER_KEYS_FILE,
     SPECTYRA_ALIAS_SMART_MODEL: config.aliasSmartModel,
     SPECTYRA_ALIAS_FAST_MODEL: config.aliasFastModel,
     SPECTYRA_ALIAS_QUALITY_MODEL: config.aliasQualityModel,
@@ -146,7 +175,11 @@ function companionEnv(): NodeJS.ProcessEnv {
     SPECTYRA_DESKTOP_MANAGED: "1",
     SPECTYRA_ACCOUNT_SIGNED_IN: "1",
     SPECTYRA_KEY_SOURCE: "session",
-    SPECTYRA_PROVIDER_KEYS_JSON: JSON.stringify(keys),
+    SPECTYRA_PROVIDER_KEYS_JSON: keysJson,
+    /** Belt-and-suspenders: companion also reads these if session JSON is ever empty in edge cases. */
+    OPENAI_API_KEY: keys.openai ?? process.env.OPENAI_API_KEY ?? "",
+    ANTHROPIC_API_KEY: keys.anthropic ?? process.env.ANTHROPIC_API_KEY ?? "",
+    GROQ_API_KEY: keys.groq ?? process.env.GROQ_API_KEY ?? "",
     SPECTYRA_LICENSE_KEY: config.licenseKey || "",
   };
 }
@@ -211,19 +244,59 @@ function startCompanion(): void {
   mainWindow?.webContents.send("companion-status", { running: true, port: config.port });
 }
 
+interface CompanionHealthBody {
+  status?: string;
+  service?: string;
+  providerConfigured?: boolean;
+}
+
+function isSpectyraCompanionHealth(j: CompanionHealthBody): boolean {
+  return j.service === "spectyra-local-companion" && j.status === "ok";
+}
+
 async function waitForHealth(timeoutMs = 30000): Promise<boolean> {
   const start = Date.now();
   const url = `http://127.0.0.1:${config.port}/health`;
   while (Date.now() - start < timeoutMs) {
     try {
       const r = await fetch(url);
-      if (r.ok) return true;
+      if (!r.ok) {
+        await new Promise((x) => setTimeout(x, 300));
+        continue;
+      }
+      const j = (await r.json()) as CompanionHealthBody;
+      if (isSpectyraCompanionHealth(j)) return true;
     } catch {
       /* retry */
     }
     await new Promise((r) => setTimeout(r, 300));
   }
   return false;
+}
+
+/** After restart, wait until OUR companion reports provider keys (avoids stale process on same port). */
+async function waitForHealthProviderReady(timeoutMs = 45000): Promise<boolean> {
+  const start = Date.now();
+  const url = `http://127.0.0.1:${config.port}/health`;
+  while (Date.now() - start < timeoutMs) {
+    try {
+      const r = await fetch(url);
+      if (!r.ok) {
+        await new Promise((x) => setTimeout(x, 350));
+        continue;
+      }
+      const j = (await r.json()) as CompanionHealthBody;
+      if (isSpectyraCompanionHealth(j) && j.providerConfigured === true) return true;
+    } catch {
+      /* retry */
+    }
+    await new Promise((r) => setTimeout(r, 350));
+  }
+  return false;
+}
+
+function delay(ms: number): Promise<void> {
+  return new Promise((r) => setTimeout(r, ms));
 }
 
 function resolveRendererIndexHtml(): string {
@@ -248,7 +321,7 @@ function createWindow(): void {
     height: 780,
     minWidth: 800,
     minHeight: 600,
-    title: "Spectyra",
+    title: process.env.SPECTYRA_EDITION === "pro" ? "Spectyra" : "Spectyra for OpenClaw",
     show: false,
     icon: iconPath,
     titleBarStyle: process.platform === "darwin" ? "hiddenInset" : "default",
@@ -432,24 +505,39 @@ ipcMain.handle(
     }
     try {
     if (process.platform === "darwin") {
-      const escaped = line.replace(/\\/g, "\\\\").replace(/"/g, '\\"');
-      execFile("osascript", ["-e", `tell application "Terminal" to do script "${escaped}"`]);
-      return { ok: true };
+      try {
+        const tmpDir = await fs.mkdtemp(path.join(tmpdir(), "spectyra-openclaw-"));
+        const shPath = path.join(tmpDir, "openclaw-onboard.sh");
+        await fs.writeFile(shPath, `#!/bin/bash\n${line}\n`, { mode: 0o755 });
+        const child = spawn("open", ["-a", "Terminal", shPath], {
+          detached: true,
+          stdio: "ignore",
+        });
+        child.unref();
+        return { ok: true };
+      } catch (darwinErr) {
+        return { ok: false, error: `Could not open Terminal: ${darwinErr instanceof Error ? darwinErr.message : String(darwinErr)}. Copy the command and run it in Terminal manually.` };
+      }
     }
 
     /** Linux / other: try common terminal emulators */
     const bashArgs = ["-lc", line];
+    const tryTerminal = (cmd: string, args: string[]): Promise<{ ok: boolean; error?: string }> => {
+      return new Promise((resolve) => {
+        const child = spawn(cmd, args, { detached: true, stdio: "ignore" });
+        child.unref();
+        child.on("error", (err) => resolve({ ok: false, error: err.message }));
+        setTimeout(() => resolve({ ok: true }), 200);
+      });
+    };
     if (existsSync("/usr/bin/x-terminal-emulator")) {
-      execFile("/usr/bin/x-terminal-emulator", ["-e", "bash", ...bashArgs]);
-      return { ok: true };
+      return tryTerminal("/usr/bin/x-terminal-emulator", ["-e", "bash", ...bashArgs]);
     }
     if (existsSync("/usr/bin/gnome-terminal")) {
-      execFile("/usr/bin/gnome-terminal", ["--", "bash", ...bashArgs]);
-      return { ok: true };
+      return tryTerminal("/usr/bin/gnome-terminal", ["--", "bash", ...bashArgs]);
     }
     if (existsSync("/usr/bin/konsole")) {
-      execFile("/usr/bin/konsole", ["-e", "bash", ...bashArgs]);
-      return { ok: true };
+      return tryTerminal("/usr/bin/konsole", ["-e", "bash", ...bashArgs]);
     }
     return {
       ok: false,
@@ -488,18 +576,74 @@ ipcMain.handle("config:save", async (_e, partial: Partial<AppConfig>) => {
   await saveConfig();
   stopCompanion();
   startCompanion();
-  void waitForHealth();
-  return true;
-});
-
-ipcMain.handle("provider-key:set", async (_e, provider: string, key: string) => {
-  config.providerKeys = { ...config.providerKeys, [provider]: key };
-  await saveConfig();
-  stopCompanion();
-  startCompanion();
   await waitForHealth();
   return true;
 });
+
+ipcMain.handle(
+  "provider-key:set",
+  async (
+    _e,
+    provider: string,
+    key: string,
+  ): Promise<
+    | { ok: true; providerReady: true }
+    | { ok: true; providerReady: false; hint: string }
+    | { ok: false; error: string }
+  > => {
+    if (!["openai", "anthropic", "groq"].includes(provider)) {
+      return { ok: false, error: "Unsupported provider." };
+    }
+    const trimmedKey = key.trim();
+    if (!trimmedKey) {
+      return { ok: false, error: "API key cannot be empty." };
+    }
+    const p = provider as "openai" | "anthropic" | "groq";
+    const defs = defaultAliasModels(p);
+    config.provider = provider;
+    config.aliasSmartModel = defs.smart;
+    config.aliasFastModel = defs.fast;
+    config.aliasQualityModel = defs.quality;
+    config.providerKeys = { ...config.providerKeys, [provider]: trimmedKey };
+    await saveConfig();
+    stopCompanion();
+    await delay(750);
+    startCompanion();
+    const ready = await waitForHealthProviderReady(45000);
+    if (ready) {
+      return { ok: true, providerReady: true };
+    }
+    try {
+      const res = await fetch(`http://127.0.0.1:${config.port}/health`);
+      const j = (await res.json()) as CompanionHealthBody;
+      if (j.providerConfigured === true && isSpectyraCompanionHealth(j)) {
+        return { ok: true, providerReady: true };
+      }
+      if (!isSpectyraCompanionHealth(j)) {
+        return {
+          ok: true,
+          providerReady: false,
+          hint:
+            `Something on port ${config.port} responded to /health but it is not the Spectyra Local Companion. ` +
+            "Quit any dev server or other app using that port, then restart Spectyra.",
+        };
+      }
+      return {
+        ok: true,
+        providerReady: false,
+        hint:
+          "The companion is running but does not see a provider API key yet. " +
+            "If you pasted a key, try again after fully quitting Spectyra, or check that no other process is bound to the same port.",
+      };
+    } catch {
+      return {
+        ok: true,
+        providerReady: false,
+        hint: `Could not reach the companion on port ${config.port}. Restart Spectyra or check that the port is not blocked.`,
+      };
+    }
+  },
+);
 
 ipcMain.handle("provider-key:test", async (_e, provider: string) => {
   const key = config.providerKeys?.[provider] || process.env[`${provider.toUpperCase()}_API_KEY`] || "";
@@ -525,6 +669,63 @@ ipcMain.handle("provider-key:test", async (_e, provider: string) => {
   } catch (err: unknown) {
     return { ok: false, error: err instanceof Error ? err.message : String(err) };
   }
+});
+
+/**
+ * Switch active upstream provider without re-pasting a key (uses saved keys or env vars).
+ * Resets smart/fast/quality alias models to defaults for that provider.
+ */
+ipcMain.handle(
+  "provider:set-active",
+  async (
+    _e,
+    provider: string,
+  ): Promise<{ ok: true } | { ok: false; error: string }> => {
+    if (!["openai", "anthropic", "groq"].includes(provider)) {
+      return { ok: false, error: "Unsupported provider." };
+    }
+    if (!hasProviderCredential(provider)) {
+      return {
+        ok: false,
+        error:
+          "No API key for that provider. Save one in OpenClaw setup, or set the matching environment variable on your Mac.",
+      };
+    }
+    const defs = defaultAliasModels(provider);
+    config.provider = provider;
+    config.aliasSmartModel = defs.smart;
+    config.aliasFastModel = defs.fast;
+    config.aliasQualityModel = defs.quality;
+    await saveConfig();
+    stopCompanion();
+    await delay(750);
+    startCompanion();
+    const ready = await waitForHealthProviderReady(45000);
+    if (!ready) {
+      return {
+        ok: false,
+        error: "The companion did not report ready. Check the port, then try again or restart Spectyra.",
+      };
+    }
+    return { ok: true };
+  },
+);
+
+/** Clears disk-stored provider keys, rewrites provider-keys.json, and restarts the companion. */
+ipcMain.handle("provider-keys:clear", async () => {
+  config.providerKeys = {};
+  await saveConfig();
+  try {
+    mkdirSync(CONFIG_DIR, { recursive: true });
+    writeFileSync(PROVIDER_KEYS_FILE, "{}\n", "utf-8");
+  } catch {
+    /* ignore */
+  }
+  stopCompanion();
+  await delay(750);
+  startCompanion();
+  await waitForHealth(20000);
+  return true;
 });
 
 ipcMain.handle("license:activate", async (_e, licenseKey: string) => {
@@ -594,6 +795,138 @@ ipcMain.handle("app:companion-base-url", () => `http://127.0.0.1:${config.port}/
 
 ipcMain.handle("app:open-data-dir", () => {
   void shell.openPath(DATA_DIR);
+});
+
+// ── OpenClaw Hub IPC ──────────────────────────────────────────────────────────
+
+const PROFILES_FILE = path.join(CONFIG_DIR, "openclaw-profiles.json");
+const TASKS_FILE = path.join(CONFIG_DIR, "openclaw-tasks.json");
+
+async function readJsonFile<T>(p: string, fallback: T): Promise<T> {
+  try {
+    const raw = await fs.readFile(p, "utf-8");
+    return JSON.parse(raw) as T;
+  } catch {
+    return fallback;
+  }
+}
+
+async function writeJsonFile(p: string, data: unknown): Promise<void> {
+  await fs.mkdir(path.dirname(p), { recursive: true });
+  await fs.writeFile(p, JSON.stringify(data, null, 2), "utf-8");
+}
+
+function safeExecSync(cmd: string, args: string[], timeoutMs = 10000): { ok: boolean; stdout: string; stderr: string } {
+  try {
+    const stdout = execFileSync(cmd, args, { timeout: timeoutMs, encoding: "utf-8", stdio: ["ignore", "pipe", "pipe"] });
+    return { ok: true, stdout: stdout.trim(), stderr: "" };
+  } catch (err: any) {
+    return { ok: false, stdout: (err.stdout ?? "").toString().trim(), stderr: (err.stderr ?? "").toString().trim() };
+  }
+}
+
+ipcMain.handle("openclaw:config-path", async () => {
+  const r = safeExecSync("openclaw", ["config", "path"]);
+  return r.ok ? { ok: true, path: r.stdout } : { ok: false, error: r.stderr || "Could not get config path" };
+});
+
+ipcMain.handle("openclaw:doctor", async () => {
+  const r = safeExecSync("openclaw", ["doctor"], 30000);
+  return { ok: r.ok, output: r.ok ? r.stdout : r.stderr || r.stdout };
+});
+
+ipcMain.handle("openclaw:dashboard-check", async () => {
+  try {
+    const r = await fetch("http://localhost:3000", { signal: AbortSignal.timeout(3000) });
+    return { reachable: r.ok || r.status < 500, status: r.status };
+  } catch {
+    return { reachable: false };
+  }
+});
+
+ipcMain.handle("openclaw:gateway-check", async () => {
+  try {
+    const r = await fetch("http://localhost:18789/health", { signal: AbortSignal.timeout(3000) });
+    return { reachable: r.ok, status: r.status };
+  } catch {
+    return { reachable: false };
+  }
+});
+
+ipcMain.handle("openclaw:skills-search", async (_e, query: string) => {
+  const r = safeExecSync("openclaw", ["skills", "search", query], 15000);
+  if (!r.ok) return { ok: false, error: r.stderr || "Search failed", results: [] };
+  const lines = r.stdout.split("\n").filter((l) => l.trim());
+  const results = lines.map((line) => {
+    const parts = line.split(/\s{2,}/).map((s) => s.trim());
+    return { name: parts[0] || line.trim(), description: parts[1] || "", raw: line };
+  });
+  return { ok: true, results };
+});
+
+ipcMain.handle("openclaw:skills-installed", async () => {
+  const r = safeExecSync("openclaw", ["skills", "list"]);
+  if (!r.ok) return { ok: false, error: r.stderr || "Could not list skills", skills: [] };
+  const lines = r.stdout.split("\n").filter((l) => l.trim());
+  const skills = lines.map((line) => {
+    const parts = line.split(/\s{2,}/).map((s) => s.trim());
+    return { name: parts[0] || line.trim(), version: parts[1] || "", raw: line };
+  });
+  return { ok: true, skills };
+});
+
+ipcMain.handle("openclaw:skills-install", async (_e, name: string) => {
+  const r = safeExecSync("openclaw", ["skills", "install", name], 60000);
+  return r.ok ? { ok: true, output: r.stdout } : { ok: false, error: r.stderr || r.stdout || "Install failed" };
+});
+
+ipcMain.handle("openclaw:skills-update", async () => {
+  const r = safeExecSync("openclaw", ["skills", "update"], 60000);
+  return r.ok ? { ok: true, output: r.stdout } : { ok: false, error: r.stderr || r.stdout || "Update failed" };
+});
+
+ipcMain.handle("openclaw:open-path", async (_e, target: string) => {
+  if (!target || target.includes("..")) return { ok: false };
+  void shell.openPath(target);
+  return { ok: true };
+});
+
+ipcMain.handle("openclaw:open-config", async () => {
+  const r = safeExecSync("openclaw", ["config", "path"]);
+  if (r.ok && r.stdout) {
+    void shell.openPath(r.stdout);
+    return { ok: true, path: r.stdout };
+  }
+  return { ok: false, error: "Could not find config path" };
+});
+
+ipcMain.handle("openclaw:open-logs", async () => {
+  const logsDir = path.join(homedir(), ".openclaw", "logs");
+  if (existsSync(logsDir)) {
+    void shell.openPath(logsDir);
+    return { ok: true, path: logsDir };
+  }
+  return { ok: false, error: "Logs directory not found" };
+});
+
+/** Assistant profiles — Spectyra-side presets stored locally. */
+ipcMain.handle("spectyra:profiles-list", async () => {
+  return readJsonFile<unknown[]>(PROFILES_FILE, []);
+});
+
+ipcMain.handle("spectyra:profiles-save", async (_e, profiles: unknown[]) => {
+  await writeJsonFile(PROFILES_FILE, profiles);
+  return true;
+});
+
+/** Task templates — Spectyra-side recurring job presets stored locally. */
+ipcMain.handle("spectyra:tasks-list", async () => {
+  return readJsonFile<unknown[]>(TASKS_FILE, []);
+});
+
+ipcMain.handle("spectyra:tasks-save", async (_e, tasks: unknown[]) => {
+  await writeJsonFile(TASKS_FILE, tasks);
+  return true;
 });
 
 // ── Lifecycle ─────────────────────────────────────────────────────────────────

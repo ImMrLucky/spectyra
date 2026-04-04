@@ -21,9 +21,24 @@ function base(over: Partial<OnboardingStateInput>): OnboardingStateInput {
 
 function run() {
   assert.equal(resolveOnboardingState(base({ isDesktopApp: false, userAcknowledgedDesktopInstall: false })), 'desktop_not_installed');
+  assert.equal(
+    resolveOnboardingState(
+      base({
+        isDesktopApp: false,
+        userAcknowledgedDesktopInstall: true,
+        signedIn: false,
+        providerConfigured: false,
+      }),
+    ),
+    'not_signed_in',
+  );
   assert.equal(resolveOnboardingState(base({ isDesktopApp: true, companionRunning: false })), 'desktop_installed_companion_not_running');
   assert.equal(resolveOnboardingState(base({ isDesktopApp: true, signedIn: false })), 'not_signed_in');
   assert.equal(resolveOnboardingState(base({ isDesktopApp: true, providerConfigured: false })), 'provider_missing');
+  assert.equal(
+    resolveOnboardingState(base({ isDesktopApp: true, signedIn: false, providerConfigured: false })),
+    'provider_missing',
+  );
   assert.equal(
     resolveOnboardingState(base({ isDesktopApp: true, openclawDetectedFromRuntime: false, assumeOpenClawFromFlow: false })),
     'openclaw_not_detected',

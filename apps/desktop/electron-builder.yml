@@ -1,5 +1,5 @@
-appId: com.spectyra.desktop
-productName: Spectyra
+appId: com.spectyra.openclaw
+productName: Spectyra for OpenClaw
 copyright: Copyright © Spectyra
 
 # Pinned for electron-builder + pnpm (resolves even when Electron is not hoisted to this package).
@@ -12,7 +12,7 @@ electronLanguages:
   - en-US
 
 # Predictable filenames for hosting (CDN / Netlify / GitHub Releases)
-artifactName: ${productName}-${version}-${os}-${arch}.${ext}
+artifactName: Spectyra-OpenClaw-${version}-${os}-${arch}.${ext}
 
 directories:
   output: release
@@ -48,10 +48,10 @@ win:
   target:
     - nsis
     - zip
-  executableName: spectyra
+  executableName: spectyra-openclaw
 
 nsis:
   oneClick: false
   allowToChangeInstallationDirectory: true
   createDesktopShortcut: true
-  shortcutName: Spectyra
+  shortcutName: Spectyra for OpenClaw

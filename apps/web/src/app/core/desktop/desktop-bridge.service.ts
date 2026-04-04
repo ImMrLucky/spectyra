@@ -1,6 +1,6 @@
 import { Injectable } from '@angular/core';
 import { environment } from '../../../environments/environment';
-import type { SpectyraPreload } from '../../../spectyra-window';
+import type { ProviderKeySetResult, ProviderSetActiveResult, SpectyraPreload } from '../../../spectyra-window';
 
 export interface DetectionResult {
   detected: boolean;
@@ -60,14 +60,36 @@ export class DesktopBridgeService {
     return this.api.app.info();
   }
 
-  async setProviderKey(provider: string, key: string): Promise<boolean> {
-    if (!this.api) return false;
+  async setProviderKey(provider: string, key: string): Promise<ProviderKeySetResult> {
+    if (!this.api) return { ok: false, error: 'Not in desktop app' };
     return this.api.providerKey.set(provider, key);
   }
 
   async testProviderKey(provider: string) {
     if (!this.api) return { ok: false, error: 'Not in desktop' };
     return this.api.providerKey.test(provider);
+  }
+
+  /** Clears saved provider keys on disk and restarts the local companion. */
+  async clearProviderKeys(): Promise<boolean> {
+    if (!this.api?.providerKey.clear) return false;
+    try {
+      return await this.api.providerKey.clear();
+    } catch {
+      return false;
+    }
+  }
+
+  /** Switch active LLM provider using a key already saved in Desktop or set in the environment. */
+  async setActiveProvider(provider: string): Promise<ProviderSetActiveResult> {
+    if (!this.api?.providerKey.setActive) {
+      return { ok: false, error: 'Available only in the Spectyra Desktop app.' };
+    }
+    try {
+      return await this.api.providerKey.setActive(provider);
+    } catch (e: unknown) {
+      return { ok: false, error: e instanceof Error ? e.message : String(e) };
+    }
   }
 
   onCompanionStatus(cb: (s: CompanionStatus) => void): void {

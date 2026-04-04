@@ -1,14 +1,14 @@
 {
-  "name": "@spectyra/desktop",
+  "name": "@spectyra/desktop-pro",
   "version": "1.0.0",
-  "description": "Spectyra for OpenClaw — Desktop app for OpenClaw users",
+  "description": "Spectyra Desktop Pro — full-featured edition for all runtimes and analytics",
   "main": "dist-electron/main.js",
   "author": "Spectyra",
   "license": "MIT",
   "scripts": {
     "compile:electron": "node scripts/build-electron.mjs",
     "prepare:companion": "node scripts/prepare-companion.cjs",
-    "build:renderer": "pnpm --dir ../web exec ng build --configuration desktop",
+    "build:renderer": "pnpm --dir ../web exec ng build --configuration desktop-pro",
     "build": "pnpm run compile:electron && pnpm run prepare:companion && pnpm run build:renderer",
     "pack": "pnpm run build && electron-builder --dir",
     "clean:release": "node scripts/clean-release.cjs",

@@ -3,12 +3,29 @@
     <div class="dt-titlebar">
       <div class="dt-brand">
         <img src="assets/spectyra-icon.png" alt="Spectyra" class="dt-logo-icon" />
-        <span class="dt-wordmark" routerLink="/desktop/live">Spectyra</span>
+        <span class="dt-wordmark" [routerLink]="isDesktopPro ? '/desktop/live' : '/desktop/home'">
+          Spectyra<span class="dt-edition" *ngIf="!isDesktopPro"> for OpenClaw</span>
+        </span>
       </div>
       <div class="dt-spacer"></div>
     </div>
 
-    <nav class="dt-nav">
+    <!-- OpenClaw edition nav -->
+    <nav class="dt-nav" *ngIf="!isDesktopPro">
+      <a class="dt-nav-item" routerLink="/desktop/home" routerLinkActive="active"
+         [routerLinkActiveOptions]="{ exact: true }">Home</a>
+      <a class="dt-nav-item" routerLink="/desktop/skills" routerLinkActive="active">Skills</a>
+      <a class="dt-nav-item" routerLink="/desktop/assistants" routerLinkActive="active">Assistants</a>
+      <a class="dt-nav-item" routerLink="/desktop/live" routerLinkActive="active"
+         [routerLinkActiveOptions]="{ exact: false }">
+        <span class="dt-live-dot"></span>Live
+      </a>
+      <a class="dt-nav-item" routerLink="/desktop/settings" routerLinkActive="active">Settings</a>
+      <a class="dt-nav-item" *ngIf="showSuperuserLink" routerLink="/superuser" routerLinkActive="active">Superuser</a>
+    </nav>
+
+    <!-- Pro edition nav -->
+    <nav class="dt-nav" *ngIf="isDesktopPro">
       <a class="dt-nav-item" routerLink="/desktop/live" routerLinkActive="active"
          [routerLinkActiveOptions]="{ exact: false }">
         <span class="dt-live-dot"></span>Live
@@ -17,6 +34,8 @@
       <a class="dt-nav-item" routerLink="/desktop/history" routerLinkActive="active">History</a>
       <a class="dt-nav-item" routerLink="/desktop/compare" routerLinkActive="active">Compare</a>
       <a class="dt-nav-item" routerLink="/desktop/runs" routerLinkActive="active">Runs</a>
+      <a class="dt-nav-item" routerLink="/desktop/openclaw" routerLinkActive="active"
+         [routerLinkActiveOptions]="{ exact: false }">OpenClaw</a>
       <a class="dt-nav-item" routerLink="/desktop/agent-companion" routerLinkActive="active">Setup</a>
       <a class="dt-nav-item" routerLink="/desktop/security" routerLinkActive="active">Security</a>
       <a class="dt-nav-item" routerLink="/desktop/settings" routerLinkActive="active">Settings</a>
