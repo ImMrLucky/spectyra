@@ -1,6 +1,8 @@
 /**
- * Idempotent DDL for platform_roles + orgs.platform_exempt (see migrations/010_platform_roles.sql).
- * Applied at API startup so clients (desktop/web) do not 500 when production DB was never migrated manually.
+ * Idempotent DDL applied at API startup so production/staging DBs that
+ * were never migrated manually do not 500.
+ *
+ * Covers: platform_roles, orgs billing columns, analytics_sessions_sync.
  */
 
 import { query } from "./db.js";
@@ -40,10 +42,31 @@ export async function ensurePlatformRolesSchema(): Promise<void> {
     await query(`
       ALTER TABLE orgs ADD COLUMN IF NOT EXISTS cancel_at_period_end BOOLEAN NOT NULL DEFAULT false
     `);
-    console.log("✅ Platform roles schema ensured (010)");
+    // analytics_sessions_sync (migration 009)
+    await query(`
+      CREATE TABLE IF NOT EXISTS analytics_sessions_sync (
+        id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+        org_id UUID NOT NULL REFERENCES orgs(id) ON DELETE CASCADE,
+        session_id TEXT NOT NULL,
+        run_id TEXT NOT NULL,
+        payload JSONB NOT NULL,
+        sync_state TEXT NOT NULL DEFAULT 'synced',
+        created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+        updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+        UNIQUE(org_id, session_id)
+      )
+    `);
+    await query(`
+      CREATE INDEX IF NOT EXISTS idx_analytics_sessions_org_id ON analytics_sessions_sync(org_id)
+    `);
+    await query(`
+      CREATE INDEX IF NOT EXISTS idx_analytics_sessions_created ON analytics_sessions_sync(org_id, created_at DESC)
+    `);
+
+    console.log("✅ Startup schema ensured");
   } catch (e: unknown) {
     const msg = e instanceof Error ? e.message : String(e);
-    safeLog("error", "ensurePlatformRolesSchema failed", { error: msg });
+    safeLog("error", "ensureStartupSchema failed", { error: msg });
     throw e;
   }
 }

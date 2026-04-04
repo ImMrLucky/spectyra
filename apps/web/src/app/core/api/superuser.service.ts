@@ -20,22 +20,35 @@ export interface SuperuserMeResponse {
   platform_role: string | null;
 }
 
+const CACHE_TTL_MS = 30_000;
+
 @Injectable({ providedIn: 'root' })
 export class SuperuserService {
   private readonly base = `${environment.apiUrl}/superuser`;
   private isSuperuser$ = new BehaviorSubject<boolean>(false);
-  /** One in-flight /me per burst — parallel callers share the same HTTP request */
   private inFlight: Observable<SuperuserMeResponse> | null = null;
+  private cachedResult: SuperuserMeResponse | null = null;
+  private cachedAt = 0;
 
   constructor(private http: HttpClient) {}
 
   refresh(): Observable<SuperuserMeResponse> {
+    if (this.cachedResult && Date.now() - this.cachedAt < CACHE_TTL_MS) {
+      this.isSuperuser$.next(!!this.cachedResult.is_superuser);
+      return of(this.cachedResult);
+    }
     if (!this.inFlight) {
       this.inFlight = this.http.get<SuperuserMeResponse>(`${this.base}/me`).pipe(
-        tap((r) => this.isSuperuser$.next(!!r.is_superuser)),
+        tap((r) => {
+          this.cachedResult = r;
+          this.cachedAt = Date.now();
+          this.isSuperuser$.next(!!r.is_superuser);
+        }),
         catchError(() => {
+          this.cachedResult = { is_superuser: false, platform_role: null };
+          this.cachedAt = Date.now();
           this.isSuperuser$.next(false);
-          return of({ is_superuser: false, platform_role: null });
+          return of(this.cachedResult);
         }),
         shareReplay({ bufferSize: 1, refCount: true }),
         finalize(() => {
