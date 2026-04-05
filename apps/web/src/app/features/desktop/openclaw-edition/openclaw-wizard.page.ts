@@ -1,16 +1,23 @@
-import { Component, OnInit, inject } from '@angular/core';
+import { Component, ElementRef, OnDestroy, OnInit, ViewChild, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-import { Router, RouterModule } from '@angular/router';
+import { RouterModule } from '@angular/router';
+import { HttpClient, HttpHeaders } from '@angular/common/http';
+import { firstValueFrom } from 'rxjs';
+import { environment } from '../../../../environments/environment';
 import { DesktopBridgeService } from '../../../core/desktop/desktop-bridge.service';
 import { OpenClawDesktopService } from '../../../core/desktop/openclaw-desktop.service';
 import { LocalCompanionDiagnosticsService } from '../../../core/desktop/local-companion-diagnostics.service';
+import { CompanionAnalyticsService } from '../../../core/analytics/companion-analytics.service';
 import { DESKTOP_SETUP, friendlyProviderKeyUserMessage } from '../../../core/desktop/desktop-setup-messages';
 import { OPENCLAW_INSTALL_BASH, OPENCLAW_NODE_VERSION_MIN } from '@spectyra/shared';
+import { SupabaseService } from '../../../services/supabase.service';
+import { AuthService } from '../../../core/auth/auth.service';
+import { MeService } from '../../../core/services/me.service';
 
-type WizardStep = 'welcome' | 'install' | 'provider' | 'connect' | 'verify' | 'done';
+type WizardStep = 'welcome' | 'account' | 'install' | 'provider' | 'connect' | 'verify' | 'done';
 
-const STEP_ORDER: WizardStep[] = ['welcome', 'install', 'provider', 'connect', 'verify', 'done'];
+const STEP_ORDER: WizardStep[] = ['welcome', 'account', 'install', 'provider', 'connect', 'verify', 'done'];
 
 @Component({
   selector: 'app-openclaw-wizard',
@@ -57,39 +64,168 @@ const STEP_ORDER: WizardStep[] = ['welcome', 'install', 'provider', 'connect', '
         </div>
       </section>
 
+      <!-- ACCOUNT -->
+      <section class="wiz-panel" *ngIf="step === 'account'">
+        <ng-container *ngIf="signedIn">
+          <div class="install-success">
+            <span class="install-success-icon">&#10003;</span>
+            <h1 class="wiz-title">You're signed in</h1>
+            <p class="wiz-lead">Signed in as <strong>{{ authEmail }}</strong>. Let's install OpenClaw.</p>
+          </div>
+          <div class="wiz-actions">
+            <button class="wiz-btn secondary" (click)="prev()">Back</button>
+            <button class="wiz-btn primary" (click)="next()">Continue</button>
+          </div>
+        </ng-container>
+
+        <ng-container *ngIf="!signedIn">
+          <h1 class="wiz-title">{{ authMode === 'login' ? 'Sign in to Spectyra' : 'Create your Spectyra account' }}</h1>
+          <p class="wiz-lead">
+            {{ authMode === 'login'
+              ? 'Sign in to connect OpenClaw with your Spectyra dashboard, analytics, and optimization.'
+              : 'A free account connects OpenClaw with Spectyra optimization, analytics, and your cloud dashboard.' }}
+          </p>
+
+          <form class="wiz-auth-form" (ngSubmit)="authMode === 'login' ? doSignIn() : doSignUp()">
+            <div class="wiz-field">
+              <label for="wiz-email">Email</label>
+              <input id="wiz-email" type="email" [(ngModel)]="authEmail" name="email"
+                     placeholder="you@example.com" [disabled]="authLoading" required autocomplete="email" />
+            </div>
+            <div class="wiz-field">
+              <label for="wiz-pass">Password</label>
+              <input id="wiz-pass" type="password" [(ngModel)]="authPassword" name="password"
+                     placeholder="••••••••" [disabled]="authLoading" required minlength="8" autocomplete="current-password" />
+            </div>
+            <div class="wiz-field" *ngIf="authMode === 'register'">
+              <label for="wiz-org">Organization name</label>
+              <input id="wiz-org" type="text" [(ngModel)]="authOrgName" name="orgName"
+                     placeholder="My Company" [disabled]="authLoading" required />
+            </div>
+            <p class="wiz-err" *ngIf="authError">{{ authError }}</p>
+            <button type="submit" class="wiz-btn primary wiz-auth-submit"
+                    [disabled]="authLoading || !authEmail || !authPassword || (authMode === 'register' && !authOrgName)">
+              {{ authLoading
+                ? (authMode === 'login' ? 'Signing in…' : 'Creating account…')
+                : (authMode === 'login' ? 'Sign in' : 'Create free account') }}
+            </button>
+          </form>
+
+          <p class="wiz-auth-toggle">
+            <ng-container *ngIf="authMode === 'login'">
+              No account? <button type="button" class="wiz-link-btn" (click)="authMode = 'register'; authError = null">Sign up free</button>
+            </ng-container>
+            <ng-container *ngIf="authMode === 'register'">
+              Already have an account? <button type="button" class="wiz-link-btn" (click)="authMode = 'login'; authError = null">Sign in</button>
+            </ng-container>
+          </p>
+
+          <div class="wiz-actions">
+            <button class="wiz-btn secondary" (click)="prev()">Back</button>
+          </div>
+        </ng-container>
+      </section>
+
       <!-- INSTALL -->
       <section class="wiz-panel" *ngIf="step === 'install'">
-        <h1 class="wiz-title">Install OpenClaw</h1>
-        <p class="wiz-lead">
-          OpenClaw needs <strong>Node.js {{ nodeMin }}+</strong>. Run the official installer in a terminal.
-        </p>
 
-        <div class="wiz-code-block">
-          <pre class="wiz-pre">{{ installCmd }}</pre>
-          <button class="wiz-btn small" (click)="copyInstall()">
-            {{ installCopied ? 'Copied' : 'Copy' }}
+        <!-- ✅ SUCCESS: OpenClaw found -->
+        <ng-container *ngIf="cliDetected">
+          <div class="install-success">
+            <span class="install-success-icon">&#10003;</span>
+            <h1 class="wiz-title">OpenClaw is installed</h1>
+            <p class="wiz-lead">
+              We detected <code>openclaw</code> on this computer. You're ready to connect your AI provider.
+            </p>
+          </div>
+          <div class="wiz-actions">
+            <button class="wiz-btn secondary" (click)="prev()">Back</button>
+            <button class="wiz-btn primary" (click)="next()">Continue to provider setup</button>
+          </div>
+        </ng-container>
+
+        <!-- ⏳ INSTALLING: inline install running -->
+        <ng-container *ngIf="!cliDetected && installing">
+          <h1 class="wiz-title">Installing OpenClaw…</h1>
+          <p class="wiz-lead">
+            This usually takes under a minute. You can watch the progress below.
+          </p>
+
+          <div class="install-terminal">
+            <pre class="install-terminal-output" #installOutput>{{ installLog }}</pre>
+          </div>
+
+          <div class="install-waiting">
+            <div class="install-waiting-spinner"></div>
+            <p class="install-waiting-sub">Installing…</p>
+          </div>
+
+          <div class="wiz-actions">
+            <button class="wiz-btn secondary" (click)="prev()">Back</button>
+          </div>
+        </ng-container>
+
+        <!-- ⏳ WAITING: terminal was opened externally -->
+        <ng-container *ngIf="!cliDetected && !installing && terminalOpened">
+          <h1 class="wiz-title">Waiting for install…</h1>
+          <p class="wiz-lead">
+            The installer is running in your terminal. When it finishes, we'll detect it automatically.
+          </p>
+
+          <div class="install-waiting">
+            <div class="install-waiting-spinner"></div>
+            <p class="install-waiting-text">Waiting for install to complete…</p>
+            <p class="install-waiting-sub">Checking every few seconds</p>
+          </div>
+
+          <p class="wiz-hint install-hint" *ngIf="pollCount > 10">
+            Still waiting? Try closing and reopening Spectyra, or tap <strong>Re-check</strong> below.
+          </p>
+
+          <div class="wiz-check-row checking">
+            <span class="wiz-check-dot spin"></span>
+            <span class="wiz-check-text">
+              {{ checkingCli ? 'Checking…' : 'OpenClaw not found yet' }}
+            </span>
+            <button class="wiz-btn tiny" (click)="detectCli()" [disabled]="checkingCli">Re-check</button>
+          </div>
+
+          <div class="wiz-actions">
+            <button class="wiz-btn secondary" (click)="prev()">Back</button>
+          </div>
+        </ng-container>
+
+        <!-- 🟡 INITIAL: ready to install -->
+        <ng-container *ngIf="!cliDetected && !installing && !terminalOpened">
+          <h1 class="wiz-title">Install OpenClaw</h1>
+          <p class="wiz-lead">
+            One click to install the OpenClaw AI agent on your machine. Takes about 30 seconds.
+          </p>
+
+          <button class="wiz-btn primary install-main-btn" (click)="runInstall()">
+            Install OpenClaw
           </button>
-        </div>
+          <p class="wiz-err" *ngIf="terminalErr">{{ terminalErr }}</p>
 
-        <button class="wiz-btn secondary" *ngIf="canTerminal" (click)="runTerminal()">
-          Open terminal &amp; run installer
-        </button>
-        <p class="wiz-err" *ngIf="terminalErr">{{ terminalErr }}</p>
+          <details class="install-manual">
+            <summary class="install-manual-toggle">Or install manually</summary>
+            <div class="wiz-code-block">
+              <pre class="wiz-pre">{{ installCmd }}</pre>
+              <button class="wiz-btn small" (click)="copyInstall()">
+                {{ installCopied ? 'Copied' : 'Copy' }}
+              </button>
+            </div>
+            <p class="wiz-hint">
+              Paste this into any terminal and press Enter. Then tap
+              <button type="button" class="wiz-link-btn" (click)="markTerminalOpened()">I've finished installing</button>.
+            </p>
+          </details>
 
-        <div class="wiz-check-row" [class.pass]="cliDetected" [class.checking]="checkingCli">
-          <span class="wiz-check-dot" [class.on]="cliDetected"></span>
-          <span class="wiz-check-text">
-            {{ checkingCli ? 'Checking…' : cliDetected ? 'OpenClaw detected' : 'OpenClaw not found yet' }}
-          </span>
-          <button class="wiz-btn tiny" (click)="detectCli()" [disabled]="checkingCli">Re-check</button>
-        </div>
+          <div class="wiz-actions">
+            <button class="wiz-btn secondary" (click)="prev()">Back</button>
+          </div>
+        </ng-container>
 
-        <div class="wiz-actions">
-          <button class="wiz-btn secondary" (click)="prev()">Back</button>
-          <button class="wiz-btn primary" (click)="next()">
-            {{ cliDetected ? 'Next' : 'Skip for now' }}
-          </button>
-        </div>
       </section>
 
       <!-- PROVIDER -->
@@ -135,35 +271,85 @@ const STEP_ORDER: WizardStep[] = ['welcome', 'install', 'provider', 'connect', '
 
       <!-- CONNECT -->
       <section class="wiz-panel" *ngIf="step === 'connect'">
-        <h1 class="wiz-title">Connect OpenClaw to Spectyra</h1>
-        <p class="wiz-lead">
-          Copy the settings block below and paste it into your OpenClaw config. This tells OpenClaw to
-          route through Spectyra's local companion for optimization.
-        </p>
 
-        <div class="wiz-code-block">
-          <pre class="wiz-pre">{{ configJson || 'Loading…' }}</pre>
-          <button class="wiz-btn small" (click)="copyConfig()">
-            {{ configCopied ? 'Copied' : 'Copy settings' }}
+        <!-- ✅ Skill installed -->
+        <ng-container *ngIf="skillInstalled">
+          <div class="install-success">
+            <span class="install-success-icon">&#10003;</span>
+            <h1 class="wiz-title">Connected</h1>
+            <p class="wiz-lead">
+              The Spectyra skill is installed. OpenClaw will now route through Spectyra's
+              Local Companion for automatic optimization.
+            </p>
+          </div>
+          <div class="wiz-actions">
+            <button class="wiz-btn secondary" (click)="prev()">Back</button>
+            <button class="wiz-btn primary" (click)="next()">Continue to verify</button>
+          </div>
+        </ng-container>
+
+        <!-- ⏳ Installing skill -->
+        <ng-container *ngIf="!skillInstalled && skillInstalling">
+          <h1 class="wiz-title">Connecting OpenClaw to Spectyra…</h1>
+          <p class="wiz-lead">
+            Installing the Spectyra skill into OpenClaw. This configures routing through
+            the Local Companion automatically.
+          </p>
+          <div class="install-waiting">
+            <div class="install-waiting-spinner"></div>
+            <p class="install-waiting-text">Installing Spectyra skill…</p>
+          </div>
+          <div class="wiz-actions">
+            <button class="wiz-btn secondary" (click)="prev()">Back</button>
+          </div>
+        </ng-container>
+
+        <!-- 🟡 Ready to connect -->
+        <ng-container *ngIf="!skillInstalled && !skillInstalling">
+          <h1 class="wiz-title">Connect OpenClaw to Spectyra</h1>
+          <p class="wiz-lead">
+            This installs the Spectyra skill into OpenClaw, which configures it to route
+            all AI requests through Spectyra's Local Companion for automatic optimization.
+          </p>
+
+          <div class="connect-what">
+            <h4 class="connect-what-title">What happens:</h4>
+            <ul class="connect-what-list">
+              <li>Runs <code>openclaw skills install spectyra</code></li>
+              <li>Adds Spectyra as a model provider in OpenClaw's config</li>
+              <li>Sets <code>spectyra/smart</code> as the default model</li>
+              <li>All traffic stays local — nothing leaves your machine</li>
+            </ul>
+          </div>
+
+          <button class="wiz-btn primary install-main-btn" (click)="installSkill()">
+            Install Spectyra skill
           </button>
-        </div>
+          <p class="wiz-err" *ngIf="skillError">{{ skillError }}</p>
 
-        <p class="wiz-hint">
-          Not sure where to paste? Run <code>openclaw config path</code> to find your config file,
-          or press the button below to open it.
-        </p>
+          <details class="install-manual">
+            <summary class="install-manual-toggle">Or configure manually</summary>
+            <div class="wiz-code-block">
+              <pre class="wiz-pre">{{ configJson || 'Loading…' }}</pre>
+              <button class="wiz-btn small" (click)="copyConfig()">
+                {{ configCopied ? 'Copied' : 'Copy settings' }}
+              </button>
+            </div>
+            <p class="wiz-hint">
+              Paste into your OpenClaw config file.
+              Run <code>openclaw config path</code> to find it, or:
+            </p>
+            <div class="wiz-row">
+              <button class="wiz-btn secondary" (click)="openConfig()">Open config file</button>
+            </div>
+          </details>
 
-        <div class="wiz-row">
-          <button class="wiz-btn secondary" (click)="openConfig()">Open config file</button>
-          <button class="wiz-btn secondary" *ngIf="canTerminal" (click)="runTerminal()">
-            Run onboarding in terminal
-          </button>
-        </div>
+          <div class="wiz-actions">
+            <button class="wiz-btn secondary" (click)="prev()">Back</button>
+            <button class="wiz-btn secondary" (click)="next()">Skip — I'll configure later</button>
+          </div>
+        </ng-container>
 
-        <div class="wiz-actions">
-          <button class="wiz-btn secondary" (click)="prev()">Back</button>
-          <button class="wiz-btn primary" (click)="next()">Next</button>
-        </div>
       </section>
 
       <!-- VERIFY -->
@@ -219,6 +405,12 @@ const STEP_ORDER: WizardStep[] = ['welcome', 'install', 'provider', 'connect', '
           <p class="wiz-lead">
             OpenClaw is connected to Spectyra. Explore skills, set up assistant profiles, or
             go straight to the live dashboard.
+          </p>
+          <p class="wiz-done-hint" *ngIf="companionDashboardUrl">
+            <strong>Local savings in any browser:</strong>
+            <a class="wiz-done-link" [href]="companionDashboardUrl" target="_blank" rel="noopener noreferrer">{{ companionDashboardUrl }}</a>
+            — same companion metrics as you use OpenClaw from the terminal; optional
+            <code class="wiz-code-inline">spectyra-companion dashboard</code> from npm.
           </p>
         </div>
 
@@ -412,6 +604,95 @@ const STEP_ORDER: WizardStep[] = ['welcome', 'install', 'provider', 'connect', '
       padding: 2px 5px;
       border-radius: 4px;
     }
+    .wiz-hint.install-hint { margin-top: 14px; line-height: 1.45; }
+
+    /* ── Install step states ── */
+    .install-main-btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 15px;
+      padding: 14px 28px;
+      margin-bottom: 16px;
+    }
+
+    .install-manual {
+      margin: 8px 0 20px;
+    }
+    .install-manual-toggle {
+      cursor: pointer;
+      font-size: 13px;
+      color: var(--spectyra-blue, #378ADD);
+      margin-bottom: 10px;
+    }
+    .install-manual-toggle:hover { text-decoration: underline; }
+
+    .install-terminal {
+      margin-bottom: 16px;
+    }
+    .install-terminal-output {
+      background: #0a0e17;
+      border: 1px solid var(--border, rgba(55,138,221,0.12));
+      border-radius: 8px;
+      padding: 14px 16px;
+      font-family: 'SF Mono', 'Fira Code', 'Consolas', monospace;
+      font-size: 12px;
+      line-height: 1.5;
+      color: #8ec8a0;
+      max-height: 200px;
+      overflow-y: auto;
+      white-space: pre-wrap;
+      word-break: break-all;
+      margin: 0;
+    }
+
+    .install-waiting {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 14px;
+      padding: 36px 0 28px;
+    }
+    .install-waiting-spinner {
+      width: 40px;
+      height: 40px;
+      border-radius: 50%;
+      border: 3px solid var(--border-bright, rgba(55,138,221,0.25));
+      border-top-color: var(--spectyra-blue, #378ADD);
+      animation: spinnerRotate 0.9s linear infinite;
+    }
+    @keyframes spinnerRotate { to { transform: rotate(360deg); } }
+    .install-waiting-text {
+      font-size: 15px;
+      font-weight: 600;
+      color: var(--text-primary, #e8f1fb);
+      margin: 0;
+    }
+    .install-waiting-sub {
+      font-size: 12px;
+      color: var(--text-muted, #3d5a78);
+      margin: 0;
+    }
+
+    .install-success {
+      text-align: center;
+      padding: 24px 0 8px;
+    }
+    .install-success-icon {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 56px;
+      height: 56px;
+      border-radius: 50%;
+      background: var(--spectyra-teal, #1D9E75);
+      color: #fff;
+      font-size: 28px;
+      font-weight: 700;
+      margin-bottom: 16px;
+      animation: scaleIn 0.35s cubic-bezier(0.34, 1.56, 0.64, 1);
+    }
+    @keyframes scaleIn { from { transform: scale(0); opacity: 0; } to { transform: scale(1); opacity: 1; } }
 
     .wiz-err { color: #ef4444; font-size: 13px; margin: 8px 0; }
     .wiz-ok { color: var(--spectyra-teal, #1D9E75); font-size: 13px; margin: 8px 0; }
@@ -523,6 +804,26 @@ const STEP_ORDER: WizardStep[] = ['welcome', 'install', 'provider', 'connect', '
     }
     .wiz-done-hero .wiz-title { margin-bottom: 12px; }
     .wiz-done-hero .wiz-lead { max-width: 400px; margin: 0 auto; }
+    .wiz-done-hint {
+      max-width: 440px;
+      margin: 16px auto 0;
+      font-size: 13px;
+      line-height: 1.55;
+      color: var(--text-secondary, #7a9fc0);
+      text-align: left;
+    }
+    .wiz-done-link {
+      color: var(--spectyra-teal-light, #5dcaa5);
+      word-break: break-all;
+    }
+    .wiz-code-inline {
+      font-family: var(--font-mono, ui-monospace, monospace);
+      font-size: 11px;
+      padding: 1px 5px;
+      border-radius: 4px;
+      background: var(--bg-card, #121c2e);
+      border: 1px solid var(--border, rgba(55,138,221,0.12));
+    }
 
     .wiz-done-grid {
       display: grid;
@@ -558,17 +859,103 @@ const STEP_ORDER: WizardStep[] = ['welcome', 'install', 'provider', 'connect', '
       font-size: 12px;
       color: var(--text-secondary, #7a9fc0);
     }
+
+    /* ── Connect step ── */
+    .connect-what {
+      background: var(--bg-card, #121c2e);
+      border: 1px solid var(--border, rgba(55,138,221,0.12));
+      border-radius: 10px;
+      padding: 16px 20px;
+      margin-bottom: 24px;
+    }
+    .connect-what-title {
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--text-primary, #e8f1fb);
+      margin: 0 0 10px;
+    }
+    .connect-what-list {
+      margin: 0;
+      padding-left: 18px;
+      font-size: 13px;
+      color: var(--text-secondary, #7a9fc0);
+      line-height: 1.6;
+    }
+    .connect-what-list code {
+      font-size: 12px;
+      background: rgba(55,138,221,0.08);
+      padding: 1px 5px;
+      border-radius: 3px;
+    }
+
+    /* ── Auth form ── */
+    .wiz-auth-form {
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+    }
+    .wiz-field {
+      display: flex;
+      flex-direction: column;
+      gap: 5px;
+    }
+    .wiz-field label {
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--text-secondary, #7a9fc0);
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+    }
+    .wiz-field input {
+      padding: 10px 14px;
+      border-radius: 8px;
+      border: 1px solid var(--border-bright, rgba(55,138,221,0.25));
+      background: var(--bg-card, #121c2e);
+      color: var(--text-primary, #e8f1fb);
+      font-size: 14px;
+      font-family: inherit;
+      transition: border-color 0.15s;
+    }
+    .wiz-field input:focus {
+      outline: none;
+      border-color: var(--spectyra-blue, #378ADD);
+    }
+    .wiz-field input:disabled {
+      opacity: 0.5;
+    }
+    .wiz-auth-submit { margin-top: 4px; }
+    .wiz-auth-toggle {
+      font-size: 13px;
+      color: var(--text-muted, #3d5a78);
+      margin-top: 16px;
+    }
+    .wiz-link-btn {
+      background: none;
+      border: none;
+      color: var(--spectyra-blue, #378ADD);
+      cursor: pointer;
+      font-size: 13px;
+      padding: 0;
+      text-decoration: underline;
+    }
+    .wiz-link-btn:hover { color: var(--spectyra-blue-light, #6ab4f5); }
   `],
 })
-export class OpenClawWizardPage implements OnInit {
+export class OpenClawWizardPage implements OnInit, OnDestroy {
   private readonly desktop = inject(DesktopBridgeService);
   private readonly oc = inject(OpenClawDesktopService);
   private readonly diagnostics = inject(LocalCompanionDiagnosticsService);
-  private readonly router = inject(Router);
+  private readonly companionAnalytics = inject(CompanionAnalyticsService);
+  private readonly supabase = inject(SupabaseService);
+  private readonly authService = inject(AuthService);
+  private readonly meService = inject(MeService);
+  private readonly http = inject(HttpClient);
+  private installPoll: ReturnType<typeof setInterval> | null = null;
 
   readonly steps = STEP_ORDER;
   readonly stepLabels: Record<WizardStep, string> = {
     welcome: 'Welcome',
+    account: 'Account',
     install: 'Install',
     provider: 'Provider',
     connect: 'Connect',
@@ -585,9 +972,21 @@ export class OpenClawWizardPage implements OnInit {
   canSkip = false;
   canTerminal = false;
 
+  signedIn = false;
+  authMode: 'login' | 'register' = 'register';
+  authEmail = '';
+  authPassword = '';
+  authOrgName = '';
+  authLoading = false;
+  authError: string | null = null;
+
   cliDetected = false;
   checkingCli = false;
+  installing = false;
+  installLog = '';
   installCopied = false;
+  terminalOpened = false;
+  pollCount = 0;
   terminalErr: string | null = null;
 
   provider = 'openai';
@@ -599,10 +998,17 @@ export class OpenClawWizardPage implements OnInit {
   configJson = '';
   configCopied = false;
 
+  skillInstalled = false;
+  skillInstalling = false;
+  skillError: string | null = null;
+
   verifyChecks: Array<{ label: string; ok: boolean | null; detail?: string }> = [];
   verifying = false;
   doctorBusy = false;
   doctorOutput: string | null = null;
+
+  /** Local companion `/dashboard` for browser savings (npm + Desktop users). */
+  companionDashboardUrl: string | null = null;
 
   get allPassing(): boolean {
     return this.verifyChecks.length > 0 && this.verifyChecks.every((c) => c.ok === true);
@@ -611,11 +1017,13 @@ export class OpenClawWizardPage implements OnInit {
   async ngOnInit(): Promise<void> {
     this.canTerminal = this.desktop.isElectronRenderer;
 
-    const [cfg, status] = await Promise.all([
+    const [cfg, status, token] = await Promise.all([
       this.desktop.getConfig(),
       this.oc.refreshStatus(),
+      this.supabase.getAccessToken().catch(() => null),
     ]);
 
+    this.signedIn = !!token;
     if (cfg && typeof cfg['provider'] === 'string') this.provider = cfg['provider'] as string;
     this.cliDetected = status.cliDetected || status.openclawDetected;
     this.canSkip = status.companionHealthy && status.providerConfigured;
@@ -625,28 +1033,93 @@ export class OpenClawWizardPage implements OnInit {
     } catch {
       this.configJson = (await this.desktop.openClawExample()) || '';
     }
+
+    if (this.cliDetected) {
+      try {
+        const installed = await this.oc.loadInstalledSkills();
+        this.skillInstalled = installed.some(s => s.name.toLowerCase().includes('spectyra'));
+      } catch { /* ignore */ }
+    }
+
+    try {
+      const origin = await this.companionAnalytics.resolveCompanionOrigin();
+      this.companionDashboardUrl = `${origin.replace(/\/$/, "")}/dashboard`;
+    } catch {
+      this.companionDashboardUrl = `${environment.companionBaseUrl.replace(/\/$/, "")}/dashboard`;
+    }
+  }
+
+  ngOnDestroy(): void {
+    this.stopInstallPoll();
+    this.desktop.removeInstallOutputListeners();
+  }
+
+  private syncInstallPoll(): void {
+    if (this.step === 'install') {
+      void this.detectCli();
+      this.startInstallPoll();
+    } else {
+      this.stopInstallPoll();
+    }
+  }
+
+  private startInstallPoll(): void {
+    this.stopInstallPoll();
+    this.pollCount = 0;
+    this.installPoll = setInterval(() => {
+      if (this.step !== 'install') {
+        this.stopInstallPoll();
+        return;
+      }
+      if (this.cliDetected) {
+        this.stopInstallPoll();
+        return;
+      }
+      this.pollCount++;
+      void this.detectCli();
+    }, 4000);
+  }
+
+  private stopInstallPoll(): void {
+    if (this.installPoll != null) {
+      clearInterval(this.installPoll);
+      this.installPoll = null;
+    }
   }
 
   goTo(s: WizardStep): void {
     this.step = s;
+    this.syncInstallPoll();
     if (s === 'verify') void this.runVerify();
+    if (s === 'connect') void this.autoConnectIfReady();
   }
 
   next(): void {
     const i = this.stepIdx;
+    if (this.step === 'account' && !this.signedIn) return;
     if (this.step === 'provider' && !this.keyOk) {
       void this.saveKey();
       return;
     }
     if (i < STEP_ORDER.length - 1) {
       this.step = STEP_ORDER[i + 1];
+      this.syncInstallPoll();
       if (this.step === 'verify') void this.runVerify();
+      if (this.step === 'connect') void this.autoConnectIfReady();
     }
+  }
+
+  private async autoConnectIfReady(): Promise<void> {
+    if (this.skillInstalled || this.skillInstalling) return;
+    void this.installSkill();
   }
 
   prev(): void {
     const i = this.stepIdx;
-    if (i > 0) this.step = STEP_ORDER[i - 1];
+    if (i > 0) {
+      this.step = STEP_ORDER[i - 1];
+      this.syncInstallPoll();
+    }
   }
 
   async detectCli(): Promise<void> {
@@ -668,8 +1141,147 @@ export class OpenClawWizardPage implements OnInit {
   async runTerminal(): Promise<void> {
     this.terminalErr = null;
     const r = await this.desktop.runOpenClawOnboardInTerminal({ flow: 'quickstart' });
-    if (!r.ok) this.terminalErr = r.error || 'Could not open terminal.';
+    if (!r.ok) {
+      this.terminalErr = r.error || 'Could not open terminal.';
+      return;
+    }
+    this.terminalOpened = true;
+    this.pollCount = 0;
+    if (this.step === 'install') this.syncInstallPoll();
   }
+
+  @ViewChild('installOutput') installOutputEl?: ElementRef<HTMLPreElement>;
+
+  markTerminalOpened(): void {
+    this.terminalOpened = true;
+    this.pollCount = 0;
+    this.syncInstallPoll();
+  }
+
+  async runInstall(): Promise<void> {
+    if (!this.desktop.canInstallInline) {
+      void this.runTerminal();
+      return;
+    }
+    this.installing = true;
+    this.installLog = '';
+    this.terminalErr = null;
+
+    this.desktop.onInstallOutput((data: string) => {
+      this.installLog += data;
+      setTimeout(() => {
+        const el = this.installOutputEl?.nativeElement;
+        if (el) el.scrollTop = el.scrollHeight;
+      });
+    });
+
+    const result = await this.desktop.runOpenClawInstallInline();
+    this.desktop.removeInstallOutputListeners();
+    this.installing = false;
+
+    if (result.ok) {
+      await this.detectCli();
+      if (!this.cliDetected) {
+        this.terminalOpened = true;
+        this.syncInstallPoll();
+      }
+    } else {
+      this.terminalErr = result.error || 'Installation failed. Try the manual method below.';
+    }
+  }
+
+  // ── Auth ──
+
+  async doSignIn(): Promise<void> {
+    if (!this.authEmail || !this.authPassword) return;
+    this.authLoading = true;
+    this.authError = null;
+    try {
+      const { error } = await this.supabase.signIn(this.authEmail, this.authPassword);
+      if (error) {
+        this.authError = error.message || 'Sign-in failed';
+        return;
+      }
+      this.signedIn = true;
+      this.meService.clearCache();
+      this.next();
+    } catch (e: any) {
+      this.authError = e.message || 'Sign-in failed';
+    } finally {
+      this.authLoading = false;
+    }
+  }
+
+  async doSignUp(): Promise<void> {
+    if (!this.authEmail || !this.authPassword || !this.authOrgName) return;
+    if (this.authPassword.length < 8) {
+      this.authError = 'Password must be at least 8 characters';
+      return;
+    }
+    this.authLoading = true;
+    this.authError = null;
+    try {
+      const { error: signUpError, session, user } = await this.supabase.signUp(this.authEmail, this.authPassword);
+      if (signUpError) {
+        this.authError = signUpError.message || 'Failed to create account';
+        return;
+      }
+
+      let token: string | null = session?.access_token ?? null;
+      if (user && !token) {
+        try {
+          const confirmRes = await fetch(`${environment.apiUrl}/auth/auto-confirm`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ email: this.authEmail }),
+          });
+          if (!confirmRes.ok) console.warn('[openclaw-wizard] auto-confirm failed', confirmRes.status);
+        } catch (e) {
+          console.warn('[openclaw-wizard] auto-confirm error', e);
+        }
+        const { error: signInError } = await this.supabase.signIn(this.authEmail, this.authPassword);
+        if (signInError) console.warn('[openclaw-wizard] post-confirm sign-in failed', signInError);
+        await new Promise(r => setTimeout(r, 500));
+        token = await this.supabase.getAccessToken();
+      }
+      if (!token) {
+        await new Promise(r => setTimeout(r, 1000));
+        token = await this.supabase.getAccessToken();
+      }
+      if (!token) {
+        this.authError = 'Account created but session could not be established. Try signing in.';
+        this.authMode = 'login';
+        return;
+      }
+
+      const headers = new HttpHeaders({
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json',
+      });
+      try {
+        const response = await firstValueFrom(this.http.post<any>(
+          `${environment.apiUrl}/auth/bootstrap`,
+          { org_name: this.authOrgName.trim() },
+          { headers },
+        ));
+        if (response?.api_key) this.authService.setApiKey(response.api_key);
+      } catch (bootstrapErr: any) {
+        if (bootstrapErr.status !== 400 || !bootstrapErr.error?.error?.includes('already exists')) {
+          console.warn('[openclaw-wizard] bootstrap error', bootstrapErr);
+        }
+      }
+
+      this.signedIn = true;
+      this.meService.clearCache();
+      this.next();
+    } catch (e: any) {
+      this.authError = e.message || 'Failed to create account';
+    } finally {
+      this.authLoading = false;
+    }
+  }
+
+  // ── Provider key ──
 
   async saveKey(): Promise<void> {
     if (!this.apiKey.trim()) return;
@@ -695,6 +1307,23 @@ export class OpenClawWizardPage implements OnInit {
       this.keyError = e instanceof Error ? e.message : 'Failed to save key.';
     } finally {
       this.keySaving = false;
+    }
+  }
+
+  async installSkill(): Promise<void> {
+    this.skillInstalling = true;
+    this.skillError = null;
+    try {
+      const r = await this.oc.installSkill('spectyra');
+      if (r.ok) {
+        this.skillInstalled = true;
+      } else {
+        this.skillError = r.error || 'Failed to install the Spectyra skill. Try the manual method below.';
+      }
+    } catch (e: any) {
+      this.skillError = e.message || 'Unexpected error installing the Spectyra skill.';
+    } finally {
+      this.skillInstalling = false;
     }
   }
 

@@ -12,19 +12,27 @@ import { fileURLToPath } from "url";
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const root = path.join(__dirname, "..");
 
-await build({
-  entryPoints: [path.join(root, "src", "companion.ts")],
+const shared = {
   bundle: true,
   platform: "node",
   target: "node18",
   format: "cjs",
-  outfile: path.join(root, "dist", "companion.cjs"),
   sourcemap: false,
-  external: [
-    "express",
-    "cors",
-  ],
+  external: ["express", "cors"],
   tsconfig: path.join(root, "tsconfig.json"),
+};
+
+await build({
+  ...shared,
+  entryPoints: [path.join(root, "src", "companion.ts")],
+  outfile: path.join(root, "dist", "companion.cjs"),
 });
 
-console.log("Companion bundled → dist/companion.cjs");
+await build({
+  ...shared,
+  entryPoints: [path.join(root, "src", "cli.ts")],
+  outfile: path.join(root, "dist", "cli.cjs"),
+  banner: { js: "#!/usr/bin/env node" },
+});
+
+console.log("Companion bundled → dist/companion.cjs + dist/cli.cjs");

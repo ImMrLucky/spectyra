@@ -451,6 +451,56 @@ ipcMain.handle("companion:get-setup-status", async () => {
 
 ipcMain.handle("openclaw:example-config", () => OPENCLAW_CONFIG_EXAMPLE_JSON);
 
+/**
+ * Electron inherits a minimal PATH (often no Homebrew, no npm global, no ~/.local/bin).
+ * Terminal installs update the user's login PATH — so we also check login shells and well-known paths.
+ */
+function detectOpenClawCliOnDisk(): boolean {
+  const home = homedir();
+  if (process.platform === "win32") {
+    const local = process.env.LOCALAPPDATA || "";
+    const candidates = [
+      path.join(home, ".local", "bin", "openclaw.exe"),
+      path.join(home, ".local", "bin", "openclaw.cmd"),
+      path.join(home, ".local", "bin", "openclaw"),
+      local ? path.join(local, "Programs", "openclaw", "openclaw.exe") : "",
+    ].filter(Boolean);
+    return candidates.some((p) => existsSync(p));
+  }
+  const unix = [
+    path.join(home, ".local", "bin", "openclaw"),
+    "/opt/homebrew/bin/openclaw",
+    "/usr/local/bin/openclaw",
+  ];
+  return unix.some((p) => existsSync(p));
+}
+
+function detectOpenClawCliViaLoginShell(): boolean {
+  if (process.platform === "win32") return false;
+  const attempts: Array<{ cmd: string; args: string[] }> = [
+    { cmd: "/bin/zsh", args: ["-l", "-c", "command -v openclaw"] },
+    { cmd: "/bin/bash", args: ["-l", "-c", "command -v openclaw"] },
+  ];
+  for (const { cmd, args } of attempts) {
+    if (!existsSync(cmd)) continue;
+    try {
+      const out = execFileSync(cmd, args, {
+        encoding: "utf8",
+        timeout: 12_000,
+        stdio: ["ignore", "pipe", "pipe"],
+        env: { ...process.env, NO_UPDATE_NOTIFIER: "1" },
+      });
+      const line = out.trim().split("\n").filter(Boolean).pop()?.trim();
+      if (!line) continue;
+      const candidate = line.startsWith("~/") ? path.join(homedir(), line.slice(2)) : line;
+      if (existsSync(candidate)) return true;
+    } catch {
+      /* try next shell */
+    }
+  }
+  return false;
+}
+
 ipcMain.handle("openclaw:detect-cli", async () => {
   try {
     if (process.platform === "win32") {
@@ -460,8 +510,11 @@ ipcMain.handle("openclaw:detect-cli", async () => {
     }
     return { available: true };
   } catch {
-    return { available: false };
+    /* fall through */
   }
+  if (detectOpenClawCliOnDisk()) return { available: true };
+  if (detectOpenClawCliViaLoginShell()) return { available: true };
+  return { available: false };
 });
 
 function electronOpenClawPlatform(): OpenClawInstallPlatform {
@@ -546,6 +599,55 @@ ipcMain.handle(
     } catch (err) {
       return { ok: false, error: err instanceof Error ? err.message : String(err) };
     }
+  },
+);
+
+/**
+ * Runs the OpenClaw installer inline as a child process.
+ * Streams output lines to the renderer via 'openclaw:install-output' events
+ * and resolves with { ok, exitCode }.
+ */
+ipcMain.handle(
+  "openclaw:run-install-inline",
+  async (): Promise<{ ok: boolean; error?: string }> => {
+    const win = BrowserWindow.getFocusedWindow() ?? BrowserWindow.getAllWindows()[0];
+    const send = (data: string) => {
+      try { win?.webContents.send("openclaw:install-output", data); } catch { /* window closed */ }
+    };
+
+    return new Promise((resolve) => {
+      try {
+        const shellCmd = process.platform === "win32"
+          ? "powershell.exe"
+          : "/bin/bash";
+        const shellArgs = process.platform === "win32"
+          ? ["-Command", "iwr -useb https://openclaw.ai/install.ps1 | iex"]
+          : ["-lc", "curl -fsSL https://openclaw.ai/install.sh | bash"];
+
+        const child = spawn(shellCmd, shellArgs, {
+          stdio: ["ignore", "pipe", "pipe"],
+          env: { ...process.env, NO_UPDATE_NOTIFIER: "1" },
+          timeout: 120_000,
+        });
+
+        child.stdout?.on("data", (chunk: Buffer) => send(chunk.toString("utf8")));
+        child.stderr?.on("data", (chunk: Buffer) => send(chunk.toString("utf8")));
+
+        child.on("close", (code) => {
+          send(code === 0 ? "\n✓ Installation complete." : `\nInstaller exited with code ${code}.`);
+          resolve({ ok: code === 0 });
+        });
+
+        child.on("error", (err) => {
+          send(`\nError: ${err.message}`);
+          resolve({ ok: false, error: err.message });
+        });
+      } catch (e) {
+        const msg = e instanceof Error ? e.message : String(e);
+        send(`\nFailed to start installer: ${msg}`);
+        resolve({ ok: false, error: msg });
+      }
+    });
   },
 );
 

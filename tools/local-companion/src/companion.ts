@@ -53,6 +53,7 @@ import {
 import { evaluateWorkflowPolicyFromEvents } from "./workflowPolicyFromEvents.js";
 import { activateLicense } from "@spectyra/optimization-engine";
 import { recordOpenClawTrafficIfApplicable, getOpenClawIntegrationDiagnostics } from "./openclawTraffic.js";
+import { dashboardPageHtml } from "./dashboardPageHtml.js";
 
 const cfg: CompanionConfig = loadConfig();
 
@@ -79,6 +80,16 @@ const app = express();
 
 app.use(cors());
 app.use(express.json({ limit: "10mb" }));
+
+// ── Local savings dashboard (OpenClaw / skill users — no Desktop required) ───
+
+app.get("/", (_req, res) => {
+  res.redirect(302, "/dashboard");
+});
+
+app.get("/dashboard", (_req, res) => {
+  res.type("html").send(dashboardPageHtml());
+});
 
 // ── Health & Config ──────────────────────────────────────────────────────────
 
@@ -555,8 +566,10 @@ async function persistLocally(
 // ── Start ────────────────────────────────────────────────────────────────────
 
 const server = app.listen(cfg.port, cfg.bindHost, () => {
+  const origin = `http://${cfg.bindHost}:${cfg.port}`;
   console.log(`\nSpectyra Local Companion`);
-  console.log(`  Listening: http://${cfg.bindHost}:${cfg.port}`);
+  console.log(`  Listening: ${origin}`);
+  console.log(`  Savings UI: ${origin}/dashboard  (open in your browser)`);
   console.log(`  Run mode:  ${cfg.runMode}`);
   console.log(`  Telemetry: ${cfg.telemetryMode}`);
   console.log(`  Snapshots: ${cfg.promptSnapshots}`);

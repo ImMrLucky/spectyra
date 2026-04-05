@@ -16,15 +16,17 @@
   ],
   "main": "dist/companion.cjs",
   "bin": {
-    "spectyra-companion": "./dist/companion.cjs"
+    "spectyra-companion": "./dist/cli.cjs"
   },
   "files": [
     "dist",
+    "scripts/benchmark-savings.mjs",
     "README.md"
   ],
   "scripts": {
     "dev": "tsx watch src/companion.ts",
     "start": "tsx src/companion.ts",
+    "benchmark": "node scripts/benchmark-savings.mjs",
     "build": "node scripts/bundle.mjs",
     "build:tsc": "tsc",
     "typecheck": "tsc --noEmit",

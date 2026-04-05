@@ -71,10 +71,35 @@ pnpm start
 
 ---
 
+## See savings in the browser
+
+No Desktop app required. With the companion running:
+
+- **URL:** [http://127.0.0.1:4111/dashboard](http://127.0.0.1:4111/dashboard) (or open the root URL — it redirects there)
+- **CLI:** `spectyra-companion dashboard` opens the same page
+- **First run:** `spectyra-companion start --open` starts the server and opens the dashboard
+
+The page polls local APIs (`/v1/savings/summary`, `/v1/analytics/sessions`) so OpenClaw traffic through `spectyra/smart` shows up automatically.
+
+### Measure savings on one request (sanity check)
+
+With the companion running and a provider key configured:
+
+```bash
+pnpm benchmark
+# or: node scripts/benchmark-savings.mjs
+```
+
+This sends a chat completion with repetitive context and prints local before/after token estimates from the `spectyra` block in the response. **One run is not a guaranteed “average savings %”** for production — use it to verify the pipeline and your setup. Watch cumulative totals on `/dashboard` while you use OpenClaw.
+
+---
+
 ## Endpoints
 
 | Method | Path | Purpose |
 |--------|------|---------|
+| GET | `/` | Redirects to `/dashboard` |
+| GET | `/dashboard` | Local savings UI (HTML) |
 | GET | `/health` | Status, mode, inference path |
 | GET | `/config` | Companion configuration (includes `provider`, alias models) |
 | GET | `/v1/models` | OpenAI-style model list (`spectyra/smart`, `spectyra/fast`, `spectyra/quality`) |

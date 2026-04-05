@@ -41,6 +41,14 @@ contextBridge.exposeInMainWorld("spectyra", {
       remoteUrl?: string;
     }) =>
       ipcRenderer.invoke("openclaw:run-onboard-terminal", opts) as Promise<{ ok: boolean; error?: string }>,
+    runInstallInline: () =>
+      ipcRenderer.invoke("openclaw:run-install-inline") as Promise<{ ok: boolean; error?: string }>,
+    onInstallOutput: (cb: (data: string) => void) => {
+      ipcRenderer.on("openclaw:install-output", (_e, data) => cb(data));
+    },
+    removeInstallOutputListeners: () => {
+      ipcRenderer.removeAllListeners("openclaw:install-output");
+    },
   },
 
   app: {

@@ -1,0 +1,38 @@
+{
+  "models": {
+    "providers": {
+      "spectyra": {
+        "baseUrl": "http://127.0.0.1:4111/v1",
+        "apiKey": "SPECTYRA_LOCAL",
+        "api": "openai-completions",
+        "models": [
+          {
+            "id": "smart",
+            "name": "Spectyra Smart",
+            "contextWindow": 128000,
+            "maxTokens": 8192
+          },
+          {
+            "id": "fast",
+            "name": "Spectyra Fast",
+            "contextWindow": 128000,
+            "maxTokens": 8192
+          },
+          {
+            "id": "quality",
+            "name": "Spectyra Quality",
+            "contextWindow": 200000,
+            "maxTokens": 16384
+          }
+        ]
+      }
+    }
+  },
+  "agents": {
+    "defaults": {
+      "model": {
+        "primary": "spectyra/smart"
+      }
+    }
+  }
+}

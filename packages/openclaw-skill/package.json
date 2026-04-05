@@ -1,0 +1,12 @@
+{
+  "name": "@spectyra/openclaw-skill",
+  "version": "1.0.0",
+  "private": false,
+  "description": "Spectyra optimization skill for OpenClaw — configures routing through Local Companion",
+  "license": "MIT",
+  "files": [
+    "skill.json",
+    "config-fragment.json",
+    "setup.sh"
+  ]
+}

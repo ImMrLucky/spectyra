@@ -1,0 +1,50 @@
+{
+  "name": "spectyra",
+  "version": "1.0.0",
+  "displayName": "Spectyra Optimization",
+  "description": "Route OpenClaw through Spectyra's local companion for automatic token optimization, cost savings, and analytics. No code changes required.",
+  "author": "Spectyra",
+  "homepage": "https://spectyra.com",
+  "repository": "https://github.com/spectyra/openclaw-skill",
+  "license": "MIT",
+  "keywords": [
+    "optimization",
+    "cost-savings",
+    "token-optimization",
+    "analytics",
+    "spectyra",
+    "local-companion"
+  ],
+  "categories": ["optimization", "analytics", "integration"],
+  "openclaw": {
+    "minVersion": "0.1.0"
+  },
+  "setup": {
+    "type": "config-merge",
+    "configFragment": "config-fragment.json",
+    "postInstall": "setup.sh"
+  },
+  "models": [
+    {
+      "id": "smart",
+      "name": "Spectyra Smart",
+      "description": "Best balance of quality and cost — routes to your configured provider with live optimization"
+    },
+    {
+      "id": "fast",
+      "name": "Spectyra Fast",
+      "description": "Lowest latency and cost — aggressive optimization for routine tasks"
+    },
+    {
+      "id": "quality",
+      "name": "Spectyra Quality",
+      "description": "Highest quality — minimal optimization, premium model routing"
+    }
+  ],
+  "provider": {
+    "name": "spectyra",
+    "baseUrl": "http://127.0.0.1:4111/v1",
+    "apiKey": "SPECTYRA_LOCAL",
+    "api": "openai-completions"
+  }
+}

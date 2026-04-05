@@ -55,6 +55,25 @@ export class DesktopBridgeService {
     return this.api.openclaw.runOnboardInTerminal(opts);
   }
 
+  get canInstallInline(): boolean {
+    return !!this.api?.openclaw.runInstallInline;
+  }
+
+  async runOpenClawInstallInline(): Promise<{ ok: boolean; error?: string }> {
+    if (!this.api?.openclaw.runInstallInline) {
+      return { ok: false, error: 'Inline install not available.' };
+    }
+    return this.api.openclaw.runInstallInline();
+  }
+
+  onInstallOutput(cb: (data: string) => void): void {
+    this.api?.openclaw.onInstallOutput?.(cb);
+  }
+
+  removeInstallOutputListeners(): void {
+    this.api?.openclaw.removeInstallOutputListeners?.();
+  }
+
   async getAppInfo(): Promise<Record<string, unknown> | null> {
     if (!this.api) return null;
     return this.api.app.info();

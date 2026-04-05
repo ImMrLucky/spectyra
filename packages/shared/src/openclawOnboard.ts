@@ -12,6 +12,12 @@ export const OPENCLAW_INSTALL_BASH = "curl -fsSL https://openclaw.ai/install.sh 
 
 export const OPENCLAW_INSTALL_POWERSHELL = "iwr -useb https://openclaw.ai/install.ps1 | iex";
 
+/** One-line installer for both OpenClaw + Spectyra skill. */
+export const SPECTYRA_INSTALL_BASH = "curl -fsSL https://spectyra.com/install.sh | bash";
+
+/** Installs the Spectyra skill into an existing OpenClaw installation. */
+export const SPECTYRA_SKILL_INSTALL = "openclaw skills install spectyra";
+
 export interface OpenClawOnboardOptions {
   flow?: OpenClawOnboardFlow;
   /** When set, adds --mode remote --remote-url <url> */

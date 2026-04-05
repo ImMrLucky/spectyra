@@ -81,6 +81,9 @@ export interface SpectyraPreload {
       mode?: "remote";
       remoteUrl?: string;
     }) => Promise<{ ok: boolean; error?: string }>;
+    runInstallInline?: () => Promise<{ ok: boolean; error?: string }>;
+    onInstallOutput?: (cb: (data: string) => void) => void;
+    removeInstallOutputListeners?: () => void;
   };
   app: {
     info: () => Promise<Record<string, unknown>>;
