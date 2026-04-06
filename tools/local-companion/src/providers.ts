@@ -7,6 +7,7 @@
 
 import { existsSync, readFileSync } from "node:fs";
 import type { ChatMessage } from "./optimizer.js";
+import { readOpenClawProviderKey } from "./openclawAuthFallback.js";
 
 export interface ProviderCallResult {
   text: string;
@@ -56,12 +57,21 @@ export function getProviderKey(provider: string): string {
   const fromSession = keys[provider] ?? keys[p];
   if (fromSession && fromSession.length > 0) return fromSession;
   switch (p) {
-    case "openai":
-      return (process.env.OPENAI_API_KEY || "").trim();
-    case "anthropic":
-      return (process.env.ANTHROPIC_API_KEY || "").trim();
-    case "groq":
-      return (process.env.GROQ_API_KEY || "").trim();
+    case "openai": {
+      const env = (process.env.OPENAI_API_KEY || "").trim();
+      if (env) return env;
+      return readOpenClawProviderKey("openai") ?? "";
+    }
+    case "anthropic": {
+      const env = (process.env.ANTHROPIC_API_KEY || "").trim();
+      if (env) return env;
+      return readOpenClawProviderKey("anthropic") ?? "";
+    }
+    case "groq": {
+      const env = (process.env.GROQ_API_KEY || "").trim();
+      if (env) return env;
+      return readOpenClawProviderKey("groq") ?? "";
+    }
     default:
       return "";
   }

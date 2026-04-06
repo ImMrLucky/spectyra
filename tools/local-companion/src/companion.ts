@@ -13,7 +13,7 @@
  * - Designed for OpenClaw, Cursor, Copilot, and other LLM tools
  */
 
-import express from "express";
+import express, { type Response } from "express";
 import cors from "cors";
 import crypto from "crypto";
 import type { SavingsReport, PromptComparison } from "@spectyra/core-types";
@@ -223,6 +223,59 @@ app.get("/diagnostics/integrations/openclaw", (_req, res) => {
   });
 });
 
+/**
+ * Many clients (including OpenClaw chat) send `"stream": true` and only consume
+ * `text/event-stream` chunks. Responding with `application/json` yields a 200
+ * with an empty UI. Shape matches OpenAI streaming chat completions.
+ */
+function writeOpenAiChatCompletionStream(
+  res: Response,
+  params: {
+    runId: string;
+    model: string;
+    content: string;
+    usage: { prompt_tokens: number; completion_tokens: number; total_tokens: number };
+  },
+): void {
+  const { runId, model, content, usage } = params;
+  const id = `chatcmpl-${runId}`;
+  const created = Math.floor(Date.now() / 1000);
+  const send = (obj: Record<string, unknown>) => {
+    res.write(`data: ${JSON.stringify(obj)}\n\n`);
+  };
+
+  res.setHeader("Content-Type", "text/event-stream; charset=utf-8");
+  res.setHeader("Cache-Control", "no-cache, no-transform");
+  res.setHeader("Connection", "keep-alive");
+
+  send({
+    id,
+    object: "chat.completion.chunk",
+    created,
+    model,
+    choices: [{ index: 0, delta: { role: "assistant" }, finish_reason: null }],
+  });
+  if (content.length > 0) {
+    send({
+      id,
+      object: "chat.completion.chunk",
+      created,
+      model,
+      choices: [{ index: 0, delta: { content }, finish_reason: null }],
+    });
+  }
+  send({
+    id,
+    object: "chat.completion.chunk",
+    created,
+    model,
+    choices: [{ index: 0, delta: {}, finish_reason: "stop" }],
+    usage,
+  });
+  res.write("data: [DONE]\n\n");
+  res.end();
+}
+
 // ── OpenAI-compatible endpoint ───────────────────────────────────────────────
 
 app.post("/v1/chat/completions", async (req, res) => {
@@ -263,6 +316,23 @@ app.post("/v1/chat/completions", async (req, res) => {
       });
     }
 
+    const usage = {
+      prompt_tokens: providerResult.usage.inputTokens,
+      completion_tokens: providerResult.usage.outputTokens,
+      total_tokens: providerResult.usage.inputTokens + providerResult.usage.outputTokens,
+    };
+
+    const wantsStream = req.body?.stream === true || req.body?.stream === "true";
+    if (wantsStream) {
+      writeOpenAiChatCompletionStream(res, {
+        runId,
+        model: resolved.requestedModel,
+        content: providerResult.text,
+        usage,
+      });
+      return;
+    }
+
     res.json({
       id: `chatcmpl-${runId}`,
       object: "chat.completion",
@@ -273,11 +343,7 @@ app.post("/v1/chat/completions", async (req, res) => {
         message: { role: "assistant", content: providerResult.text },
         finish_reason: "stop",
       }],
-      usage: {
-        prompt_tokens: providerResult.usage.inputTokens,
-        completion_tokens: providerResult.usage.outputTokens,
-        total_tokens: providerResult.usage.inputTokens + providerResult.usage.outputTokens,
-      },
+      usage,
       spectyra: {
         runId,
         mode: cfg.runMode,

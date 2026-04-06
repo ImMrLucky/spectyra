@@ -270,9 +270,9 @@ async function runSetup() {
       apiKey: "SPECTYRA_LOCAL",
       api: "openai-completions",
       models: [
-        { id: "smart", name: "Spectyra Smart", contextWindow: 128000, maxTokens: 8192 },
-        { id: "fast", name: "Spectyra Fast", contextWindow: 128000, maxTokens: 8192 },
-        { id: "quality", name: "Spectyra Quality", contextWindow: 200000, maxTokens: 16384 },
+        { id: "spectyra/smart", name: "Spectyra Smart", contextWindow: 128000, maxTokens: 8192 },
+        { id: "spectyra/fast", name: "Spectyra Fast", contextWindow: 128000, maxTokens: 8192 },
+        { id: "spectyra/quality", name: "Spectyra Quality", contextWindow: 200000, maxTokens: 16384 },
       ],
     });
 

@@ -2,6 +2,8 @@
 
 Automatic token optimization for OpenClaw. Reduces AI costs by routing requests through Spectyra's Local Companion.
 
+**ClawHub / OpenClaw skills:** the published artifact is **`SKILL.md`** (YAML frontmatter + body). Files like `skill.json` / `setup.sh` are legacy extras for older merge-based installers and are not what OpenClaw’s skill index consumes.
+
 ## Install
 
 ```bash
@@ -63,7 +65,7 @@ openclaw skills install spectyra
 npm install -g @spectyra/local-companion
 spectyra-companion setup
 spectyra-companion start --open
-openclaw chat
+# Then use OpenClaw as you usually do (Control UI, gateway, or e.g. openclaw agent --local) with spectyra/smart
 ```
 
 ## One-line setup (OpenClaw + Spectyra together)

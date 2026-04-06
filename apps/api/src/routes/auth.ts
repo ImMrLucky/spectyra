@@ -5,6 +5,7 @@
  */
 
 import { Router } from "express";
+import crypto from "node:crypto";
 import {
   createOrg,
   getOrgById,
@@ -218,6 +219,25 @@ authRouter.post("/bootstrap", requireUserSession, async (req: AuthenticatedReque
       targetId: apiKey.id,
       metadata: { name: "Default Key", is_bootstrap: true },
     });
+
+    // Auto-generate a license key so the Desktop companion can optimize immediately
+    let licenseKey: string | null = null;
+    try {
+      const lk = `lk_spectyra_${crypto.randomBytes(24).toString("hex")}`;
+      const lkPrefix = lk.substring(0, 14);
+      const lkHash = await hashApiKey(lk);
+      await query(`
+        INSERT INTO license_keys (org_id, key_hash, key_prefix, device_name)
+        VALUES ($1, $2, $3, $4)
+      `, [org.id, lkHash, lkPrefix, "auto-bootstrap"]);
+      licenseKey = lk;
+      await audit(req, "LICENSE_KEY_CREATED", {
+        targetType: "LICENSE_KEY",
+        metadata: { device_name: "auto-bootstrap", is_bootstrap: true },
+      }).catch(() => {});
+    } catch (lkErr: any) {
+      safeLog("warn", "Auto-license key generation failed during bootstrap", { error: lkErr.message });
+    }
     
     res.status(201).json({
       org: {
@@ -232,6 +252,7 @@ authRouter.post("/bootstrap", requireUserSession, async (req: AuthenticatedReque
       },
       api_key: key, // Only returned once
       api_key_id: apiKey.id,
+      license_key: licenseKey,
       message: "Organization created successfully. Save your API key - it won't be shown again!",
     });
   } catch (error: any) {
@@ -622,8 +643,8 @@ authRouter.post("/api-keys", async (req: AuthenticatedRequest, res) => {
       }
     }
 
-    // Fall back to API key auth
-    if (!orgId) {
+    // Fall back to API key auth (only if header is present)
+    if (!orgId && req.headers["x-spectyra-api-key"]) {
       await requireSpectyraApiKey(req, res, async () => {
         if (!req.context) {
           return res.status(401).json({ error: "Not authenticated" });
@@ -634,7 +655,7 @@ authRouter.post("/api-keys", async (req: AuthenticatedRequest, res) => {
     }
 
     if (!orgId) {
-      return res.status(401).json({ error: "Not authenticated" });
+      return res.status(401).json({ error: "Not authenticated. Send Authorization: Bearer <jwt> or X-SPECTYRA-API-KEY header." });
     }
 
     const { name, project_id } = req.body as { name?: string; project_id?: string };
@@ -822,8 +843,8 @@ authRouter.get("/api-keys", async (req: AuthenticatedRequest, res) => {
       }
     }
 
-    // Fall back to API key auth (only if no response was sent)
-    if (!orgId && !res.headersSent) {
+    // Fall back to API key auth (only if no response was sent and an API key header is present)
+    if (!orgId && !res.headersSent && req.headers["x-spectyra-api-key"]) {
       let apiKeyAuthSucceeded = false;
       let middlewareCompleted = false;
       
@@ -857,7 +878,7 @@ authRouter.get("/api-keys", async (req: AuthenticatedRequest, res) => {
     }
 
     if (!orgId) {
-      return res.status(401).json({ error: "Not authenticated" });
+      return res.status(401).json({ error: "Not authenticated. Send Authorization: Bearer <jwt> or X-SPECTYRA-API-KEY header." });
     }
     
     const keys = await getOrgApiKeys(orgId, false);
@@ -914,8 +935,8 @@ authRouter.delete("/api-keys/:id", async (req: AuthenticatedRequest, res) => {
       }
     }
 
-    // Fall back to API key auth
-    if (!orgId) {
+    // Fall back to API key auth (only if header is present)
+    if (!orgId && req.headers["x-spectyra-api-key"]) {
       await requireSpectyraApiKey(req, res, async () => {
         if (!req.context) {
           return res.status(401).json({ error: "Not authenticated" });
@@ -926,7 +947,7 @@ authRouter.delete("/api-keys/:id", async (req: AuthenticatedRequest, res) => {
     }
 
     if (!orgId) {
-      return res.status(401).json({ error: "Not authenticated" });
+      return res.status(401).json({ error: "Not authenticated. Send Authorization: Bearer <jwt> or X-SPECTYRA-API-KEY header." });
     }
     
     // Get the key to verify it belongs to this org

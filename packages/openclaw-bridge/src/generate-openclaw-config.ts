@@ -32,7 +32,7 @@ export function buildOpenClawConfigObject(options: OpenClawBridgeOptions = {}): 
   cfg.models.providers.spectyra.baseUrl = baseUrl;
 
   if (options.includeQualityAlias === false) {
-    cfg.models.providers.spectyra.models = cfg.models.providers.spectyra.models.filter((m) => m.id !== "quality");
+    cfg.models.providers.spectyra.models = cfg.models.providers.spectyra.models.filter((m) => m.id !== "spectyra/quality");
   }
 
   const primary = options.primaryModel?.trim() || "spectyra/smart";

@@ -28,19 +28,19 @@ export const OPENCLAW_CONFIG_JSON = `{
         "api": "openai-completions",
         "models": [
           {
-            "id": "smart",
+            "id": "spectyra/smart",
             "name": "Spectyra Smart",
             "contextWindow": 128000,
             "maxTokens": 8192
           },
           {
-            "id": "fast",
+            "id": "spectyra/fast",
             "name": "Spectyra Fast",
             "contextWindow": 128000,
             "maxTokens": 8192
           },
           {
-            "id": "quality",
+            "id": "spectyra/quality",
             "name": "Spectyra Quality",
             "contextWindow": 128000,
             "maxTokens": 8192

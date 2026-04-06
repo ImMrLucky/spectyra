@@ -111,6 +111,15 @@ export class DesktopBridgeService {
     }
   }
 
+  async activateLicense(key: string): Promise<{ ok: boolean; error?: string }> {
+    if (!this.api) return { ok: false, error: 'Not in desktop app' };
+    try {
+      return await this.api.license.activate(key);
+    } catch (e: unknown) {
+      return { ok: false, error: e instanceof Error ? e.message : String(e) };
+    }
+  }
+
   onCompanionStatus(cb: (s: CompanionStatus) => void): void {
     this.api?.onStatus(cb);
   }

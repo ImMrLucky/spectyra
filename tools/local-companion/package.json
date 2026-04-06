@@ -30,7 +30,7 @@
     "build": "node scripts/bundle.mjs",
     "build:tsc": "tsc",
     "typecheck": "tsc --noEmit",
-    "test": "tsx src/__tests__/inference-pipeline.test.ts"
+    "test": "tsx src/__tests__/inference-pipeline.test.ts && tsx src/__tests__/openclawAuthFallback.test.ts"
   },
   "dependencies": {
     "@spectyra/event-adapters": "workspace:*",

@@ -8,7 +8,7 @@ import { execFileSync } from "child_process";
 import path from "path";
 import { spawn, execFile, ChildProcess } from "child_process";
 import { promises as fs } from "fs";
-import { existsSync, mkdirSync, writeFileSync } from "fs";
+import { existsSync, mkdirSync, writeFileSync, readdirSync } from "fs";
 import { homedir, tmpdir } from "os";
 import {
   defaultAliasModels,
@@ -452,11 +452,41 @@ ipcMain.handle("companion:get-setup-status", async () => {
 ipcMain.handle("openclaw:example-config", () => OPENCLAW_CONFIG_EXAMPLE_JSON);
 
 /**
- * Electron inherits a minimal PATH (often no Homebrew, no npm global, no ~/.local/bin).
- * Terminal installs update the user's login PATH — so we also check login shells and well-known paths.
+ * Electron inherits a minimal PATH (often no Homebrew, no nvm, no ~/.local/bin).
+ * Resolve the real `openclaw` binary so UI + IPC match what works in Terminal.
  */
-function detectOpenClawCliOnDisk(): boolean {
+let openClawBinaryCache: string | null | undefined;
+
+function parseCommandVOutput(out: string): string | null {
+  const line = out.trim().split("\n").filter(Boolean).pop()?.trim();
+  if (!line) return null;
+  const candidate = line.startsWith("~/") ? path.join(homedir(), line.slice(2)) : line;
+  return existsSync(candidate) ? candidate : null;
+}
+
+function findOpenClawBinaryPath(): string | null {
+  if (openClawBinaryCache !== undefined) return openClawBinaryCache;
+
+  try {
+    if (process.platform === "win32") {
+      const out = execFileSync("where", ["openclaw"], { encoding: "utf8", timeout: 8000 }).trim().split(/\r?\n/)[0];
+      if (out && existsSync(out.trim())) {
+        openClawBinaryCache = out.trim();
+        return openClawBinaryCache;
+      }
+    } else {
+      const p = execFileSync("which", ["openclaw"], { encoding: "utf8", timeout: 8000 }).trim();
+      if (p && existsSync(p)) {
+        openClawBinaryCache = p;
+        return openClawBinaryCache;
+      }
+    }
+  } catch {
+    /* Electron PATH is usually too small */
+  }
+
   const home = homedir();
+
   if (process.platform === "win32") {
     const local = process.env.LOCALAPPDATA || "";
     const candidates = [
@@ -465,19 +495,64 @@ function detectOpenClawCliOnDisk(): boolean {
       path.join(home, ".local", "bin", "openclaw"),
       local ? path.join(local, "Programs", "openclaw", "openclaw.exe") : "",
     ].filter(Boolean);
-    return candidates.some((p) => existsSync(p));
+    for (const c of candidates) {
+      if (existsSync(c)) {
+        openClawBinaryCache = c;
+        return c;
+      }
+    }
+    openClawBinaryCache = null;
+    return null;
   }
+
   const unix = [
     path.join(home, ".local", "bin", "openclaw"),
+    path.join(home, ".volta", "bin", "openclaw"),
+    path.join(home, ".asdf", "shims", "openclaw"),
     "/opt/homebrew/bin/openclaw",
     "/usr/local/bin/openclaw",
   ];
-  return unix.some((p) => existsSync(p));
-}
+  for (const c of unix) {
+    if (existsSync(c)) {
+      openClawBinaryCache = c;
+      return c;
+    }
+  }
 
-function detectOpenClawCliViaLoginShell(): boolean {
-  if (process.platform === "win32") return false;
+  const nvmNodes = path.join(home, ".nvm", "versions", "node");
+  if (existsSync(nvmNodes)) {
+    try {
+      for (const ver of readdirSync(nvmNodes)) {
+        const bin = path.join(nvmNodes, ver, "bin", "openclaw");
+        if (existsSync(bin)) {
+          openClawBinaryCache = bin;
+          return bin;
+        }
+      }
+    } catch {
+      /* ignore */
+    }
+  }
+
+  const fnmVers = path.join(home, ".fnm", "node-versions");
+  if (existsSync(fnmVers)) {
+    try {
+      for (const dir of readdirSync(fnmVers)) {
+        const bin = path.join(fnmVers, dir, "installation", "bin", "openclaw");
+        if (existsSync(bin)) {
+          openClawBinaryCache = bin;
+          return bin;
+        }
+      }
+    } catch {
+      /* ignore */
+    }
+  }
+
+  /** `-il` loads interactive rc (e.g. nvm in ~/.zshrc); `-l` alone often misses them on macOS. */
   const attempts: Array<{ cmd: string; args: string[] }> = [
+    { cmd: "/bin/zsh", args: ["-il", "-c", "command -v openclaw"] },
+    { cmd: "/bin/bash", args: ["-il", "-c", "command -v openclaw"] },
     { cmd: "/bin/zsh", args: ["-l", "-c", "command -v openclaw"] },
     { cmd: "/bin/bash", args: ["-l", "-c", "command -v openclaw"] },
   ];
@@ -490,32 +565,21 @@ function detectOpenClawCliViaLoginShell(): boolean {
         stdio: ["ignore", "pipe", "pipe"],
         env: { ...process.env, NO_UPDATE_NOTIFIER: "1" },
       });
-      const line = out.trim().split("\n").filter(Boolean).pop()?.trim();
-      if (!line) continue;
-      const candidate = line.startsWith("~/") ? path.join(homedir(), line.slice(2)) : line;
-      if (existsSync(candidate)) return true;
+      const resolved = parseCommandVOutput(out);
+      if (resolved) {
+        openClawBinaryCache = resolved;
+        return resolved;
+      }
     } catch {
       /* try next shell */
     }
   }
-  return false;
+
+  openClawBinaryCache = null;
+  return null;
 }
 
-ipcMain.handle("openclaw:detect-cli", async () => {
-  try {
-    if (process.platform === "win32") {
-      execFileSync("where", ["openclaw"], { stdio: "ignore" });
-    } else {
-      execFileSync("which", ["openclaw"], { stdio: "ignore" });
-    }
-    return { available: true };
-  } catch {
-    /* fall through */
-  }
-  if (detectOpenClawCliOnDisk()) return { available: true };
-  if (detectOpenClawCliViaLoginShell()) return { available: true };
-  return { available: false };
-});
+ipcMain.handle("openclaw:detect-cli", async () => ({ available: findOpenClawBinaryPath() !== null }));
 
 function electronOpenClawPlatform(): OpenClawInstallPlatform {
   if (process.platform === "darwin") return "darwin";
@@ -927,13 +991,18 @@ function safeExecSync(cmd: string, args: string[], timeoutMs = 10000): { ok: boo
   }
 }
 
+function safeExecOpenClawSync(args: string[], timeoutMs = 10000): { ok: boolean; stdout: string; stderr: string } {
+  const bin = findOpenClawBinaryPath() ?? "openclaw";
+  return safeExecSync(bin, args, timeoutMs);
+}
+
 ipcMain.handle("openclaw:config-path", async () => {
-  const r = safeExecSync("openclaw", ["config", "path"]);
+  const r = safeExecOpenClawSync(["config", "path"]);
   return r.ok ? { ok: true, path: r.stdout } : { ok: false, error: r.stderr || "Could not get config path" };
 });
 
 ipcMain.handle("openclaw:doctor", async () => {
-  const r = safeExecSync("openclaw", ["doctor"], 30000);
+  const r = safeExecOpenClawSync(["doctor"], 30000);
   return { ok: r.ok, output: r.ok ? r.stdout : r.stderr || r.stdout };
 });
 
@@ -947,16 +1016,30 @@ ipcMain.handle("openclaw:dashboard-check", async () => {
 });
 
 ipcMain.handle("openclaw:gateway-check", async () => {
-  try {
-    const r = await fetch("http://localhost:18789/health", { signal: AbortSignal.timeout(3000) });
-    return { reachable: r.ok, status: r.status };
-  } catch {
-    return { reachable: false };
+  /** OpenClaw gateway may not return 2xx on `/health` depending on version; any TCP + HTTP response means it's up. */
+  const tryUrl = async (url: string): Promise<{ reachable: boolean; status: number } | null> => {
+    try {
+      const r = await fetch(url, { signal: AbortSignal.timeout(3500) });
+      return { reachable: true, status: r.status };
+    } catch {
+      return null;
+    }
+  };
+  const urls = [
+    "http://127.0.0.1:18789/health",
+    "http://127.0.0.1:18789/",
+    "http://localhost:18789/health",
+    "http://localhost:18789/",
+  ];
+  for (const u of urls) {
+    const hit = await tryUrl(u);
+    if (hit) return hit;
   }
+  return { reachable: false, status: 0 };
 });
 
 ipcMain.handle("openclaw:skills-search", async (_e, query: string) => {
-  const r = safeExecSync("openclaw", ["skills", "search", query], 15000);
+  const r = safeExecOpenClawSync(["skills", "search", query], 15000);
   if (!r.ok) return { ok: false, error: r.stderr || "Search failed", results: [] };
   const lines = r.stdout.split("\n").filter((l) => l.trim());
   const results = lines.map((line) => {
@@ -967,7 +1050,7 @@ ipcMain.handle("openclaw:skills-search", async (_e, query: string) => {
 });
 
 ipcMain.handle("openclaw:skills-installed", async () => {
-  const r = safeExecSync("openclaw", ["skills", "list"]);
+  const r = safeExecOpenClawSync(["skills", "list"]);
   if (!r.ok) return { ok: false, error: r.stderr || "Could not list skills", skills: [] };
   const lines = r.stdout.split("\n").filter((l) => l.trim());
   const skills = lines.map((line) => {
@@ -978,12 +1061,12 @@ ipcMain.handle("openclaw:skills-installed", async () => {
 });
 
 ipcMain.handle("openclaw:skills-install", async (_e, name: string) => {
-  const r = safeExecSync("openclaw", ["skills", "install", name], 60000);
+  const r = safeExecOpenClawSync(["skills", "install", name], 60000);
   return r.ok ? { ok: true, output: r.stdout } : { ok: false, error: r.stderr || r.stdout || "Install failed" };
 });
 
 ipcMain.handle("openclaw:skills-update", async () => {
-  const r = safeExecSync("openclaw", ["skills", "update"], 60000);
+  const r = safeExecOpenClawSync(["skills", "update"], 60000);
   return r.ok ? { ok: true, output: r.stdout } : { ok: false, error: r.stderr || r.stdout || "Update failed" };
 });
 
@@ -994,7 +1077,7 @@ ipcMain.handle("openclaw:open-path", async (_e, target: string) => {
 });
 
 ipcMain.handle("openclaw:open-config", async () => {
-  const r = safeExecSync("openclaw", ["config", "path"]);
+  const r = safeExecOpenClawSync(["config", "path"]);
   if (r.ok && r.stdout) {
     void shell.openPath(r.stdout);
     return { ok: true, path: r.stdout };

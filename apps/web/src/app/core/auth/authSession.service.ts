@@ -44,8 +44,28 @@ export class AuthSessionService implements OnDestroy {
     this.initialized = true;
 
     if (environment.isDesktop) {
-      this.session$.next(null);
-      this.user$.next(null);
+      /**
+       * Electron still uses Supabase for Spectyra sign-in; we only skipped the listener before,
+       * which left `user$` empty and broke "Signed in as …" in the OpenClaw wizard.
+       * Hydrate from storage and keep one listener so sign-in/out updates the UI.
+       */
+      supabase.auth
+        .getSession()
+        .then(({ data: { session }, error }) => {
+          if (error) {
+            if (error.message?.includes('LockManager') || error.message?.includes('lock')) {
+              this.tryGetSessionFromStorage();
+            }
+          } else {
+            this.updateSession(session);
+          }
+        })
+        .catch(() => this.tryGetSessionFromStorage());
+
+      const { data } = supabase.auth.onAuthStateChange((_event, session) => {
+        this.updateSession(session);
+      });
+      this.authSubscription = data.subscription;
       return;
     }
 

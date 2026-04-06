@@ -73,9 +73,14 @@ export class SettingsPage implements OnInit {
         console.error('Failed to load org info:', err);
       }
 
-      // Load API keys (interceptor handles auth)
+      // Load API keys
       try {
-        const keys = await firstValueFrom(this.http.get<ApiKeyDisplay[]>(`${environment.apiUrl}/auth/api-keys`));
+        const headers = new HttpHeaders({
+          'Authorization': `Bearer ${token}`,
+        });
+        const keys = await firstValueFrom(
+          this.http.get<ApiKeyDisplay[]>(`${environment.apiUrl}/auth/api-keys`, { headers }),
+        );
         this.apiKeys = keys || [];
       } catch (err: any) {
         if (err.status === 401) {

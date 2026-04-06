@@ -48,7 +48,12 @@ export function resolveSpectyraModel(
   model: string,
   cfg: ResolveSpectyraModelInput,
 ): { requestedModel: string; upstreamModel: string; provider: UpstreamProviderId } {
-  const m = model.trim();
+  let m = model.trim();
+  // OpenClaw (and similar clients) use a provider-scoped base URL and send bare `smart` / `fast` /
+  // `quality` instead of `spectyra/smart`. Map those to our stable alias namespace.
+  if (m === "smart" || m === "fast" || m === "quality") {
+    m = `spectyra/${m}`;
+  }
   if (m.startsWith("spectyra/")) {
     const alias = m.slice("spectyra/".length);
     if (alias !== "smart" && alias !== "fast" && alias !== "quality") {

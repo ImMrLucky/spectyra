@@ -10,11 +10,11 @@ import type { CompanionHealthResponse, CompanionModelsResponse } from "../types.
 function run() {
   const cfg = buildOpenClawConfigObject({ baseUrl: "http://127.0.0.1:4111/v1" });
   assert.equal(cfg.models.providers.spectyra.baseUrl, "http://127.0.0.1:4111/v1");
-  assert.ok(cfg.models.providers.spectyra.models.some((m) => m.id === "smart"));
-  assert.ok(cfg.models.providers.spectyra.models.some((m) => m.id === "quality"));
+  assert.ok(cfg.models.providers.spectyra.models.some((m) => m.id === "spectyra/smart"));
+  assert.ok(cfg.models.providers.spectyra.models.some((m) => m.id === "spectyra/quality"));
 
   const noQuality = buildOpenClawConfigObject({ includeQualityAlias: false });
-  assert.ok(!noQuality.models.providers.spectyra.models.some((m) => m.id === "quality"));
+  assert.ok(!noQuality.models.providers.spectyra.models.some((m) => m.id === "spectyra/quality"));
 
   let threw = false;
   try {

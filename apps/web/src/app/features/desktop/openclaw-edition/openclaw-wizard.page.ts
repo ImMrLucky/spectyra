@@ -11,6 +11,7 @@ import { LocalCompanionDiagnosticsService } from '../../../core/desktop/local-co
 import { CompanionAnalyticsService } from '../../../core/analytics/companion-analytics.service';
 import { DESKTOP_SETUP, friendlyProviderKeyUserMessage } from '../../../core/desktop/desktop-setup-messages';
 import { OPENCLAW_INSTALL_BASH, OPENCLAW_NODE_VERSION_MIN } from '@spectyra/shared';
+import { supabase } from '../../../core/supabase/supabase.client';
 import { SupabaseService } from '../../../services/supabase.service';
 import { AuthService } from '../../../core/auth/auth.service';
 import { MeService } from '../../../core/services/me.service';
@@ -40,8 +41,8 @@ const STEP_ORDER: WizardStep[] = ['welcome', 'account', 'install', 'provider', '
         </div>
       </div>
 
-      <!-- WELCOME -->
-      <section class="wiz-panel" *ngIf="step === 'welcome'">
+      <!-- WELCOME (hidden until status loads — avoids flashing install copy before we can jump to Account) -->
+      <section class="wiz-panel" *ngIf="wizardReady && step === 'welcome'">
         <h1 class="wiz-title">Welcome to Spectyra for OpenClaw</h1>
         <p class="wiz-lead">
           This setup takes about two minutes. We'll install OpenClaw, add your AI provider key,
@@ -69,8 +70,17 @@ const STEP_ORDER: WizardStep[] = ['welcome', 'account', 'install', 'provider', '
         <ng-container *ngIf="signedIn">
           <div class="install-success">
             <span class="install-success-icon">&#10003;</span>
-            <h1 class="wiz-title">You're signed in</h1>
-            <p class="wiz-lead">Signed in as <strong>{{ authEmail }}</strong>. Let's install OpenClaw.</p>
+            <h1 class="wiz-title">You're signed in to Spectyra</h1>
+            <p class="wiz-lead" *ngIf="authEmail">
+              Signed in as <strong>{{ authEmail }}</strong>.
+              <ng-container *ngIf="cliDetected">OpenClaw is already on this Mac — continue to connect your AI provider and Spectyra.</ng-container>
+              <ng-container *ngIf="!cliDetected">Next we will install OpenClaw, then your provider key.</ng-container>
+            </p>
+            <p class="wiz-lead" *ngIf="!authEmail">
+              Your Spectyra session is active.
+              <ng-container *ngIf="cliDetected">OpenClaw is already installed — continue to finish setup.</ng-container>
+              <ng-container *ngIf="!cliDetected">Next we will install OpenClaw, then your provider key.</ng-container>
+            </p>
           </div>
           <div class="wiz-actions">
             <button class="wiz-btn secondary" (click)="prev()">Back</button>
@@ -1010,6 +1020,9 @@ export class OpenClawWizardPage implements OnInit, OnDestroy {
   /** Local companion `/dashboard` for browser savings (npm + Desktop users). */
   companionDashboardUrl: string | null = null;
 
+  /** False until `refreshStatus` finishes — keeps welcome copy from flashing before we may switch steps. */
+  wizardReady = false;
+
   get allPassing(): boolean {
     return this.verifyChecks.length > 0 && this.verifyChecks.every((c) => c.ok === true);
   }
@@ -1024,9 +1037,30 @@ export class OpenClawWizardPage implements OnInit, OnDestroy {
     ]);
 
     this.signedIn = !!token;
+    /**
+     * Desktop build skips AuthSessionService user stream; `authEmail` must come from Supabase session
+     * or the Account step shows "Signed in as ." with an empty name.
+     */
+    try {
+      const { data: sessionRes } = await supabase.auth.getSession();
+      let email = sessionRes.session?.user?.email?.trim();
+      if (!email) {
+        const { data: userRes } = await supabase.auth.getUser();
+        email = userRes.user?.email?.trim();
+      }
+      if (email) this.authEmail = email;
+    } catch {
+      /* ignore */
+    }
+
     if (cfg && typeof cfg['provider'] === 'string') this.provider = cfg['provider'] as string;
-    this.cliDetected = status.cliDetected || status.openclawDetected;
+    this.cliDetected = status.cliDetected || status.openclawDetected || status.gatewayReachable;
     this.canSkip = status.companionHealthy && status.providerConfigured;
+
+    const hasOpenClaw = status.openclawDetected || status.cliDetected || status.gatewayReachable;
+    if (hasOpenClaw && this.step === 'welcome') {
+      this.step = 'account';
+    }
 
     try {
       this.configJson = await this.diagnostics.buildOpenClawConfigJson();
@@ -1047,6 +1081,8 @@ export class OpenClawWizardPage implements OnInit, OnDestroy {
     } catch {
       this.companionDashboardUrl = `${environment.companionBaseUrl.replace(/\/$/, "")}/dashboard`;
     }
+
+    this.wizardReady = true;
   }
 
   ngOnDestroy(): void {
@@ -1204,11 +1240,48 @@ export class OpenClawWizardPage implements OnInit, OnDestroy {
       }
       this.signedIn = true;
       this.meService.clearCache();
+
+      await this.provisionLicenseKeyIfNeeded();
+
       this.next();
     } catch (e: any) {
       this.authError = e.message || 'Sign-in failed';
     } finally {
       this.authLoading = false;
+    }
+  }
+
+  /**
+   * If the Desktop companion has no active license key, generate one server-side and activate it locally.
+   * Called after sign-in for existing users who may not have a key yet.
+   */
+  private async provisionLicenseKeyIfNeeded(): Promise<void> {
+    if (!this.desktop.isElectronRenderer) return;
+
+    const cfg = await this.desktop.getConfig();
+    if (cfg?.['licenseKey']) return;
+
+    try {
+      const token = await this.supabase.getAccessToken();
+      if (!token) return;
+
+      const headers = new HttpHeaders({
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json',
+      });
+      const res = await firstValueFrom(this.http.post<any>(
+        `${environment.apiUrl}/license/generate`,
+        { device_name: 'desktop-auto' },
+        { headers },
+      ));
+      if (res?.license_key) {
+        const lkResult = await this.desktop.activateLicense(res.license_key);
+        if (!lkResult.ok) {
+          console.warn('[openclaw-wizard] license activation failed on sign-in', lkResult.error);
+        }
+      }
+    } catch (e: any) {
+      console.warn('[openclaw-wizard] license provisioning on sign-in failed', e.message || e);
     }
   }
 
@@ -1265,6 +1338,12 @@ export class OpenClawWizardPage implements OnInit, OnDestroy {
           { headers },
         ));
         if (response?.api_key) this.authService.setApiKey(response.api_key);
+        if (response?.license_key) {
+          const lkResult = await this.desktop.activateLicense(response.license_key);
+          if (!lkResult.ok) {
+            console.warn('[openclaw-wizard] license activation failed', lkResult.error);
+          }
+        }
       } catch (bootstrapErr: any) {
         if (bootstrapErr.status !== 400 || !bootstrapErr.error?.error?.includes('already exists')) {
           console.warn('[openclaw-wizard] bootstrap error', bootstrapErr);

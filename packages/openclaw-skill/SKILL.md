@@ -115,7 +115,7 @@ EOF
 ### Add Spectyra as an OpenClaw provider
 
 ```bash
-openclaw config set models.providers.spectyra '{"baseUrl":"http://127.0.0.1:4111/v1","apiKey":"SPECTYRA_LOCAL","api":"openai-completions","models":[{"id":"smart","name":"Spectyra Smart","contextWindow":128000,"maxTokens":8192},{"id":"fast","name":"Spectyra Fast","contextWindow":128000,"maxTokens":8192},{"id":"quality","name":"Spectyra Quality","contextWindow":200000,"maxTokens":16384}]}' --strict-json
+openclaw config set models.providers.spectyra '{"baseUrl":"http://127.0.0.1:4111/v1","apiKey":"SPECTYRA_LOCAL","api":"openai-completions","models":[{"id":"spectyra/smart","name":"Spectyra Smart","contextWindow":128000,"maxTokens":8192},{"id":"spectyra/fast","name":"Spectyra Fast","contextWindow":128000,"maxTokens":8192},{"id":"spectyra/quality","name":"Spectyra Quality","contextWindow":200000,"maxTokens":16384}]}' --strict-json
 ```
 
 ### Start the companion
@@ -157,7 +157,8 @@ All three route through your configured provider (OpenAI, Anthropic, or Groq). T
 spectyra-companion status
 curl http://127.0.0.1:4111/health
 curl http://127.0.0.1:4111/v1/models
-openclaw chat -m spectyra/smart "Say hello"
+# If your OpenClaw build supports it — otherwise use Control UI / gateway as you normally do:
+openclaw agent --local --message "Say hello" --json
 ```
 
 Open **http://127.0.0.1:4111/dashboard** — you should see runs and session rows after chatting.

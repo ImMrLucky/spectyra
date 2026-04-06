@@ -5,6 +5,8 @@
   "description": "Spectyra optimization skill for OpenClaw — configures routing through Local Companion",
   "license": "MIT",
   "files": [
+    "SKILL.md",
+    "README.md",
     "skill.json",
     "config-fragment.json",
     "setup.sh"
