@@ -620,38 +620,39 @@ authRouter.post("/api-keys", async (req: AuthenticatedRequest, res) => {
     // Try Supabase JWT first
     const authHeader = req.headers.authorization;
     if (authHeader && authHeader.startsWith("Bearer ")) {
-      try {
-        await requireUserSession(req, res, async () => {
-          if (!req.auth?.userId) {
-            return res.status(401).json({ error: "Not authenticated" });
-          }
+      let jwtOk = false;
+      await new Promise<void>((resolve) => {
+        requireUserSession(req, res, () => { jwtOk = true; resolve(); })
+          .then(() => { if (!jwtOk) resolve(); })
+          .catch(() => resolve());
+      });
 
-          const { queryOne } = await import("../services/storage/db.js");
-          const membership = await queryOne<{ org_id: string }>(`
-            SELECT org_id FROM org_memberships WHERE user_id = $1 LIMIT 1
-          `, [req.auth.userId]);
+      if (res.headersSent) return;
 
-          if (!membership) {
-            return res.status(404).json({ error: "Organization not found" });
-          }
+      if (jwtOk && req.auth?.userId) {
+        const membership = await queryOne<{ org_id: string }>(`
+          SELECT org_id FROM org_memberships WHERE user_id = $1 LIMIT 1
+        `, [req.auth.userId]);
 
-          orgId = membership.org_id;
-        });
-        if (res.headersSent) return; // Response already sent
-      } catch (jwtError) {
-        // Fall through to API key
+        if (!membership) {
+          return res.status(404).json({ error: "Organization not found" });
+        }
+        orgId = membership.org_id;
       }
     }
 
     // Fall back to API key auth (only if header is present)
-    if (!orgId && req.headers["x-spectyra-api-key"]) {
-      await requireSpectyraApiKey(req, res, async () => {
-        if (!req.context) {
-          return res.status(401).json({ error: "Not authenticated" });
-        }
-        orgId = req.context.org.id;
+    if (!orgId && !res.headersSent && req.headers["x-spectyra-api-key"]) {
+      let apiKeyOk = false;
+      await new Promise<void>((resolve) => {
+        requireSpectyraApiKey(req, res, () => { apiKeyOk = true; resolve(); })
+          .then(() => { if (!apiKeyOk) resolve(); })
+          .catch(() => resolve());
       });
       if (res.headersSent) return;
+      if (apiKeyOk && req.context) {
+        orgId = req.context.org.id;
+      }
     }
 
     if (!orgId) {
@@ -912,38 +913,39 @@ authRouter.delete("/api-keys/:id", async (req: AuthenticatedRequest, res) => {
     // Try Supabase JWT first
     const authHeader = req.headers.authorization;
     if (authHeader && authHeader.startsWith("Bearer ")) {
-      try {
-        await requireUserSession(req, res, async () => {
-          if (!req.auth?.userId) {
-            return res.status(401).json({ error: "Not authenticated" });
-          }
+      let jwtOk = false;
+      await new Promise<void>((resolve) => {
+        requireUserSession(req, res, () => { jwtOk = true; resolve(); })
+          .then(() => { if (!jwtOk) resolve(); })
+          .catch(() => resolve());
+      });
 
-          const { queryOne } = await import("../services/storage/db.js");
-          const membership = await queryOne<{ org_id: string }>(`
-            SELECT org_id FROM org_memberships WHERE user_id = $1 LIMIT 1
-          `, [req.auth.userId]);
+      if (res.headersSent) return;
 
-          if (!membership) {
-            return res.status(404).json({ error: "Organization not found" });
-          }
+      if (jwtOk && req.auth?.userId) {
+        const membership = await queryOne<{ org_id: string }>(`
+          SELECT org_id FROM org_memberships WHERE user_id = $1 LIMIT 1
+        `, [req.auth.userId]);
 
-          orgId = membership.org_id;
-        });
-        if (res.headersSent) return;
-      } catch (jwtError) {
-        // Fall through to API key
+        if (!membership) {
+          return res.status(404).json({ error: "Organization not found" });
+        }
+        orgId = membership.org_id;
       }
     }
 
     // Fall back to API key auth (only if header is present)
-    if (!orgId && req.headers["x-spectyra-api-key"]) {
-      await requireSpectyraApiKey(req, res, async () => {
-        if (!req.context) {
-          return res.status(401).json({ error: "Not authenticated" });
-        }
-        orgId = req.context.org.id;
+    if (!orgId && !res.headersSent && req.headers["x-spectyra-api-key"]) {
+      let apiKeyOk = false;
+      await new Promise<void>((resolve) => {
+        requireSpectyraApiKey(req, res, () => { apiKeyOk = true; resolve(); })
+          .then(() => { if (!apiKeyOk) resolve(); })
+          .catch(() => resolve());
       });
       if (res.headersSent) return;
+      if (apiKeyOk && req.context) {
+        orgId = req.context.org.id;
+      }
     }
 
     if (!orgId) {
