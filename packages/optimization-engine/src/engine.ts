@@ -41,6 +41,9 @@ import { spectralSCC } from "./transforms/spectral-scc.js";
 import { refpackTransform } from "./transforms/refpack-transform.js";
 import { phrasebookTransform } from "./transforms/phrasebook-transform.js";
 import { codemapTransform } from "./transforms/codemap-transform.js";
+import { deltaPromptingTransform } from "./transforms/delta-prompting.js";
+import { codeSlicerTransform } from "./transforms/code-slicer.js";
+import { patchModeTransform } from "./transforms/patch-mode.js";
 
 import {
   unitizeMessages,
@@ -63,7 +66,10 @@ const fullTransformPipeline: OptimizationTransform[] = [
   toolOutputTruncate,
   jsonMinify,
   errorStackCompressor,
+  codeSlicerTransform,
   spectralSCC,
+  deltaPromptingTransform,
+  patchModeTransform,
   refpackTransform,
   phrasebookTransform,
   codemapTransform,

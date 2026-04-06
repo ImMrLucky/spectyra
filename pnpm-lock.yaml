@@ -44,6 +44,9 @@ importers:
       '@spectyra/optimization-engine':
         specifier: workspace:*
         version: link:../../packages/optimization-engine
+      '@spectyra/optimizer-algorithms':
+        specifier: workspace:*
+        version: link:../../packages/optimizer-algorithms
       '@spectyra/shared':
         specifier: workspace:*
         version: link:../../packages/shared
@@ -379,6 +382,8 @@ importers:
       typescript:
         specifier: ~5.4.0
         version: 5.4.5
+
+  packages/openclaw-skill: {}
 
   packages/optimization-engine:
     dependencies:

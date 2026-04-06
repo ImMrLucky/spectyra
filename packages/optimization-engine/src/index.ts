@@ -31,3 +31,32 @@ export { spectralSCC } from "./transforms/spectral-scc.js";
 export { refpackTransform } from "./transforms/refpack-transform.js";
 export { phrasebookTransform } from "./transforms/phrasebook-transform.js";
 export { codemapTransform } from "./transforms/codemap-transform.js";
+export { deltaPromptingTransform } from "./transforms/delta-prompting.js";
+export { codeSlicerTransform } from "./transforms/code-slicer.js";
+export { patchModeTransform } from "./transforms/patch-mode.js";
+
+export {
+  postProcessOutput,
+  type PostProcessInput,
+} from "@spectyra/optimizer-algorithms";
+
+export {
+  runQualityGuard,
+  type RequiredCheck,
+  type QualityGuardInput,
+  type QualityGuardResult,
+} from "@spectyra/optimizer-algorithms";
+
+export {
+  profitGate,
+  TALK_PROFIT_GATE,
+  CODE_PROFIT_GATE,
+  type ProfitGateOptions,
+  type ProfitGateResult,
+} from "@spectyra/optimizer-algorithms";
+
+export {
+  computeBudgetsFromSpectral,
+  type BudgetsFromSpectralInput,
+  type Budgets,
+} from "@spectyra/optimizer-algorithms";

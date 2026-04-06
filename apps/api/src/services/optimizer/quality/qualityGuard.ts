@@ -1,34 +1,6 @@
-// Import and re-export canonical interface
-import type { RequiredCheck } from "@spectyra/shared";
-export type { RequiredCheck };
+/**
+ * Bridge module: delegates to @spectyra/optimizer-algorithms.
+ */
 
-export interface QualityGuardInput {
-  text: string;
-  requiredChecks?: RequiredCheck[];
-}
-
-export interface QualityGuardResult {
-  pass: boolean;
-  failures: string[];
-}
-
-export function runQualityGuard(input: QualityGuardInput): QualityGuardResult {
-  const { text, requiredChecks } = input;
-  if (!requiredChecks || requiredChecks.length === 0) {
-    return { pass: true, failures: [] };
-  }
-
-  const failures: string[] = [];
-  for (const chk of requiredChecks) {
-    if (chk.type === "regex") {
-      try {
-        const re = new RegExp(chk.pattern, chk.flags ?? "i");
-        if (!re.test(text)) failures.push(chk.name);
-      } catch {
-        failures.push(`${chk.name} (invalid regex)`);
-      }
-    }
-  }
-
-  return { pass: failures.length === 0, failures };
-}
+export { runQualityGuard } from "@spectyra/optimizer-algorithms";
+export type { RequiredCheck, QualityGuardInput, QualityGuardResult } from "@spectyra/optimizer-algorithms";

@@ -1,13 +1,16 @@
+/**
+ * Bridge barrel: delegates to @spectyra/optimizer-algorithms.
+ */
 export {
   normalizeBullet,
   dedupeOrdered,
   normalizePath,
   dedupeFailingSignals,
-  type FailingSignal,
-} from "./normalize.js";
+} from "@spectyra/optimizer-algorithms";
+export type { FailingSignal } from "@spectyra/optimizer-algorithms";
 export {
   extractConstraints,
   extractFailingSignals,
-  extractTouchedFiles,
-  type ExtractedConstraints,
-} from "./extract.js";
+  extractConfirmedTouchedFiles as extractTouchedFiles,
+} from "@spectyra/optimizer-algorithms";
+export type { ExtractedConstraints } from "@spectyra/optimizer-algorithms";

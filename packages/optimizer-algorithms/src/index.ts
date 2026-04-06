@@ -60,6 +60,22 @@ export type { FailingSignal } from "./scc/normalize.js";
 
 export {
   extractConstraints, extractFailingSignals, extractConfirmedTouchedFiles,
-  extractLatestToolFailure, countRecentFailingSignals, detectRepeatingErrorCodes,
+  extractLatestToolFailure, extractFocusFiles,
+  countRecentFailingSignals, detectRepeatingErrorCodes,
 } from "./scc/extract.js";
 export type { ExtractedConstraints } from "./scc/extract.js";
+
+export { applyDeltaPrompting } from "./deltaPrompting.js";
+export type { DeltaPromptingInput, DeltaPromptingOutput } from "./deltaPrompting.js";
+
+export { applyCodeSlicing } from "./codeSlicer.js";
+export type { CodeSlicerInput, CodeSlicerOutput } from "./codeSlicer.js";
+
+export { applyPatchMode } from "./patchMode.js";
+export type { PatchModeInput, PatchModeOutput } from "./patchMode.js";
+
+export { postProcessOutput } from "./postProcess.js";
+export type { PostProcessInput } from "./postProcess.js";
+
+export { runQualityGuard } from "./qualityGuard.js";
+export type { RequiredCheck, QualityGuardInput, QualityGuardResult } from "./qualityGuard.js";

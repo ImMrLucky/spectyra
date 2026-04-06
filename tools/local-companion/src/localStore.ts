@@ -62,14 +62,22 @@ export async function getSavingsSummary(): Promise<{
   totalTokensSaved: number;
   totalCostSaved: number;
   avgSavingsPct: number;
+  totalTokensBefore: number;
+  totalTokensAfter: number;
 }> {
   const runs = await getRuns(10000);
-  if (runs.length === 0) return { totalRuns: 0, totalTokensSaved: 0, totalCostSaved: 0, avgSavingsPct: 0 };
+  if (runs.length === 0) {
+    return { totalRuns: 0, totalTokensSaved: 0, totalCostSaved: 0, avgSavingsPct: 0, totalTokensBefore: 0, totalTokensAfter: 0 };
+  }
 
   let totalTokensSaved = 0;
   let totalCostSaved = 0;
   let totalPct = 0;
+  let totalTokensBefore = 0;
+  let totalTokensAfter = 0;
   for (const r of runs) {
+    totalTokensBefore += r.inputTokensBefore;
+    totalTokensAfter += r.inputTokensAfter;
     totalTokensSaved += Math.max(0, r.inputTokensBefore - r.inputTokensAfter);
     totalCostSaved += Math.max(0, r.estimatedSavings);
     totalPct += r.estimatedSavingsPct;
@@ -80,5 +88,7 @@ export async function getSavingsSummary(): Promise<{
     totalTokensSaved,
     totalCostSaved,
     avgSavingsPct: runs.length > 0 ? totalPct / runs.length : 0,
+    totalTokensBefore,
+    totalTokensAfter,
   };
 }

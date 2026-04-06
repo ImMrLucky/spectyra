@@ -83,19 +83,34 @@ if [ "$SIGNED_IN" = false ]; then
       ok "Signed in as $auth_email"
       SIGNED_IN=true
 
-      # Bootstrap to get API key
+      LICENSE_KEY=""
+
+      # Try bootstrap first (works for brand-new users)
       BOOTSTRAP_RESP=$(curl -sf -X POST "$SPECTYRA_API/auth/bootstrap" \
         -H "Authorization: Bearer $SPECTYRA_TOKEN" \
         -H "Content-Type: application/json" \
         -d "{}" 2>/dev/null || echo '{}')
       API_KEY=$(echo "$BOOTSTRAP_RESP" | grep -o '"api_key"[[:space:]]*:[[:space:]]*"[^"]*"' | head -1 | sed 's/.*"api_key"[[:space:]]*:[[:space:]]*"//' | sed 's/"$//' || true)
+      LICENSE_KEY=$(echo "$BOOTSTRAP_RESP" | grep -o '"license_key"[[:space:]]*:[[:space:]]*"[^"]*"' | head -1 | sed 's/.*"license_key"[[:space:]]*:[[:space:]]*"//' | sed 's/"$//' || true)
       if [ -n "$API_KEY" ]; then
         mkdir -p "$CONFIG_DIR"
-        # Merge apiKey into config (create if needed)
         if [ -f "$CONFIG_DIR/config.json" ]; then
           TMP=$(mktemp)
           cat "$CONFIG_DIR/config.json" | sed "s/\"apiKey\"[[:space:]]*:[[:space:]]*\"[^\"]*\"/\"apiKey\": \"$API_KEY\"/" > "$TMP" && mv "$TMP" "$CONFIG_DIR/config.json"
         fi
+      fi
+
+      # Existing user: bootstrap returns 400 — generate a license key directly
+      if [ -z "$LICENSE_KEY" ]; then
+        LK_RESP=$(curl -sf -X POST "$SPECTYRA_API/license/generate" \
+          -H "Authorization: Bearer $SPECTYRA_TOKEN" \
+          -H "Content-Type: application/json" \
+          -d '{"device_name":"openclaw-skill-setup"}' 2>/dev/null || echo '{}')
+        LICENSE_KEY=$(echo "$LK_RESP" | grep -o '"license_key"[[:space:]]*:[[:space:]]*"[^"]*"' | head -1 | sed 's/.*"license_key"[[:space:]]*:[[:space:]]*"//' | sed 's/"$//' || true)
+      fi
+
+      if [ -n "$LICENSE_KEY" ]; then
+        ok "License key provisioned"
       fi
     else
       ERR_MSG=$(echo "$LOGIN_RESP" | grep -o '"error_description"[[:space:]]*:[[:space:]]*"[^"]*"' | head -1 | sed 's/.*"error_description"[[:space:]]*:[[:space:]]*"//' | sed 's/"$//' || echo "Sign-in failed")
@@ -140,12 +155,13 @@ if [ "$SIGNED_IN" = false ]; then
       ok "Account created for $auth_email"
       SIGNED_IN=true
 
-      # Bootstrap org + get API key
+      # Bootstrap org + get API key + license key
       BOOTSTRAP_RESP=$(curl -sf -X POST "$SPECTYRA_API/auth/bootstrap" \
         -H "Authorization: Bearer $SPECTYRA_TOKEN" \
         -H "Content-Type: application/json" \
         -d "{\"org_name\": \"$auth_org\"}" 2>/dev/null || echo '{}')
       API_KEY=$(echo "$BOOTSTRAP_RESP" | grep -o '"api_key"[[:space:]]*:[[:space:]]*"[^"]*"' | head -1 | sed 's/.*"api_key"[[:space:]]*:[[:space:]]*"//' | sed 's/"$//' || true)
+      LICENSE_KEY=$(echo "$BOOTSTRAP_RESP" | grep -o '"license_key"[[:space:]]*:[[:space:]]*"[^"]*"' | head -1 | sed 's/.*"license_key"[[:space:]]*:[[:space:]]*"//' | sed 's/"$//' || true)
     else
       err "Could not create account. You can sign up later at spectyra.com"
     fi
@@ -198,15 +214,31 @@ if [ "$PROVIDER_SET" = false ]; then
 KEYJSON
 
     # Write or update config.json
+    LK_VALUE="null"
+    if [ -n "${LICENSE_KEY:-}" ]; then
+      LK_VALUE="\"$LICENSE_KEY\""
+    fi
     if [ ! -f "$CONFIG_DIR/config.json" ]; then
       cat > "$CONFIG_DIR/config.json" <<CONFJSON
 {
+  "runMode": "on",
+  "telemetryMode": "local",
+  "promptSnapshots": "local_only",
   "provider": "$PROVIDER",
+  "aliasSmartModel": "gpt-4o-mini",
+  "aliasFastModel": "gpt-4o-mini",
+  "aliasQualityModel": "gpt-4o",
   "port": 4111,
-  "licenseKey": null,
+  "licenseKey": $LK_VALUE,
   "providerKeys": {"$PROVIDER": "$provider_key"}
 }
 CONFJSON
+    else
+      # Update existing config with license key if we got one
+      if [ -n "${LICENSE_KEY:-}" ]; then
+        TMP=$(mktemp)
+        sed "s/\"licenseKey\"[[:space:]]*:[[:space:]]*null/\"licenseKey\": \"$LICENSE_KEY\"/" "$CONFIG_DIR/config.json" > "$TMP" && mv "$TMP" "$CONFIG_DIR/config.json"
+      fi
     fi
 
     ok "Key saved for $PROVIDER"

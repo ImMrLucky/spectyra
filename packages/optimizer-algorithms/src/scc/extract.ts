@@ -169,6 +169,19 @@ export function detectRepeatingErrorCodes(messages: ChatMsg[]): string[] {
   return [...seen.entries()].filter(([, n]) => n > 1).map(([c]) => c);
 }
 
+export function extractFocusFiles(messages: ChatMsg[]): string[] {
+  const focusSet: string[] = [];
+  const signals = extractFailingSignals(messages);
+  for (const s of signals) {
+    if (s.file) focusSet.push(normalizePath(s.file));
+  }
+  const confirmed = extractConfirmedTouchedFiles(messages);
+  for (const p of confirmed) {
+    if (!focusSet.includes(p)) focusSet.push(p);
+  }
+  return dedupeOrdered(focusSet).slice(0, 7);
+}
+
 function cleanPathForConfirmed(path: string): string | null {
   const normalized = normalizePath(path);
   let p = normalized;
