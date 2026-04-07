@@ -35,7 +35,7 @@
 
 import { Request, Response, NextFunction } from "express";
 import { 
-  getApiKeyByPrefix,
+  getApiKeyByRawKeyLookup,
   getApiKeyByHash,
   verifyApiKey,
   updateApiKeyLastUsed,
@@ -133,17 +133,14 @@ export async function requireSpectyraApiKey(
       return;
     }
     
-    // Extract prefix (first 12 chars: "sk_spectyra_")
-    const keyPrefix = apiKey.substring(0, 12);
-    
-    // Lookup by prefix for fast retrieval
-    const apiKeyRecord = await getApiKeyByPrefix(keyPrefix);
+    // Prefix lookup (24-char stored prefix, with legacy 12-char fallback)
+    const apiKeyRecord = await getApiKeyByRawKeyLookup(apiKey);
     
     if (!apiKeyRecord) {
       // Use constant-time comparison even for error to prevent timing attacks
-      constantTimeCompare(keyPrefix, "dummy");
-      safeLog("warn", "Invalid API key attempt", { 
-        key_prefix: keyPrefix,
+      constantTimeCompare("x".repeat(24), "y".repeat(24));
+      safeLog("warn", "Invalid API key attempt", {
+        key_prefix_hint: apiKey.length >= 12 ? apiKey.substring(0, 12) : "short",
       });
       res.status(401).json({ error: "Invalid API key" });
       return;
@@ -152,10 +149,10 @@ export async function requireSpectyraApiKey(
     // Verify the full key hash with argon2id
     const isValid = await verifyApiKey(apiKey, apiKeyRecord.key_hash);
     if (!isValid) {
-      constantTimeCompare(keyPrefix, "dummy");
+      constantTimeCompare("x".repeat(24), "y".repeat(24));
       safeLog("warn", "API key verification failed", { 
         key_id: apiKeyRecord.id,
-        key_prefix: keyPrefix,
+        key_prefix: apiKeyRecord.key_prefix,
       });
       res.status(401).json({ error: "Invalid API key" });
       return;
@@ -167,7 +164,7 @@ export async function requireSpectyraApiKey(
       if (expiresAt < new Date()) {
         safeLog("warn", "Expired API key attempt", {
           key_id: apiKeyRecord.id,
-          key_prefix: keyPrefix,
+          key_prefix: apiKeyRecord.key_prefix,
           expires_at: apiKeyRecord.expires_at,
         });
         res.status(401).json({ error: "API key has expired" });

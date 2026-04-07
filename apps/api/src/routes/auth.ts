@@ -181,8 +181,8 @@ authRouter.post("/bootstrap", requireUserSession, async (req: AuthenticatedReque
       });
     }
 
-    // Create org with 7-day trial
-    const org = await createOrg(org_name.trim(), 7);
+    // Create org with default trial (see DEFAULT_ORG_TRIAL_DAYS in orgsRepo)
+    const org = await createOrg(org_name.trim());
     
     // Create default project
     const project = await createProject(org.id, project_name || "Default Project");
@@ -378,8 +378,8 @@ authRouter.post("/register", async (req, res) => {
       return res.status(400).json({ error: "Organization name is required" });
     }
     
-    // Create org with 7-day trial
-    const org = await createOrg(org_name.trim(), 7);
+    // Create org with default trial (see DEFAULT_ORG_TRIAL_DAYS in orgsRepo)
+    const org = await createOrg(org_name.trim());
     
     // Create default project
     const project = await createProject(org.id, project_name || "Default Project");

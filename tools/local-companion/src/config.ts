@@ -5,6 +5,9 @@
  * Security defaults: bind localhost, no prompt logging, no cloud relay.
  */
 
+import { existsSync, readFileSync } from "node:fs";
+import { homedir } from "node:os";
+import { join } from "node:path";
 import type {
   SpectyraRunMode,
   TelemetryMode,
@@ -12,6 +15,12 @@ import type {
 } from "@spectyra/core-types";
 import { defaultAliasModels } from "@spectyra/shared";
 import type { WorkflowPolicyMode } from "@spectyra/workflow-policy";
+
+function loadDesktopConfig(): Record<string, unknown> {
+  const p = join(homedir(), ".spectyra", "desktop", "config.json");
+  if (!existsSync(p)) return {};
+  try { return JSON.parse(readFileSync(p, "utf-8")); } catch { return {}; }
+}
 
 export interface CompanionConfig {
   runMode: SpectyraRunMode;
@@ -54,20 +63,24 @@ function normalizeProviderId(raw: string | undefined): string {
 }
 
 export function loadConfig(): CompanionConfig {
-  const provider = normalizeProviderId(process.env.SPECTYRA_PROVIDER);
+  const dc = loadDesktopConfig();
+  const provider = normalizeProviderId(process.env.SPECTYRA_PROVIDER || (dc.provider as string | undefined));
   const defaults = defaultAliasModels(provider);
+  const licenseKey =
+    process.env.SPECTYRA_LICENSE_KEY?.trim() ||
+    (typeof dc.licenseKey === "string" && dc.licenseKey ? dc.licenseKey : undefined);
   return {
-    runMode: (process.env.SPECTYRA_RUN_MODE as SpectyraRunMode) || "on",
+    runMode: (process.env.SPECTYRA_RUN_MODE as SpectyraRunMode) || (dc.runMode as SpectyraRunMode) || "on",
     workflowPolicyMode: parseWorkflowPolicyMode(process.env.SPECTYRA_WORKFLOW_POLICY),
-    telemetryMode: (process.env.SPECTYRA_TELEMETRY as TelemetryMode) || "local",
-    promptSnapshots: (process.env.SPECTYRA_PROMPT_SNAPSHOTS as PromptSnapshotMode) || "local_only",
+    telemetryMode: (process.env.SPECTYRA_TELEMETRY as TelemetryMode) || (dc.telemetryMode as TelemetryMode) || "local",
+    promptSnapshots: (process.env.SPECTYRA_PROMPT_SNAPSHOTS as PromptSnapshotMode) || (dc.promptSnapshots as PromptSnapshotMode) || "local_only",
     bindHost: process.env.SPECTYRA_BIND_HOST || "127.0.0.1",
-    port: parseInt(process.env.SPECTYRA_PORT || "4111", 10),
+    port: parseInt(process.env.SPECTYRA_PORT || String(dc.port || 4111), 10),
     provider,
-    aliasSmartModel: process.env.SPECTYRA_ALIAS_SMART_MODEL?.trim() || defaults.smart,
-    aliasFastModel: process.env.SPECTYRA_ALIAS_FAST_MODEL?.trim() || defaults.fast,
-    aliasQualityModel: process.env.SPECTYRA_ALIAS_QUALITY_MODEL?.trim() || defaults.quality,
-    licenseKey: process.env.SPECTYRA_LICENSE_KEY?.trim() || undefined,
+    aliasSmartModel: process.env.SPECTYRA_ALIAS_SMART_MODEL?.trim() || (dc.aliasSmartModel as string | undefined) || defaults.smart,
+    aliasFastModel: process.env.SPECTYRA_ALIAS_FAST_MODEL?.trim() || (dc.aliasFastModel as string | undefined) || defaults.fast,
+    aliasQualityModel: process.env.SPECTYRA_ALIAS_QUALITY_MODEL?.trim() || (dc.aliasQualityModel as string | undefined) || defaults.quality,
+    licenseKey,
     providerKeySource: (process.env.SPECTYRA_KEY_SOURCE as "env" | "session") || "env",
     debugLogPrompts: process.env.DEBUG_LOG_PROMPTS === "true",
     persistNormalizedEvents: process.env.SPECTYRA_PERSIST_EVENTS !== "false",

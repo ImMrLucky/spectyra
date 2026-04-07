@@ -4,7 +4,7 @@
   "displayName": "Spectyra Optimization",
   "description": "Route OpenClaw through Spectyra's local companion for automatic token optimization, cost savings, and analytics. No code changes required.",
   "author": "Spectyra",
-  "homepage": "https://spectyra.com",
+  "homepage": "https://spectyra.ai",
   "repository": {
     "type": "git",
     "url": "https://github.com/spectyra/spectyra.git",

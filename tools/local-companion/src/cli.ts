@@ -106,7 +106,7 @@ async function runSetup() {
 
   // ── 1. Account ──
   console.log(`${BOLD}1. Spectyra account${RESET}`);
-  console.log(`${DIM}  Free account for the optimization dashboard.${RESET}`);
+  console.log(`${DIM}  Create an account here or sign in — no need to open spectyra.ai (optional: register in a browser first).${RESET}`);
   console.log("");
 
   let signedIn = false;
@@ -143,7 +143,26 @@ async function runSetup() {
             });
             if (bootstrap?.api_key) {
               config.apiKey = bootstrap.api_key;
-              saveLocalConfig(config);
+            }
+            if (bootstrap?.license_key) {
+              config.licenseKey = bootstrap.license_key;
+              ok("License key provisioned");
+            }
+            if (config.apiKey || config.licenseKey) saveLocalConfig(config);
+
+            if (!config.licenseKey) {
+              try {
+                const lkResp = await fetchJson(`${SPECTYRA_API}/license/generate`, {
+                  method: "POST",
+                  headers: { Authorization: `Bearer ${resp.access_token}`, "Content-Type": "application/json" },
+                  body: JSON.stringify({ device_name: "spectyra-companion-setup" }),
+                });
+                if (lkResp?.license_key) {
+                  config.licenseKey = lkResp.license_key;
+                  saveLocalConfig(config);
+                  ok("License key provisioned");
+                }
+              } catch { /* license generation optional */ }
             }
           } catch { /* bootstrap optional */ }
         } else {
@@ -198,8 +217,12 @@ async function runSetup() {
             });
             if (bootstrap?.api_key) {
               config.apiKey = bootstrap.api_key;
-              saveLocalConfig(config);
             }
+            if (bootstrap?.license_key) {
+              config.licenseKey = bootstrap.license_key;
+              ok("License key provisioned");
+            }
+            if (config.apiKey || config.licenseKey) saveLocalConfig(config);
           } catch { /* bootstrap optional */ }
         } else {
           warn("Could not create account. Sign up later at spectyra.com");
@@ -385,7 +408,33 @@ async function runOpenDashboard(): Promise<void> {
 
 // ── Start command ──
 
+function needsSetup(): boolean {
+  const keys = loadProviderKeys();
+  const config = loadLocalConfig();
+  const hasKey = Object.values(keys).some((v) => !!v);
+  const hasInlineKey = config.providerKeys && typeof config.providerKeys === "object" &&
+    Object.values(config.providerKeys as Record<string, string>).some((v) => !!v);
+  return !hasKey && !hasInlineKey;
+}
+
 async function runStart(openDashboard: boolean) {
+  if (needsSetup()) {
+    console.log("");
+    console.log(`${BOLD}First time?${RESET} Let's get you set up.`);
+    console.log(`${DIM}  No provider key found — running guided setup first.${RESET}`);
+    console.log("");
+    await runSetup();
+    if (needsSetup()) {
+      warn("Setup incomplete — no provider key configured. Start aborted.");
+      console.log(`${DIM}  Run ${CYAN}spectyra-companion setup${RESET}${DIM} when ready.${RESET}`);
+      process.exitCode = 1;
+      return;
+    }
+    console.log("");
+    info("Setup done. Starting companion...");
+    console.log("");
+  }
+
   const config = loadLocalConfig();
   const provider = (config.provider as string) || "openai";
 
@@ -396,6 +445,9 @@ async function runStart(openDashboard: boolean) {
   if (!process.env.SPECTYRA_TELEMETRY) process.env.SPECTYRA_TELEMETRY = "local";
   if (!process.env.SPECTYRA_PROVIDER_KEYS_FILE && existsSync(PROVIDER_KEYS_FILE)) {
     process.env.SPECTYRA_PROVIDER_KEYS_FILE = PROVIDER_KEYS_FILE;
+  }
+  if (!process.env.SPECTYRA_LICENSE_KEY && config.licenseKey) {
+    process.env.SPECTYRA_LICENSE_KEY = String(config.licenseKey);
   }
 
   mkdirSync(COMPANION_DIR, { recursive: true });

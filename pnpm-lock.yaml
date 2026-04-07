@@ -558,6 +558,13 @@ importers:
 
   tools/local-companion:
     dependencies:
+      cors:
+        specifier: ^2.8.5
+        version: 2.8.6
+      express:
+        specifier: ^4.18.2
+        version: 4.22.1
+    devDependencies:
       '@spectyra/analytics-core':
         specifier: workspace:*
         version: link:../../packages/analytics-core
@@ -594,13 +601,6 @@ importers:
       '@spectyra/workflow-policy':
         specifier: workspace:*
         version: link:../../packages/workflow-policy
-      cors:
-        specifier: ^2.8.5
-        version: 2.8.6
-      express:
-        specifier: ^4.18.2
-        version: 4.22.1
-    devDependencies:
       '@types/cors':
         specifier: ^2.8.17
         version: 2.8.19

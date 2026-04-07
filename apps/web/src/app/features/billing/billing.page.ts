@@ -2,6 +2,7 @@ import { Component, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { ApiClientService } from '../../core/api/api-client.service';
+import { SPECTYRA_MONTHLY_PRICE_LABEL, SPECTYRA_TRIAL_DAYS } from '../../core/product.constants';
 
 interface LicenseKey {
   id: string;
@@ -20,6 +21,8 @@ interface LicenseKey {
   styleUrls: ['./billing.page.scss'],
 })
 export class BillingPage implements OnInit {
+  readonly monthlyPriceLabel = SPECTYRA_MONTHLY_PRICE_LABEL;
+  readonly trialDays = SPECTYRA_TRIAL_DAYS;
   entitlement: any = null;
   billingStatus: any = null;
   licenseKeys: LicenseKey[] = [];

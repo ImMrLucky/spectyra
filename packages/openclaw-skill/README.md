@@ -10,12 +10,7 @@ Automatic token optimization for OpenClaw. Reduces AI costs by routing requests 
 openclaw skills install spectyra
 ```
 
-## Two paths
-
-| You already have… | What to do |
-|-------------------|------------|
-| **OpenClaw** | `npm i -g @spectyra/local-companion` → `spectyra-companion setup` → `spectyra-companion start --open` → use OpenClaw with `spectyra/smart` |
-| **Spectyra account / Desktop** | Install [Spectyra Desktop](https://spectyra.com/download) → run the **OpenClaw** setup wizard → use **Live** or **http://127.0.0.1:4111/dashboard** for savings |
+This skill is written for **OpenClaw users** using the **Local Companion** (`spectyra-companion`). Follow **`SKILL.md`** — install the skill, install `@spectyra/local-companion`, run **`setup`**, then **`start --open`** for the local savings page at **http://127.0.0.1:4111/dashboard**.
 
 Savings **vary by workload**. Measure with the local dashboard and, from the companion package, `node scripts/benchmark-savings.mjs` (one-shot test request).
 
@@ -23,15 +18,15 @@ Savings **vary by workload**. Measure with the local dashboard and, from the com
 
 When installed, this skill documents how to:
 
-1. Run the **Local Companion** (`spectyra-companion` from npm, or via Spectyra Desktop)
-2. **Point OpenClaw** at `http://127.0.0.1:4111/v1`
+1. Run the **Local Companion** from **`npm install -g @spectyra/local-companion`**
+2. **Point OpenClaw** at `http://127.0.0.1:4111/v1` (usually via `spectyra-companion setup`)
 3. Use model aliases: **`spectyra/smart`**, **`spectyra/fast`**, **`spectyra/quality`**
 
 ## Requirements
 
-- **OpenClaw** installed and working (Path A), or install it via Spectyra Desktop wizard (Path B)
-- **`@spectyra/local-companion`** on your PATH (`npm install -g @spectyra/local-companion`) **or** [Spectyra Desktop](https://spectyra.com/download) (it starts the same companion)
-- **Provider API key** on disk — `spectyra-companion setup` or the Desktop wizard
+- **OpenClaw** installed and working
+- **`@spectyra/local-companion`** on your PATH (`npm install -g @spectyra/local-companion`)
+- **Provider API key** on disk — from **`spectyra-companion setup`**
 
 ## See savings
 
@@ -73,10 +68,15 @@ spectyra-companion start --open
 If you don't have OpenClaw yet:
 
 ```bash
-curl -fsSL https://spectyra.com/install.sh | bash
+curl -fsSL https://spectyra.ai/install.sh | bash
 ```
 
-Then start the companion (`spectyra-companion start --open` or Desktop) before chatting.
+Then run `spectyra-companion setup` and `spectyra-companion start --open` before chatting.
+
+## See also (not required for this skill)
+
+- **[Spectyra Desktop](https://spectyra.ai/download)** — alternative installer and in-app OpenClaw wizard.
+- **`@spectyra/sdk`** — embed optimization in your own app; savings on each call as `SavingsReport`.
 
 ## Uninstall
 

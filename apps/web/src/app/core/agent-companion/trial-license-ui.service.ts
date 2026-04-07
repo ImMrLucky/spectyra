@@ -1,8 +1,8 @@
 import { Injectable } from '@angular/core';
+import { SPECTYRA_TRIAL_DAYS } from '../product.constants';
 
 const TRIAL_ENDS_LS = 'spectyra.local_trial_ends_at';
 const TRIAL_STARTED_LS = 'spectyra.local_trial_started';
-const TRIAL_DAYS = 7;
 
 export type MetricsPresentation = 'actual' | 'projected';
 
@@ -35,7 +35,7 @@ export class TrialLicenseUiService {
   ensureTrialStarted(): void {
     if (typeof localStorage === 'undefined') return;
     if (localStorage.getItem(TRIAL_STARTED_LS)) return;
-    const end = new Date(Date.now() + TRIAL_DAYS * 86400000).toISOString();
+    const end = new Date(Date.now() + SPECTYRA_TRIAL_DAYS * 86400000).toISOString();
     this.setLocalTrialEndsAt(end);
     localStorage.setItem(TRIAL_STARTED_LS, new Date().toISOString());
   }

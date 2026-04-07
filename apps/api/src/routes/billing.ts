@@ -170,9 +170,11 @@ billingRouter.post("/checkout", async (req: AuthenticatedRequest, res) => {
         },
       ],
       subscription_data: {
+        // App-side trial is stored on the org (DEFAULT_ORG_TRIAL_DAYS). Default 0 = no extra Stripe trial at checkout.
+        // Set STRIPE_TRIAL_DAYS only if you want Stripe to add subscription trial days on top of app logic.
         ...((): { trial_period_days?: number } => {
           const rawStr = process.env.STRIPE_TRIAL_DAYS?.trim();
-          const raw = parseInt(rawStr && rawStr.length > 0 ? rawStr : "7", 10);
+          const raw = parseInt(rawStr && rawStr.length > 0 ? rawStr : "0", 10);
           const days =
             Number.isFinite(raw) && raw > 0 ? Math.min(365, raw) : null;
           return days !== null ? { trial_period_days: days } : {};

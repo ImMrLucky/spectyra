@@ -10,6 +10,8 @@ import {
   getOrgProjects,
   getOrgApiKeys,
   hashApiKey,
+  getApiKeyByRawKeyLookupForDiagnose,
+  API_KEY_PREFIX_LENGTH,
 } from "../services/storage/orgsRepo.js";
 import type { SupabaseAdminUser } from "../types/supabase.js";
 import {
@@ -240,21 +242,21 @@ adminRouter.post("/diagnose-key", requireUserSession, requireOwner, async (req, 
       return res.status(400).json({ error: "api_key is required" });
     }
     
-    const keyPrefix = api_key.substring(0, 12);
     const keyHash = await hashApiKey(api_key);
-    
-    // Check if key exists by prefix
-    const keyRow = await queryOne<any>(`
-      SELECT id, org_id, project_id, user_id, name, key_prefix, created_at, last_used_at, revoked_at
-      FROM api_keys
-      WHERE key_prefix = $1
-    `, [keyPrefix]);
-    
+    const lookupPrefix =
+      api_key.length >= API_KEY_PREFIX_LENGTH
+        ? api_key.substring(0, API_KEY_PREFIX_LENGTH)
+        : api_key.length >= 12
+          ? api_key.substring(0, 12)
+          : api_key;
+
+    const keyRow = await getApiKeyByRawKeyLookupForDiagnose(api_key);
+
     if (!keyRow) {
       return res.json({
         found: false,
         message: "API key not found in database (prefix lookup failed)",
-        key_prefix: keyPrefix,
+        key_prefix: lookupPrefix,
         key_hash_prefix: keyHash.substring(0, 16) + "...",
       });
     }

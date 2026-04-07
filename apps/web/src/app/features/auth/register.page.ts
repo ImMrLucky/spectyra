@@ -10,6 +10,7 @@ import { MeService } from '../../core/services/me.service';
 import { SnackbarService } from '../../core/services/snackbar.service';
 import { savePendingBootstrap } from '../../core/auth/pending-bootstrap.storage';
 import { firstValueFrom } from 'rxjs';
+import { SPECTYRA_MONTHLY_PRICE_LABEL, SPECTYRA_TRIAL_DAYS } from '../../core/product.constants';
 
 @Component({
   selector: 'app-register',
@@ -19,6 +20,8 @@ import { firstValueFrom } from 'rxjs';
   styleUrls: ['./register.page.scss'],
 })
 export class RegisterPage {
+  readonly trialDays = SPECTYRA_TRIAL_DAYS;
+  readonly monthlyPriceLabel = SPECTYRA_MONTHLY_PRICE_LABEL;
   email = '';
   password = '';
   orgName = '';

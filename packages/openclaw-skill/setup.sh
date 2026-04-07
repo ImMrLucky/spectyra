@@ -60,7 +60,7 @@ if [ -f "$CONFIG_DIR/config.json" ]; then
 fi
 
 if [ "$SIGNED_IN" = false ]; then
-  echo -e "  ${DIM}A free account connects your optimization data to the Spectyra dashboard.${RESET}"
+  echo -e "  ${DIM}Create or sign in here — no need to open spectyra.ai first.${RESET}"
   echo ""
   read -rp "  Do you have a Spectyra account? [y/N] " has_account
 
@@ -115,7 +115,7 @@ if [ "$SIGNED_IN" = false ]; then
     else
       ERR_MSG=$(echo "$LOGIN_RESP" | grep -o '"error_description"[[:space:]]*:[[:space:]]*"[^"]*"' | head -1 | sed 's/.*"error_description"[[:space:]]*:[[:space:]]*"//' | sed 's/"$//' || echo "Sign-in failed")
       err "$ERR_MSG"
-      echo -e "  ${DIM}You can sign in later in the Spectyra Desktop app or at spectyra.com${RESET}"
+      echo -e "  ${DIM}You can sign in later in the Spectyra Desktop app or at spectyra.ai${RESET}"
     fi
   else
     # ── Sign up ──
@@ -163,7 +163,7 @@ if [ "$SIGNED_IN" = false ]; then
       API_KEY=$(echo "$BOOTSTRAP_RESP" | grep -o '"api_key"[[:space:]]*:[[:space:]]*"[^"]*"' | head -1 | sed 's/.*"api_key"[[:space:]]*:[[:space:]]*"//' | sed 's/"$//' || true)
       LICENSE_KEY=$(echo "$BOOTSTRAP_RESP" | grep -o '"license_key"[[:space:]]*:[[:space:]]*"[^"]*"' | head -1 | sed 's/.*"license_key"[[:space:]]*:[[:space:]]*"//' | sed 's/"$//' || true)
     else
-      err "Could not create account. You can sign up later at spectyra.com"
+      err "Could not create account. You can sign up later at spectyra.ai"
     fi
   fi
 fi
@@ -289,7 +289,7 @@ if [ "$COMPANION_RUNNING" = false ] && [ "$PROVIDER_SET" = true ]; then
       warn "Global npm install not available."
       echo ""
       echo -e "  ${DIM}The Local Companion is included in the Spectyra Desktop app.${RESET}"
-      echo -e "  ${DIM}Download it at: ${CYAN}https://spectyra.com/download${RESET}"
+      echo -e "  ${DIM}Download it at: ${CYAN}https://spectyra.ai/download${RESET}"
     fi
   fi
 
@@ -378,7 +378,8 @@ if [ "$COMPANION_RUNNING" = true ]; then
   echo -e "  ${GREEN}${BOLD}You're all set!${RESET}"
   echo ""
   echo -e "  Run ${CYAN}openclaw chat${RESET} to start — optimization is automatic."
-  echo -e "  Savings appear at ${CYAN}https://spectyra.com/dashboard${RESET}"
+  echo -e "  Local savings: ${CYAN}http://127.0.0.1:4111/dashboard${RESET}"
+  echo -e "  Cloud (optional): ${CYAN}https://spectyra.ai/dashboard${RESET}"
 else
   echo -e "  ${BOLD}Almost there!${RESET}"
   echo ""
@@ -388,7 +389,7 @@ else
   echo "  Remaining: start the Local Companion"
   echo ""
   echo -e "  Option A: Download the ${BOLD}Spectyra Desktop app${RESET} (includes everything):"
-  echo -e "            ${CYAN}https://spectyra.com/download${RESET}"
+  echo -e "            ${CYAN}https://spectyra.ai/download${RESET}"
   echo ""
   echo -e "  Option B: Re-run this setup after adding a provider key:"
   echo -e "            ${CYAN}openclaw skills install spectyra${RESET}"

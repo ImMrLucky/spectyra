@@ -21,7 +21,13 @@ export type { Org, Project, ApiKey };
 /**
  * Create a new organization
  */
-export async function createOrg(name: string, trialDays: number = 7): Promise<Org> {
+/** Default trial length for new orgs (bootstrap, register, etc.). */
+export const DEFAULT_ORG_TRIAL_DAYS = 60;
+
+export async function createOrg(
+  name: string,
+  trialDays: number = DEFAULT_ORG_TRIAL_DAYS,
+): Promise<Org> {
   const trialEndsAt = new Date();
   trialEndsAt.setDate(trialEndsAt.getDate() + trialDays);
   
@@ -192,12 +198,60 @@ export async function verifyApiKey(key: string, hash: string): Promise<boolean> 
 }
 
 /**
+ * Stored prefix for `api_keys.key_prefix` (UNIQUE): fixed brand + enough secret
+ * material to be unique per key. Do not use only `sk_spectyra_` (12 chars) — that
+ * collides for every key.
+ */
+export const API_KEY_PREFIX_LENGTH = 24;
+
+/**
  * Generate a new API key
  */
 export function generateApiKey(): string {
   // Format: sk_spectyra_<random>
   const random = crypto.randomBytes(32).toString("hex");
   return `sk_spectyra_${random}`;
+}
+
+/**
+ * Lookup row for a raw API key: tries current prefix length, then legacy 12-char prefix
+ * (`sk_spectyra_` only — older bug stored identical prefix for all keys; only one survived).
+ */
+export async function getApiKeyByRawKeyLookup(plainKey: string): Promise<ApiKey | null> {
+  if (plainKey.length >= API_KEY_PREFIX_LENGTH) {
+    const row = await getApiKeyByPrefix(plainKey.substring(0, API_KEY_PREFIX_LENGTH));
+    if (row) return row;
+  }
+  if (plainKey.length >= 12 && plainKey.startsWith("sk_spectyra_")) {
+    return getApiKeyByPrefix(plainKey.substring(0, 12));
+  }
+  return null;
+}
+
+/** Row shape for admin key diagnose (includes revoked; may include legacy user_id). */
+export type ApiKeyDiagnoseRow = ApiKey & { user_id?: string | null };
+
+async function getApiKeyRowByPrefixAnyStatus(keyPrefix: string): Promise<ApiKeyDiagnoseRow | null> {
+  return queryOne<ApiKeyDiagnoseRow>(`
+    SELECT id, org_id, project_id, user_id, name, key_prefix, key_hash, scopes, created_at, last_used_at, revoked_at,
+           expires_at, allowed_ip_ranges, allowed_origins, description
+    FROM api_keys
+    WHERE key_prefix = $1
+  `, [keyPrefix]);
+}
+
+/**
+ * Like getApiKeyByRawKeyLookup but includes revoked/expired rows (admin diagnose only).
+ */
+export async function getApiKeyByRawKeyLookupForDiagnose(plainKey: string): Promise<ApiKeyDiagnoseRow | null> {
+  if (plainKey.length >= API_KEY_PREFIX_LENGTH) {
+    const row = await getApiKeyRowByPrefixAnyStatus(plainKey.substring(0, API_KEY_PREFIX_LENGTH));
+    if (row) return row;
+  }
+  if (plainKey.length >= 12 && plainKey.startsWith("sk_spectyra_")) {
+    return getApiKeyRowByPrefixAnyStatus(plainKey.substring(0, 12));
+  }
+  return null;
 }
 
 /**
@@ -265,7 +319,7 @@ export async function createApiKey(
   description: string | null = null
 ): Promise<{ key: string; apiKey: ApiKey }> {
   const key = generateApiKey();
-  const keyPrefix = key.substring(0, 12); // First 12 chars for lookup (sk_spectyra_ is 12 chars)
+  const keyPrefix = key.substring(0, API_KEY_PREFIX_LENGTH);
   const keyHash = await hashApiKey(key);
   
   const result = await query<ApiKey>(`

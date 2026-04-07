@@ -1,7 +1,7 @@
 <div class="container">
   <div class="card">
     <h1>Create Account</h1>
-    <p class="subtitle">Sign up for Spectyra and start saving on LLM costs</p>
+    <p class="subtitle">Sign up for Spectyra and start saving on LLM costs — {{ trialDays }}-day trial, then {{ monthlyPriceLabel }}</p>
     
     <form (ngSubmit)="register()" *ngIf="!success">
       <div class="form-group">
@@ -68,7 +68,7 @@
       </div>
       
       <div class="trial-info">
-        <p>✅ <strong>7-day free trial</strong> - Start optimizing immediately!</p>
+        <p>✅ <strong>{{ trialDays }}-day free trial</strong> — then {{ monthlyPriceLabel }}. Start optimizing immediately!</p>
         <p>Trial ends: {{ trialEndsAt | date:'medium' }}</p>
       </div>
       
