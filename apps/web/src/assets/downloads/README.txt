@@ -10,8 +10,15 @@ Expected filenames (see desktopDownloadsSameOrigin):
   Spectyra-windows.exe
   Spectyra-windows.zip   (optional portable)
 
+OpenClaw + Spectyra bundle (see openclawDesktopDownloadsSameOrigin in environment.*):
+  Spectyra-OpenClaw-mac.dmg
+  Spectyra-OpenClaw-windows.exe
+  Spectyra-OpenClaw-windows.zip   (optional portable)
+
 These files are listed in .gitignore (*.dmg, *.exe, *.zip) so they are NOT committed to git.
 Add them locally before a Netlify deploy, or host elsewhere and set DESKTOP_DOWNLOAD_* on the API.
+For the OpenClaw bundle, set OPENCLAW_DESKTOP_DOWNLOAD_MAC_URL, OPENCLAW_DESKTOP_DOWNLOAD_WINDOWS_URL,
+and optionally OPENCLAW_DESKTOP_DOWNLOAD_WINDOWS_ZIP_URL on the API.
 
 Windows .exe:
   1) On Windows (or CI windows-latest): pnpm desktop:dist:win  from repo root

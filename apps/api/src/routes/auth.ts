@@ -60,6 +60,22 @@ function desktopDownloadsPayload(): {
   };
 }
 
+/** OpenClaw + Spectyra bundle installers (separate from the main Spectyra Desktop app). */
+function openclawDesktopDownloadsPayload(): {
+  mac_url: string | null;
+  windows_url: string | null;
+  windows_zip_url: string | null;
+} {
+  const mac = process.env.OPENCLAW_DESKTOP_DOWNLOAD_MAC_URL?.trim();
+  const windows = process.env.OPENCLAW_DESKTOP_DOWNLOAD_WINDOWS_URL?.trim();
+  const windowsZip = process.env.OPENCLAW_DESKTOP_DOWNLOAD_WINDOWS_ZIP_URL?.trim();
+  return {
+    mac_url: mac || null,
+    windows_url: windows || null,
+    windows_zip_url: windowsZip || null,
+  };
+}
+
 /**
  * POST /v1/auth/bootstrap
  * 
@@ -499,6 +515,7 @@ authRouter.get("/me", async (req: AuthenticatedRequest, res) => {
                 has_access: false,
                 trial_active: false,
                 desktop_downloads: desktopDownloadsPayload(),
+                openclaw_desktop_downloads: openclawDesktopDownloadsPayload(),
               });
               resolve();
               return;
@@ -534,6 +551,7 @@ authRouter.get("/me", async (req: AuthenticatedRequest, res) => {
               platform_role: req.auth?.platformRole ?? null,
               org_platform_exempt: !!org.platform_exempt,
               desktop_downloads: desktopDownloadsPayload(),
+              openclaw_desktop_downloads: openclawDesktopDownloadsPayload(),
             });
             resolve();
           } catch (error: any) {
@@ -587,6 +605,7 @@ authRouter.get("/me", async (req: AuthenticatedRequest, res) => {
             has_access: hasAccess,
             trial_active: isTrialActive,
             desktop_downloads: desktopDownloadsPayload(),
+            openclaw_desktop_downloads: openclawDesktopDownloadsPayload(),
           });
           resolve();
         } catch (error: any) {

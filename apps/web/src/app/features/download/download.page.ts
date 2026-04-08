@@ -21,6 +21,10 @@ export class DownloadPage implements OnInit {
   /** Extract-and-run zip (no installer) */
   windowsPortableUrl: string | null = null;
 
+  openClawMacUrl: string | null = null;
+  openClawWindowsInstallerUrl: string | null = null;
+  openClawWindowsPortableUrl: string | null = null;
+
   constructor(private meService: MeService) {}
 
   async ngOnInit() {
@@ -30,12 +34,19 @@ export class DownloadPage implements OnInit {
       this.macUrl = d?.mac_url || null;
       this.windowsInstallerUrl = d?.windows_url || null;
       this.windowsPortableUrl = d?.windows_zip_url || null;
+
+      const o = me?.openclaw_desktop_downloads;
+      this.openClawMacUrl = o?.mac_url || null;
+      this.openClawWindowsInstallerUrl = o?.windows_url || null;
+      this.openClawWindowsPortableUrl = o?.windows_zip_url || null;
     } catch {
       // Static asset URLs still work without /me
     }
 
     const fb = environment.desktopDownloadsFallback;
     const so = environment.desktopDownloadsSameOrigin;
+    const ofb = environment.openclawDesktopDownloadsFallback;
+    const oso = environment.openclawDesktopDownloadsSameOrigin;
     const origin =
       typeof window !== 'undefined' && window.location?.origin
         ? window.location.origin
@@ -60,10 +71,38 @@ export class DownloadPage implements OnInit {
           : null);
     }
 
+    if (!this.openClawMacUrl) {
+      this.openClawMacUrl =
+        ofb.macUrl ||
+        (oso?.macPath && oso.macPath.length > 0 && origin ? origin + oso.macPath : null);
+    }
+    if (!this.openClawWindowsInstallerUrl) {
+      this.openClawWindowsInstallerUrl =
+        ofb.windowsUrl ||
+        (oso?.windowsInstallerPath && oso.windowsInstallerPath.length > 0 && origin
+          ? origin + oso.windowsInstallerPath
+          : null);
+    }
+    if (!this.openClawWindowsPortableUrl) {
+      this.openClawWindowsPortableUrl =
+        ofb.windowsZipUrl ||
+        (oso?.windowsPortablePath && oso.windowsPortablePath.length > 0 && origin
+          ? origin + oso.windowsPortablePath
+          : null);
+    }
+
     this.loading = false;
   }
 
   get hasAnyDownload(): boolean {
     return !!(this.macUrl || this.windowsInstallerUrl || this.windowsPortableUrl);
+  }
+
+  get hasAnyOpenClawDownload(): boolean {
+    return !!(
+      this.openClawMacUrl ||
+      this.openClawWindowsInstallerUrl ||
+      this.openClawWindowsPortableUrl
+    );
   }
 }

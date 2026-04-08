@@ -4,6 +4,14 @@
     <p class="subtitle">{{ payload.heroSubtitle }}</p>
   </div>
 
+  <div class="openclaw-callout">
+    <strong>Already running OpenClaw?</strong>
+    Use the ClawHub skill and
+    <code>npx &#64;spectyra/local-companion</code>
+    — you do not need the Spectyra Desktop installers unless you want the full standalone app.
+    See <a routerLink="/download">Downloads</a> for how that differs from the OpenClaw + Spectyra bundle.
+  </div>
+
   <div class="scenarios-grid">
     <div
       *ngFor="let card of scenarios"

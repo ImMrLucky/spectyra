@@ -1,8 +1,11 @@
 <div class="container">
   <div class="page-header">
-    <h1>Desktop app</h1>
+    <h1>Downloads</h1>
     <p class="subtitle">
-      Install Spectyra on your Mac or PC — same account as this site, local dashboard, and embedded companion. No SDK required.
+      Two installers: the full <strong>Spectyra Desktop</strong> app (teams and IT), and a smaller
+      <strong>OpenClaw + Spectyra</strong> bundle if you are new to OpenClaw. If OpenClaw is already running, you usually
+      only need the <a routerLink="/integrations">Integrations</a> path — skill plus local companion — not another desktop
+      app.
     </p>
   </div>
 
@@ -15,12 +18,35 @@
   </div>
 
   <div *ngIf="!loading && !error" class="download-body">
-    <div class="card" *ngIf="hasAnyDownload">
+    <div class="card openclaw-existing">
       <div class="card-header">
-        <h2>Download</h2>
+        <h2>Already use OpenClaw?</h2>
       </div>
       <p class="lead">
-        Pick your platform. Sign in with the same email you use on the web app.
+        Keep your existing OpenClaw UI. Add Spectyra via the ClawHub skill and run the local companion — no Spectyra
+        Desktop installer required.
+      </p>
+      <ul class="bullets tight">
+        <li>
+          <a routerLink="/integrations">Integrations</a> — open the <strong>Desktop + local companion</strong> scenario
+          for step-by-step setup.
+        </li>
+        <li>
+          <strong>Local companion:</strong>
+          <code>npx &#64;spectyra/local-companion</code>
+          then point your provider base URL at <code>http://127.0.0.1:4111/v1</code> as documented there.
+        </li>
+      </ul>
+    </div>
+
+    <div class="card" *ngIf="hasAnyDownload">
+      <div class="card-header">
+        <h2>Spectyra Desktop</h2>
+        <p class="kicker">Full app · Enterprise / IT</p>
+      </div>
+      <p class="lead">
+        The main Spectyra desktop experience: same account as this site, local dashboard, and embedded companion. Use this
+        when you want the standalone app for a team or managed rollout — not because OpenClaw lacks a UI.
       </p>
 
       <div class="platform-row" *ngIf="macUrl">
@@ -60,17 +86,71 @@
 
     <div class="card muted-card" *ngIf="!hasAnyDownload">
       <div class="card-header">
-        <h2>No download URLs available</h2>
+        <h2>Spectyra Desktop — no URLs yet</h2>
       </div>
       <p>
         Add files under <code>apps/web/src/assets/downloads/</code> (see <code>desktopDownloadsSameOrigin</code> in
         <code>environment</code>): <code>Spectyra-mac.dmg</code>, <code>Spectyra-windows.exe</code>,
-        <code>Spectyra-windows.zip</code>, then redeploy Netlify.
+        <code>Spectyra-windows.zip</code>, then redeploy.
         Or set <code>DESKTOP_DOWNLOAD_*</code> on the API. See <code>apps/desktop/RELEASING.md</code>.
       </p>
+    </div>
+
+    <div class="card" *ngIf="hasAnyOpenClawDownload">
+      <div class="card-header">
+        <h2>OpenClaw + Spectyra (installer)</h2>
+        <p class="kicker">New to OpenClaw · guided setup</p>
+      </div>
+      <p class="lead">
+        Use this when you do <em>not</em> already have OpenClaw running. It helps install OpenClaw alongside Spectyra
+        savings in one flow. If you later run OpenClaw on its own, prefer the skill + companion path above instead of
+        stacking this with the full Spectyra Desktop app.
+      </p>
+
+      <div class="platform-row" *ngIf="openClawMacUrl">
+        <h3 class="platform-label">macOS</h3>
+        <div class="download-actions">
+          <a class="btn btn-primary" [href]="openClawMacUrl" rel="noopener noreferrer">
+            Download (.dmg)
+          </a>
+        </div>
+      </div>
+
+      <div class="platform-row" *ngIf="openClawWindowsInstallerUrl || openClawWindowsPortableUrl">
+        <h3 class="platform-label">Windows</h3>
+        <div class="download-actions">
+          <a
+            *ngIf="openClawWindowsInstallerUrl"
+            class="btn btn-primary"
+            [href]="openClawWindowsInstallerUrl"
+            rel="noopener noreferrer"
+          >
+            Installer (.exe)
+          </a>
+          <a
+            *ngIf="openClawWindowsPortableUrl"
+            class="btn btn-secondary"
+            [href]="openClawWindowsPortableUrl"
+            rel="noopener noreferrer"
+          >
+            Portable (.zip)
+          </a>
+        </div>
+        <p class="platform-hint" *ngIf="openClawWindowsInstallerUrl && openClawWindowsPortableUrl">
+          Use the installer for a normal setup; use the zip if you prefer a portable folder.
+        </p>
+      </div>
+    </div>
+
+    <div class="card muted-card" *ngIf="!hasAnyOpenClawDownload">
+      <div class="card-header">
+        <h2>OpenClaw + Spectyra — no URLs yet</h2>
+      </div>
       <p>
-        Until installers are available, use the <strong>Local Companion</strong> — see
-        <a routerLink="/integrations">Integrations</a>.
+        Host the bundle as <code>Spectyra-OpenClaw-mac.dmg</code> / <code>Spectyra-OpenClaw-windows.exe</code> under
+        <code>apps/web/src/assets/downloads/</code> (see <code>openclawDesktopDownloadsSameOrigin</code>), or set
+        <code>OPENCLAW_DESKTOP_DOWNLOAD_MAC_URL</code>, <code>OPENCLAW_DESKTOP_DOWNLOAD_WINDOWS_URL</code>, and optionally
+        <code>OPENCLAW_DESKTOP_DOWNLOAD_WINDOWS_ZIP_URL</code> on the API.
       </p>
     </div>
 
@@ -80,12 +160,10 @@
       </div>
       <ul class="bullets">
         <li>
-          <a routerLink="/integrations">Integrations</a> — SDK, browser extension, OpenClaw-style base URL, and companion.
+          <a routerLink="/integrations">Integrations</a> — SDK, browser extension, server sidecar, and OpenClaw-style base URL.
         </li>
         <li>
-          <strong>Local Companion:</strong>
-          <code>npx &#64;spectyra/local-companion</code>
-          then set <code>OPENAI_BASE_URL=http://127.0.0.1:4111/v1</code>.
+          <strong>API keys</strong> — use the dashboard to create keys for non-desktop integrations.
         </li>
       </ul>
     </div>

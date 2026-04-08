@@ -5,6 +5,31 @@
   font-family: var(--font-body);
 }
 
+.openclaw-callout {
+  margin: -8px 0 28px;
+  padding: 14px 18px;
+  border-radius: var(--radius-input);
+  border: 1px solid var(--border-bright);
+  background: var(--bg-elevated);
+  font-size: 14px;
+  line-height: 1.55;
+  color: var(--text-primary);
+  max-width: 900px;
+
+  code {
+    font-family: var(--font-mono);
+    font-size: 13px;
+    background: var(--bg-card);
+    padding: 2px 6px;
+    border-radius: var(--radius-chip);
+    color: var(--text-secondary);
+  }
+
+  a {
+    color: var(--spectyra-blue);
+  }
+}
+
 .page-header {
   margin-bottom: 28px;
 

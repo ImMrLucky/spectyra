@@ -45,6 +45,12 @@ export interface MeResponse {
     windows_url: string | null;
     windows_zip_url?: string | null;
   };
+  /** OpenClaw + Spectyra bundle installers (OPENCLAW_DESKTOP_DOWNLOAD_* env). */
+  openclaw_desktop_downloads?: {
+    mac_url: string | null;
+    windows_url: string | null;
+    windows_zip_url?: string | null;
+  };
 }
 
 @Injectable({

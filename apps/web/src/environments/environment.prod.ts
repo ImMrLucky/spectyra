@@ -32,4 +32,14 @@ export const environment = {
     /** Portable zip — leave empty if not in static assets (use API `DESKTOP_DOWNLOAD_WINDOWS_ZIP_URL`). */
     windowsPortablePath: '',
   },
+  openclawDesktopDownloadsFallback: {
+    macUrl: '',
+    windowsUrl: '',
+    windowsZipUrl: '',
+  },
+  openclawDesktopDownloadsSameOrigin: {
+    macPath: '/assets/downloads/Spectyra-OpenClaw-mac.dmg',
+    windowsInstallerPath: '/assets/downloads/Spectyra-OpenClaw-windows.exe',
+    windowsPortablePath: '',
+  },
 };

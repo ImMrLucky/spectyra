@@ -22,4 +22,14 @@ export const environment = {
     windowsInstallerPath: '/assets/downloads/Spectyra-windows.exe',
     windowsPortablePath: '',
   },
+  openclawDesktopDownloadsFallback: {
+    macUrl: '',
+    windowsUrl: '',
+    windowsZipUrl: '',
+  },
+  openclawDesktopDownloadsSameOrigin: {
+    macPath: '/assets/downloads/Spectyra-OpenClaw-mac.dmg',
+    windowsInstallerPath: '/assets/downloads/Spectyra-OpenClaw-windows.exe',
+    windowsPortablePath: '',
+  },
 };

@@ -78,6 +78,24 @@
     font-weight: 700;
     color: var(--text-primary);
   }
+
+  .card-header h2:has(+ .kicker) {
+    margin-bottom: 4px;
+  }
+}
+
+.openclaw-existing {
+  border-color: var(--spectyra-blue);
+  background: linear-gradient(135deg, var(--bg-card) 0%, var(--bg-elevated) 100%);
+}
+
+.kicker {
+  margin: 0 0 16px 0;
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--text-secondary);
 }
 
 .lead {
@@ -144,6 +162,10 @@
   padding-left: 20px;
   line-height: 1.7;
   color: var(--text-primary);
+
+  &.tight {
+    margin-top: 0;
+  }
 
   code {
     font-family: var(--font-mono);

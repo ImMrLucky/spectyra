@@ -26,4 +26,15 @@ export const environment = {
     /** Portable zip — leave empty if not hosted in-repo (use API `DESKTOP_DOWNLOAD_WINDOWS_ZIP_URL`). */
     windowsPortablePath: '',
   },
+  /** Optional override URLs for the OpenClaw + Spectyra bundle (same pattern as desktop). */
+  openclawDesktopDownloadsFallback: {
+    macUrl: '',
+    windowsUrl: '',
+    windowsZipUrl: '',
+  },
+  openclawDesktopDownloadsSameOrigin: {
+    macPath: '/assets/downloads/Spectyra-OpenClaw-mac.dmg',
+    windowsInstallerPath: '/assets/downloads/Spectyra-OpenClaw-windows.exe',
+    windowsPortablePath: '',
+  },
 };
