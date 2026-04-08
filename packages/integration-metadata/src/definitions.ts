@@ -372,11 +372,12 @@ export const INTEGRATION_PAGES: IntegrationPageDefinition[] = [
     title: "OpenClaw",
     navLabel: "OpenClaw",
     heroSummary:
-      "Spectyra works with OpenClaw by running as a local custom provider on localhost. No traffic interception — you configure OpenClaw to call Spectyra explicitly.",
+      "Spectyra works with OpenClaw as a local custom provider on localhost. Use a Spectyra account and API key (email/password) so usage ties to your org; configure OpenClaw explicitly — no traffic interception.",
     flowLine: "OpenClaw → Spectyra Local Companion on localhost → Your chosen provider",
     whatThisIs: [
+      "Create or sign in to Spectyra and keep your Spectyra API key (same account for analytics and billing).",
       "Add Spectyra under models.providers with baseUrl http://127.0.0.1:4111/v1",
-      "Use model refs spectyra/smart or spectyra/fast — local routing profiles mapped to your real model in Desktop.",
+      "Use model refs spectyra/smart or spectyra/fast — local aliases routed to your real provider.",
     ],
     howItWorks: ["OpenClaw", "Local Companion", "your provider API"],
     bestFor: ["OpenClaw", "Tools that support custom OpenAI-compatible providers"],
@@ -386,11 +387,11 @@ export const INTEGRATION_PAGES: IntegrationPageDefinition[] = [
       "No hidden request hijacking",
     ],
     setupSteps: [
-      "Start Spectyra Desktop",
-      "Confirm Local Companion is running (status in app)",
-      "Paste provider JSON (see snippet) into OpenClaw config",
+      "Sign up or sign in to Spectyra (email/password) and have your Spectyra API key",
+      "Install: openclaw skills install spectyra",
+      "npm install -g @spectyra/local-companion && spectyra-companion setup && spectyra-companion start --open",
       "Run: openclaw models list — confirm spectyra/smart appears",
-      "Run a test prompt and confirm savings in Spectyra Desktop",
+      "Run a test prompt; confirm savings at http://127.0.0.1:4111/dashboard",
     ],
     verificationSteps: [
       "openclaw models list shows spectyra/smart (and spectyra/fast)",

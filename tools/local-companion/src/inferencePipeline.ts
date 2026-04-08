@@ -31,7 +31,11 @@ export function resolveAndOptimizeLocally(
     aliasSmartModel: cfg.aliasSmartModel,
     aliasFastModel: cfg.aliasFastModel,
     aliasQualityModel: cfg.aliasQualityModel,
+    providerTierModels: cfg.providerTierModels,
   });
-  const optResult = optimize(messages, cfg.runMode, cfg.licenseKey);
+  const licenseForOptimize = cfg.spectyraAccountLinked
+    ? (cfg.licenseKey?.trim() || cfg.spectyraApiKey)
+    : undefined;
+  const optResult = optimize(messages, cfg.optimizationRunMode, licenseForOptimize);
   return { resolved, optResult };
 }

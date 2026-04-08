@@ -5,11 +5,12 @@
  * Prevents duplicate listeners that can cause LockManager contention.
  */
 
-import { Injectable, OnDestroy } from '@angular/core';
+import { Injectable, OnDestroy, inject } from '@angular/core';
 import { BehaviorSubject, Observable } from 'rxjs';
 import { AuthSession } from '@supabase/supabase-js';
 import { supabase } from '../supabase/supabase.client';
 import { environment } from '../../../environments/environment';
+import { DesktopSpectyraAccountService } from '../services/desktop-account.service';
 
 export interface SupabaseUser {
   id: string;
@@ -20,6 +21,8 @@ export interface SupabaseUser {
   providedIn: 'root',
 })
 export class AuthSessionService implements OnDestroy {
+  private readonly desktopAccount = inject(DesktopSpectyraAccountService);
+
   private session$ = new BehaviorSubject<AuthSession | null>(null);
   private user$ = new BehaviorSubject<SupabaseUser | null>(null);
   private authSubscription: { unsubscribe(): void } | null = null;
@@ -115,6 +118,10 @@ export class AuthSessionService implements OnDestroy {
         ? { id: session.user.id, email: session.user.email || undefined }
         : null
     );
+
+    if (environment.isDesktop && session?.access_token) {
+      this.desktopAccount.syncAfterSessionEstablished();
+    }
   }
 
   /**

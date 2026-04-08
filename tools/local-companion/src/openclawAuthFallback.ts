@@ -87,3 +87,16 @@ export function readOpenClawProviderKey(want: OpenClawAuthProvider): string | un
 
   return undefined;
 }
+
+/**
+ * All provider API keys OpenClaw has stored locally (auth-profiles.json layout).
+ * Used by setup to import without a second paste when possible.
+ */
+export function listOpenClawProviderKeys(): Array<{ provider: OpenClawAuthProvider; key: string }> {
+  const out: Array<{ provider: OpenClawAuthProvider; key: string }> = [];
+  for (const p of ["openai", "anthropic", "groq"] as const) {
+    const k = readOpenClawProviderKey(p);
+    if (k) out.push({ provider: p, key: k });
+  }
+  return out;
+}

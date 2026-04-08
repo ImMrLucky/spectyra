@@ -5,12 +5,17 @@
  * Third-party npm packages (express, cors, etc.) are kept external — they have
  * compiled JS and are shipped in node_modules by pnpm deploy.
  */
+import { readFileSync } from "node:fs";
 import { build } from "esbuild";
 import path from "path";
 import { fileURLToPath } from "url";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const root = path.join(__dirname, "..");
+
+const pkg = JSON.parse(readFileSync(path.join(root, "package.json"), "utf-8"));
+const versionLiteral =
+  typeof pkg.version === "string" ? pkg.version : "0.0.0";
 
 const shared = {
   bundle: true,
@@ -20,6 +25,9 @@ const shared = {
   sourcemap: false,
   external: ["express", "cors"],
   tsconfig: path.join(root, "tsconfig.json"),
+  define: {
+    __SPECTYRA_COMPANION_VERSION__: JSON.stringify(versionLiteral),
+  },
 };
 
 await build({

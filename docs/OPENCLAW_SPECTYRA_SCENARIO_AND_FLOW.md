@@ -55,6 +55,21 @@ In this example, input costs are reduced by roughly 42%.
 
 ---
 
+## Local savings page (OpenClaw companion)
+
+Open **http://127.0.0.1:4111/dashboard** while `spectyra-companion` is running. Plain English:
+
+| What you see | Meaning |
+|----------------|---------|
+| **Estimated savings ($)** | Rough **dollars** from sending a **smaller input** to the model (fewer input tokens × typical price). Not your exact invoice — close enough to see the trend. |
+| **Input tokens before → after** | How big the prompt was **before** vs **after** Spectyra trimmed it. This is where most money is saved. |
+| **Reply tokens** | How much the **model wrote back** (output). Shown when the API reports usage (works with streaming when the provider includes it). |
+| **Other scores** | **Conversation steadiness**, **repeated content**, **loop warnings** — help you see churn in the thread; not all are dollar amounts. |
+
+If savings stay at **$0**, common causes are: **Observe** mode (preview only), **no license** yet (projected savings only), or nothing safe to trim on those calls.
+
+---
+
 ## Concrete before and after (one call)
 
 **Without Spectyra** -- what gets sent on Call 4:
@@ -89,7 +104,8 @@ Same question. Same model. Same API key. Half the tokens billed.
 |----------------|---------|
 | Is it a different AI? | No. Same model, same provider, same billing account. |
 | Does it change what I asked for? | No. Your latest message goes through word-for-word. It trims old history. |
-| Does our data go to Spectyra servers? | In the local companion setup: no. Processing runs on your machine. |
+| Does chat inference go through Spectyra cloud? | No. Optimization runs on your machine; the LLM provider bills your API key as usual. |
+| Do we need a Spectyra account? | Yes. A Spectyra account (email/password) and Spectyra API key connect usage to your org for analytics, plans, and billing — the normal OpenClaw path uses `spectyra-companion setup` to sign in and provision the key. |
 | Does it replace our agent (OpenClaw)? | No. OpenClaw still runs the workflow. Spectyra only processes the LLM call payload. |
 
 ---

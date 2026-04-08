@@ -5,7 +5,11 @@ import assert from "node:assert";
 import { mkdtempSync, mkdirSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { extractApiKeyFromAuthProfilesJson, readOpenClawProviderKey } from "../openclawAuthFallback.js";
+import {
+  extractApiKeyFromAuthProfilesJson,
+  listOpenClawProviderKeys,
+  readOpenClawProviderKey,
+} from "../openclawAuthFallback.js";
 
 function run() {
   const wrapped = {
@@ -38,6 +42,8 @@ function run() {
     );
     assert.equal(readOpenClawProviderKey("openai"), "sk-tempdir-probe");
     assert.equal(readOpenClawProviderKey("groq"), undefined);
+    assert.equal(listOpenClawProviderKeys().length, 1);
+    assert.equal(listOpenClawProviderKeys()[0]?.provider, "openai");
   } finally {
     if (prev === undefined) delete process.env.OPENCLAW_STATE_DIR;
     else process.env.OPENCLAW_STATE_DIR = prev;

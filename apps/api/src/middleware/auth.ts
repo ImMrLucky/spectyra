@@ -738,13 +738,25 @@ export async function requireOwner(
       return;
     }
 
-    const ownerEmail = process.env.OWNER_EMAIL;
+    const ownerEmail = process.env.OWNER_EMAIL?.trim();
     if (!ownerEmail) {
       safeLog("warn", "OWNER_EMAIL not configured; owner endpoints disabled");
       res.status(503).json({ error: "Owner verification not configured" });
       return;
     }
-    
+
+    const sessionEmail = req.auth.email?.trim();
+    if (
+      sessionEmail &&
+      sessionEmail.toLowerCase() === ownerEmail.toLowerCase()
+    ) {
+      safeLog("info", "Owner access granted (verified session email)", {
+        email: sessionEmail,
+      });
+      next();
+      return;
+    }
+
     // Get user email from Supabase
     const supabaseUrl = process.env.SUPABASE_URL;
     if (!supabaseUrl) {
@@ -753,36 +765,38 @@ export async function requireOwner(
       return;
     }
 
-    const { queryOne } = await import("../services/storage/db.js");
-    
     // Query Supabase auth.users table via service role
     // Note: This requires Supabase service role key
     const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
     if (!supabaseServiceKey) {
-      // Fallback: check if we can get email from JWT payload
-      // The JWT should contain email in user_metadata
+      // Fallback: decode JWT (already verified by requireUserSession; used when email claim was missing from req.auth)
       const authHeader = req.headers.authorization;
       if (authHeader && authHeader.startsWith("Bearer ")) {
         const token = authHeader.substring(7);
         try {
-          // Decode JWT without verification (we already verified it)
-          const parts = token.split('.');
+          const parts = token.split(".");
           if (parts.length === 3) {
-            const payload = JSON.parse(Buffer.from(parts[1], 'base64').toString());
-            const userEmail = payload.email || payload.user_metadata?.email;
-            
+            const payload = JSON.parse(Buffer.from(parts[1], "base64").toString());
+            const userEmail =
+              (typeof payload.email === "string" && payload.email) ||
+              (payload.user_metadata &&
+              typeof payload.user_metadata === "object" &&
+              typeof (payload.user_metadata as { email?: string }).email === "string"
+                ? (payload.user_metadata as { email: string }).email
+                : undefined);
+
             if (userEmail && userEmail.toLowerCase() === ownerEmail.toLowerCase()) {
-              safeLog("info", "Owner access granted", { email: userEmail });
+              safeLog("info", "Owner access granted (JWT decode)", { email: userEmail });
               next();
               return;
             }
           }
-        } catch (e) {
-          // Fall through to error
+        } catch {
+          /* fall through */
         }
       }
-      
-      safeLog("warn", "SUPABASE_SERVICE_ROLE_KEY not configured, cannot verify owner");
+
+      safeLog("warn", "SUPABASE_SERVICE_ROLE_KEY not configured; owner email did not match session/JWT");
       res.status(503).json({ error: "Owner verification not configured" });
       return;
     }
@@ -790,19 +804,19 @@ export async function requireOwner(
     // Use Supabase Admin API to get user email
     try {
       const response = await fetch(
-        `${supabaseUrl.replace(/\/$/, '')}/auth/v1/admin/users/${req.auth.userId}`,
+        `${supabaseUrl.replace(/\/$/, "")}/auth/v1/admin/users/${req.auth.userId}`,
         {
           headers: {
-            'Authorization': `Bearer ${supabaseServiceKey}`,
-            'apikey': supabaseServiceKey,
+            Authorization: `Bearer ${supabaseServiceKey}`,
+            apikey: supabaseServiceKey,
           },
         }
       );
 
       if (!response.ok) {
-        safeLog("warn", "Failed to fetch user from Supabase", { 
+        safeLog("warn", "Failed to fetch user from Supabase", {
           status: response.status,
-          userId: req.auth.userId 
+          userId: req.auth.userId,
         });
         res.status(403).json({ error: "Access denied" });
         return;

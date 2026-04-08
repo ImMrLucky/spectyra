@@ -2,7 +2,7 @@
   "name": "spectyra",
   "version": "1.0.0",
   "displayName": "Spectyra Optimization",
-  "description": "Route OpenClaw through Spectyra's local companion for automatic token optimization, cost savings, and analytics. No code changes required.",
+  "description": "Route OpenClaw through Spectyra's local companion for token optimization and savings. Requires a Spectyra account (email/password) and Spectyra API key. No agent code changes required.",
   "author": "Spectyra",
   "homepage": "https://spectyra.ai",
   "repository": {
@@ -43,6 +43,51 @@
       "id": "spectyra/quality",
       "name": "Spectyra Quality",
       "description": "Highest quality — minimal optimization, premium model routing"
+    },
+    {
+      "id": "spectyra/openai/smart",
+      "name": "Spectyra · OpenAI · smart",
+      "description": "Routes through Spectyra to OpenAI — pick for GPT workflows while keeping optimization"
+    },
+    {
+      "id": "spectyra/openai/fast",
+      "name": "Spectyra · OpenAI · fast",
+      "description": "OpenAI fast lane through Spectyra (lower cost / latency)"
+    },
+    {
+      "id": "spectyra/openai/quality",
+      "name": "Spectyra · OpenAI · quality",
+      "description": "OpenAI quality lane through Spectyra"
+    },
+    {
+      "id": "spectyra/anthropic/smart",
+      "name": "Spectyra · Anthropic · smart",
+      "description": "Routes through Spectyra to Anthropic — coding and Claude-heavy tasks"
+    },
+    {
+      "id": "spectyra/anthropic/fast",
+      "name": "Spectyra · Anthropic · fast",
+      "description": "Anthropic fast lane through Spectyra"
+    },
+    {
+      "id": "spectyra/anthropic/quality",
+      "name": "Spectyra · Anthropic · quality",
+      "description": "Anthropic quality lane — reviews, Opus-class models when configured"
+    },
+    {
+      "id": "spectyra/groq/smart",
+      "name": "Spectyra · Groq · smart",
+      "description": "Routes through Spectyra to Groq"
+    },
+    {
+      "id": "spectyra/groq/fast",
+      "name": "Spectyra · Groq · fast",
+      "description": "Groq fast lane through Spectyra"
+    },
+    {
+      "id": "spectyra/groq/quality",
+      "name": "Spectyra · Groq · quality",
+      "description": "Groq quality lane through Spectyra"
     }
   ],
   "provider": {

@@ -2,6 +2,8 @@ import { Component, ElementRef, OnDestroy, OnInit, ViewChild, inject } from '@an
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { RouterModule } from '@angular/router';
+import { MatIconModule } from '@angular/material/icon';
+import { SpectyraMarkIconComponent } from '../../../components/spectyra-mark-icon.component';
 import { HttpClient, HttpHeaders } from '@angular/common/http';
 import { firstValueFrom } from 'rxjs';
 import { environment } from '../../../../environments/environment';
@@ -23,7 +25,7 @@ const STEP_ORDER: WizardStep[] = ['welcome', 'account', 'install', 'provider', '
 @Component({
   selector: 'app-openclaw-wizard',
   standalone: true,
-  imports: [CommonModule, FormsModule, RouterModule],
+  imports: [CommonModule, FormsModule, RouterModule, MatIconModule, SpectyraMarkIconComponent],
   template: `
     <div class="wiz">
       <!-- Progress -->
@@ -410,7 +412,7 @@ const STEP_ORDER: WizardStep[] = ['welcome', 'account', 'install', 'provider', '
       <!-- DONE -->
       <section class="wiz-panel" *ngIf="step === 'done'">
         <div class="wiz-done-hero">
-          <span class="wiz-done-check">&#10003;</span>
+          <mat-icon class="wiz-done-check" aria-hidden="true">check_circle</mat-icon>
           <h1 class="wiz-title">You're all set</h1>
           <p class="wiz-lead">
             OpenClaw is connected to Spectyra. Explore skills, set up assistant profiles, or
@@ -419,29 +421,29 @@ const STEP_ORDER: WizardStep[] = ['welcome', 'account', 'install', 'provider', '
           <p class="wiz-done-hint" *ngIf="companionDashboardUrl">
             <strong>Local savings in any browser:</strong>
             <a class="wiz-done-link" [href]="companionDashboardUrl" target="_blank" rel="noopener noreferrer">{{ companionDashboardUrl }}</a>
-            — same companion metrics as you use OpenClaw from the terminal; optional
+            — same companion metrics as from the terminal. You can also run
             <code class="wiz-code-inline">spectyra-companion dashboard</code> from npm.
           </p>
         </div>
 
         <div class="wiz-done-grid">
           <a class="wiz-done-card" routerLink="/desktop/home">
-            <span class="wiz-done-icon">&#9776;</span>
+            <mat-icon class="wiz-done-icon">space_dashboard</mat-icon>
             <span class="wiz-done-label">Dashboard</span>
             <span class="wiz-done-desc">See status and activity at a glance</span>
           </a>
           <a class="wiz-done-card" routerLink="/desktop/skills">
-            <span class="wiz-done-icon">&#9881;</span>
+            <mat-icon class="wiz-done-icon">extension</mat-icon>
             <span class="wiz-done-label">Install Skills</span>
             <span class="wiz-done-desc">Browse ClawHub and add capabilities</span>
           </a>
           <a class="wiz-done-card" routerLink="/desktop/assistants">
-            <span class="wiz-done-icon">&#9733;</span>
+            <mat-icon class="wiz-done-icon">manage_accounts</mat-icon>
             <span class="wiz-done-label">Assistants</span>
-            <span class="wiz-done-desc">Configure AI Assistant or AI Coder</span>
+            <span class="wiz-done-desc">Configure assistant profiles</span>
           </a>
           <a class="wiz-done-card" routerLink="/desktop/live">
-            <span class="wiz-done-icon">&#9673;</span>
+            <span class="wiz-done-mark" aria-hidden="true"><app-spectyra-mark></app-spectyra-mark></span>
             <span class="wiz-done-label">Open Live</span>
             <span class="wiz-done-desc">Real-time optimization and savings</span>
           </a>
@@ -804,12 +806,12 @@ const STEP_ORDER: WizardStep[] = ['welcome', 'account', 'install', 'provider', '
       display: inline-flex;
       align-items: center;
       justify-content: center;
-      width: 56px;
-      height: 56px;
+      width: 56px !important;
+      height: 56px !important;
       border-radius: 50%;
       background: var(--spectyra-teal, #1D9E75);
-      color: #fff;
-      font-size: 28px;
+      color: #fff !important;
+      font-size: 36px !important;
       margin-bottom: 16px;
     }
     .wiz-done-hero .wiz-title { margin-bottom: 12px; }
@@ -857,8 +859,17 @@ const STEP_ORDER: WizardStep[] = ['welcome', 'account', 'install', 'provider', '
       background: var(--bg-elevated, #162236);
     }
     .wiz-done-icon {
-      font-size: 22px;
+      font-size: 26px;
+      width: 26px;
+      height: 26px;
       margin-bottom: 4px;
+      color: var(--spectyra-blue, #378add);
+    }
+    .wiz-done-mark {
+      display: flex;
+      margin-bottom: 4px;
+      --spectyra-mark-size: 28px;
+      --spectyra-mark-color: var(--spectyra-blue, #378add);
     }
     .wiz-done-label {
       font-size: 14px;

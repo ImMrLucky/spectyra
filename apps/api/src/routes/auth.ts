@@ -5,7 +5,6 @@
  */
 
 import { Router } from "express";
-import crypto from "node:crypto";
 import {
   createOrg,
   getOrgById,
@@ -15,7 +14,6 @@ import {
   createApiKey,
   getOrgApiKeys,
   deleteApiKey,
-  hashApiKey,
   getApiKeyByHash,
   revokeApiKey,
   deleteOrg,
@@ -37,34 +35,12 @@ import { requireOrgRole } from "../middleware/requireRole.js";
 import { getEntitlement } from "../services/entitlement.js";
 import type { SupabaseAdminUser } from "../types/supabase.js";
 import { isBillingExemptEmail } from "../billing/billingExempt.js";
+import {
+  provisionSpectyraAccountIfNeeded,
+  defaultOrgNameFromEmail,
+} from "../services/accountProvisioning.js";
 
 export const authRouter = Router();
-
-/** If the user's email is in BILLING_EXEMPT_EMAILS, mark their org platform_exempt (API-key flows). */
-async function applyPlatformExemptIfBillingListed(
-  userId: string,
-  orgId: string,
-): Promise<void> {
-  const base = process.env.SUPABASE_URL?.replace(/\/$/, "");
-  const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
-  if (!base || !serviceKey) return;
-  try {
-    const response = await fetch(`${base}/auth/v1/admin/users/${userId}`, {
-      headers: {
-        Authorization: `Bearer ${serviceKey}`,
-        apikey: serviceKey,
-      },
-    });
-    if (!response.ok) return;
-    const user = (await response.json()) as SupabaseAdminUser;
-    const email = user.email || user.user_metadata?.email;
-    if (email && isBillingExemptEmail(email)) {
-      await setOrgPlatformExempt(orgId, true);
-    }
-  } catch {
-    // fail open — billing exempt via JWT still works without this
-  }
-}
 
 /** Desktop installer URLs for the web app Download page (set on API host, e.g. Railway). */
 function desktopDownloadsPayload(): {
@@ -168,95 +144,106 @@ authRouter.post("/bootstrap", requireUserSession, async (req: AuthenticatedReque
       safeLog("warn", "Domain check error during bootstrap", { error });
     }
 
-    // Check if user already has an org
-    const { queryOne } = await import("../services/storage/db.js");
-    const existingMembership = await queryOne<{ org_id: string }>(`
-      SELECT org_id FROM org_memberships WHERE user_id = $1 LIMIT 1
-    `, [userId]);
-
-    if (existingMembership) {
-      return res.status(400).json({ 
-        error: "Organization already exists for this user",
-        org_id: existingMembership.org_id
-      });
-    }
-
-    // Create org with default trial (see DEFAULT_ORG_TRIAL_DAYS in orgsRepo)
-    const org = await createOrg(org_name.trim());
-    
-    // Create default project
-    const project = await createProject(org.id, project_name || "Default Project");
-    
-    // Add user as OWNER of the org
-    await query(`
-      INSERT INTO org_memberships (org_id, user_id, role)
-      VALUES ($1, $2, 'OWNER')
-    `, [org.id, userId]);
-
-    await applyPlatformExemptIfBillingListed(userId, org.id);
-    
-    // Enterprise Security: Audit log
-    try {
-      await audit(req, "ORG_CREATED", {
-        targetType: "ORG",
-        targetId: org.id,
-        metadata: { name: org.name },
-      });
-      await audit(req, "MEMBER_ADDED", {
-        targetType: "ORG_MEMBERSHIP",
-        metadata: { role: "OWNER", org_id: org.id },
-      });
-    } catch {
-      // Don't fail bootstrap if audit fails
-    }
-    
-    // Create first API key (org-level, not project-scoped)
-    const { key, apiKey } = await createApiKey(org.id, null, "Default Key");
-    
-    // Enterprise Security: Audit log (already done in createApiKey route, but ensure it's here too)
-    await audit(req, "KEY_CREATED", {
-      targetType: "API_KEY",
-      targetId: apiKey.id,
-      metadata: { name: "Default Key", is_bootstrap: true },
+    const outcome = await provisionSpectyraAccountIfNeeded({
+      userId,
+      orgName: org_name.trim(),
+      projectName: project_name || "Default Project",
+      auditReq: req,
     });
 
-    // Auto-generate a license key so the Desktop companion can optimize immediately
-    let licenseKey: string | null = null;
-    try {
-      const lk = `lk_spectyra_${crypto.randomBytes(24).toString("hex")}`;
-      const lkPrefix = lk.substring(0, 14);
-      const lkHash = await hashApiKey(lk);
-      await query(`
-        INSERT INTO license_keys (org_id, key_hash, key_prefix, device_name)
-        VALUES ($1, $2, $3, $4)
-      `, [org.id, lkHash, lkPrefix, "auto-bootstrap"]);
-      licenseKey = lk;
-      await audit(req, "LICENSE_KEY_CREATED", {
-        targetType: "LICENSE_KEY",
-        metadata: { device_name: "auto-bootstrap", is_bootstrap: true },
-      }).catch(() => {});
-    } catch (lkErr: any) {
-      safeLog("warn", "Auto-license key generation failed during bootstrap", { error: lkErr.message });
+    if (outcome.status === "existing") {
+      return res.status(400).json({
+        error: "Organization already exists for this user",
+        org_id: outcome.org.id,
+      });
     }
-    
+
     res.status(201).json({
       org: {
-        id: org.id,
-        name: org.name,
-        trial_ends_at: org.trial_ends_at,
-        subscription_status: org.subscription_status,
+        id: outcome.org.id,
+        name: outcome.org.name,
+        trial_ends_at: outcome.org.trial_ends_at,
+        subscription_status: outcome.org.subscription_status,
       },
       project: {
-        id: project.id,
-        name: project.name,
+        id: outcome.project.id,
+        name: outcome.project.name,
       },
-      api_key: key, // Only returned once
-      api_key_id: apiKey.id,
-      license_key: licenseKey,
+      api_key: outcome.api_key,
+      api_key_id: outcome.api_key_id,
+      license_key: outcome.license_key,
       message: "Organization created successfully. Save your API key - it won't be shown again!",
     });
   } catch (error: any) {
     safeLog("error", "Bootstrap error", { error: error.message });
+    res.status(500).json({ error: error.message || "Internal server error" });
+  }
+});
+
+/**
+ * POST /v1/auth/ensure-account
+ *
+ * Idempotent: creates org + default project + first API key (+ license) when the JWT user
+ * has no org yet. Use from CLI, desktop, or any client after Supabase sign-in so accounts
+ * are never left in a half-created state without visiting the website.
+ *
+ * Body (optional): `{ org_name?, project_name? }` — if `org_name` is omitted, a name is
+ * derived from the JWT email (same rules as `defaultOrgNameFromEmail`).
+ */
+authRouter.post("/ensure-account", requireUserSession, async (req: AuthenticatedRequest, res) => {
+  try {
+    if (!req.auth?.userId) {
+      return res.status(401).json({ error: "Not authenticated" });
+    }
+    const { org_name, project_name } = req.body as { org_name?: string; project_name?: string };
+    const orgName =
+      org_name?.trim() && org_name.trim().length > 0
+        ? org_name.trim()
+        : defaultOrgNameFromEmail(req.auth.email) || "My workspace";
+
+    const outcome = await provisionSpectyraAccountIfNeeded({
+      userId: req.auth.userId,
+      orgName,
+      projectName: project_name || "Default Project",
+      auditReq: req,
+    });
+
+    if (outcome.status === "existing") {
+      return res.status(200).json({
+        already_provisioned: true,
+        org: {
+          id: outcome.org.id,
+          name: outcome.org.name,
+          trial_ends_at: outcome.org.trial_ends_at,
+          subscription_status: outcome.org.subscription_status,
+        },
+        projects: outcome.projects.map((p) => ({
+          id: p.id,
+          name: p.name,
+          org_id: p.org_id,
+        })),
+      });
+    }
+
+    return res.status(201).json({
+      already_provisioned: false,
+      org: {
+        id: outcome.org.id,
+        name: outcome.org.name,
+        trial_ends_at: outcome.org.trial_ends_at,
+        subscription_status: outcome.org.subscription_status,
+      },
+      project: {
+        id: outcome.project.id,
+        name: outcome.project.name,
+      },
+      api_key: outcome.api_key,
+      api_key_id: outcome.api_key_id,
+      license_key: outcome.license_key,
+      message: "Account ready. Save your API key — it will not be shown again.",
+    });
+  } catch (error: any) {
+    safeLog("error", "ensure-account error", { error: error.message });
     res.status(500).json({ error: error.message || "Internal server error" });
   }
 });
@@ -301,6 +288,37 @@ authRouter.post("/sync-billing-exempt", requireUserSession, async (req: Authenti
  * Body: { email: string }
  * Returns 200 { confirmed: true } on success.
  */
+/** Find auth user by email via Admin API (paginated — never rely on first page only). */
+async function findAuthAdminUserByEmail(
+  base: string,
+  serviceKey: string,
+  email: string,
+): Promise<{ id: string; email?: string; email_confirmed_at?: string | null } | null> {
+  const normalized = email.trim().toLowerCase();
+  const perPage = 200;
+  const maxPages = 100;
+  for (let page = 1; page <= maxPages; page++) {
+    const listRes = await fetch(`${base}/auth/v1/admin/users?page=${page}&per_page=${perPage}`, {
+      headers: {
+        Authorization: `Bearer ${serviceKey}`,
+        apikey: serviceKey,
+      },
+    });
+    if (!listRes.ok) {
+      safeLog("error", "auto-confirm: admin list users failed", { status: listRes.status, page });
+      return null;
+    }
+    const body = await listRes.json() as {
+      users?: Array<{ id: string; email?: string; email_confirmed_at?: string | null }>;
+    };
+    const users = body.users ?? [];
+    const target = users.find((u) => u.email?.toLowerCase() === normalized);
+    if (target) return target;
+    if (users.length < perPage) break;
+  }
+  return null;
+}
+
 authRouter.post("/auto-confirm", async (req, res) => {
   try {
     const { email } = req.body as { email?: string };
@@ -314,24 +332,7 @@ authRouter.post("/auto-confirm", async (req, res) => {
       return res.status(500).json({ error: "Server Supabase config missing" });
     }
 
-    const listRes = await fetch(
-      `${base}/auth/v1/admin/users?page=1&per_page=5`,
-      {
-        headers: {
-          Authorization: `Bearer ${serviceKey}`,
-          apikey: serviceKey,
-        },
-      },
-    );
-    if (!listRes.ok) {
-      safeLog("error", "auto-confirm: admin list users failed", { status: listRes.status });
-      return res.status(502).json({ error: "Could not query user list" });
-    }
-    const body = await listRes.json() as { users?: Array<{ id: string; email?: string; email_confirmed_at?: string | null }> };
-    const users = body.users ?? [];
-    const target = users.find(
-      (u) => u.email?.toLowerCase() === email.trim().toLowerCase(),
-    );
+    const target = await findAuthAdminUserByEmail(base, serviceKey, email);
     if (!target) {
       return res.status(404).json({ error: "User not found — sign up first" });
     }
@@ -1120,7 +1121,7 @@ authRouter.get("/entitlement", async (req: AuthenticatedRequest, res) => {
           trialState: null,
           trialEndsAt: null,
           licenseStatus: "missing",
-          optimizedRunsLimit: 0,
+          optimizedRunsLimit: null,
           optimizedRunsUsed: 0,
           cloudAnalyticsEnabled: false,
           desktopAppEnabled: false,

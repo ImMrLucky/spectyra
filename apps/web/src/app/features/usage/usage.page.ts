@@ -23,7 +23,12 @@ interface BudgetProgress {
   period: string;
 }
 
-import type { OptimizationSavings, BillingStatusPartial } from '@spectyra/shared';
+import {
+  trialBannerState,
+  type TrialBannerState,
+  type OptimizationSavings,
+  type BillingStatusPartial,
+} from '@spectyra/shared';
 
 // Use partial billing status for usage page (different from full BillingStatus)
 type BillingStatusDisplay = BillingStatusPartial;
@@ -166,6 +171,24 @@ export class UsagePage implements OnInit {
   // Computed properties for billing status
   get showUpgradeButton(): boolean {
     return this.billingStatus !== null && !this.billingStatus.subscription_active;
+  }
+
+  /** Shared trial / upgrade messaging (same logic as billing page & local companion). */
+  get trialBanner(): TrialBannerState | null {
+    const b = this.billingStatus as Record<string, unknown> | null;
+    if (!b) return null;
+    return trialBannerState({
+      trialEndsAtIso: b['trial_ends_at'] as string | null | undefined,
+      subscriptionStatus: b['subscription_status'] as string | null | undefined,
+      subscriptionActive: b['subscription_active'] as boolean | null | undefined,
+      platformExempt: !!(b['org_platform_exempt'] || b['platform_billing_exempt']),
+    });
+  }
+
+  trialBannerClass(): string {
+    const s = this.trialBanner?.severity;
+    if (!s || s === 'none') return '';
+    return `trial-banner trial-banner--${s}`;
   }
 
   get subscriptionStatusText(): string {

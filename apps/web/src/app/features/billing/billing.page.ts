@@ -3,6 +3,7 @@ import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { ApiClientService } from '../../core/api/api-client.service';
 import { SPECTYRA_MONTHLY_PRICE_LABEL, SPECTYRA_TRIAL_DAYS } from '../../core/product.constants';
+import { trialBannerState, type TrialBannerState } from '@spectyra/shared';
 
 interface LicenseKey {
   id: string;
@@ -79,6 +80,23 @@ export class BillingPage implements OnInit {
 
   get revokedKeys(): LicenseKey[] {
     return this.licenseKeys.filter(k => k.revoked_at);
+  }
+
+  get trialBanner(): TrialBannerState | null {
+    const b = this.billingStatus as Record<string, unknown> | null;
+    if (!b) return null;
+    return trialBannerState({
+      trialEndsAtIso: b['trial_ends_at'] as string | null | undefined,
+      subscriptionStatus: b['subscription_status'] as string | null | undefined,
+      subscriptionActive: b['subscription_active'] as boolean | null | undefined,
+      platformExempt: !!(b['org_platform_exempt'] || b['platform_billing_exempt']),
+    });
+  }
+
+  trialBannerClass(): string {
+    const s = this.trialBanner?.severity;
+    if (!s || s === 'none') return '';
+    return `trial-banner trial-banner--${s}`;
   }
 
   formatDate(dateString: string | null): string {

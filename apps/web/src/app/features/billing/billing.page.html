@@ -2,6 +2,14 @@
   <h1>Plan &amp; Licensing</h1>
   <p class="subtitle">Manage your plan, trial status, and Desktop / Companion license keys. New accounts: {{ trialDays }}-day trial, then {{ monthlyPriceLabel }}.</p>
 
+  <div *ngIf="trialBanner && trialBanner.severity !== 'none'" [class]="trialBannerClass()" role="status">
+    <div class="trial-banner__title">{{ trialBanner.title }}</div>
+    <p class="trial-banner__detail">{{ trialBanner.detail }}</p>
+    <button type="button" *ngIf="trialBanner.showUpgradeCta" class="btn-primary trial-banner__cta" (click)="upgrade()" [disabled]="upgrading">
+      {{ upgrading ? 'Opening…' : 'Subscribe' }}
+    </button>
+  </div>
+
   <div *ngIf="loading" class="loading">
     <p>Loading...</p>
   </div>

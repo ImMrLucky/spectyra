@@ -1,6 +1,8 @@
 import { Component, OnInit, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { RouterModule } from '@angular/router';
+import { MatIconModule } from '@angular/material/icon';
+import { SpectyraMarkIconComponent } from '../../../components/spectyra-mark-icon.component';
 import { OpenClawDesktopService, type OpenClawStatusSnapshot, type InstalledSkill } from '../../../core/desktop/openclaw-desktop.service';
 import { CompanionAnalyticsService } from '../../../core/analytics/companion-analytics.service';
 import { TrialLicenseUiService, type LiveProductTopline } from '../../../core/agent-companion/trial-license-ui.service';
@@ -9,7 +11,7 @@ import type { AssistantProfile } from '../../../../spectyra-window';
 @Component({
   selector: 'app-openclaw-home',
   standalone: true,
-  imports: [CommonModule, RouterModule],
+  imports: [CommonModule, RouterModule, MatIconModule, SpectyraMarkIconComponent],
   template: `
     <div class="home">
       <header class="home-header">
@@ -59,32 +61,32 @@ import type { AssistantProfile } from '../../../../spectyra-window';
       <!-- Quick-action grid -->
       <div class="qa-grid">
         <a class="qa-card" routerLink="/desktop/live">
-          <span class="qa-icon">&#9673;</span>
+          <span class="qa-icon-mark" aria-hidden="true"><app-spectyra-mark></app-spectyra-mark></span>
           <span class="qa-label">Live Dashboard</span>
           <span class="qa-desc">See real-time optimization and savings</span>
         </a>
         <a class="qa-card" routerLink="/desktop/skills">
-          <span class="qa-icon">&#9881;</span>
+          <mat-icon class="qa-icon">extension</mat-icon>
           <span class="qa-label">Skills</span>
           <span class="qa-desc">{{ installedSkillCount }} installed &middot; Browse ClawHub</span>
         </a>
         <a class="qa-card" routerLink="/desktop/assistants">
-          <span class="qa-icon">&#9733;</span>
+          <mat-icon class="qa-icon">manage_accounts</mat-icon>
           <span class="qa-label">Assistants</span>
           <span class="qa-desc">{{ assistantCount }} profile{{ assistantCount !== 1 ? 's' : '' }}</span>
         </a>
         <a class="qa-card" routerLink="/desktop/tasks">
-          <span class="qa-icon">&#9744;</span>
+          <mat-icon class="qa-icon">task_alt</mat-icon>
           <span class="qa-label">Tasks</span>
           <span class="qa-desc">Heartbeats, watchers, scheduled jobs</span>
         </a>
         <a class="qa-card" routerLink="/desktop/setup">
-          <span class="qa-icon">&#9889;</span>
+          <mat-icon class="qa-icon">settings_suggest</mat-icon>
           <span class="qa-label">Setup Wizard</span>
           <span class="qa-desc">Re-run install &amp; configuration</span>
         </a>
         <a class="qa-card" routerLink="/desktop/settings">
-          <span class="qa-icon">&#9881;</span>
+          <mat-icon class="qa-icon">tune</mat-icon>
           <span class="qa-label">Settings</span>
           <span class="qa-desc">Provider, aliases, diagnostics</span>
         </a>
@@ -245,7 +247,19 @@ import type { AssistantProfile } from '../../../../spectyra-window';
       border-color: var(--spectyra-blue, #378ADD);
       background: var(--bg-elevated, #162236);
     }
-    .qa-icon { font-size: 20px; margin-bottom: 2px; }
+    .qa-icon {
+      font-size: 26px;
+      width: 26px;
+      height: 26px;
+      margin-bottom: 2px;
+      color: var(--spectyra-blue, #378add);
+    }
+    .qa-icon-mark {
+      display: flex;
+      margin-bottom: 2px;
+      --spectyra-mark-size: 30px;
+      --spectyra-mark-color: var(--spectyra-blue, #378add);
+    }
     .qa-label {
       font-size: 14px;
       font-weight: 600;

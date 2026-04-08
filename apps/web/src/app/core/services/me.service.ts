@@ -1,8 +1,22 @@
 import { Injectable } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
-import { BehaviorSubject, Observable, throwError } from 'rxjs';
-import { tap, shareReplay, catchError, finalize } from 'rxjs/operators';
+import { BehaviorSubject, Observable, of, throwError } from 'rxjs';
+import { tap, shareReplay, catchError, finalize, switchMap, map } from 'rxjs/operators';
 import { environment } from '../../../environments/environment';
+
+/** Response from POST /v1/auth/ensure-account */
+export interface EnsureAccountResponse {
+  already_provisioned?: boolean;
+  org?: {
+    id: string;
+    name: string;
+    trial_ends_at: string | null;
+    subscription_status: string;
+  };
+  api_key?: string;
+  license_key?: string | null;
+  message?: string;
+}
 
 export interface MeResponse {
   /** Present when Supabase JWT is valid but `org_memberships` has no row yet. */
@@ -67,7 +81,7 @@ export class MeService {
       tap((response) => {
         this.meSubject.next(response);
         this.cacheTimestamp = Date.now();
-        if (!environment.isDesktop && response.org && !response.needs_bootstrap) {
+        if (response.org && !response.needs_bootstrap) {
           this.http
             .post<{ applied: boolean }>(`${environment.apiUrl}/auth/sync-billing-exempt`, {})
             .subscribe({ error: () => undefined });
@@ -110,5 +124,37 @@ export class MeService {
     this.inFlight$ = null;
     this.cacheTimestamp = 0;
     this.meSubject.next(null);
+  }
+
+  /**
+   * Electron: if the user is signed in but has no Spectyra org yet, POST /auth/ensure-account
+   * then refresh /auth/me. Returns a provisioned API key plaintext when the server just created one.
+   */
+  ensureDesktopOrgIfNeeded(): Observable<{ me: MeResponse; provisionedApiKey?: string }> {
+    const cached = this.getCachedMe();
+    if (cached?.org && !cached.needs_bootstrap) {
+      return of({ me: cached });
+    }
+
+    return this.getMe(true).pipe(
+      switchMap((me) => {
+        if (me.org && !me.needs_bootstrap) {
+          return of({ me });
+        }
+        return this.http
+          .post<EnsureAccountResponse>(`${environment.apiUrl}/auth/ensure-account`, {})
+          .pipe(
+            switchMap((res) => {
+              this.clearCache();
+              return this.getMe(true).pipe(
+                map((fresh) => ({
+                  me: fresh,
+                  provisionedApiKey: res.api_key,
+                })),
+              );
+            }),
+          );
+      }),
+    );
   }
 }

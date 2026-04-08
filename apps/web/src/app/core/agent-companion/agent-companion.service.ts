@@ -61,7 +61,7 @@ export const RUNTIME_OPTIONS: RuntimeOption[] = [
     type: 'claude',
     label: 'Claude Runtime',
     description: 'Claude Code, Claude hooks, or MCP-based Claude agents. Attach via hooks or JSONL log tailing.',
-    icon: 'psychology',
+    icon: 'code_blocks',
     connectionStyles: ['attach', 'observe'],
     adapterKind: 'spectyra.claude-hooks.v1',
   },

@@ -28,11 +28,11 @@ interface OrgRow {
   platform_exempt: boolean;
 }
 
-const PLAN_LIMITS: Record<PlanType, { optimizedRuns: number | null; cloudAnalytics: boolean; desktop: boolean; sdk: boolean }> = {
-  free:       { optimizedRuns: 100,  cloudAnalytics: false, desktop: true, sdk: true },
-  starter:    { optimizedRuns: 5000, cloudAnalytics: true,  desktop: true, sdk: true },
-  pro:        { optimizedRuns: null, cloudAnalytics: true,  desktop: true, sdk: true },
-  enterprise: { optimizedRuns: null, cloudAnalytics: true,  desktop: true, sdk: true },
+const PLAN_LIMITS: Record<PlanType, { cloudAnalytics: boolean; desktop: boolean; sdk: boolean }> = {
+  free:       { cloudAnalytics: false, desktop: true, sdk: true },
+  starter:    { cloudAnalytics: true,  desktop: true, sdk: true },
+  pro:        { cloudAnalytics: true,  desktop: true, sdk: true },
+  enterprise: { cloudAnalytics: true,  desktop: true, sdk: true },
 };
 
 function resolvePlan(raw: string | null): PlanType {
@@ -80,7 +80,7 @@ export async function getEntitlement(orgId: string): Promise<EntitlementInfo> {
       trialState: null,
       trialEndsAt: null,
       licenseStatus: "missing",
-      optimizedRunsLimit: 0,
+      optimizedRunsLimit: null,
       optimizedRunsUsed: 0,
       cloudAnalyticsEnabled: false,
       desktopAppEnabled: false,
@@ -111,7 +111,8 @@ export async function getEntitlement(orgId: string): Promise<EntitlementInfo> {
     trialState: trial.state,
     trialEndsAt: trial.endsAt,
     licenseStatus: resolveLicenseStatus(org),
-    optimizedRunsLimit: org.optimized_runs_limit ?? limits.optimizedRuns,
+    /** No per-period cap — only trial/subscription (see `canRunOptimized`). Counts remain for analytics. */
+    optimizedRunsLimit: null,
     optimizedRunsUsed: org.optimized_runs_used,
     cloudAnalyticsEnabled: limits.cloudAnalytics,
     desktopAppEnabled: limits.desktop,
@@ -143,11 +144,10 @@ export async function recordOptimizedRun(orgId: string): Promise<void> {
 }
 
 /**
- * Check whether the org can run another optimized (mode=on) call.
+ * Check whether the org can run optimized (mode=on) calls.
+ * Gated only by trial active or paid subscription — not by run counts.
  */
 export async function canRunOptimized(orgId: string): Promise<boolean> {
   const ent = await getEntitlement(orgId);
-  if (ent.licenseStatus !== "valid") return false;
-  if (ent.optimizedRunsLimit === null) return true;
-  return ent.optimizedRunsUsed < ent.optimizedRunsLimit;
+  return ent.licenseStatus === "valid";
 }

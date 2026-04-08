@@ -69,7 +69,7 @@ export function allowEstimatorMode(
  * Entitlement-aware gate for optimized runs (mode=on).
  *
  * - observe / off: always allowed (no provider cost to Spectyra)
- * - on: requires valid license AND available run quota
+ * - on: requires valid license (trial or subscription), not run-count quotas
  *
  * Returns entitlement info in 402 response so client can show upgrade CTA.
  */
@@ -108,11 +108,9 @@ export async function requireOptimizedRunQuota(
   if (!allowed) {
     const entitlement = await getEntitlement(orgId);
     res.status(402).json({
-      error: "Optimized run limit reached",
+      error: "Payment Required",
       message:
-        entitlement.licenseStatus !== "valid"
-          ? "Your trial has expired. Subscribe to continue using optimization."
-          : `You've used ${entitlement.optimizedRunsUsed} of ${entitlement.optimizedRunsLimit} optimized runs this period. Upgrade for unlimited.`,
+        "Your trial has ended or you do not have an active subscription. Subscribe to continue using Spectyra optimization.",
       entitlement,
       upgrade_url: "/usage",
     });

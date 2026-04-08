@@ -16,10 +16,20 @@
 import express, { type Response } from "express";
 import cors from "cors";
 import crypto from "crypto";
+import { Readable } from "node:stream";
+import { pipeline } from "node:stream/promises";
+import { openAiSseProxyTransform, type OpenAiStreamUsage } from "./sseOpenAiProxy.js";
 import type { SavingsReport, PromptComparison } from "@spectyra/core-types";
 import { loadConfig, type CompanionConfig } from "./config.js";
-import { type ChatMessage } from "./optimizer.js";
-import { callProvider, isProviderKeyConfigured } from "./providers.js";
+import { companionPackageVersion } from "./packageVersion.js";
+import { type ChatMessage, type OptimizeResult } from "./optimizer.js";
+import { deriveSavingsMetrics } from "./reportMetrics.js";
+import {
+  callProvider,
+  forwardableOpenAiChatFields,
+  isProviderKeyConfigured,
+  openAiChatCompletionStreaming,
+} from "./providers.js";
 import { resolveAndOptimizeLocally } from "./inferencePipeline.js";
 import { mapCompanionInferenceError } from "./httpErrors.js";
 import {
@@ -52,17 +62,21 @@ import {
 } from "@spectyra/state-delta";
 import { evaluateWorkflowPolicyFromEvents } from "./workflowPolicyFromEvents.js";
 import { activateLicense } from "@spectyra/optimization-engine";
+import { spectyraOpenClawModelDefinitions } from "@spectyra/shared";
 import { recordOpenClawTrafficIfApplicable, getOpenClawIntegrationDiagnostics } from "./openclawTraffic.js";
 import { dashboardPageHtml } from "./dashboardPageHtml.js";
 
 const cfg: CompanionConfig = loadConfig();
+
+const SPECTYRA_MODEL_IDS = spectyraOpenClawModelDefinitions().map((d) => d.id);
 
 function licenseSnapshot(): {
   licenseKeyPresent: boolean;
   /** True when a key is set and passes local activation (trial or paid). */
   licenseAllowsFullOptimization: boolean;
 } {
-  const key = cfg.licenseKey?.trim();
+  const c = loadConfig();
+  const key = c.spectyraAccountLinked ? c.licenseKey?.trim() || c.spectyraApiKey : undefined;
   if (!key) {
     return { licenseKeyPresent: false, licenseAllowsFullOptimization: false };
   }
@@ -71,9 +85,18 @@ function licenseSnapshot(): {
 
 /** Upstream API key present for the configured provider (never exposes the key). */
 function providerConfigured(): boolean {
-  const p = cfg.provider;
+  const c = loadConfig();
+  const p = c.provider;
   if (p !== "openai" && p !== "anthropic" && p !== "groq") return false;
   return isProviderKeyConfigured(p);
+}
+
+function parseMaxTokensOpenAiCompatible(body: Record<string, unknown>): number | undefined {
+  const mt = body.max_tokens;
+  const mc = body.max_completion_tokens;
+  if (typeof mt === "number" && Number.isFinite(mt)) return mt;
+  if (typeof mc === "number" && Number.isFinite(mc)) return mc;
+  return undefined;
 }
 const sessionRegistry = new CompanionSessionRegistry(cfg);
 const app = express();
@@ -96,40 +119,61 @@ app.get("/dashboard", (_req, res) => {
 app.get("/health", (_req, res) => {
   const lic = licenseSnapshot();
   const pc = providerConfigured();
+  const snap = loadConfig();
   res.json({
     status: "ok",
     service: "spectyra-local-companion",
-    runMode: cfg.runMode,
-    workflowPolicyMode: cfg.workflowPolicyMode,
-    telemetryMode: cfg.telemetryMode,
-    promptSnapshots: cfg.promptSnapshots,
-    persistNormalizedEvents: cfg.persistNormalizedEvents,
+    packageVersion: companionPackageVersion(),
+    runMode: snap.runMode,
+    optimizationRunMode: snap.optimizationRunMode,
+    spectyraAccountLinked: snap.spectyraAccountLinked,
+    accountEmail: snap.accountEmail ?? null,
+    workflowPolicyMode: snap.workflowPolicyMode,
+    telemetryMode: snap.telemetryMode,
+    promptSnapshots: snap.promptSnapshots,
+    persistNormalizedEvents: snap.persistNormalizedEvents,
     inferencePath: "direct_provider",
     providerBillingOwner: "customer",
     licenseKeyPresent: lic.licenseKeyPresent,
     licenseAllowsFullOptimization: lic.licenseAllowsFullOptimization,
     /** True when telemetry is not off — normalized events + live analytics available. */
-    monitoringEnabled: cfg.telemetryMode !== "off",
-    provider: cfg.provider,
+    monitoringEnabled: snap.telemetryMode !== "off",
+    /** Redacted session summaries can POST to Spectyra when signed in (see syncAnalyticsToCloud). */
+    syncAnalyticsToCloud: snap.syncAnalyticsToCloud,
+    provider: snap.provider,
     providerConfigured: pc,
+    /** Which vendor API keys are present (multi-vendor `spectyra/<vendor>/…` routes). */
+    providerKeysPresent: {
+      openai: isProviderKeyConfigured("openai"),
+      anthropic: isProviderKeyConfigured("anthropic"),
+      groq: isProviderKeyConfigured("groq"),
+    },
     /** Ready for inference: valid provider + local API key present. */
     companionReady: pc,
+    /** Without this, real input optimization stays in preview (observe-style) until setup saves session + Spectyra API key. */
+    savingsEnabled:
+      snap.spectyraAccountLinked && snap.optimizationRunMode === "on" && snap.runMode === "on",
   });
 });
 
 app.get("/config", (_req, res) => {
+  const snap = loadConfig();
   res.json({
-    runMode: cfg.runMode,
-    workflowPolicyMode: cfg.workflowPolicyMode,
-    telemetryMode: cfg.telemetryMode,
-    promptSnapshots: cfg.promptSnapshots,
-    persistNormalizedEvents: cfg.persistNormalizedEvents,
-    bindHost: cfg.bindHost,
-    port: cfg.port,
-    provider: cfg.provider,
-    aliasSmartModel: cfg.aliasSmartModel,
-    aliasFastModel: cfg.aliasFastModel,
-    aliasQualityModel: cfg.aliasQualityModel,
+    runMode: snap.runMode,
+    optimizationRunMode: snap.optimizationRunMode,
+    spectyraAccountLinked: snap.spectyraAccountLinked,
+    accountEmail: snap.accountEmail ?? null,
+    workflowPolicyMode: snap.workflowPolicyMode,
+    telemetryMode: snap.telemetryMode,
+    promptSnapshots: snap.promptSnapshots,
+    persistNormalizedEvents: snap.persistNormalizedEvents,
+    bindHost: snap.bindHost,
+    port: snap.port,
+    provider: snap.provider,
+    aliasSmartModel: snap.aliasSmartModel,
+    aliasFastModel: snap.aliasFastModel,
+    aliasQualityModel: snap.aliasQualityModel,
+    providerTierModels: snap.providerTierModels ?? null,
     inferencePath: "direct_provider",
     providerBillingOwner: "customer",
     cloudRelay: "none",
@@ -170,18 +214,19 @@ app.get("/v1/models", (_req, res) => {
 app.get("/v1/diagnostics/integration", (_req, res) => {
   const lic = licenseSnapshot();
   const pc = providerConfigured();
+  const snap = loadConfig();
   res.json({
     spectyraLocalFirst: true,
     cloudPromptRelay: false,
     inferencePath: "direct_provider" as const,
     integrationSurface: "openai_and_anthropic_compatible",
-    runMode: cfg.runMode,
-    provider: cfg.provider,
+    runMode: snap.runMode,
+    provider: snap.provider,
     providerConfigured: pc,
     companionReady: pc,
     licenseKeyPresent: lic.licenseKeyPresent,
     licenseAllowsFullOptimization: lic.licenseAllowsFullOptimization,
-    modelAliases: ["spectyra/smart", "spectyra/fast", "spectyra/quality"],
+    modelAliases: SPECTYRA_MODEL_IDS,
     endpoints: {
       openaiCompatible: "/v1/chat/completions",
       anthropicCompatible: "/v1/messages",
@@ -194,19 +239,20 @@ app.get("/v1/diagnostics/integration", (_req, res) => {
 app.get("/diagnostics/status", (_req, res) => {
   const lic = licenseSnapshot();
   const pc = providerConfigured();
+  const snap = loadConfig();
   const desktopManaged = process.env.SPECTYRA_DESKTOP_MANAGED === "1";
   const accountSignedIn =
     process.env.SPECTYRA_ACCOUNT_SIGNED_IN === "1" ? true : process.env.SPECTYRA_ACCOUNT_SIGNED_IN === "0" ? false : undefined;
-  const base = `http://${cfg.bindHost}:${cfg.port}`;
+  const base = `http://${snap.bindHost}:${snap.port}`;
   res.json({
     desktopInstalled: desktopManaged,
     companionRunning: true,
     signedIn: accountSignedIn,
     providerConfigured: pc,
-    providerType: cfg.provider,
-    mode: cfg.runMode,
+    providerType: snap.provider,
+    mode: snap.runMode,
     companionBaseUrl: base,
-    modelAliases: ["spectyra/smart", "spectyra/fast", "spectyra/quality"],
+    modelAliases: SPECTYRA_MODEL_IDS,
     licenseKeyPresent: lic.licenseKeyPresent,
     inferencePath: "direct_provider" as const,
   });
@@ -278,18 +324,36 @@ function writeOpenAiChatCompletionStream(
 
 // ── OpenAI-compatible endpoint ───────────────────────────────────────────────
 
+function normalizeOpenAiCompatibleMessages(raw: unknown): ChatMessage[] {
+  if (!Array.isArray(raw)) return [];
+  return raw.map((m: Record<string, unknown>) => {
+    const role = String(m.role ?? "user");
+    let content: string | null;
+    if (m.content === null || m.content === undefined) {
+      content = m.tool_calls != null && role === "assistant" ? null : "";
+    } else if (typeof m.content === "string") {
+      content = m.content;
+    } else {
+      content = JSON.stringify(m.content);
+    }
+    const msg: ChatMessage = { role, content };
+    if (m.tool_calls != null) msg.tool_calls = m.tool_calls;
+    if (m.tool_call_id != null) msg.tool_call_id = String(m.tool_call_id);
+    if (m.name != null) msg.name = String(m.name);
+    return msg;
+  });
+}
+
 app.post("/v1/chat/completions", async (req, res) => {
   recordOpenClawTrafficIfApplicable(req);
   try {
+    const icfg = loadConfig();
     const rawModel: string = req.body.model || "gpt-4o-mini";
-    const messages: ChatMessage[] = (req.body.messages || []).map((m: any) => ({
-      role: m.role,
-      content: typeof m.content === "string" ? m.content : JSON.stringify(m.content),
-    }));
+    const messages = normalizeOpenAiCompatibleMessages(req.body.messages);
 
-    const { resolved, optResult } = resolveAndOptimizeLocally(cfg, messages, rawModel);
+    const { resolved, optResult } = resolveAndOptimizeLocally(icfg, messages, rawModel);
 
-    const policy = evaluateWorkflowPolicyFromEvents(companionEventEngine.snapshot(), cfg.workflowPolicyMode);
+    const policy = evaluateWorkflowPolicyFromEvents(companionEventEngine.snapshot(), icfg.workflowPolicyMode);
     if (policy.shouldBlock) {
       return res.status(422).json({
         error: {
@@ -300,13 +364,95 @@ app.post("/v1/chat/completions", async (req, res) => {
       });
     }
 
-    const providerResult = await callProvider(resolved.provider, resolved.upstreamModel, optResult.messages);
+    const maxTokens = parseMaxTokensOpenAiCompatible((req.body || {}) as Record<string, unknown>);
+    const openAiForward =
+      resolved.provider === "openai" || resolved.provider === "groq"
+        ? forwardableOpenAiChatFields((req.body || {}) as Record<string, unknown>)
+        : undefined;
+
+    const wantsStream = req.body?.stream === true || req.body?.stream === "true";
+
+    /**
+     * OpenClaw sends stream: true. We must proxy upstream SSE — synthetic streams from `.text` alone
+     * break tool calls, reasoning, and several GPT-5 responses (empty `content`).
+     */
+    if (wantsStream && (resolved.provider === "openai" || resolved.provider === "groq")) {
+      const runId = crypto.randomUUID();
+      const upstream = await openAiChatCompletionStreaming(
+        resolved.provider,
+        resolved.upstreamModel,
+        optResult.messages,
+        maxTokens,
+        openAiForward,
+      );
+      if (!upstream.ok) {
+        throw new Error(`openai API error: ${upstream.status} ${await upstream.text()}`);
+      }
+      const ct = upstream.headers.get("content-type");
+      if (ct) res.setHeader("Content-Type", ct);
+      res.setHeader("Cache-Control", "no-cache, no-transform");
+      res.setHeader("Connection", "keep-alive");
+      if (!upstream.body) {
+        res.end();
+        return;
+      }
+      const webBody = upstream.body as import("stream/web").ReadableStream;
+      const source = Readable.fromWeb(webBody);
+      const usageBox: { last: OpenAiStreamUsage | null } = { last: null };
+      const sseTransform = openAiSseProxyTransform({
+        spectyraAlias: resolved.requestedModel.startsWith("spectyra/") ? resolved.requestedModel : null,
+        onUsage: (u) => {
+          usageBox.last = u;
+        },
+      });
+      await pipeline(source, sseTransform, res);
+
+      const cap = usageBox.last;
+      const streamUsage = {
+        inputTokens: cap?.prompt_tokens ?? optResult.inputTokensAfter,
+        outputTokens: cap?.completion_tokens ?? 0,
+      };
+      const report = attachSessionToReport(
+        buildReport(runId, resolved.provider, resolved.upstreamModel, optResult, streamUsage, icfg),
+        req.headers as Record<string, string | string[] | undefined>,
+      );
+      await persistLocally(runId, report, optResult, messages, icfg);
+      const sk = sessionRegistry.sessionKeyFromRequest(req.headers as any);
+      if (icfg.telemetryMode !== "off") {
+        await sessionRegistry.recordStep(sk, report);
+        const tr = sessionRegistry.getOrCreateTracker(sk);
+        ingestCompanionChatCompleted({
+          sessionId: tr.sessionId,
+          runId: report.runId,
+          report,
+        });
+      }
+      return;
+    }
+
+    const providerResult = await callProvider(
+      resolved.provider,
+      resolved.upstreamModel,
+      optResult.messages,
+      maxTokens,
+      openAiForward,
+    );
 
     const runId = crypto.randomUUID();
-    const report = buildReport(runId, resolved.provider, resolved.upstreamModel, optResult, providerResult.usage);
-    await persistLocally(runId, report, optResult, messages);
+    const report = attachSessionToReport(
+      buildReport(
+        runId,
+        resolved.provider,
+        resolved.upstreamModel,
+        optResult,
+        providerResult.usage,
+        icfg,
+      ),
+      req.headers as Record<string, string | string[] | undefined>,
+    );
+    await persistLocally(runId, report, optResult, messages, icfg);
     const sk = sessionRegistry.sessionKeyFromRequest(req.headers as any);
-    if (cfg.telemetryMode !== "off") {
+    if (icfg.telemetryMode !== "off") {
       await sessionRegistry.recordStep(sk, report);
       const tr = sessionRegistry.getOrCreateTracker(sk);
       ingestCompanionChatCompleted({
@@ -322,7 +468,6 @@ app.post("/v1/chat/completions", async (req, res) => {
       total_tokens: providerResult.usage.inputTokens + providerResult.usage.outputTokens,
     };
 
-    const wantsStream = req.body?.stream === true || req.body?.stream === "true";
     if (wantsStream) {
       writeOpenAiChatCompletionStream(res, {
         runId,
@@ -333,6 +478,11 @@ app.post("/v1/chat/completions", async (req, res) => {
       return;
     }
 
+    const assistantMessage =
+      providerResult.openAiAssistantMessage && Object.keys(providerResult.openAiAssistantMessage).length > 0
+        ? providerResult.openAiAssistantMessage
+        : { role: "assistant" as const, content: providerResult.text };
+
     res.json({
       id: `chatcmpl-${runId}`,
       object: "chat.completion",
@@ -340,13 +490,13 @@ app.post("/v1/chat/completions", async (req, res) => {
       model: resolved.requestedModel,
       choices: [{
         index: 0,
-        message: { role: "assistant", content: providerResult.text },
-        finish_reason: "stop",
+        message: assistantMessage,
+        finish_reason: providerResult.finishReason ?? "stop",
       }],
       usage,
       spectyra: {
         runId,
-        mode: cfg.runMode,
+        mode: icfg.optimizationRunMode,
         inputTokensBefore: optResult.inputTokensBefore,
         inputTokensAfter: optResult.inputTokensAfter,
         tokensSaved: Math.max(0, optResult.inputTokensBefore - optResult.inputTokensAfter),
@@ -355,6 +505,9 @@ app.post("/v1/chat/completions", async (req, res) => {
       },
     });
   } catch (err: unknown) {
+    if (res.headersSent) {
+      return;
+    }
     const mapped = mapCompanionInferenceError(err);
     res.status(mapped.status).json(mapped.body);
   }
@@ -365,6 +518,7 @@ app.post("/v1/chat/completions", async (req, res) => {
 app.post("/v1/messages", async (req, res) => {
   recordOpenClawTrafficIfApplicable(req);
   try {
+    const icfg = loadConfig();
     const rawModel: string = req.body.model || "claude-3-5-sonnet-latest";
     const messages: ChatMessage[] = [];
     if (req.body.system) messages.push({ role: "system", content: req.body.system });
@@ -375,9 +529,9 @@ app.post("/v1/messages", async (req, res) => {
       });
     }
 
-    const { resolved, optResult } = resolveAndOptimizeLocally(cfg, messages, rawModel);
+    const { resolved, optResult } = resolveAndOptimizeLocally(icfg, messages, rawModel);
 
-    const policyMsg = evaluateWorkflowPolicyFromEvents(companionEventEngine.snapshot(), cfg.workflowPolicyMode);
+    const policyMsg = evaluateWorkflowPolicyFromEvents(companionEventEngine.snapshot(), icfg.workflowPolicyMode);
     if (policyMsg.shouldBlock) {
       return res.status(422).json({
         error: {
@@ -388,13 +542,32 @@ app.post("/v1/messages", async (req, res) => {
       });
     }
 
-    const providerResult = await callProvider(resolved.provider, resolved.upstreamModel, optResult.messages);
+    const maxTok =
+      typeof req.body.max_tokens === "number" && Number.isFinite(req.body.max_tokens)
+        ? req.body.max_tokens
+        : undefined;
+    const providerResult = await callProvider(
+      resolved.provider,
+      resolved.upstreamModel,
+      optResult.messages,
+      maxTok,
+    );
 
     const runId = crypto.randomUUID();
-    const report = buildReport(runId, resolved.provider, resolved.upstreamModel, optResult, providerResult.usage);
-    await persistLocally(runId, report, optResult, messages);
+    const report = attachSessionToReport(
+      buildReport(
+        runId,
+        resolved.provider,
+        resolved.upstreamModel,
+        optResult,
+        providerResult.usage,
+        icfg,
+      ),
+      req.headers as Record<string, string | string[] | undefined>,
+    );
+    await persistLocally(runId, report, optResult, messages, icfg);
     const sk = sessionRegistry.sessionKeyFromRequest(req.headers as any);
-    if (cfg.telemetryMode !== "off") {
+    if (icfg.telemetryMode !== "off") {
       await sessionRegistry.recordStep(sk, report);
       const tr = sessionRegistry.getOrCreateTracker(sk);
       ingestCompanionChatCompleted({
@@ -417,7 +590,7 @@ app.post("/v1/messages", async (req, res) => {
       },
       spectyra: {
         runId,
-        mode: cfg.runMode,
+        mode: icfg.optimizationRunMode,
         tokensSaved: Math.max(0, optResult.inputTokensBefore - optResult.inputTokensAfter),
         inferencePath: "direct_provider",
       },
@@ -440,8 +613,9 @@ app.get("/v1/runs", async (req, res) => {
   res.json(await getRuns(limit));
 });
 
-app.get("/v1/savings/summary", async (_req, res) => {
-  res.json(await getSavingsSummary());
+app.get("/v1/savings/summary", async (req, res) => {
+  const sessionId = typeof req.query.sessionId === "string" ? req.query.sessionId.trim() : undefined;
+  res.json(await getSavingsSummary(sessionId ? { sessionId } : undefined));
 });
 
 app.get("/v1/prompt-comparison/:runId", async (req, res) => {
@@ -484,9 +658,16 @@ app.post("/v1/analytics/session/complete", async (req, res) => {
   res.json(rec);
 });
 
-/** Optional: acknowledge sync intent (companion stays local-first; cloud upload is via Spectyra app/API). */
+/** Optional: acknowledge sync intent — companion POSTs redacted summaries when signed in via setup (Supabase JWT). */
 app.post("/v1/analytics/sync", (_req, res) => {
-  res.json({ ok: true, message: "Analytics sync is configured in the Spectyra web/desktop app when signed in." });
+  const snap = loadConfig();
+  res.json({
+    ok: true,
+    message:
+      snap.syncAnalyticsToCloud && snap.telemetryMode !== "off"
+        ? "Cloud sync is enabled: session summaries upload to your Spectyra account when a desktop Supabase session is present."
+        : "Cloud sync is off or telemetry is off — set syncAnalyticsToCloud in ~/.spectyra/desktop/config.json or run setup while signed in.",
+  });
 });
 
 /** Server-Sent Events: normalized SpectyraEvent stream (local-only). */
@@ -567,8 +748,9 @@ function buildReport(
   runId: string,
   provider: string,
   model: string,
-  opt: { inputTokensBefore: number; inputTokensAfter: number; transforms: string[] },
+  opt: OptimizeResult,
   usage: { inputTokens: number; outputTokens: number },
+  modeCfg: CompanionConfig,
 ): SavingsReport {
   const saved = opt.inputTokensBefore - opt.inputTokensAfter;
   const pct = opt.inputTokensBefore > 0 ? (saved / opt.inputTokensBefore) * 100 : 0;
@@ -578,9 +760,33 @@ function buildReport(
   const costBefore = costInBefore + costOut;
   const costAfter = costInAfter + costOut;
   const estSavings = Math.max(0, costBefore - costAfter);
+  const derived = deriveSavingsMetrics(opt.features, opt.flowSignals);
+  const notes: string[] = [];
+  if (opt.optimizationSkippedReason === "tool_merge_failed") {
+    notes.push(
+      "Tool thread: structural optimization changed message count — original messages sent; savings shown are projected.",
+    );
+  } else if (opt.optimizationSkippedReason === "run_mode_off") {
+    notes.push("Run mode is off; optimization skipped.");
+  }
+  if (opt.licenseLimited && saved > 0) {
+    notes.push(
+      "Projected input-token reduction — no valid Spectyra license, so the provider still received the original messages.",
+    );
+  } else if (!opt.licenseLimited && modeCfg.optimizationRunMode === "observe" && saved > 0) {
+    notes.push("Run mode is observe: projected savings shown; the provider received unoptimized messages.");
+  }
+  if (!modeCfg.spectyraAccountLinked && modeCfg.runMode === "on") {
+    notes.push(
+      "Spectyra account not complete: sign in and save your Spectyra API key (run spectyra-companion setup). Showing preview savings only.",
+    );
+  }
+  if (opt.flowSignals?.isStuckLoop) {
+    notes.push("Flow: retry / error-loop pattern detected — consider clarifying the task or trimming context.");
+  }
   return {
     runId,
-    mode: cfg.runMode,
+    mode: modeCfg.optimizationRunMode,
     integrationType: "local-companion",
     provider,
     model,
@@ -592,29 +798,46 @@ function buildReport(
     estimatedSavings: estSavings,
     estimatedSavingsPct: pct,
     contextReductionPct: pct > 0 ? pct : undefined,
-    telemetryMode: cfg.telemetryMode,
-    promptSnapshotMode: cfg.promptSnapshots,
+    duplicateReductionPct: derived.duplicateReductionPct,
+    flowReductionPct: derived.flowStabilityScore,
+    messageTurnCount: opt.messageCount,
+    compressibleUnitsHint: derived.compressibleUnitsHint,
+    repeatedContextTokensAvoided: opt.repeatedContextTokensAvoided,
+    repeatedToolOutputTokensAvoided: opt.repeatedToolOutputTokensAvoided,
+    telemetryMode: modeCfg.telemetryMode,
+    promptSnapshotMode: modeCfg.promptSnapshots,
     inferencePath: "direct_provider",
     providerBillingOwner: "customer",
     transformsApplied: opt.transforms,
+    notes: notes.length > 0 ? notes : undefined,
     success: true,
     createdAt: new Date().toISOString(),
   };
 }
 
+function attachSessionToReport(
+  report: SavingsReport,
+  headers: Record<string, string | string[] | undefined>,
+): SavingsReport {
+  const sk = sessionRegistry.sessionKeyFromRequest(headers);
+  const tr = sessionRegistry.getOrCreateTracker(sk);
+  return { ...report, sessionId: tr.sessionId, sessionKey: sk };
+}
+
 async function persistLocally(
   runId: string,
   report: SavingsReport,
-  opt: { inputTokensBefore: number; inputTokensAfter: number; transforms: string[]; messages: ChatMessage[] },
+  opt: OptimizeResult,
   originalMessages: ChatMessage[],
+  modeCfg: CompanionConfig,
 ): Promise<void> {
-  if (cfg.telemetryMode !== "off") {
+  if (modeCfg.telemetryMode !== "off") {
     await saveRun(report).catch(() => {});
   }
-  if (cfg.promptSnapshots === "local_only") {
+  if (modeCfg.promptSnapshots === "local_only") {
     const comparison: PromptComparison = {
-      originalMessagesSummary: originalMessages.map((m) => ({ role: m.role, len: m.content.length })),
-      optimizedMessagesSummary: opt.messages.map((m) => ({ role: m.role, len: m.content.length })),
+      originalMessagesSummary: originalMessages.map((m) => ({ role: m.role, len: (m.content ?? "").length })),
+      optimizedMessagesSummary: opt.messages.map((m) => ({ role: m.role, len: (m.content ?? "").length })),
       diffSummary: {
         inputTokensBefore: opt.inputTokensBefore,
         inputTokensAfter: opt.inputTokensAfter,
@@ -636,7 +859,12 @@ const server = app.listen(cfg.port, cfg.bindHost, () => {
   console.log(`\nSpectyra Local Companion`);
   console.log(`  Listening: ${origin}`);
   console.log(`  Savings UI: ${origin}/dashboard  (open in your browser)`);
-  console.log(`  Run mode:  ${cfg.runMode}`);
+  console.log(
+    `  Run mode:  ${cfg.runMode}` +
+      (cfg.runMode !== cfg.optimizationRunMode
+        ? ` (optimization: ${cfg.optimizationRunMode} until account is linked)`
+        : ""),
+  );
   console.log(`  Telemetry: ${cfg.telemetryMode}`);
   console.log(`  Snapshots: ${cfg.promptSnapshots}`);
   console.log(`  Inference: direct to provider (no Spectyra cloud relay)`);

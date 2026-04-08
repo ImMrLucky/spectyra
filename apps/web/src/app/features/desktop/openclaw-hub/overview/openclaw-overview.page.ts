@@ -1,12 +1,13 @@
 import { Component, OnInit, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { RouterModule } from '@angular/router';
+import { MatIconModule } from '@angular/material/icon';
 import { OpenClawDesktopService, type OpenClawStatusSnapshot } from '../../../../core/desktop/openclaw-desktop.service';
 
 @Component({
   selector: 'app-openclaw-overview',
   standalone: true,
-  imports: [CommonModule, RouterModule],
+  imports: [CommonModule, RouterModule, MatIconModule],
   template: `
     <div class="ov">
       <div class="ov-status-grid">
@@ -36,27 +37,27 @@ import { OpenClawDesktopService, type OpenClawStatusSnapshot } from '../../../..
         <h2 class="ov-section-title">Quick Actions</h2>
         <div class="ov-action-grid">
           <a class="ov-action" routerLink="../setup">
-            <span class="ov-action-icon">🔧</span>
+            <mat-icon class="ov-action-icon">tune</mat-icon>
             <span class="ov-action-label">Setup OpenClaw</span>
           </a>
           <a class="ov-action" routerLink="../skills">
-            <span class="ov-action-icon">🧩</span>
+            <mat-icon class="ov-action-icon">extension</mat-icon>
             <span class="ov-action-label">Install Skills</span>
           </a>
           <a class="ov-action" routerLink="../assistants">
-            <span class="ov-action-icon">🤖</span>
+            <mat-icon class="ov-action-icon">manage_accounts</mat-icon>
             <span class="ov-action-label">Assistant Profiles</span>
           </a>
           <a class="ov-action" routerLink="../tasks">
-            <span class="ov-action-icon">📋</span>
+            <mat-icon class="ov-action-icon">task_alt</mat-icon>
             <span class="ov-action-label">Create Task</span>
           </a>
           <a class="ov-action" routerLink="../diagnostics">
-            <span class="ov-action-icon">🩺</span>
+            <mat-icon class="ov-action-icon">troubleshoot</mat-icon>
             <span class="ov-action-label">Run Health Check</span>
           </a>
           <a class="ov-action" routerLink="/desktop/live">
-            <span class="ov-action-icon">📡</span>
+            <mat-icon class="ov-action-icon">show_chart</mat-icon>
             <span class="ov-action-label">Open Live</span>
           </a>
         </div>
@@ -137,7 +138,12 @@ import { OpenClawDesktopService, type OpenClawStatusSnapshot } from '../../../..
       border-color: var(--spectyra-blue, #5b8def);
       background: rgba(91,141,239,0.06);
     }
-    .ov-action-icon { font-size: 22px; }
+    .ov-action-icon {
+      font-size: 26px;
+      width: 26px;
+      height: 26px;
+      color: var(--spectyra-blue, #378add);
+    }
     .ov-action-label { font-size: 12px; font-weight: 500; color: var(--text-primary, #fff); text-align: center; }
 
     .ov-next-card {

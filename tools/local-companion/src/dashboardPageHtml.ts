@@ -158,13 +158,142 @@ export function dashboardPageHtml(): string {
       font-weight: 400;
       color: var(--text-secondary);
     }
+    .hero-pct-block {
+      display: flex;
+      align-items: baseline;
+      flex-wrap: wrap;
+      gap: 10px 14px;
+      margin-top: 12px;
+      padding-top: 14px;
+      border-top: 1px solid var(--border);
+    }
+    .hero-pct-big {
+      font-family: var(--font-mono);
+      font-size: 1.75rem;
+      font-weight: 500;
+      color: var(--teal-light);
+      letter-spacing: -0.02em;
+    }
+    .hero-pct-sub {
+      font-size: 12px;
+      color: var(--text-muted);
+      max-width: 220px;
+      line-height: 1.4;
+    }
+
+    .filter-toolbar {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 10px 16px;
+      margin-bottom: 20px;
+      padding: 12px 16px;
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-lg);
+    }
+    .filter-toolbar label {
+      font-size: 11px;
+      font-weight: 500;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      color: var(--text-muted);
+    }
+    .filter-toolbar select {
+      flex: 1;
+      min-width: 200px;
+      max-width: 420px;
+      font-family: var(--font-body);
+      font-size: 13px;
+      color: var(--text-primary);
+      background: var(--bg-elevated);
+      border: 0.5px solid var(--border);
+      border-radius: var(--radius-sm);
+      padding: 8px 12px;
+      cursor: pointer;
+    }
+    .filter-toolbar select:focus {
+      outline: none;
+      border-color: var(--blue);
+    }
+
+    /* Help tooltips (details/summary) */
+    .help-tip { position: relative; flex-shrink: 0; }
+    .help-tip summary {
+      list-style: none;
+      cursor: pointer;
+      width: 20px;
+      height: 20px;
+      border-radius: 50%;
+      border: 0.5px solid var(--border);
+      background: var(--bg-elevated);
+      color: var(--text-muted);
+      font-size: 11px;
+      font-weight: 600;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      line-height: 1;
+    }
+    .help-tip summary::-webkit-details-marker { display: none; }
+    .help-tip[open] summary {
+      color: var(--blue-light);
+      border-color: var(--blue);
+    }
+    .help-tip .help-body {
+      position: absolute;
+      z-index: 10;
+      right: 0;
+      top: calc(100% + 6px);
+      width: min(340px, 88vw);
+      padding: 12px 14px;
+      font-size: 12px;
+      font-weight: 400;
+      line-height: 1.5;
+      color: var(--text-secondary);
+      background: var(--bg-elevated);
+      border: 1px solid var(--border-bright);
+      border-radius: var(--radius-md);
+      box-shadow: 0 10px 32px rgba(0,0,0,0.4);
+    }
+    .help-tip .help-body p { margin: 0 0 8px; }
+    .help-tip .help-body p:last-child { margin-bottom: 0; }
+
+    .metric-label-row {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 8px;
+      margin-bottom: 8px;
+    }
+    .metric-label-row .metric-label { margin-bottom: 0; }
+
+    .section-head-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      flex-wrap: wrap;
+      margin-bottom: 10px;
+    }
+    .section-head-row .section-title-text {
+      font-family: var(--font-display);
+      font-size: 11px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      color: var(--text-muted);
+    }
 
     /* ── Metric cards ───────────────────────────────────── */
     .metrics {
       display: grid;
       grid-template-columns: repeat(3, 1fr);
       gap: 12px;
-      margin-bottom: 28px;
+      margin-bottom: 12px;
+    }
+    .metrics-secondary {
+      margin-bottom: 20px;
     }
     .metric {
       background: var(--bg-card);
@@ -193,6 +322,35 @@ export function dashboardPageHtml(): string {
       color: var(--text-muted);
       margin-top: 4px;
     }
+    .insight-blurb {
+      font-size: 12px;
+      line-height: 1.5;
+      color: var(--text-secondary);
+      margin-bottom: 20px;
+      padding: 0 2px;
+    }
+    .explain-box {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-lg);
+      padding: 16px 18px;
+      margin-bottom: 20px;
+      font-size: 13px;
+      line-height: 1.55;
+      color: var(--text-secondary);
+    }
+    .explain-box h2 {
+      font-family: var(--font-display);
+      font-size: 12px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      color: var(--text-muted);
+      margin-bottom: 10px;
+    }
+    .explain-box ul { margin: 0; padding-left: 1.1em; }
+    .explain-box li { margin-bottom: 6px; }
+    .explain-box strong { color: var(--blue-light); font-weight: 600; }
 
     /* ── Before / After bar ─────────────────────────────── */
     .before-after {
@@ -206,8 +364,10 @@ export function dashboardPageHtml(): string {
       display: flex;
       align-items: center;
       justify-content: space-between;
+      gap: 12px;
       margin-bottom: 14px;
     }
+    .ba-header .ba-pct { flex-shrink: 0; }
     .ba-title {
       font-size: 10px;
       font-weight: 500;
@@ -353,6 +513,44 @@ export function dashboardPageHtml(): string {
       border: 0.5px solid rgba(186,117,23,0.25);
     }
 
+    .callout {
+      font-size: 13px;
+      line-height: 1.55;
+      color: var(--text-secondary);
+      margin-bottom: 20px;
+      padding: 14px 16px;
+      border-radius: var(--radius-md);
+      background: rgba(55,138,221,0.06);
+      border: 0.5px solid var(--border);
+    }
+    .callout strong { color: var(--blue-light); font-weight: 600; }
+    .callout code {
+      font-family: var(--font-mono);
+      font-size: 11px;
+      color: var(--text-secondary);
+      padding: 1px 5px;
+      background: var(--bg-card);
+      border-radius: var(--radius-sm);
+      border: 0.5px solid var(--border);
+    }
+
+    tr.live-session td {
+      background: rgba(29,158,117,0.06);
+      border-bottom: 1px solid var(--teal-border);
+    }
+    .badge-live {
+      display: inline-block;
+      font-size: 9px;
+      font-weight: 600;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      padding: 2px 6px;
+      border-radius: var(--radius-sm);
+      background: var(--teal-pale-bg);
+      color: var(--teal-light);
+      margin-right: 6px;
+    }
+
     @media (max-width: 600px) {
       .metrics { grid-template-columns: 1fr; }
       .hero-value { font-size: 1.8rem; }
@@ -374,34 +572,169 @@ export function dashboardPageHtml(): string {
     </div>
 
     <div id="err" class="err" hidden></div>
+    <div id="accountGate" class="callout" hidden style="border-color: rgba(186,117,23,0.35)"></div>
+    <div id="calloutZero" class="callout" hidden></div>
+
+    <div class="filter-toolbar">
+      <label for="sessionScope">Show stats for</label>
+      <select id="sessionScope" aria-label="Filter dashboard by session">
+        <option value="all">All sessions (all LLM calls)</option>
+        <option value="live:default">Current live session (in progress)</option>
+      </select>
+      <details class="help-tip">
+        <summary aria-label="Help: scope">?</summary>
+        <div class="help-body">
+          <p><strong>All sessions</strong> adds up every Spectyra-wrapped LLM call stored on this machine (with session tags when available). Use this for overall savings.</p>
+          <p><strong>Current live session</strong> is the in-progress workflow for the default OpenClaw session key — updates as you chat.</p>
+          <p><strong>Past sessions</strong> (when listed) use completed session totals from disk. New traffic is tagged with a session id so calls after a restart still roll up correctly.</p>
+        </div>
+      </details>
+    </div>
+
+    <div class="explain-box">
+      <div class="section-head-row" style="margin-bottom:12px">
+        <h2 style="margin:0">What this page shows</h2>
+        <details class="help-tip">
+          <summary aria-label="Help: overview">?</summary>
+          <div class="help-body">
+            <p>This dashboard is <strong>local only</strong>. Dollar amounts are <strong>estimates</strong> from input-token counts and typical model pricing — your real invoice can differ.</p>
+            <p>Use the <strong>scope</strong> menu above to switch between everything you have recorded, one live session, or a single completed session.</p>
+          </div>
+        </details>
+      </div>
+      <ul>
+        <li><strong>Money (top)</strong> — Rough dollars saved on <strong>input</strong> to the AI (smaller prompts = less you pay).</li>
+        <li><strong>Total input % reduced</strong> — Aggregate percentage: (sum of raw input − sum of optimized input) ÷ sum of raw input. This can differ from averages shown per call.</li>
+        <li><strong>Input tokens before → after</strong> — How much text Spectyra sent to the model after shrinking long tool output, trimming repeats, and similar fixes.</li>
+        <li><strong>Scores below</strong> — Extra signals: steadiness, repeated content, and hints (not all are dollars).</li>
+        <li><strong>Reply tokens</strong> — Model output size when the API reports usage.</li>
+      </ul>
+    </div>
 
     <div class="hero" id="hero">
-      <div class="hero-label">Total estimated savings</div>
+      <div class="hero-label-row" style="display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:4px">
+        <span class="hero-label">Estimated savings (input cost)</span>
+        <details class="help-tip">
+          <summary aria-label="Help: estimated savings">?</summary>
+          <div class="help-body">
+            <p>Sum of per-call <strong>estimated dollar savings on input</strong> for the selected scope. Based on token deltas and model-specific price hints — not an exact bill.</p>
+            <p>When a license or run mode prevents sending the optimized prompt to the provider, the UI may still show “could have saved” — see companion health / run mode.</p>
+          </div>
+        </details>
+      </div>
       <div class="hero-row">
         <span class="hero-value" id="heroValue">—</span>
         <span class="hero-detail" id="heroDetail"></span>
+      </div>
+      <div class="hero-pct-block">
+        <span class="hero-pct-big" id="heroAggPct">—</span>
+        <span class="hero-pct-sub" id="heroAggPctLabel">of input tokens reduced (aggregate)</span>
+        <details class="help-tip">
+          <summary aria-label="Help: aggregate percent">?</summary>
+          <div class="help-body">
+            <p><strong>Aggregate %</strong> = (total input tokens before optimization − total after) ÷ total before × 100 for the selected scope.</p>
+            <p>This is the “headline” overall reduction. The <strong>Input shrink (avg)</strong> card is the <em>average</em> of each call’s own savings % — weighted differently, so the two numbers won’t always match.</p>
+          </div>
+        </details>
       </div>
     </div>
 
     <div class="metrics" id="metrics">
       <div class="metric">
-        <div class="metric-label">Optimized calls</div>
+        <div class="metric-label-row">
+          <span class="metric-label">LLM calls</span>
+          <details class="help-tip"><summary>?</summary><div class="help-body"><p>Number of completed Spectyra-wrapped provider calls in the selected scope (each chat completion / message request counts as one).</p></div></details>
+        </div>
         <div class="metric-value" id="mRuns">—</div>
       </div>
       <div class="metric">
-        <div class="metric-label">Avg reduction</div>
+        <div class="metric-label-row">
+          <span class="metric-label">Input shrink (avg per call)</span>
+          <details class="help-tip"><summary>?</summary><div class="help-body"><p>Average of each run’s own <strong>estimated savings %</strong>. Useful to see typical per-request reduction; differs from the headline aggregate % when calls have different sizes.</p></div></details>
+        </div>
         <div class="metric-value teal" id="mPct">—</div>
+        <div class="metric-sub">mean of per-call %</div>
       </div>
       <div class="metric">
-        <div class="metric-label">Tokens saved</div>
+        <div class="metric-label-row">
+          <span class="metric-label">Input tokens saved</span>
+          <details class="help-tip"><summary>?</summary><div class="help-body"><p>Sum of (input tokens before − input tokens after) across calls. Same “tokens” your provider would have billed on the input side before optimization.</p></div></details>
+        </div>
         <div class="metric-value teal" id="mTokens">—</div>
         <div class="metric-sub" id="mTokensSub"></div>
       </div>
     </div>
 
+    <div class="metrics metrics-secondary" id="metricsInsight">
+      <div class="metric">
+        <div class="metric-label-row">
+          <span class="metric-label">Conversation steadiness</span>
+          <details class="help-tip"><summary>?</summary><div class="help-body"><p>Heuristic 0–100 from flow analysis: higher suggests a calmer, less chaotic context (fewer thrashy edits). Not a dollar metric.</p></div></details>
+        </div>
+        <div class="metric-value teal" id="mFlow">—</div>
+        <div class="metric-sub">0–100, higher = calmer thread</div>
+      </div>
+      <div class="metric">
+        <div class="metric-label-row">
+          <span class="metric-label">Repeated content pressure</span>
+          <details class="help-tip"><summary>?</summary><div class="help-body"><p>0–100 score for repeated or duplicate-ish patterns in the thread. High values mean more opportunity for Spectyra to dedupe or compress — not necessarily what was already saved on the last call.</p></div></details>
+        </div>
+        <div class="metric-value" id="mDup">—</div>
+        <div class="metric-sub">0–100, higher = more repeat noise</div>
+      </div>
+      <div class="metric">
+        <div class="metric-label-row">
+          <span class="metric-label">Messages (total)</span>
+          <details class="help-tip"><summary>?</summary><div class="help-body"><p>Sum of message-row counts across calls (depth proxy). For a single session view without per-run data, we may show session steps instead.</p></div></details>
+        </div>
+        <div class="metric-value" id="mTurns">—</div>
+        <div class="metric-sub" id="mTurnsSub">all calls added up</div>
+      </div>
+      <div class="metric">
+        <div class="metric-label-row">
+          <span class="metric-label">Reply tokens (total)</span>
+          <details class="help-tip"><summary>?</summary><div class="help-body"><p>Output tokens the model generated, when the provider returns usage (including streaming usage when available). This is not where Spectyra focuses savings, but it helps compare workload size.</p></div></details>
+        </div>
+        <div class="metric-value" id="mOutTok">—</div>
+        <div class="metric-sub" id="mOutTokSub">model output</div>
+      </div>
+      <div class="metric">
+        <div class="metric-label-row">
+          <span class="metric-label">Possible retry loops</span>
+          <details class="help-tip"><summary>?</summary><div class="help-body"><p>Count of runs where we detected an error- or retry-loop style pattern in notes. Use as a quality signal, not a savings line item.</p></div></details>
+        </div>
+        <div class="metric-value" id="mStuck">—</div>
+        <div class="metric-sub">times we flagged a loop</div>
+      </div>
+      <div class="metric">
+        <div class="metric-label-row">
+          <span class="metric-label">Repeat chat (estimate)</span>
+          <details class="help-tip"><summary>?</summary><div class="help-body"><p>Feature-based estimate of tokens tied to repeated chat context that could be avoided — summed across runs. Rough, not provider usage.</p></div></details>
+        </div>
+        <div class="metric-value teal" id="mRepCtx">—</div>
+        <div class="metric-sub">tokens, rough</div>
+      </div>
+      <div class="metric">
+        <div class="metric-label-row">
+          <span class="metric-label">Repeat tools (estimate)</span>
+          <details class="help-tip"><summary>?</summary><div class="help-body"><p>Feature-based estimate of tokens tied to repeated or bulky tool output. Helps explain why long agent threads are expensive.</p></div></details>
+        </div>
+        <div class="metric-value teal" id="mRepTool">—</div>
+        <div class="metric-sub">tokens, rough</div>
+      </div>
+    </div>
+
     <div class="before-after" id="baCard">
       <div class="ba-header">
-        <span class="ba-title">Context reduction (all calls)</span>
+        <div style="display:flex;align-items:center;gap:8px;flex:1;min-width:0">
+          <span class="ba-title" id="baTitle">Input size (selected scope)</span>
+          <details class="help-tip">
+            <summary aria-label="Help: before after bar">?</summary>
+            <div class="help-body">
+              <p>Bar length shows <strong>optimized input size vs raw</strong> for the selected scope. The percentage matches the headline aggregate input reduction (total before vs total after).</p>
+            </div>
+          </details>
+        </div>
         <span class="ba-pct" id="baPct">—</span>
       </div>
       <div class="ba-track">
@@ -414,8 +747,16 @@ export function dashboardPageHtml(): string {
       </div>
     </div>
 
-    <div class="section-title">
-      <span>Recent sessions</span>
+    <div class="section-head-row">
+      <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
+        <span class="section-title-text">Recent sessions (live + completed)</span>
+        <details class="help-tip">
+          <summary aria-label="Help: recent sessions">?</summary>
+          <div class="help-body">
+            <p>Each row is a <strong>workflow session</strong>: the <strong>Live</strong> row updates during OpenClaw; completed rows are appended when a session finishes. Dollar and % are that session’s own totals — the table is not filtered by the scope menu (scope only changes the summary cards above).</p>
+          </div>
+        </details>
+      </div>
       <button type="button" class="btn-refresh" id="btnRefresh">Refresh</button>
     </div>
     <div class="sessions-card">
@@ -440,6 +781,7 @@ export function dashboardPageHtml(): string {
 
   <script>
     const $ = id => document.getElementById(id);
+    const SCOPE_STORAGE_KEY = 'spectyraDashboardScope';
 
     function fmtUsd(n) {
       if (typeof n !== 'number' || isNaN(n)) return '\\$0.00';
@@ -471,10 +813,160 @@ export function dashboardPageHtml(): string {
       } catch { return iso; }
     }
 
+    function sessionAggInputPct(sess) {
+      const b = sess.totalInputTokensBefore || 0;
+      const a = sess.totalInputTokensAfter || 0;
+      if (b <= 0) return 0;
+      return ((b - a) / b) * 100;
+    }
+
+    function rebuildScopeSelect(completedSessions, previousValue) {
+      const sel = $('sessionScope');
+      const opts = [];
+      opts.push({ value: 'all', label: 'All sessions (all LLM calls)' });
+      opts.push({ value: 'live:default', label: 'Current live session (in progress)' });
+      if (Array.isArray(completedSessions)) {
+        for (const sess of completedSessions) {
+          if (!sess || !sess.sessionId) continue;
+          const sid = String(sess.sessionId);
+          const shortId = sid.length > 10 ? sid.slice(0, 8) + '…' : sid;
+          opts.push({
+            value: 'sess:' + encodeURIComponent(sid),
+            label: 'Past session · ' + relTime(sess.startedAt || '') + ' · ' + shortId,
+          });
+        }
+      }
+      sel.innerHTML = opts.map((o) =>
+        '<option value="' + o.value.replace(/"/g, '&quot;') + '">' + o.label.replace(/</g, '&lt;') + '</option>'
+      ).join('');
+      const want = previousValue && opts.some((o) => o.value === previousValue) ? previousValue : 'all';
+      sel.value = want;
+    }
+
+    function applySummaryFromRuns(s, scopeLabel) {
+      const runs = s.totalRuns || 0;
+      const tokensSaved = s.totalTokensSaved || 0;
+      const costSaved = s.totalCostSaved || 0;
+      const avgPct = s.avgSavingsPct || 0;
+      const aggPct = typeof s.aggregateInputReductionPct === 'number' ? s.aggregateInputReductionPct : 0;
+      const totalBefore = s.totalTokensBefore || 0;
+      const totalAfter = s.totalTokensAfter != null ? s.totalTokensAfter : Math.max(0, totalBefore - tokensSaved);
+
+      $('heroValue').textContent = fmtUsd(costSaved);
+      $('heroDetail').textContent = runs > 0 ? (scopeLabel + ' · input-side estimate') : '';
+      $('heroAggPct').textContent = totalBefore > 0 ? fmtPct(aggPct) : '—';
+      $('heroAggPctLabel').textContent = 'of input tokens reduced (aggregate · total before vs after)';
+
+      $('mRuns').textContent = runs > 0 ? fmtInt(runs) : '—';
+      $('mPct').textContent = runs > 0 ? fmtPct(avgPct) : '—';
+      $('mTokens').textContent = runs > 0 ? fmtInt(tokensSaved) : '—';
+      $('mTokensSub').textContent = tokensSaved > 0 ? 'fewer input tokens sent' : '';
+
+      const avgFlow = s.avgFlowStabilityPct || 0;
+      const avgDup = s.avgDuplicatePatternPct || 0;
+      const sumTurns = s.totalMessageTurns || 0;
+      const sumOut = s.totalOutputTokens || 0;
+      const stuck = s.stuckLoopHints || 0;
+      $('mFlow').textContent = runs > 0 && avgFlow > 0 ? avgFlow.toFixed(0) + '%' : '—';
+      $('mDup').textContent = runs > 0 && avgDup > 0 ? avgDup.toFixed(0) + '%' : '—';
+      $('mTurns').textContent = runs > 0 ? fmtInt(sumTurns) : '—';
+      $('mTurnsSub').textContent = 'all calls added up';
+      $('mOutTok').textContent = runs > 0 && sumOut > 0 ? fmtInt(sumOut) : '—';
+      const outSub = $('mOutTokSub');
+      if (outSub) {
+        outSub.textContent = sumOut > 0 ? 'from API usage (streaming + non-streaming)' : 'shows when the API reports usage';
+      }
+      $('mStuck').textContent = runs > 0 ? String(stuck) : '—';
+      const repCtx = s.totalRepeatedContextTokensHint || 0;
+      const repTool = s.totalRepeatedToolTokensHint || 0;
+      $('mRepCtx').textContent = runs > 0 && repCtx > 0 ? fmtInt(repCtx) : (runs > 0 ? '0' : '—');
+      $('mRepTool').textContent = runs > 0 && repTool > 0 ? fmtInt(repTool) : (runs > 0 ? '0' : '—');
+
+      const afterBarPct = totalBefore > 0 ? (totalAfter / totalBefore * 100) : 100;
+      $('baTitle').textContent = 'Input size (' + scopeLabel + ')';
+      $('baPct').textContent = totalBefore > 0 && aggPct > 0 ? fmtPct(aggPct) + ' reduction' : (totalBefore > 0 ? fmtPct(aggPct) : '—');
+      $('baBarBefore').style.width = '100%';
+      $('baBarAfter').style.width = afterBarPct.toFixed(1) + '%';
+      $('baLabelBefore').textContent = 'Before optimization: ' + fmtInt(totalBefore) + ' input tokens';
+      $('baLabelAfter').textContent = 'After: ' + fmtInt(totalAfter) + ' input tokens';
+
+      return {
+        runs,
+        tokensSaved,
+        avgPct,
+        totalBeforeSum: totalBefore,
+        totalAfterSum: totalAfter,
+      };
+    }
+
+    function applySessionAnalyticsRecord(sess, scopeLabel) {
+      if (!sess || !sess.sessionId) {
+        $('heroValue').textContent = fmtUsd(0);
+        $('heroDetail').textContent = '';
+        $('heroAggPct').textContent = '—';
+        $('heroAggPctLabel').textContent = 'of input tokens reduced (aggregate)';
+        $('mRuns').textContent = '—';
+        $('mPct').textContent = '—';
+        $('mTokens').textContent = '—';
+        $('mTokensSub').textContent = '';
+        $('mFlow').textContent = '—';
+        $('mDup').textContent = '—';
+        $('mTurns').textContent = '—';
+        $('mTurnsSub').textContent = 'session steps';
+        $('mOutTok').textContent = '—';
+        $('mStuck').textContent = '—';
+        $('mRepCtx').textContent = '—';
+        $('mRepTool').textContent = '—';
+        $('baPct').textContent = '—';
+        $('baBarAfter').style.width = '100%';
+        $('baLabelBefore').textContent = 'Before: —';
+        $('baLabelAfter').textContent = 'After: —';
+        $('baTitle').textContent = 'Input size (' + scopeLabel + ')';
+        return;
+      }
+      const b = sess.totalInputTokensBefore || 0;
+      const a = sess.totalInputTokensAfter || 0;
+      const savedTok = Math.max(0, b - a);
+      const agg = sessionAggInputPct(sess);
+      const usd = sess.estimatedWorkflowSavings || 0;
+      const nCalls = sess.totalModelCalls || sess.totalSteps || 0;
+      const wfPct = typeof sess.estimatedWorkflowSavingsPct === 'number' ? sess.estimatedWorkflowSavingsPct : 0;
+      const avgShow = wfPct > 0 ? wfPct : agg;
+
+      $('heroValue').textContent = fmtUsd(usd);
+      $('heroDetail').textContent = nCalls > 0 ? (scopeLabel + ' · input-side estimate') : '';
+      $('heroAggPct').textContent = b > 0 ? fmtPct(agg) : '—';
+      $('heroAggPctLabel').textContent = 'of input tokens reduced (this session, aggregate)';
+
+      $('mRuns').textContent = nCalls > 0 ? fmtInt(nCalls) : '—';
+      $('mPct').textContent = nCalls > 0 ? fmtPct(avgShow) : '—';
+      $('mTokens').textContent = nCalls > 0 ? fmtInt(savedTok) : '—';
+      $('mTokensSub').textContent = savedTok > 0 ? 'fewer input tokens sent' : '';
+
+      $('mFlow').textContent = '—';
+      $('mDup').textContent = '—';
+      $('mTurns').textContent = (sess.totalSteps | 0) > 0 ? fmtInt(sess.totalSteps) : '—';
+      $('mTurnsSub').textContent = 'steps in this session';
+      const out = sess.totalOutputTokens || 0;
+      $('mOutTok').textContent = out > 0 ? fmtInt(out) : '—';
+      $('mStuck').textContent = '—';
+      const rc = sess.repeatedContextTokensAvoided || 0;
+      const rt = sess.repeatedToolOutputTokensAvoided || 0;
+      $('mRepCtx').textContent = nCalls > 0 ? (rc > 0 ? fmtInt(rc) : '0') : '—';
+      $('mRepTool').textContent = nCalls > 0 ? (rt > 0 ? fmtInt(rt) : '0') : '—';
+
+      const afterBarPct = b > 0 ? (a / b * 100) : 100;
+      $('baTitle').textContent = 'Input size (' + scopeLabel + ')';
+      $('baPct').textContent = b > 0 ? fmtPct(agg) + ' reduction' : '—';
+      $('baBarBefore').style.width = '100%';
+      $('baBarAfter').style.width = afterBarPct.toFixed(1) + '%';
+      $('baLabelBefore').textContent = 'Before optimization: ' + fmtInt(b) + ' input tokens';
+      $('baLabelAfter').textContent = 'After: ' + fmtInt(a) + ' input tokens';
+    }
+
     async function load() {
       $('err').hidden = true;
 
-      // Health
       let health = null;
       try {
         const hr = await fetch('/health');
@@ -496,86 +988,167 @@ export function dashboardPageHtml(): string {
         $('statusText').textContent = 'Error';
       }
 
-      // Summary
-      let s = { totalRuns: 0, totalTokensSaved: 0, totalCostSaved: 0, avgSavingsPct: 0 };
-      try {
-        const sr = await fetch('/v1/savings/summary');
-        if (sr.ok) s = await sr.json();
-      } catch {}
+      const ag = $('accountGate');
+      if (ag) {
+        if (health?.status === 'ok' && health.spectyraAccountLinked === false) {
+          ag.hidden = false;
+          const em = health.accountEmail ? ' Account email (from session): ' + health.accountEmail + '. ' : '';
+          ag.textContent =
+            em +
+            'Spectyra org is not fully linked on this machine. Run spectyra-companion setup and sign in so ~/.spectyra/desktop/config.json contains your Supabase session and Spectyra API key. Until then, input savings stay in preview only.';
+        } else {
+          ag.hidden = true;
+          ag.textContent = '';
+        }
+      }
 
-      const runs = s.totalRuns || 0;
-      const tokensSaved = s.totalTokensSaved || 0;
-      const costSaved = s.totalCostSaved || 0;
-      const avgPct = s.avgSavingsPct || 0;
-
-      // Hero
-      $('heroValue').textContent = fmtUsd(costSaved);
-      $('heroDetail').textContent = runs > 0
-        ? 'across ' + fmtInt(runs) + ' optimized call' + (runs !== 1 ? 's' : '')
-        : '';
-
-      // Metric cards
-      $('mRuns').textContent = fmtInt(runs);
-      $('mPct').textContent = fmtPct(avgPct);
-      $('mTokens').textContent = fmtInt(tokensSaved);
-      $('mTokensSub').textContent = tokensSaved > 0
-        ? 'fewer input tokens sent'
-        : '';
-
-      // Before/After bar — use exact totals if available, else estimate from avg %
-      const totalBefore = s.totalTokensBefore || (tokensSaved > 0 && avgPct > 0
-        ? tokensSaved / (avgPct / 100)
-        : 0);
-      const totalAfter = s.totalTokensAfter != null ? s.totalTokensAfter : Math.max(0, totalBefore - tokensSaved);
-      const afterPct = totalBefore > 0 ? (totalAfter / totalBefore * 100) : 100;
-
-      $('baPct').textContent = avgPct > 0 ? fmtPct(avgPct) + ' smaller' : '—';
-      $('baBarBefore').style.width = '100%';
-      $('baBarAfter').style.width = afterPct.toFixed(1) + '%';
-      $('baLabelBefore').textContent = 'Before: ' + fmtInt(totalBefore) + ' tokens';
-      $('baLabelAfter').textContent = 'After: ' + fmtInt(totalAfter) + ' tokens';
-
-      // Sessions
       let sessions = [];
       try {
-        const ar = await fetch('/v1/analytics/sessions?limit=25');
+        const ar = await fetch('/v1/analytics/sessions?limit=50');
         if (ar.ok) sessions = await ar.json();
       } catch {}
+
+      let liveSession = null;
+      try {
+        const lr = await fetch('/v1/analytics/current-session?sessionKey=default');
+        if (lr.ok) liveSession = await lr.json();
+      } catch {}
+
+      let totalRunsGlobal = 0;
+      try {
+        const gs = await fetch('/v1/savings/summary');
+        if (gs.ok) totalRunsGlobal = (await gs.json()).totalRuns || 0;
+      } catch {}
+
+      const prevScope = $('sessionScope').value || sessionStorage.getItem(SCOPE_STORAGE_KEY) || 'all';
+      rebuildScopeSelect(sessions, prevScope);
+      const scope = $('sessionScope').value;
+      sessionStorage.setItem(SCOPE_STORAGE_KEY, scope);
+
+      let meta = { runs: 0, tokensSaved: 0, avgPct: 0, totalBeforeSum: 0, totalAfterSum: 0 };
+
+      if (scope === 'all') {
+        let s = {};
+        try {
+          const sr = await fetch('/v1/savings/summary');
+          if (sr.ok) s = await sr.json();
+        } catch {}
+        meta = applySummaryFromRuns(s, 'all calls');
+      } else if (scope.indexOf('live:') === 0) {
+        const key = decodeURIComponent(scope.slice(5)) || 'default';
+        let cur = liveSession;
+        if (!cur || !cur.sessionId) {
+          try {
+            const lr = await fetch('/v1/analytics/current-session?sessionKey=' + encodeURIComponent(key));
+            if (lr.ok) cur = await lr.json();
+          } catch {}
+        }
+        applySessionAnalyticsRecord(cur && cur.sessionId ? cur : null, 'live session');
+      } else if (scope.indexOf('sess:') === 0) {
+        const sid = decodeURIComponent(scope.slice(5));
+        let rec = null;
+        try {
+          const r = await fetch('/v1/analytics/session/' + encodeURIComponent(sid));
+          if (r.ok) rec = await r.json();
+        } catch {}
+        if (rec && rec.sessionId) {
+          applySessionAnalyticsRecord(rec, 'selected session');
+        } else {
+          let s = {};
+          try {
+            const sr = await fetch('/v1/savings/summary?sessionId=' + encodeURIComponent(sid));
+            if (sr.ok) s = await sr.json();
+          } catch {}
+          if ((s.totalRuns || 0) > 0) {
+            meta = applySummaryFromRuns(s, 'calls tagged to session');
+          } else {
+            applySessionAnalyticsRecord(null, 'session');
+          }
+        }
+      }
+
+      if (scope === 'all') {
+        const callout = $('calloutZero');
+        const showToolThreadExplain =
+          meta.runs > 0 &&
+          meta.tokensSaved === 0 &&
+          (meta.avgPct || 0) === 0 &&
+          meta.totalBeforeSum > 0 &&
+          meta.totalBeforeSum === meta.totalAfterSum;
+        if (callout) {
+          if (showToolThreadExplain) {
+            callout.hidden = false;
+            callout.innerHTML =
+              '<strong>Why is savings still \\$0?</strong><br />' +
+              'Common reasons: <strong>Observe</strong> mode (preview only — change to Active in config), ' +
+              'no <strong>license</strong> yet (we show what you could save, but the provider may still get the full prompt), ' +
+              'or this stretch of calls had no smaller prompt to send. ' +
+              'Use the <strong>Live</strong> row for your current OpenClaw session; completed rows appear when a session is finished.';
+          } else {
+            callout.hidden = true;
+            callout.textContent = '';
+          }
+        }
+      } else {
+        const callout = $('calloutZero');
+        if (callout) { callout.hidden = true; callout.textContent = ''; }
+      }
 
       const tbody = $('sessionsBody');
       const empty = $('sessionsEmpty');
       tbody.innerHTML = '';
 
+      function appendSessionRow(sess, opts) {
+        const isLive = opts && opts.live;
+        const before = sess.totalInputTokensBefore || 0;
+        const after = sess.totalInputTokensAfter || 0;
+        const saved = Math.max(0, before - after);
+        const usd = sess.estimatedWorkflowSavings || 0;
+        const pct = before > 0 ? (saved / before * 100) : 0;
+        const tr = document.createElement('tr');
+        if (isLive) tr.className = 'live-session';
+        const pctClass = pct > 0 ? 'positive' : (pct < 0 ? 'negative' : '');
+        const pctHtml = pct > 0
+          ? '<span class="pct ' + pctClass + '">' + pct.toFixed(0) + '%</span>'
+          : '';
+        const whenCell = isLive
+          ? '<span class="badge-live">Live</span>' + relTime(sess.startedAt || '')
+          : relTime(sess.startedAt || '');
+        tr.innerHTML =
+          '<td>' + whenCell + '</td>' +
+          '<td>' + fmtInt(sess.totalSteps || 0) + '</td>' +
+          '<td>' + fmtTokenPair(before, after) + '</td>' +
+          '<td><span class="saved">' + fmtUsd(usd) + '</span>' + pctHtml + '</td>';
+        tbody.appendChild(tr);
+      }
+
+      const hasLive =
+        liveSession &&
+        typeof liveSession === 'object' &&
+        liveSession.sessionId &&
+        (liveSession.totalSteps | 0) > 0;
+
+      if (hasLive) {
+        empty.style.display = 'none';
+        appendSessionRow(liveSession, { live: true });
+      }
+
       if (!Array.isArray(sessions) || sessions.length === 0) {
-        empty.style.display = 'block';
-        empty.textContent = runs > 0
-          ? 'Individual runs are counted above — multi-step session details appear once a workflow completes.'
-          : 'No data yet — route OpenClaw traffic through a Spectyra model to see results.';
+        if (!hasLive) {
+          empty.style.display = 'block';
+          empty.textContent = totalRunsGlobal > 0
+            ? 'No completed sessions on disk yet — the live row above shows the in-progress workflow when telemetry is on.'
+            : 'No data yet — route OpenClaw traffic through a Spectyra model to see results.';
+        }
       } else {
         empty.style.display = 'none';
         for (const sess of sessions.slice().reverse()) {
-          const before = sess.totalInputTokensBefore || 0;
-          const after = sess.totalInputTokensAfter || 0;
-          const saved = Math.max(0, before - after);
-          const usd = sess.estimatedWorkflowSavings || 0;
-          const pct = before > 0 ? (saved / before * 100) : 0;
-
-          const tr = document.createElement('tr');
-          const pctClass = pct > 0 ? 'positive' : (pct < 0 ? 'negative' : '');
-          const pctHtml = pct > 0
-            ? '<span class="pct ' + pctClass + '">' + pct.toFixed(0) + '%</span>'
-            : '';
-
-          tr.innerHTML =
-            '<td>' + relTime(sess.startedAt || '') + '</td>' +
-            '<td>' + fmtInt(sess.totalSteps || 0) + '</td>' +
-            '<td>' + fmtTokenPair(before, after) + '</td>' +
-            '<td><span class="saved">' + fmtUsd(usd) + '</span>' + pctHtml + '</td>';
-          tbody.appendChild(tr);
+          appendSessionRow(sess, null);
         }
       }
     }
 
+    $('sessionScope').addEventListener('change', load);
     $('btnRefresh').addEventListener('click', load);
     load();
     setInterval(load, 4000);

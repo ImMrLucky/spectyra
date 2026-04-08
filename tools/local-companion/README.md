@@ -133,13 +133,38 @@ If unset, defaults match the chosen provider (see `@spectyra/shared` `defaultAli
 
 ---
 
+## Account, API key, and savings
+
+Real **input optimization** (what you configure as `on`) only applies when **both** are present in `~/.spectyra/desktop/config.json`:
+
+1. A valid **Supabase session** (from `spectyra-companion setup` sign-in / sign-up)  
+2. Your **Spectyra org API key** (returned the first time `POST /v1/auth/ensure-account` creates an org)
+
+If either is missing, the companion keeps **observe-style** behavior for optimization (preview savings), even if `SPECTYRA_RUN_MODE=on`. **`GET /health`** exposes `spectyraAccountLinked`, `optimizationRunMode`, `accountEmail`, and `savingsEnabled`.
+
+Set **`SPECTYRA_BYPASS_ACCOUNT_CHECK=true`** only for local development (skips the gate).
+
+**Setup** writes `accountEmail` and calls the API so your **org** (with a **60-day trial** by default on the server) and keys are created. **Billing** after the trial is via **Stripe** on that org (`spectyra-companion upgrade` opens checkout). The monthly price is whatever **Price** you attach in the Stripe Dashboard to **`STRIPE_PRICE_ID`** on the API (e.g. **$9.99/mo** — create that price in Stripe, then set the env var to that price’s ID).
+
+## Reset local data (test from scratch)
+
+Back up or delete:
+
+| Path | What it is |
+|------|------------|
+| `~/.spectyra/desktop/config.json` | Spectyra session, API key, `accountEmail`, run mode, etc. |
+| `~/.spectyra/desktop/provider-keys.json` | OpenAI / Anthropic / Groq keys for the companion |
+| `~/.spectyra/companion/` | `runs.jsonl`, `sessions.jsonl`, events, learning profile |
+
+Then run `spectyra-companion setup` again. To get a **new** org trial in production you need a **new** Supabase user (or use the same account if you only cleared local files — the existing org and trial dates stay on the server).
+
 ## Modes
 
 Spectyra uses a universal **off / observe / on** model:
 
 - **off** — pass-through  
 - **observe** — measure savings without changing what the model receives (good for trials)  
-- **on** — apply optimizations (requires a valid license where enforced)  
+- **on** — apply optimizations when the **account gate** above is satisfied (and license/trial rules apply)  
 
 Configure via companion API or match the [Desktop app](../../apps/desktop) behavior — see project docs.
 
@@ -149,8 +174,9 @@ Configure via companion API or match the [Desktop app](../../apps/desktop) behav
 |----------|--------|
 | `SPECTYRA_RUN_MODE` | `off` \| `observe` \| `on` — default **`on`** when unset |
 | `SPECTYRA_WORKFLOW_POLICY` | `observe` = evaluate only; unset or any other value = **`enforce`** (may return **422** before the provider when rules trip) |
+| `SPECTYRA_BYPASS_ACCOUNT_CHECK` | If `true`, skip account+API-key gate (dev only) |
 
-`/health` and `/config` include `workflowPolicyMode`.
+`/health` and `/config` include `workflowPolicyMode`, `spectyraAccountLinked`, and `optimizationRunMode`.
 
 ---
 

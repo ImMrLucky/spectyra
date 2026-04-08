@@ -70,7 +70,11 @@ export type {
 } from "@spectyra/workflow-policy";
 
 // OpenClaw-style model aliases (`spectyra/smart`, `spectyra/fast`) — same as companion
-export { resolveSpectyraModel, defaultAliasModels } from "@spectyra/shared";
+export {
+  resolveSpectyraModel,
+  defaultAliasModels,
+  spectyraOpenClawModelDefinitions,
+} from "@spectyra/shared";
 
 // Provider adapters (direct-provider, no Spectyra cloud)
 export { createOpenAIAdapter } from "./adapters/openai.js";

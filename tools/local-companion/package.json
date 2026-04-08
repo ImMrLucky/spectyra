@@ -1,6 +1,6 @@
 {
   "name": "@spectyra/local-companion",
-  "version": "1.0.0",
+  "version": "1.0.6",
   "type": "module",
   "description": "Spectyra Local Companion — local-first LLM optimization runtime for OpenClaw and other tools",
   "keywords": [
@@ -35,10 +35,11 @@
     "test": "tsx src/__tests__/inference-pipeline.test.ts && tsx src/__tests__/openclawAuthFallback.test.ts"
   },
   "dependencies": {
-    "express": "^4.18.2",
-    "cors": "^2.8.5"
+    "cors": "^2.8.5",
+    "express": "^4.18.2"
   },
   "devDependencies": {
+    "@spectyra/shared": "workspace:*",
     "@spectyra/event-adapters": "workspace:*",
     "@spectyra/learning": "workspace:*",
     "@spectyra/event-core": "workspace:*",
@@ -46,7 +47,6 @@
     "@spectyra/state-delta": "workspace:*",
     "@spectyra/workflow-policy": "workspace:*",
     "@spectyra/analytics-core": "workspace:*",
-    "@spectyra/shared": "workspace:*",
     "@spectyra/core-types": "workspace:*",
     "@spectyra/canonical-model": "workspace:*",
     "@spectyra/feature-detection": "workspace:*",
@@ -62,7 +62,7 @@
   },
   "repository": {
     "type": "git",
-    "url": "https://github.com/spectyra/spectyra.git",
+    "url": "https://github.com/ImMrLucky/spectyra.git",
     "directory": "tools/local-companion"
   },
   "license": "MIT",

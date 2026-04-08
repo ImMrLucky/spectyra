@@ -10,6 +10,46 @@
   margin-bottom: 30px;
 }
 
+.trial-banner {
+  border-radius: 8px;
+  padding: 14px 16px;
+  margin-bottom: 20px;
+  border: 1px solid var(--border);
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px 16px;
+
+  &--info {
+    background: var(--bg-elevated);
+  }
+  &--reminder {
+    background: rgba(245, 158, 11, 0.12);
+    border-color: rgba(245, 158, 11, 0.45);
+  }
+  &--urgent,
+  &--expired {
+    background: rgba(220, 38, 38, 0.08);
+    border-color: rgba(220, 38, 38, 0.35);
+  }
+
+  &__title {
+    font-weight: 700;
+    width: 100%;
+    margin: 0;
+  }
+  &__detail {
+    margin: 0;
+    flex: 1;
+    min-width: 200px;
+    color: var(--text-secondary);
+    font-size: 14px;
+  }
+  &__cta {
+    margin-left: auto;
+  }
+}
+
 .loading { text-align: center; padding: 40px; color: var(--text-secondary); }
 
 .billing-content {

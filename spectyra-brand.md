@@ -85,6 +85,10 @@ Wordmark: "Spectyra" in Source Sans Pro 700. Letter-spacing: 0.02em.
 - Savings amounts: color teal, font-weight 500
 - Reduction %: color teal if positive, amber if regression
 
+## Iconography
+- Prefer the **Spectyra mark** (spectral arcs / waveform) and **semantic Material icons** (dashboard, extension, tune, chart, storage) in product UI.
+- Avoid generic **“AI”** tropes: robots, toys, sparkles, magic wands, brains, psychology glyphs — they read as interchangeable SaaS and clash with a calm infrastructure brand.
+
 ## Do not
 - No gradients on primary backgrounds
 - No drop shadows (use border instead)

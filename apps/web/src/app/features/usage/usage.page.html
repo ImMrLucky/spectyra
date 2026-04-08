@@ -13,6 +13,12 @@
   </div>
 
   <div *ngIf="!loading && !error">
+    <div *ngIf="trialBanner && trialBanner.severity !== 'none'" [class]="trialBannerClass()" role="status">
+      <div class="trial-banner__title">{{ trialBanner.title }}</div>
+      <p class="trial-banner__detail">{{ trialBanner.detail }}</p>
+      <a *ngIf="trialBanner.showUpgradeCta" routerLink="/billing" class="btn btn-sm btn-primary trial-banner__cta">Upgrade</a>
+    </div>
+
     <!-- Savings at a glance -->
     <div class="card savings-hero" *ngIf="usageData.length > 0">
       <h2>Your Savings</h2>
@@ -47,7 +53,7 @@
     <div class="card" *ngIf="billingStatus">
       <div class="card-header">
         <h2>Subscription Status</h2>
-        <a routerLink="/usage" class="btn btn-sm btn-primary" *ngIf="showUpgradeButton">Upgrade</a>
+        <a routerLink="/billing" class="btn btn-sm btn-primary" *ngIf="showUpgradeButton">Upgrade</a>
       </div>
       <div class="billing-info" *ngIf="billingStatus">
         <div class="billing-item">

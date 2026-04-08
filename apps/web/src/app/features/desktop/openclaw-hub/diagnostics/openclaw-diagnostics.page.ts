@@ -1,6 +1,7 @@
 import { Component, OnInit, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { RouterModule } from '@angular/router';
+import { MatIconModule } from '@angular/material/icon';
 import { OpenClawDesktopService, type OpenClawStatusSnapshot } from '../../../../core/desktop/openclaw-desktop.service';
 
 interface DiagnosticCheck {
@@ -14,7 +15,7 @@ interface DiagnosticCheck {
 @Component({
   selector: 'app-openclaw-diagnostics',
   standalone: true,
-  imports: [CommonModule, RouterModule],
+  imports: [CommonModule, RouterModule, MatIconModule],
   template: `
     <div class="dg">
       <div class="dg-header">
@@ -47,27 +48,27 @@ interface DiagnosticCheck {
         <h3 class="dg-section-title">Repair Actions</h3>
         <div class="dg-action-grid">
           <button class="dg-action-btn" (click)="runDoctor()" [disabled]="doctorRunning">
-            <span class="dg-action-icon">🩺</span>
+            <mat-icon class="dg-action-icon">fact_check</mat-icon>
             <span class="dg-action-label">{{ doctorRunning ? 'Running…' : 'Run Doctor' }}</span>
             <span class="dg-action-desc">Run <code>openclaw doctor</code></span>
           </button>
           <button class="dg-action-btn" (click)="openConfig()">
-            <span class="dg-action-icon">📁</span>
+            <mat-icon class="dg-action-icon">folder_open</mat-icon>
             <span class="dg-action-label">Open Config</span>
             <span class="dg-action-desc">Open OpenClaw config folder</span>
           </button>
           <button class="dg-action-btn" (click)="openLogs()">
-            <span class="dg-action-icon">📄</span>
+            <mat-icon class="dg-action-icon">description</mat-icon>
             <span class="dg-action-label">Open Logs</span>
             <span class="dg-action-desc">Open OpenClaw log directory</span>
           </button>
           <button class="dg-action-btn" (click)="restartCompanion()" [disabled]="restarting">
-            <span class="dg-action-icon">🔄</span>
+            <mat-icon class="dg-action-icon">sync</mat-icon>
             <span class="dg-action-label">{{ restarting ? 'Restarting…' : 'Restart Companion' }}</span>
             <span class="dg-action-desc">Stop and restart the Local Companion process</span>
           </button>
           <button class="dg-action-btn" (click)="openDataDir()">
-            <span class="dg-action-icon">💾</span>
+            <mat-icon class="dg-action-icon">storage</mat-icon>
             <span class="dg-action-label">Open Data Dir</span>
             <span class="dg-action-desc">Open Spectyra companion data folder</span>
           </button>
@@ -122,7 +123,12 @@ interface DiagnosticCheck {
     }
     .dg-action-btn:hover { border-color: var(--spectyra-blue, #5b8def); }
     .dg-action-btn:disabled { opacity: 0.5; cursor: default; }
-    .dg-action-icon { font-size: 18px; }
+    .dg-action-icon {
+      font-size: 22px;
+      width: 22px;
+      height: 22px;
+      color: var(--spectyra-blue, #378add);
+    }
     .dg-action-label { font-size: 12px; font-weight: 600; color: var(--text-primary, #fff); }
     .dg-action-desc { font-size: 10px; color: var(--text-muted, rgba(255,255,255,0.4)); }
     .dg-action-desc code {

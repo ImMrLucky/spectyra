@@ -18,7 +18,7 @@ export interface EntitlementInfo {
   trialEndsAt: string | null;
   licenseStatus: LicenseStatus;
 
-  /** Max optimized (mode=on) runs per billing period, null = unlimited */
+  /** Legacy/analytics: always null (unlimited). Gating is trial/subscription only. */
   optimizedRunsLimit: number | null;
   optimizedRunsUsed: number;
 
@@ -33,14 +33,14 @@ export interface EntitlementInfo {
 }
 
 /**
- * Free-tier defaults: observe is always free, on has a generous allowance.
+ * Free-tier defaults for UI fallbacks — optimized runs are not capped by count.
  */
 export const FREE_TIER_DEFAULTS: Readonly<EntitlementInfo> = {
   plan: "free",
   trialState: null,
   trialEndsAt: null,
   licenseStatus: "valid",
-  optimizedRunsLimit: 100,
+  optimizedRunsLimit: null,
   optimizedRunsUsed: 0,
   cloudAnalyticsEnabled: false,
   desktopAppEnabled: true,

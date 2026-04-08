@@ -58,7 +58,7 @@ import { TrialLicenseUiService, type LiveProductTopline } from '../../../core/ag
 
         <div class="trust-card">
           <div class="tc-icon-row">
-            <span class="material-icons tc-icon">auto_awesome</span>
+            <span class="material-icons tc-icon">tune</span>
           </div>
           <h3 class="tc-title">Optimization mode</h3>
           <p class="tc-desc mono-val">{{ topline.optimizationHeadline }}</p>

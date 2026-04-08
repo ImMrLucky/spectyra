@@ -7,6 +7,7 @@
  *   spectyra-companion setup     Interactive setup (account + provider key + OpenClaw config)
  *   spectyra-companion status    Check if companion is running
  *   spectyra-companion dashboard Open the local savings page in your browser
+ *   spectyra-companion upgrade   Sign in (if needed) and open Stripe checkout
  */
 
 import { execFileSync } from "node:child_process";
@@ -14,16 +15,36 @@ import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { homedir } from "node:os";
 import { join } from "node:path";
 import { createInterface } from "node:readline";
+import { spectyraOpenClawModelDefinitions, trialBannerState } from "@spectyra/shared";
+import { companionPackageVersion } from "./packageVersion.js";
+import { listOpenClawProviderKeys } from "./openclawAuthFallback.js";
+import {
+  DESKTOP_CONFIG_DIR,
+  SUPABASE_ANON_KEY,
+  SUPABASE_URL,
+  emailFromAccessTokenJwt,
+  getValidSupabaseAccessToken,
+  loadDesktopConfig,
+  saveDesktopConfig,
+  saveSupabaseSession,
+} from "./desktopSession.js";
 
-const CONFIG_DIR = join(homedir(), ".spectyra", "desktop");
-const CONFIG_FILE = join(CONFIG_DIR, "config.json");
-const PROVIDER_KEYS_FILE = join(CONFIG_DIR, "provider-keys.json");
+const PROVIDER_KEYS_FILE = join(DESKTOP_CONFIG_DIR, "provider-keys.json");
 const COMPANION_DIR = join(homedir(), ".spectyra", "companion");
 
-const SPECTYRA_API = "https://spectyra.up.railway.app/v1";
-const SUPABASE_URL = "https://jajqvceuenqeblbgsigt.supabase.co";
-const SUPABASE_ANON_KEY =
-  "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImphanF2Y2V1ZW5xZWJsYmdzaWd0Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3Njk0MDI4MDgsImV4cCI6MjA4NDk3ODgwOH0.IJ7CSyX-_-lahfaOzM9U5EIpR6tcW-GhiMZeCY_efno";
+function providerDisplayName(id: string): string {
+  switch (id) {
+    case "anthropic":
+      return "Anthropic";
+    case "groq":
+      return "Groq";
+    default:
+      return "OpenAI";
+  }
+}
+
+const SPECTYRA_API = process.env.SPECTYRA_API_URL?.trim() || "https://spectyra.up.railway.app/v1";
+const WEB_ORIGIN = process.env.SPECTYRA_WEB_ORIGIN?.trim() || "https://spectyra.ai";
 
 const GREEN = "\x1b[32m";
 const YELLOW = "\x1b[33m";
@@ -73,14 +94,124 @@ async function fetchJson(url: string, opts: RequestInit): Promise<any> {
   return res.json();
 }
 
-function loadLocalConfig(): Record<string, unknown> {
-  if (!existsSync(CONFIG_FILE)) return {};
-  try { return JSON.parse(readFileSync(CONFIG_FILE, "utf-8")); } catch { return {}; }
+/** Idempotent org + API key (+ license) provisioning — works without visiting the website. */
+async function postEnsureAccount(
+  accessToken: string,
+  body: Record<string, unknown>,
+): Promise<{
+  already_provisioned?: boolean;
+  api_key?: string;
+  license_key?: string | null;
+  error?: string;
+}> {
+  const res = await fetch(`${SPECTYRA_API}/auth/ensure-account`, {
+    method: "POST",
+    headers: { Authorization: `Bearer ${accessToken}`, "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+  });
+  const data = (await res.json().catch(() => ({}))) as Record<string, unknown>;
+  if (!res.ok) {
+    const err = (data.error as string) || `HTTP ${res.status}`;
+    throw new Error(err);
+  }
+  return data as {
+    already_provisioned?: boolean;
+    api_key?: string;
+    license_key?: string | null;
+  };
 }
 
-function saveLocalConfig(config: Record<string, unknown>) {
-  mkdirSync(CONFIG_DIR, { recursive: true });
-  writeFileSync(CONFIG_FILE, JSON.stringify(config, null, 2) + "\n");
+function emailFromSupabaseSessionInConfig(config: Record<string, unknown>): string | undefined {
+  const s = config.supabaseSession as { access_token?: string } | undefined;
+  return emailFromAccessTokenJwt(s?.access_token);
+}
+
+async function promptSignInForTokens(config: Record<string, unknown>): Promise<string | null> {
+  const email = await ask("Email: ");
+  const password = await ask("Password: ", true);
+  const resp = await fetchJson(`${SUPABASE_URL}/auth/v1/token?grant_type=password`, {
+    method: "POST",
+    headers: { apikey: SUPABASE_ANON_KEY, "Content-Type": "application/json" },
+    body: JSON.stringify({ email, password }),
+  });
+  if (!resp?.access_token) {
+    warn(resp.error_description || resp.msg || "Sign-in failed");
+    return null;
+  }
+  saveSupabaseSession(config, resp);
+  return resp.access_token as string;
+}
+
+async function fetchBillingStatus(accessToken: string): Promise<Record<string, unknown>> {
+  const res = await fetch(`${SPECTYRA_API}/billing/status`, {
+    headers: { Authorization: `Bearer ${accessToken}` },
+  });
+  return (await res.json().catch(() => ({}))) as Record<string, unknown>;
+}
+
+async function postBillingCheckout(accessToken: string): Promise<string | null> {
+  const res = await fetch(`${SPECTYRA_API}/billing/checkout`, {
+    method: "POST",
+    headers: { Authorization: `Bearer ${accessToken}`, "Content-Type": "application/json" },
+    body: JSON.stringify({
+      success_url: `${WEB_ORIGIN}/usage?upgraded=true`,
+      cancel_url: `${WEB_ORIGIN}/usage`,
+    }),
+  });
+  const data = (await res.json().catch(() => ({}))) as { checkout_url?: string; error?: string };
+  if (!res.ok) throw new Error(data.error || `HTTP ${res.status}`);
+  return data.checkout_url || null;
+}
+
+function printTrialBannerLine(accessToken: string): Promise<void> {
+  return fetchBillingStatus(accessToken).then((st) => {
+    const banner = trialBannerState({
+      trialEndsAtIso: st.trial_ends_at as string | undefined,
+      subscriptionStatus: st.subscription_status as string | undefined,
+      subscriptionActive: st.subscription_active as boolean | undefined,
+      platformExempt:
+        !!(st.org_platform_exempt || st.platform_billing_exempt),
+    });
+    if (banner.severity === "none") return;
+    console.log(`  ${CYAN}${banner.title}${RESET} — ${banner.detail}`);
+  });
+}
+
+async function runUpgrade(): Promise<void> {
+  console.log("");
+  console.log(`${BOLD}Spectyra — Subscribe${RESET}`);
+  console.log(`${DIM}  Secure Stripe checkout (opens in your browser).${RESET}`);
+  console.log("");
+  const config = loadDesktopConfig();
+  let token = await getValidSupabaseAccessToken(config);
+  if (!token) {
+    info("Sign in to your Spectyra account:");
+    token = await promptSignInForTokens(config);
+    if (!token) {
+      process.exitCode = 1;
+      return;
+    }
+  }
+  try {
+    await printTrialBannerLine(token);
+    console.log("");
+    const go = await ask("Open Stripe checkout in your browser? [Y/n] ");
+    if (go.trim().toLowerCase().startsWith("n")) {
+      info("Cancelled.");
+      return;
+    }
+    const url = await postBillingCheckout(token);
+    if (!url) {
+      warn("No checkout URL returned. Is Stripe configured on the API?");
+      process.exitCode = 1;
+      return;
+    }
+    ok("Opening checkout…");
+    openBrowser(url);
+  } catch (e) {
+    warn(e instanceof Error ? e.message : String(e));
+    process.exitCode = 1;
+  }
 }
 
 function loadProviderKeys(): Record<string, string> {
@@ -89,7 +220,7 @@ function loadProviderKeys(): Record<string, string> {
 }
 
 function saveProviderKeys(keys: Record<string, string>) {
-  mkdirSync(CONFIG_DIR, { recursive: true });
+  mkdirSync(DESKTOP_CONFIG_DIR, { recursive: true });
   writeFileSync(PROVIDER_KEYS_FILE, JSON.stringify(keys) + "\n");
 }
 
@@ -101,18 +232,34 @@ async function runSetup() {
   console.log(`${DIM}  Everything happens here in the terminal.${RESET}`);
   console.log("");
 
-  const config = loadLocalConfig();
+  const config = loadDesktopConfig();
   const existingKeys = loadProviderKeys();
 
   // ── 1. Account ──
   console.log(`${BOLD}1. Spectyra account${RESET}`);
-  console.log(`${DIM}  Create an account here or sign in — no need to open spectyra.ai (optional: register in a browser first).${RESET}`);
+  console.log(`${DIM}  Set up your account for the optimization and savings dashboard.${RESET}`);
   console.log("");
 
   let signedIn = false;
 
   if (config.apiKey && config.apiKey !== "null") {
-    ok("Existing session found");
+    ok("Existing session found — account step skipped (Spectyra API key already in config).");
+    const sessEmail = emailFromSupabaseSessionInConfig(config);
+    if (sessEmail && config.accountEmail !== sessEmail) {
+      config.accountEmail = sessEmail;
+      saveDesktopConfig(config);
+    }
+    const displayEmail =
+      typeof config.accountEmail === "string" && config.accountEmail.trim()
+        ? config.accountEmail.trim()
+        : sessEmail;
+    if (displayEmail) {
+      ok(`Spectyra account email: ${displayEmail}`);
+    } else {
+      info(
+        "Add accountEmail to config or remove apiKey and re-run setup to link an email. Or switch accounts: delete apiKey and supabaseSession in ~/.spectyra/desktop/config.json",
+      );
+    }
     signedIn = true;
   }
 
@@ -135,20 +282,21 @@ async function runSetup() {
         if (resp.access_token) {
           ok(`Signed in as ${email}`);
           signedIn = true;
+          config.accountEmail = email.trim();
+          saveSupabaseSession(config, resp);
           try {
-            const bootstrap = await fetchJson(`${SPECTYRA_API}/auth/bootstrap`, {
-              method: "POST",
-              headers: { Authorization: `Bearer ${resp.access_token}`, "Content-Type": "application/json" },
-              body: "{}",
-            });
-            if (bootstrap?.api_key) {
-              config.apiKey = bootstrap.api_key;
+            const ensured = await postEnsureAccount(resp.access_token, {});
+            if (ensured.api_key) {
+              config.apiKey = ensured.api_key;
+              ok("Spectyra API key saved (first-time setup)");
+            } else if (ensured.already_provisioned) {
+              info("Account already had an organization (no new API key shown). Add one in Spectyra Settings if needed.");
             }
-            if (bootstrap?.license_key) {
-              config.licenseKey = bootstrap.license_key;
+            if (ensured.license_key) {
+              config.licenseKey = ensured.license_key;
               ok("License key provisioned");
             }
-            if (config.apiKey || config.licenseKey) saveLocalConfig(config);
+            if (config.apiKey || config.licenseKey) saveDesktopConfig(config);
 
             if (!config.licenseKey) {
               try {
@@ -159,12 +307,18 @@ async function runSetup() {
                 });
                 if (lkResp?.license_key) {
                   config.licenseKey = lkResp.license_key;
-                  saveLocalConfig(config);
+                  saveDesktopConfig(config);
                   ok("License key provisioned");
                 }
-              } catch { /* license generation optional */ }
+              } catch {
+                /* optional */
+              }
             }
-          } catch { /* bootstrap optional */ }
+          } catch (e) {
+            warn(
+              `Could not finish Spectyra account setup: ${e instanceof Error ? e.message : String(e)}. Check API URL or try again.`,
+            );
+          }
         } else {
           warn(resp.error_description || resp.msg || "Sign-in failed");
         }
@@ -185,16 +339,30 @@ async function runSetup() {
           body: JSON.stringify({ email, password }),
         });
 
+        if (signupResp.msg && !signupResp.id && !signupResp.access_token) {
+          warn(String(signupResp.msg));
+        }
+
         let token = signupResp.access_token || null;
+        let grantForSession: Record<string, unknown> = signupResp;
 
         if (!token && signupResp.id) {
           try {
-            await fetch(`${SPECTYRA_API}/auth/auto-confirm`, {
+            const acRes = await fetch(`${SPECTYRA_API}/auth/auto-confirm`, {
               method: "POST",
               headers: { "Content-Type": "application/json" },
               body: JSON.stringify({ email }),
             });
-          } catch { /* optional */ }
+            if (!acRes.ok) {
+              const detail = await acRes.text().catch(() => "");
+              warn(
+                `Email confirmation helper failed (${acRes.status}). ` +
+                  `Check Spectyra API deployment and Supabase service role. ${detail.slice(0, 120)}`,
+              );
+            }
+          } catch (e) {
+            warn(`auto-confirm request failed: ${e instanceof Error ? e.message : String(e)}`);
+          }
 
           await new Promise((r) => setTimeout(r, 1000));
 
@@ -203,35 +371,80 @@ async function runSetup() {
             headers: { apikey: SUPABASE_ANON_KEY, "Content-Type": "application/json" },
             body: JSON.stringify({ email, password }),
           });
+          grantForSession = loginResp;
           token = loginResp.access_token || null;
         }
 
         if (token) {
           ok(`Account created for ${email}`);
           signedIn = true;
+          config.accountEmail = email.trim();
+          saveSupabaseSession(config, grantForSession);
           try {
-            const bootstrap = await fetchJson(`${SPECTYRA_API}/auth/bootstrap`, {
-              method: "POST",
-              headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
-              body: JSON.stringify({ org_name: orgName.trim() }),
-            });
-            if (bootstrap?.api_key) {
-              config.apiKey = bootstrap.api_key;
+            const ensured = await postEnsureAccount(token, { org_name: orgName.trim() });
+            if (ensured.api_key) {
+              config.apiKey = ensured.api_key;
+              ok("Spectyra API key saved — store it securely");
+            } else if (ensured.already_provisioned) {
+              info(
+                "This account already had a Spectyra organization — the cloud API key is not shown again. " +
+                  "Create or copy a key in the Spectyra web app (Settings), or revoke and create a new default key.",
+              );
             }
-            if (bootstrap?.license_key) {
-              config.licenseKey = bootstrap.license_key;
+            if (ensured.license_key) {
+              config.licenseKey = ensured.license_key;
               ok("License key provisioned");
             }
-            if (config.apiKey || config.licenseKey) saveLocalConfig(config);
-          } catch { /* bootstrap optional */ }
+            if (config.apiKey || config.licenseKey) saveDesktopConfig(config);
+          } catch (e) {
+            warn(
+              `Could not finish Spectyra account setup: ${e instanceof Error ? e.message : String(e)}. Check API URL or try again.`,
+            );
+          }
         } else {
-          warn("Could not create account. Sign up later at spectyra.com");
+          warn(
+            "Could not create a session after sign-up (check password, email confirmation, and messages above). " +
+              `Or register at ${WEB_ORIGIN}`,
+          );
         }
       } catch {
         warn("Could not reach Spectyra.");
       }
     }
   }
+
+  if (signedIn) {
+    let cfg = loadDesktopConfig();
+    if (!cfg.accountEmail) {
+      const em =
+        emailFromSupabaseSessionInConfig(cfg) ||
+        emailFromAccessTokenJwt((cfg.supabaseSession as { access_token?: string } | undefined)?.access_token);
+      if (em) {
+        cfg.accountEmail = em;
+        saveDesktopConfig(cfg);
+        cfg = loadDesktopConfig();
+      }
+    }
+    if (typeof cfg.accountEmail === "string" && cfg.accountEmail.trim()) {
+      ok(`Account email on file: ${cfg.accountEmail.trim()}`);
+    }
+    if (!cfg.apiKey || cfg.apiKey === "null") {
+      warn(
+        "No Spectyra org API key in config — input savings stay in preview until you add a key (spectyra.ai → Settings → API keys) or complete setup on a fresh account.",
+      );
+    } else {
+      ok("Spectyra org API key is stored — billing and trials apply to this org.");
+    }
+    const t = await getValidSupabaseAccessToken(cfg);
+    if (t) {
+      try {
+        await printTrialBannerLine(t);
+      } catch {
+        /* billing optional offline */
+      }
+    }
+  }
+
   console.log("");
 
   // ── 2. Provider key ──
@@ -246,34 +459,83 @@ async function runSetup() {
     ok("Provider key already configured");
     providerSet = true;
   } else {
-    console.log("  Which provider?");
-    console.log("    1) OpenAI");
-    console.log("    2) Anthropic");
-    console.log("    3) Groq");
-    console.log("");
-    const choice = await ask("Choice [1/2/3]: ");
+    const fromOpenClaw = listOpenClawProviderKeys();
 
-    let provider: string;
-    switch (choice.trim()) {
-      case "2": provider = "anthropic"; break;
-      case "3": provider = "groq"; break;
-      default: provider = "openai"; break;
+    if (fromOpenClaw.length === 1) {
+      const { provider, key } = fromOpenClaw[0];
+      console.log(
+        `${DIM}  Found a ${providerDisplayName(provider)} API key in your OpenClaw config (~/.openclaw).${RESET}`,
+      );
+      const use = await ask("  Use it for Spectyra (key stays on this machine only)? [Y/n] ");
+      if (!use.trim() || use.toLowerCase().startsWith("y")) {
+        const keys = { ...existingKeys, [provider]: key };
+        saveProviderKeys(keys);
+        config.provider = provider;
+        config.port = config.port || 4111;
+        config.providerKeys = keys;
+        saveDesktopConfig(config);
+        ok(`${providerDisplayName(provider)} key saved (from OpenClaw)`);
+        providerSet = true;
+      }
+    } else if (fromOpenClaw.length > 1) {
+      console.log(`${DIM}  Found API keys in your OpenClaw config for:${RESET}`);
+      fromOpenClaw.forEach((e, i) => {
+        console.log(`    ${i + 1}) ${providerDisplayName(e.provider)}`);
+      });
+      const manualIdx = fromOpenClaw.length + 1;
+      console.log(`    ${manualIdx}) Enter a key manually instead`);
+      console.log("");
+      const pick = await ask(`  Which should Spectyra use for upstream calls? [1-${manualIdx}] `);
+      const n = parseInt(pick.trim(), 10);
+      if (n >= 1 && n <= fromOpenClaw.length) {
+        const { provider, key } = fromOpenClaw[n - 1];
+        const keys = { ...existingKeys, [provider]: key };
+        saveProviderKeys(keys);
+        config.provider = provider;
+        config.port = config.port || 4111;
+        config.providerKeys = keys;
+        saveDesktopConfig(config);
+        ok(`${providerDisplayName(provider)} key saved (from OpenClaw)`);
+        providerSet = true;
+      }
     }
 
-    console.log("");
-    const key = await ask(`Paste your ${provider} API key: `, true);
+    if (!providerSet) {
+      console.log("  Which provider?");
+      console.log("    1) OpenAI");
+      console.log("    2) Anthropic");
+      console.log("    3) Groq");
+      console.log("");
+      const choice = await ask("Choice [1/2/3]: ");
 
-    if (key.trim()) {
-      const keys = { ...existingKeys, [provider]: key.trim() };
-      saveProviderKeys(keys);
-      config.provider = provider;
-      config.port = config.port || 4111;
-      config.providerKeys = keys;
-      saveLocalConfig(config);
-      ok(`${provider} key saved`);
-      providerSet = true;
-    } else {
-      warn("No key entered.");
+      let provider: string;
+      switch (choice.trim()) {
+        case "2":
+          provider = "anthropic";
+          break;
+        case "3":
+          provider = "groq";
+          break;
+        default:
+          provider = "openai";
+          break;
+      }
+
+      console.log("");
+      const key = await ask(`Paste your ${provider} API key: `, true);
+
+      if (key.trim()) {
+        const keys = { ...existingKeys, [provider]: key.trim() };
+        saveProviderKeys(keys);
+        config.provider = provider;
+        config.port = config.port || 4111;
+        config.providerKeys = keys;
+        saveDesktopConfig(config);
+        ok(`${provider} key saved`);
+        providerSet = true;
+      } else {
+        warn("No key entered.");
+      }
     }
   }
   console.log("");
@@ -292,11 +554,7 @@ async function runSetup() {
       baseUrl: "http://127.0.0.1:4111/v1",
       apiKey: "SPECTYRA_LOCAL",
       api: "openai-completions",
-      models: [
-        { id: "spectyra/smart", name: "Spectyra Smart", contextWindow: 128000, maxTokens: 8192 },
-        { id: "spectyra/fast", name: "Spectyra Fast", contextWindow: 128000, maxTokens: 8192 },
-        { id: "spectyra/quality", name: "Spectyra Quality", contextWindow: 200000, maxTokens: 16384 },
-      ],
+      models: spectyraOpenClawModelDefinitions(),
     });
 
     try {
@@ -360,7 +618,7 @@ async function runStatus() {
 }
 
 function resolvedPort(): string {
-  const config = loadLocalConfig();
+  const config = loadDesktopConfig();
   return process.env.SPECTYRA_PORT || String(config.port || 4111);
 }
 
@@ -410,7 +668,7 @@ async function runOpenDashboard(): Promise<void> {
 
 function needsSetup(): boolean {
   const keys = loadProviderKeys();
-  const config = loadLocalConfig();
+  const config = loadDesktopConfig();
   const hasKey = Object.values(keys).some((v) => !!v);
   const hasInlineKey = config.providerKeys && typeof config.providerKeys === "object" &&
     Object.values(config.providerKeys as Record<string, string>).some((v) => !!v);
@@ -435,7 +693,7 @@ async function runStart(openDashboard: boolean) {
     console.log("");
   }
 
-  const config = loadLocalConfig();
+  const config = loadDesktopConfig();
   const provider = (config.provider as string) || "openai";
 
   if (!process.env.SPECTYRA_PROVIDER) process.env.SPECTYRA_PROVIDER = provider;
@@ -488,18 +746,22 @@ function runHelp(): void {
   console.log("Usage: spectyra-companion [options] [command]");
   console.log("");
   console.log("Options:");
-  console.log("  --open, -o   With start: open the local savings page in your browser");
+  console.log("  --version, -V  Print package version and exit");
+  console.log("  --open, -o     With start: open the local savings page in your browser");
   console.log("");
   console.log("Commands:");
   console.log("  setup        Interactive setup (account + provider key + OpenClaw config)");
   console.log("  start        Start the companion server (default)");
   console.log("  dashboard    Open local savings in your browser (companion must be running)");
   console.log("  status       Check if companion is running");
+  console.log("  upgrade      Sign in (if needed) and open Stripe checkout in your browser");
   console.log("");
 }
 
 if (cmd === "--help" || cmd === "-h") {
   runHelp();
+} else if (cmd === "--version" || cmd === "-V") {
+  console.log(companionPackageVersion());
 } else if (!cmd) {
   runStart(openAfterStart).catch((e) => { console.error(e); process.exit(1); });
 } else {
@@ -515,6 +777,10 @@ if (cmd === "--help" || cmd === "-h") {
     case "dashboard":
       if (openAfterStart) warn("--open applies to start only");
       runOpenDashboard().catch((e) => { console.error(e); process.exit(1); });
+      break;
+    case "upgrade":
+      if (openAfterStart) warn("--open applies to start only");
+      runUpgrade().catch((e) => { console.error(e); process.exit(1); });
       break;
     case "start":
       runStart(openAfterStart).catch((e) => { console.error(e); process.exit(1); });

@@ -8,3 +8,4 @@ export * from "./uiTypes";
 export * from "./spectyraModelAliases";
 export * from "./openclawConfigExample";
 export * from "./openclawOnboard";
+export * from "./trialBanner";

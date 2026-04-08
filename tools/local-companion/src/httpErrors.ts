@@ -6,7 +6,12 @@ export function mapCompanionInferenceError(err: unknown): { status: number; body
   const msg = err instanceof Error ? err.message : String(err);
   const lower = msg.toLowerCase();
 
-  if (msg.includes("Unknown Spectyra model alias") || msg.includes("Invalid provider")) {
+  if (
+    msg.includes("Unknown Spectyra model alias") ||
+    msg.includes("Unknown Spectyra upstream") ||
+    msg.includes("Unknown Spectyra tier") ||
+    msg.includes("Invalid provider")
+  ) {
     return {
       status: 400,
       body: {

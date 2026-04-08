@@ -47,6 +47,8 @@ export interface BillingStatusPartial {
   subscription_active?: boolean;
   subscription_status?: string;
   trial_ends_at?: string | null;
+  /** From GET /v1/billing/status when using JWT */
+  org_platform_exempt?: boolean;
   has_access?: boolean;
   savings_active?: boolean;
   entitlement_ends_at?: string | null;

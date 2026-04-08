@@ -34,6 +34,7 @@
     "test:moat-through-5": "pnpm test:moat-through-4 && pnpm test:learning-loop",
     "test:workflow-policy": "pnpm --filter @spectyra/workflow-policy run test:workflow-policy",
     "test:openclaw-bridge": "pnpm --filter @spectyra/openclaw-bridge run test",
+    "build:local-companion": "pnpm --filter @spectyra/local-companion run build",
     "test:local-companion-inference": "pnpm --filter @spectyra/local-companion run test",
     "test:moat-through-6": "pnpm test:moat-through-5 && pnpm test:workflow-policy",
     "test:sdk-moat-summaries": "pnpm --filter @spectyra/sdk run test:sdk-moat-summaries",

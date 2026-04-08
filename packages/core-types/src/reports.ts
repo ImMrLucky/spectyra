@@ -37,6 +37,25 @@ export interface SavingsReport {
   duplicateReductionPct?: number;
   flowReductionPct?: number;
 
+  /**
+   * Conversation messages in this request (depth for this LLM call). Used for
+   * “turns” / workflow analytics on the companion dashboard.
+   */
+  messageTurnCount?: number;
+  /**
+   * Flow analysis: count of message units estimated compressible (optional).
+   */
+  compressibleUnitsHint?: number;
+
+  /**
+   * Estimated tokens that could be avoided from repeated chat context (feature-based hint).
+   */
+  repeatedContextTokensAvoided?: number;
+  /**
+   * Estimated tokens tied to repeated or oversized tool output (feature-based hint).
+   */
+  repeatedToolOutputTokensAvoided?: number;
+
   telemetryMode: TelemetryMode;
   promptSnapshotMode: PromptSnapshotMode;
   inferencePath: InferencePath;
@@ -49,6 +68,10 @@ export interface SavingsReport {
   notes?: string[];
 
   createdAt?: string;
+
+  /** When set (e.g. local companion), ties this run to a workflow session for filtered dashboards. */
+  sessionId?: string;
+  sessionKey?: string;
 }
 
 /**

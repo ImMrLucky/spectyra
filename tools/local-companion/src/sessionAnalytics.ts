@@ -7,6 +7,7 @@ import path from "path";
 import type { SavingsReport } from "@spectyra/core-types";
 import { createSessionTracker, type SessionAnalyticsRecord, type SpectyraSessionTracker } from "@spectyra/analytics-core";
 import type { CompanionConfig } from "./config.js";
+import { maybeThrottleCloudSync, syncSessionSummaryToCloud } from "./cloudAnalyticsSync.js";
 import { COMPANION_DATA_DIR } from "./localStore.js";
 
 const DATA_DIR = COMPANION_DATA_DIR;
@@ -78,7 +79,7 @@ export class CompanionSessionRegistry {
 
   private makeTracker(): SpectyraSessionTracker {
     return createSessionTracker({
-      mode: this.cfg.runMode,
+      mode: this.cfg.optimizationRunMode,
       integrationType: "local-companion",
       telemetryMode: this.cfg.telemetryMode,
       promptSnapshotMode: this.cfg.promptSnapshots,
@@ -108,7 +109,9 @@ export class CompanionSessionRegistry {
     if (this.cfg.telemetryMode === "off") return;
     const tracker = this.getOrCreateTracker(sessionKey);
     tracker.recordStepFromReport(report);
-    await writeCurrentForKey(sessionKey, tracker.getCurrentSession());
+    const live = tracker.getCurrentSession();
+    await writeCurrentForKey(sessionKey, live);
+    maybeThrottleCloudSync(sessionKey, live, this.cfg);
   }
 
   /** Finalize a session and persist to sessions.jsonl. */
@@ -119,6 +122,7 @@ export class CompanionSessionRegistry {
     await appendCompletedSession(rec);
     await writeCurrentForKey(sessionKey, null);
     this.trackers.delete(sessionKey);
+    void syncSessionSummaryToCloud(rec, this.cfg);
     return rec;
   }
 
