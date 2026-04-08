@@ -370,12 +370,12 @@
   background: var(--bg);
 }
 
-/* Mission statement — web + desktop shells */
+/* Mission statement — scrolls with page (end of main content, not pinned to viewport) */
 .site-mission-footer {
-  flex-shrink: 0;
-  padding: 16px 20px 20px;
+  margin-top: 48px;
+  padding: 20px 0 8px;
   border-top: 1px solid var(--border);
-  background: var(--bg-elevated, var(--bg));
+  background: transparent;
   font-family: var(--font-body);
   font-size: 12px;
   line-height: 1.55;
