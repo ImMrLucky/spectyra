@@ -69,7 +69,7 @@ export async function createOrg(
   const result = await query<Org>(`
     INSERT INTO orgs (name, trial_ends_at, subscription_status, sdk_access_enabled, seat_limit)
     VALUES ($1, $2, 'trial', $3, $4)
-    RETURNING id, name, created_at, trial_ends_at, stripe_customer_id, subscription_status, sdk_access_enabled, platform_exempt, seat_limit, observe_only_override
+    RETURNING id, name, created_at, trial_ends_at, stripe_customer_id, subscription_status, sdk_access_enabled, platform_exempt, seat_limit, observe_only_override, billing_admin_observe_lock_user_id
   `, [name, trialEndsAt.toISOString(), true, seats]);
   
   return result.rows[0];
@@ -82,7 +82,7 @@ export async function getAllOrgs(): Promise<Org[]> {
   const result = await query<Org>(`
     SELECT id, name, created_at, trial_ends_at, stripe_customer_id, stripe_subscription_id,
            subscription_current_period_end, cancel_at_period_end, subscription_status, sdk_access_enabled, platform_exempt,
-           seat_limit, observe_only_override
+           seat_limit, observe_only_override, billing_admin_observe_lock_user_id
     FROM orgs 
     ORDER BY created_at DESC
   `);
@@ -97,7 +97,7 @@ export async function getOrgById(id: string): Promise<Org | null> {
   const result = await queryOne<Org>(`
     SELECT id, name, created_at, trial_ends_at, stripe_customer_id, stripe_subscription_id,
            subscription_current_period_end, cancel_at_period_end, subscription_status, sdk_access_enabled, platform_exempt,
-           seat_limit, observe_only_override
+           seat_limit, observe_only_override, billing_admin_observe_lock_user_id
     FROM orgs 
     WHERE id = $1
   `, [id]);
@@ -117,8 +117,8 @@ export async function updateOrgName(orgId: string, newName: string): Promise<Org
     UPDATE orgs 
     SET name = $1 
     WHERE id = $2
-    RETURNING id, name, created_at, trial_ends_at, stripe_customer_id, subscription_status, sdk_access_enabled, platform_exempt, seat_limit, observe_only_override
-  `, [newName.trim(), orgId]);
+    RETURNING id, name, created_at, trial_ends_at, stripe_customer_id, subscription_status, sdk_access_enabled, platform_exempt, seat_limit, observe_only_override, billing_admin_observe_lock_user_id
+    `, [newName.trim(), orgId]);
   
   if (result.rowCount === 0) {
     throw new Error(`Organization ${orgId} not found`);
@@ -512,7 +512,7 @@ export async function getOrgByStripeCustomerId(customerId: string): Promise<Org 
   const result = await queryOne<Org>(`
     SELECT id, name, created_at, trial_ends_at, stripe_customer_id, stripe_subscription_id,
            subscription_current_period_end, cancel_at_period_end, subscription_status, sdk_access_enabled, platform_exempt,
-           seat_limit, observe_only_override
+           seat_limit, observe_only_override, billing_admin_observe_lock_user_id
     FROM orgs 
     WHERE stripe_customer_id = $1
   `, [customerId]);
@@ -537,7 +537,7 @@ export async function updateOrgStripeCustomerId(orgId: string, customerId: strin
 export async function setOrgPlatformExempt(orgId: string, exempt: boolean): Promise<Org> {
   const result = await query<Org>(`
     UPDATE orgs SET platform_exempt = $2 WHERE id = $1
-    RETURNING id, name, created_at, trial_ends_at, stripe_customer_id, subscription_status, sdk_access_enabled, platform_exempt, seat_limit, observe_only_override
+    RETURNING id, name, created_at, trial_ends_at, stripe_customer_id, subscription_status, sdk_access_enabled, platform_exempt, seat_limit, observe_only_override, billing_admin_observe_lock_user_id
   `, [orgId, exempt]);
   if (result.rowCount === 0) {
     throw new Error(`Organization ${orgId} not found`);
@@ -554,7 +554,7 @@ export async function setOrgObserveOnlyOverride(
 ): Promise<Org> {
   const result = await query<Org>(`
     UPDATE orgs SET observe_only_override = $2 WHERE id = $1
-    RETURNING id, name, created_at, trial_ends_at, stripe_customer_id, subscription_status, sdk_access_enabled, platform_exempt, seat_limit, observe_only_override
+    RETURNING id, name, created_at, trial_ends_at, stripe_customer_id, subscription_status, sdk_access_enabled, platform_exempt, seat_limit, observe_only_override, billing_admin_observe_lock_user_id
   `, [orgId, override]);
   if (result.rowCount === 0) {
     throw new Error(`Organization ${orgId} not found`);
@@ -632,5 +632,64 @@ export async function updateOrgSubscription(
       orgId,
       seatLimitParam,
     ],
+  );
+}
+
+/** First org where the user is owner (oldest by org created_at) — admin billing exempt toggle. */
+export async function getFirstOwnedOrgForUser(
+  userId: string,
+): Promise<{ org_id: string; platform_exempt: boolean } | null> {
+  return await queryOne<{ org_id: string; platform_exempt: boolean }>(
+    `
+    SELECT o.id AS org_id, COALESCE(o.platform_exempt, false) AS platform_exempt
+    FROM org_memberships om
+    INNER JOIN orgs o ON o.id = om.org_id
+    WHERE om.user_id = $1 AND lower(om.role::text) = 'owner'
+    ORDER BY o.created_at ASC NULLS LAST
+    LIMIT 1
+    `,
+    [userId],
+  );
+}
+
+/** Org IDs where the user is owner (admin inactive / staff helpers). */
+export async function listOwnerOrgIdsForUser(userId: string): Promise<string[]> {
+  const r = await query<{ org_id: string }>(
+    `SELECT org_id FROM org_memberships WHERE user_id = $1 AND lower(role::text) = 'owner'`,
+    [userId],
+  );
+  return r.rows.map((row) => row.org_id);
+}
+
+/**
+ * Admin "inactive": force Observe-only savings on orgs this user owns (skip platform_exempt orgs).
+ */
+export async function applyInactiveBillingLockForOwnerOrgs(userId: string): Promise<{ orgIds: string[] }> {
+  const ids = await listOwnerOrgIdsForUser(userId);
+  for (const orgId of ids) {
+    await query(
+      `
+      UPDATE orgs
+      SET observe_only_override = true,
+          billing_admin_observe_lock_user_id = $2::uuid
+      WHERE id = $1
+        AND COALESCE(platform_exempt, false) IS NOT TRUE
+      `,
+      [orgId, userId],
+    );
+  }
+  return { orgIds: ids };
+}
+
+/** Clear observe lock applied by admin inactive for this user. */
+export async function clearInactiveBillingLockForUser(userId: string): Promise<void> {
+  await query(
+    `
+    UPDATE orgs
+    SET observe_only_override = NULL,
+        billing_admin_observe_lock_user_id = NULL
+    WHERE billing_admin_observe_lock_user_id = $1::uuid
+    `,
+    [userId],
   );
 }

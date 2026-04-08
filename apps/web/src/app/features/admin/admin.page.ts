@@ -6,7 +6,6 @@ import { AdminService, AdminOrg, AdminOrgDetail, AdminUser, AccountAccessState }
 import { SupabaseService } from '../../services/supabase.service';
 import { SnackbarService } from '../../core/services/snackbar.service';
 import { AuthService } from '../../core/auth/auth.service';
-import { SuperuserService } from '../../core/api/superuser.service';
 import {MatIcon} from "@angular/material/icon";
 import { Subscription } from 'rxjs';
 import { distinctUntilChanged } from 'rxjs/operators';
@@ -54,6 +53,8 @@ export class AdminPage implements OnInit, OnDestroy {
   userActionBusy: string | null = null;
   deleteConfirmUserId: string | null = null;
   canManageRoles = false;
+  /** platform_exempt on user's first owned org — superuser / platform owner only */
+  canManageOwnerOrgBilling = false;
 
   private sessionSub?: Subscription;
   private listOrgsSub?: Subscription;
@@ -63,7 +64,6 @@ export class AdminPage implements OnInit, OnDestroy {
     private supabase: SupabaseService,
     private snackbar: SnackbarService,
     private authService: AuthService,
-    private superuserService: SuperuserService,
     private router: Router,
     private cdr: ChangeDetectorRef,
   ) {}
@@ -103,10 +103,6 @@ export class AdminPage implements OnInit, OnDestroy {
     this.loading = true;
     this.orgsListError = null;
     this.accessMessage = null;
-    this.superuserService.getIsSuperuser().subscribe((is) => {
-      this.canManageRoles = is;
-      this.cdr.markForCheck();
-    });
     this.listOrgsSub = this.adminService.listOrgs().subscribe({
       next: (response) => {
         const list = response?.orgs;
@@ -115,6 +111,18 @@ export class AdminPage implements OnInit, OnDestroy {
         this.loading = false;
         this.accessMessage = null;
         this.orgsListError = null;
+        this.adminService.getCapabilities().subscribe({
+          next: (c) => {
+            this.canManageRoles = !!c?.can_manage_platform_roles;
+            this.canManageOwnerOrgBilling = !!c?.can_manage_owner_org_billing;
+            this.cdr.markForCheck();
+          },
+          error: () => {
+            this.canManageRoles = false;
+            this.canManageOwnerOrgBilling = false;
+            this.cdr.markForCheck();
+          },
+        });
         this.cdr.markForCheck();
       },
       error: (err) => {
@@ -339,11 +347,15 @@ export class AdminPage implements OnInit, OnDestroy {
             msg += ` Stripe: ${r.stripe.warnings.join('; ')}`;
           }
           this.snackbar.showSuccess(msg);
+        } else if (state === 'inactive') {
+          this.snackbar.showSuccess(
+            'Set to Inactive: real savings stay in Observe mode on owned orgs until they subscribe (app use is not blocked).',
+          );
         } else {
           this.snackbar.showSuccess(
             r.stripe?.warnings?.length
-              ? `Reactivated. ${r.stripe.warnings.join('; ')}`
-              : 'User reactivated; Stripe collection resumed where applicable.',
+              ? `Updated. ${r.stripe.warnings.join('; ')}`
+              : 'User set to Active; Stripe collection resumed where applicable.',
           );
         }
       },
@@ -358,6 +370,34 @@ export class AdminPage implements OnInit, OnDestroy {
   isSavingsGrace(user: AdminUser): boolean {
     if (user.access_state !== 'paused' || !user.pause_savings_until) return false;
     return new Date(user.pause_savings_until) > new Date();
+  }
+
+  /** Default missing flag row = active */
+  isAccessActive(user: AdminUser): boolean {
+    return !user.access_state || user.access_state === 'active';
+  }
+
+  toggleOwnerOrgBilling(user: AdminUser, exempt: boolean) {
+    if (!user.primary_owner_org) {
+      this.snackbar.showError('User has no owned organization.');
+      return;
+    }
+    this.userActionBusy = user.user_id;
+    this.adminService.setOwnerOrgPlatformExempt(user.user_id, exempt).subscribe({
+      next: (r) => {
+        user.primary_owner_org = { org_id: r.org_id, platform_exempt: r.platform_exempt };
+        this.userActionBusy = null;
+        this.snackbar.showSuccess(
+          r.platform_exempt
+            ? 'Billing exempt enabled on their primary owned org (full access without a paid subscription).'
+            : 'Billing exempt removed; normal subscription rules apply.',
+        );
+      },
+      error: (err) => {
+        this.userActionBusy = null;
+        this.snackbar.showError(err.error?.error || 'Failed to update billing exempt');
+      },
+    });
   }
 
   toggleAdmin(user: AdminUser) {

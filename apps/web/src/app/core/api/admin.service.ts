@@ -43,17 +43,19 @@ export interface AdminOrgDetail extends AdminOrg {
   };
 }
 
-export type AccountAccessState = 'active' | 'paused';
+export type AccountAccessState = 'active' | 'paused' | 'inactive';
 
 export interface AdminUser {
   user_id: string;
   email?: string;
-  /** Cloud API access: paused = read-only (Observe), active = normal */
+  /** active = normal; paused = Stripe paused + grace then JWT read-only; inactive = Observe savings lock on owned orgs */
   access_state?: AccountAccessState;
   /** While paused: full app/savings until this ISO time; then read-only until reactivated */
   pause_savings_until?: string | null;
   /** Platform role from platform_roles table (null = regular user) */
   platform_role?: string | null;
+  /** Oldest owned org — used for staff billing exempt toggle */
+  primary_owner_org?: { org_id: string; platform_exempt: boolean } | null;
   orgs: Array<{
     org_id: string;
     org_name: string;
@@ -150,7 +152,18 @@ export class AdminService {
     });
   }
 
-  /** Pause (Stripe collection paused; 30-day full savings access) or reactivate */
+  /** Superuser / platform owner only — who may manage roles and owner-org billing exempt */
+  getCapabilities(): Observable<{
+    can_manage_platform_roles: boolean;
+    can_manage_owner_org_billing: boolean;
+  }> {
+    return this.http.get<{
+      can_manage_platform_roles: boolean;
+      can_manage_owner_org_billing: boolean;
+    }>(`${this.baseUrl}/admin/capabilities`, { headers: this.getHeaders() });
+  }
+
+  /** Pause / inactive / reactivate — see API docs for semantics */
   setUserAccess(
     userId: string,
     access_state: AccountAccessState,
@@ -176,6 +189,18 @@ export class AdminService {
         warnings: string[];
       };
     }>(`${this.baseUrl}/admin/users/${encodeURIComponent(userId)}/access`, { access_state }, { headers: this.getHeaders() });
+  }
+
+  /** Staff / special users: full entitlement without paid subscription (first owned org). Superuser / owner email only. */
+  setOwnerOrgPlatformExempt(
+    userId: string,
+    platform_exempt: boolean,
+  ): Observable<{ user_id: string; org_id: string; platform_exempt: boolean }> {
+    return this.http.patch<{ user_id: string; org_id: string; platform_exempt: boolean }>(
+      `${this.baseUrl}/admin/users/${encodeURIComponent(userId)}/owner-org-billing`,
+      { platform_exempt },
+      { headers: this.getHeaders() },
+    );
   }
 
   /** Grant or revoke admin platform role */

@@ -3,7 +3,11 @@
  */
 
 import { query, queryOne } from "./db.js";
-import { deleteOrg } from "./orgsRepo.js";
+import {
+  applyInactiveBillingLockForOwnerOrgs,
+  clearInactiveBillingLockForUser,
+  deleteOrg,
+} from "./orgsRepo.js";
 import { invalidatePlatformRoleCache } from "./platformRolesRepo.js";
 import { safeLog } from "../../utils/redaction.js";
 import {
@@ -42,7 +46,11 @@ export async function ensureUserAccountFlagsSchema(): Promise<void> {
   `);
 }
 
-export type AccountAccessState = "active" | "paused";
+export type AccountAccessState = "active" | "paused" | "inactive";
+
+function emptyStripeResult(): StripePauseResult {
+  return { subscriptionIdsPaused: [], subscriptionIdsResumed: [], orgIds: [], warnings: [] };
+}
 
 export async function getAccountAccessState(userId: string): Promise<AccountAccessState> {
   const row = await queryOne<{ access_state: AccountAccessState }>(
@@ -56,6 +64,7 @@ export async function setAccountAccessState(
   userId: string,
   state: AccountAccessState,
 ): Promise<{ stripe: StripePauseResult }> {
+  const prev = await getAccountAccessState(userId);
   const now = new Date();
   const pausedAt = state === "paused" ? now.toISOString() : null;
   const pauseSavingsUntil =
@@ -74,16 +83,32 @@ export async function setAccountAccessState(
     [userId, state, pausedAt, pauseSavingsUntil],
   );
 
+  // Observe-only lock on owned orgs (skips platform_exempt). Not the same as JWT "paused" read-only.
+  if (prev !== "inactive" && state === "inactive") {
+    await applyInactiveBillingLockForOwnerOrgs(userId);
+  } else if (prev === "inactive" && state !== "inactive") {
+    await clearInactiveBillingLockForUser(userId);
+  }
+
   let stripe: StripePauseResult;
   if (state === "paused") {
     stripe = await pauseStripeSubscriptionsForOwnerOrgs(userId);
     if (stripe.warnings.length) {
       safeLog("warn", "setAccountAccessState: Stripe pause warnings", { userId, warnings: stripe.warnings });
     }
+  } else if (state === "inactive") {
+    // Do not auto-resume Stripe here (e.g. paused → inactive should keep pause_collection).
+    // Entering inactive from active does not pause Stripe — real savings are gated by observe lock only.
+    stripe = emptyStripeResult();
   } else {
-    stripe = await resumeStripeSubscriptionsForOwnerOrgs(userId);
-    if (stripe.warnings.length) {
-      safeLog("warn", "setAccountAccessState: Stripe resume warnings", { userId, warnings: stripe.warnings });
+    // state === "active"
+    if (prev === "paused" || prev === "inactive") {
+      stripe = await resumeStripeSubscriptionsForOwnerOrgs(userId);
+      if (stripe.warnings.length) {
+        safeLog("warn", "setAccountAccessState: Stripe resume warnings", { userId, warnings: stripe.warnings });
+      }
+    } else {
+      stripe = emptyStripeResult();
     }
   }
 

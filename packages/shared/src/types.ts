@@ -55,6 +55,8 @@ export interface Org {
    * true = force Observe-only savings; false = force real savings (comp).
    */
   observe_only_override: boolean | null;
+  /** Admin "inactive" user: org locked to observe-only savings until reactivated. */
+  billing_admin_observe_lock_user_id?: string | null;
 }
 
 /**

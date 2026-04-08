@@ -522,6 +522,18 @@
     font-weight: 500;
     letter-spacing: 0.02em;
   }
+
+  &.inactive {
+    background: rgba(120, 90, 140, 0.12);
+    color: #6b4f7a;
+  }
+
+  &.exempt-org {
+    background: var(--spectyra-teal-pale);
+    color: var(--spectyra-navy-mid);
+    text-transform: none;
+    font-weight: 600;
+  }
 }
 
 .delete-user-confirm {

@@ -229,8 +229,11 @@
       <div class="section">
         <h2>Users</h2>
         <p class="users-lead">
-          All Supabase accounts (including users who have not joined an org yet). Pause, reactivate, or delete;
-          deleting removes app data and the auth user.
+          All Supabase accounts (including users who have not joined an org yet).
+          <strong>Pause</strong> stops Stripe collection and (after a 30-day grace) blocks write API access.
+          <strong>Inactive</strong> keeps the app usable but locks real savings to Observe on orgs they own until they pay (does not auto-pause Stripe).
+          <strong>Billing exempt</strong> (staff) gives full product access without a subscription on their first owned org.
+          Delete removes app data and the auth user.
         </p>
         <div class="loading" *ngIf="loadingUsers">
           <p>Loading users...</p>
@@ -244,8 +247,10 @@
                 <h3>{{ user.email || user.user_id }}</h3>
                 <p class="user-id">ID: {{ user.user_id }}</p>
                 <span class="access-badge grace" *ngIf="isSavingsGrace(user)">Paused — full savings until {{ formatDate(user.pause_savings_until!) }}</span>
-                <span class="access-badge" *ngIf="user.access_state === 'paused' && !isSavingsGrace(user)">Paused — Observe (read-only)</span>
-                <span class="access-badge active" *ngIf="user.access_state !== 'paused'">Active</span>
+                <span class="access-badge" *ngIf="user.access_state === 'paused' && !isSavingsGrace(user)">Paused — API read-only (Observe)</span>
+                <span class="access-badge inactive" *ngIf="user.access_state === 'inactive'">Inactive — Observe savings (real savings locked)</span>
+                <span class="access-badge active" *ngIf="isAccessActive(user)">Active</span>
+                <span class="access-badge exempt-org" *ngIf="user.primary_owner_org?.platform_exempt">Billing exempt (org)</span>
                 <span class="platform-role-badge admin" *ngIf="user.platform_role === 'admin'">Admin</span>
                 <span class="platform-role-badge superuser" *ngIf="user.platform_role === 'superuser'">Superuser</span>
                 <span class="platform-role-badge exempt" *ngIf="user.platform_role === 'exempt'">Exempt</span>
@@ -264,7 +269,7 @@
                 <button
                   type="button"
                   class="btn btn-sm btn-secondary"
-                  *ngIf="user.access_state !== 'paused'"
+                  *ngIf="isAccessActive(user) || user.access_state === 'inactive'"
                   (click)="setUserAccess(user, 'paused')"
                   [disabled]="userActionBusy === user.user_id">
                   Pause
@@ -276,6 +281,38 @@
                   (click)="setUserAccess(user, 'active')"
                   [disabled]="userActionBusy === user.user_id">
                   Reactivate
+                </button>
+                <button
+                  type="button"
+                  class="btn btn-sm btn-secondary"
+                  *ngIf="user.access_state !== 'inactive'"
+                  (click)="setUserAccess(user, 'inactive')"
+                  [disabled]="userActionBusy === user.user_id">
+                  Set inactive
+                </button>
+                <button
+                  type="button"
+                  class="btn btn-sm btn-primary"
+                  *ngIf="user.access_state === 'inactive'"
+                  (click)="setUserAccess(user, 'active')"
+                  [disabled]="userActionBusy === user.user_id">
+                  Set active
+                </button>
+                <button
+                  type="button"
+                  class="btn btn-sm btn-secondary"
+                  *ngIf="canManageOwnerOrgBilling && user.primary_owner_org && !user.primary_owner_org.platform_exempt"
+                  (click)="toggleOwnerOrgBilling(user, true)"
+                  [disabled]="userActionBusy === user.user_id">
+                  Billing exempt
+                </button>
+                <button
+                  type="button"
+                  class="btn btn-sm btn-secondary"
+                  *ngIf="canManageOwnerOrgBilling && user.primary_owner_org?.platform_exempt"
+                  (click)="toggleOwnerOrgBilling(user, false)"
+                  [disabled]="userActionBusy === user.user_id">
+                  Remove billing exempt
                 </button>
                 <button
                   type="button"

@@ -12,6 +12,8 @@ import {
   hashApiKey,
   getApiKeyByRawKeyLookupForDiagnose,
   API_KEY_PREFIX_LENGTH,
+  getFirstOwnedOrgForUser,
+  setOrgPlatformExempt,
 } from "../services/storage/orgsRepo.js";
 import type { SupabaseAdminUser } from "../types/supabase.js";
 import {
@@ -29,6 +31,27 @@ import {
 } from "../services/storage/platformRolesRepo.js";
 
 export const adminRouter = Router();
+
+function canManagePrivilegedUserActions(req: AuthenticatedRequest): boolean {
+  const isSuperuser = req.auth?.platformRole === "superuser";
+  const ownerEmail = process.env.OWNER_EMAIL;
+  const isOwnerEmail =
+    !!ownerEmail && req.auth?.email?.toLowerCase() === ownerEmail.toLowerCase();
+  return !!(isSuperuser || isOwnerEmail);
+}
+
+/**
+ * GET /v1/admin/capabilities
+ *
+ * Whether this admin may manage platform roles and per-user owner-org billing (platform_exempt).
+ */
+adminRouter.get("/capabilities", requireUserSession, requireOwner, (req: AuthenticatedRequest, res) => {
+  const ok = canManagePrivilegedUserActions(req);
+  res.json({
+    can_manage_platform_roles: ok,
+    can_manage_owner_org_billing: ok,
+  });
+});
 
 function supabaseAdminHeaders(): { base: string; headers: Record<string, string> } | null {
   const base = process.env.SUPABASE_URL?.replace(/\/$/, "");
@@ -379,6 +402,7 @@ adminRouter.get("/users", requireUserSession, requireOwner, async (req, res) => 
       access_state?: AccountAccessState;
       pause_savings_until?: string | null;
       platform_role?: string | null;
+      primary_owner_org?: { org_id: string; platform_exempt: boolean } | null;
       orgs: Array<{
         org_id: string;
         org_name: string;
@@ -466,6 +490,37 @@ adminRouter.get("/users", requireUserSession, requireOwner, async (req, res) => 
       }
     }
 
+    if (userIds.length > 0) {
+      try {
+        const ownedRows = await query<{
+          user_id: string;
+          org_id: string;
+          platform_exempt: boolean;
+        }>(
+          `
+          SELECT DISTINCT ON (om.user_id)
+            om.user_id,
+            om.org_id,
+            COALESCE(o.platform_exempt, false) AS platform_exempt
+          FROM org_memberships om
+          INNER JOIN orgs o ON o.id = om.org_id
+          WHERE om.user_id = ANY($1::uuid[])
+            AND lower(om.role::text) = 'owner'
+          ORDER BY om.user_id ASC, o.created_at ASC NULLS LAST
+          `,
+          [userIds],
+        );
+        for (const row of ownedRows.rows) {
+          const u = usersMap.get(row.user_id);
+          if (u) {
+            u.primary_owner_org = { org_id: row.org_id, platform_exempt: row.platform_exempt };
+          }
+        }
+      } catch {
+        /* ignore */
+      }
+    }
+
     // Fill emails for membership-only rows if directory list missed them
     if (supabaseUrl && supabaseServiceKey) {
       for (const user of users) {
@@ -511,7 +566,9 @@ adminRouter.get("/users", requireUserSession, requireOwner, async (req, res) => 
 /**
  * PATCH /v1/admin/users/:userId/access
  *
- * Pause (read-only / Observe) or reactivate a cloud account.
+ * - active: normal access; resumes Stripe if coming from paused/inactive.
+ * - paused: pauses Stripe + 30d savings grace, then JWT read-only (Observe) until reactivated.
+ * - inactive: full app access; real savings locked to Observe via org observe lock (not JWT block). Does not auto-pause Stripe.
  */
 adminRouter.patch(
   "/users/:userId/access",
@@ -524,8 +581,8 @@ adminRouter.patch(
       if (!userId) {
         return res.status(400).json({ error: "user id required" });
       }
-      if (access_state !== "active" && access_state !== "paused") {
-        return res.status(400).json({ error: "access_state must be active or paused" });
+      if (access_state !== "active" && access_state !== "paused" && access_state !== "inactive") {
+        return res.status(400).json({ error: "access_state must be active, paused, or inactive" });
       }
       if (req.auth?.userId === userId) {
         return res.status(400).json({ error: "Cannot pause or reactivate your own account from this panel" });
@@ -561,6 +618,61 @@ adminRouter.patch(
 );
 
 /**
+ * PATCH /v1/admin/users/:userId/owner-org-billing
+ *
+ * Sets platform_exempt on the user's first owned org (staff / special users — full entitlement without paid subscription).
+ * Superusers and OWNER_EMAIL only.
+ */
+adminRouter.patch(
+  "/users/:userId/owner-org-billing",
+  requireUserSession,
+  requireOwner,
+  async (req: AuthenticatedRequest, res) => {
+    try {
+      if (!canManagePrivilegedUserActions(req)) {
+        return res.status(403).json({
+          error: "Only superusers or the platform owner can change owner-org billing exempt",
+        });
+      }
+      const userId = req.params.userId?.trim();
+      const { platform_exempt } = req.body as { platform_exempt?: boolean };
+      if (!userId) {
+        return res.status(400).json({ error: "user id required" });
+      }
+      if (typeof platform_exempt !== "boolean") {
+        return res.status(400).json({ error: "platform_exempt boolean required" });
+      }
+
+      const cfg = supabaseAdminHeaders();
+      if (!cfg) {
+        return res.status(503).json({ error: "Supabase admin not configured" });
+      }
+      const uRes = await fetch(`${cfg.base}/auth/v1/admin/users/${userId}`, { headers: cfg.headers });
+      if (!uRes.ok) {
+        return res.status(uRes.status === 404 ? 404 : 502).json({ error: "User not found in auth provider" });
+      }
+
+      const row = await getFirstOwnedOrgForUser(userId);
+      if (!row) {
+        return res.status(400).json({ error: "User has no owned organization — cannot set billing exempt" });
+      }
+
+      const org = await setOrgPlatformExempt(row.org_id, platform_exempt);
+      safeLog("info", "admin owner-org platform_exempt updated", { userId, orgId: row.org_id, platform_exempt });
+      return res.json({
+        user_id: userId,
+        org_id: org.id,
+        platform_exempt: org.platform_exempt,
+      });
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : "Internal server error";
+      safeLog("error", "Admin patch owner-org-billing", { error: message });
+      return res.status(500).json({ error: message });
+    }
+  },
+);
+
+/**
  * PATCH /v1/admin/users/:userId/role
  *
  * Grant or revoke a platform role (admin) for a user.
@@ -579,12 +691,7 @@ adminRouter.patch(
         return res.status(400).json({ error: "user id required" });
       }
 
-      // Only superuser or OWNER_EMAIL may manage roles; regular admins cannot
-      const isSuperuser = req.auth?.platformRole === "superuser";
-      const ownerEmail = process.env.OWNER_EMAIL;
-      const isOwnerEmail = ownerEmail && req.auth?.email
-        && req.auth.email.toLowerCase() === ownerEmail.toLowerCase();
-      if (!isSuperuser && !isOwnerEmail) {
+      if (!canManagePrivilegedUserActions(req)) {
         return res.status(403).json({ error: "Only superusers or the platform owner can manage admin roles" });
       }
 
