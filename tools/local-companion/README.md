@@ -81,6 +81,8 @@ No Desktop app required. With the companion running:
 
 The page polls local APIs (`/v1/savings/summary`, `/v1/analytics/sessions`) so OpenClaw traffic through `spectyra/smart` shows up automatically.
 
+After you run **`spectyra-companion setup`** (Spectyra API key in `~/.spectyra/desktop/config.json`), the dashboard also shows **plan status** and a **Subscribe** button. That uses **`GET /v1/billing/status`** and **`POST /v1/billing/checkout`** on the companion, which **proxy** to Spectyra Cloud with your API key — you do not need to open the Spectyra web app. Stripe Checkout still opens in a browser tab (that is where payment happens). Success/cancel return URLs default to this dashboard (`http://127.0.0.1:<port>/dashboard`). CLI **`spectyra-companion upgrade`** uses the same return URLs unless you set `SPECTYRA_CHECKOUT_RETURN_WEB=1` to use the hosted site instead.
+
 ### Measure savings on one request (sanity check)
 
 With the companion running and a provider key configured:
@@ -100,6 +102,8 @@ This sends a chat completion with repetitive context and prints local before/aft
 |--------|------|---------|
 | GET | `/` | Redirects to `/dashboard` |
 | GET | `/dashboard` | Local savings UI (HTML) |
+| GET | `/v1/billing/status` | Proxies to Spectyra Cloud (requires linked API key) |
+| POST | `/v1/billing/checkout` | Proxies Stripe Checkout session creation (same) |
 | GET | `/health` | Status, mode, inference path |
 | GET | `/config` | Companion configuration (includes `provider`, alias models) |
 | GET | `/v1/models` | OpenAI-style model list (`spectyra/smart`, `spectyra/fast`, `spectyra/quality`) |
@@ -144,7 +148,7 @@ If either is missing, the companion keeps **observe-style** behavior for optimiz
 
 Set **`SPECTYRA_BYPASS_ACCOUNT_CHECK=true`** only for local development (skips the gate).
 
-**Setup** writes `accountEmail` and calls the API so your **org** (with a **60-day trial** by default on the server) and keys are created. **Billing** after the trial is via **Stripe** on that org (`spectyra-companion upgrade` opens checkout). The monthly price is whatever **Price** you attach in the Stripe Dashboard to **`STRIPE_PRICE_ID`** on the API (e.g. **$9.99/mo** — create that price in Stripe, then set the env var to that price’s ID).
+**Setup** writes `accountEmail` and calls the API so your **org** (with a **14-day trial** by default on the server) and keys are created. **Billing** after the trial is via **Stripe** on that org (`spectyra-companion upgrade` opens checkout). The monthly price is whatever **Price** you attach in the Stripe Dashboard to **`STRIPE_PRICE_ID`** on the API (product copy uses **$4.99/mo (early adopters)** — create a matching price in Stripe, then set the env var to that price’s ID).
 
 ## Reset local data (test from scratch)
 

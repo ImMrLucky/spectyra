@@ -7,7 +7,8 @@
  *   spectyra-companion setup     Interactive setup (account + provider key + OpenClaw config)
  *   spectyra-companion status    Check if companion is running
  *   spectyra-companion dashboard Open the local savings page in your browser
- *   spectyra-companion upgrade   Sign in (if needed) and open Stripe checkout
+ *   spectyra-companion upgrade   Sign in (if needed) and open Stripe checkout (returns to local /dashboard)
+ *   spectyra-companion account [web|cancel|keep|pause|resume|delete]
  */
 
 import { execFileSync } from "node:child_process";
@@ -222,17 +223,80 @@ async function fetchBillingStatus(accessToken: string): Promise<Record<string, u
 }
 
 async function postBillingCheckout(accessToken: string): Promise<string | null> {
+  const dc = loadDesktopConfig();
+  const port = typeof dc.port === "number" && Number.isFinite(dc.port) ? dc.port : 4111;
+  const localDash = `http://127.0.0.1:${port}/dashboard`;
+  const useWebReturn = process.env.SPECTYRA_CHECKOUT_RETURN_WEB === "1";
+  const success_url = useWebReturn ? `${WEB_ORIGIN}/usage?upgraded=true` : `${localDash}?upgraded=1`;
+  const cancel_url = useWebReturn ? `${WEB_ORIGIN}/usage` : localDash;
   const res = await fetch(`${SPECTYRA_API}/billing/checkout`, {
     method: "POST",
     headers: { Authorization: `Bearer ${accessToken}`, "Content-Type": "application/json" },
     body: JSON.stringify({
-      success_url: `${WEB_ORIGIN}/usage?upgraded=true`,
-      cancel_url: `${WEB_ORIGIN}/usage`,
+      success_url,
+      cancel_url,
     }),
   });
   const data = (await res.json().catch(() => ({}))) as { checkout_url?: string; error?: string };
   if (!res.ok) throw new Error(data.error || `HTTP ${res.status}`);
   return data.checkout_url || null;
+}
+
+async function postAccountCancelRenewal(accessToken: string): Promise<void> {
+  const res = await fetch(`${SPECTYRA_API}/account/subscription/cancel-at-period-end`, {
+    method: "POST",
+    headers: { Authorization: `Bearer ${accessToken}`, "Content-Type": "application/json" },
+    body: JSON.stringify({}),
+  });
+  const data = (await res.json().catch(() => ({}))) as { error?: string; warnings?: string[] };
+  if (!res.ok) throw new Error(data.error || `HTTP ${res.status}`);
+  if (data.warnings?.length) warn(data.warnings.join("; "));
+}
+
+async function postAccountKeep(accessToken: string): Promise<void> {
+  const res = await fetch(`${SPECTYRA_API}/account/subscription/keep`, {
+    method: "POST",
+    headers: { Authorization: `Bearer ${accessToken}`, "Content-Type": "application/json" },
+    body: JSON.stringify({}),
+  });
+  const data = (await res.json().catch(() => ({}))) as { error?: string; warnings?: string[] };
+  if (!res.ok) throw new Error(data.error || `HTTP ${res.status}`);
+  if (data.warnings?.length) warn(data.warnings.join("; "));
+}
+
+async function postAccountPause(accessToken: string): Promise<void> {
+  const res = await fetch(`${SPECTYRA_API}/account/pause-service`, {
+    method: "POST",
+    headers: { Authorization: `Bearer ${accessToken}`, "Content-Type": "application/json" },
+    body: JSON.stringify({}),
+  });
+  const data = (await res.json().catch(() => ({}))) as { error?: string };
+  if (!res.ok) throw new Error(data.error || `HTTP ${res.status}`);
+}
+
+async function postAccountResume(accessToken: string): Promise<void> {
+  const res = await fetch(`${SPECTYRA_API}/account/resume-service`, {
+    method: "POST",
+    headers: { Authorization: `Bearer ${accessToken}`, "Content-Type": "application/json" },
+    body: JSON.stringify({}),
+  });
+  const data = (await res.json().catch(() => ({}))) as { error?: string };
+  if (!res.ok) throw new Error(data.error || `HTTP ${res.status}`);
+}
+
+async function postAccountDelete(accessToken: string): Promise<void> {
+  const res = await fetch(`${SPECTYRA_API}/account/delete`, {
+    method: "POST",
+    headers: { Authorization: `Bearer ${accessToken}`, "Content-Type": "application/json" },
+    body: JSON.stringify({ confirm: "DELETE_MY_ACCOUNT" }),
+  });
+  const data = (await res.json().catch(() => ({}))) as { error?: string };
+  if (!res.ok) throw new Error(data.error || `HTTP ${res.status}`);
+}
+
+function openBrowserAccountBilling(): void {
+  const url = `${WEB_ORIGIN.replace(/\/$/, "")}/billing`;
+  openBrowser(url);
 }
 
 function printTrialBannerLine(accessToken: string): Promise<void> {
@@ -252,7 +316,7 @@ function printTrialBannerLine(accessToken: string): Promise<void> {
 async function runUpgrade(): Promise<void> {
   console.log("");
   console.log(`${BOLD}Spectyra — Subscribe${RESET}`);
-  console.log(`${DIM}  Secure Stripe checkout (opens in your browser).${RESET}`);
+  console.log(`${DIM}  Secure Stripe checkout (opens in your browser); after payment you return to http://127.0.0.1:<port>/dashboard.${RESET}`);
   console.log("");
   const config = loadDesktopConfig();
   let token = await getValidSupabaseAccessToken(config);
@@ -280,6 +344,68 @@ async function runUpgrade(): Promise<void> {
     }
     ok("Opening checkout…");
     openBrowser(url);
+  } catch (e) {
+    warn(e instanceof Error ? e.message : String(e));
+    process.exitCode = 1;
+  }
+}
+
+async function runAccount(sub?: string): Promise<void> {
+  const config = loadDesktopConfig();
+  let token = await getValidSupabaseAccessToken(config);
+  if (!token) {
+    info("Sign in to your Spectyra account:");
+    token = await promptSignInForTokens(config);
+    if (!token) {
+      process.exitCode = 1;
+      return;
+    }
+  }
+
+  const action = (sub || "web").trim().toLowerCase();
+  if (action === "web" || action === "open" || action === "") {
+    console.log("");
+    info(`Opening ${WEB_ORIGIN.replace(/\/$/, "")}/billing — cancel, pause, or delete your account there.`);
+    openBrowserAccountBilling();
+    return;
+  }
+
+  try {
+    if (action === "cancel") {
+      const go = await ask("Cancel auto-renew at end of current period? [y/N] ");
+      if (!go.trim().toLowerCase().startsWith("y")) {
+        info("Cancelled.");
+        return;
+      }
+      await postAccountCancelRenewal(token);
+      ok("Renewal cancelled (access continues until period end).");
+    } else if (action === "keep") {
+      await postAccountKeep(token);
+      ok("Subscription will renew as usual.");
+    } else if (action === "pause") {
+      const go = await ask("Pause account (Stripe + 30d grace, then read-only)? [y/N] ");
+      if (!go.trim().toLowerCase().startsWith("y")) {
+        info("Cancelled.");
+        return;
+      }
+      await postAccountPause(token);
+      ok("Account pause applied.");
+    } else if (action === "resume") {
+      await postAccountResume(token);
+      ok("Account reactivated.");
+    } else if (action === "delete") {
+      const go = await ask('Type DELETE to permanently delete your account (cannot be undone): ');
+      if (go.trim() !== "DELETE") {
+        info("Aborted.");
+        return;
+      }
+      await postAccountDelete(token);
+      ok("Account deleted. Local session may still be cached — sign out in apps if needed.");
+    } else {
+      console.error(`Unknown account action: ${action}`);
+      console.log(`Use: web | cancel | keep | pause | resume | delete`);
+      process.exitCode = 1;
+    }
   } catch (e) {
     warn(e instanceof Error ? e.message : String(e));
     process.exitCode = 1;
@@ -808,6 +934,7 @@ function parseCliArgs(argv: string[]): { positional: string[]; openAfterStart: b
 
 const { positional, openAfterStart } = parseCliArgs(process.argv.slice(2));
 const cmd = positional[0];
+const cmdArg = positional[1];
 
 function runHelp(): void {
   console.log("");
@@ -851,6 +978,10 @@ if (cmd === "--help" || cmd === "-h") {
     case "upgrade":
       if (openAfterStart) warn("--open applies to start only");
       runUpgrade().catch((e) => { console.error(e); process.exit(1); });
+      break;
+    case "account":
+      if (openAfterStart) warn("--open applies to start only");
+      runAccount(cmdArg).catch((e) => { console.error(e); process.exit(1); });
       break;
     case "start":
       runStart(openAfterStart).catch((e) => { console.error(e); process.exit(1); });

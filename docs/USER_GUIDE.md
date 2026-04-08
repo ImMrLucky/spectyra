@@ -14,7 +14,7 @@
 
 **If your project uses email confirmation (common in production Supabase):** you will not get a session until you confirm the email. In that case the app **cannot** create your organization in the same step — your company name is **saved in the browser** and the **Create organization** step appears automatically after you sign in. If email confirmation is **disabled**, sign-up completes in one step: your org is created immediately and you receive an API key — **save it**, it is shown only once.
 
-4. You get a **60-day free trial** when the organization is created (immediate or right after first login), then paid subscription as configured (e.g. **$19.99/month** via Stripe).
+4. You get a **14-day full free trial** when the organization is created (immediate or right after first login), then paid subscription as configured (e.g. **$4.99/month for early adopters** via Stripe).
 
 ### 2. Choose Your Integration Method
 

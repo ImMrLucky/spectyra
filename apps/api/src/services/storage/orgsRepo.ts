@@ -22,7 +22,7 @@ export type { Org, Project, ApiKey };
  * Create a new organization
  */
 /** Default trial length for new orgs (bootstrap, register, etc.). */
-export const DEFAULT_ORG_TRIAL_DAYS = 60;
+export const DEFAULT_ORG_TRIAL_DAYS = 14;
 
 /** Default max org members when env unset or invalid (new orgs and provisioning). */
 export function getDefaultOrgSeatLimit(): number {

@@ -534,6 +534,31 @@ export function dashboardPageHtml(): string {
       border: 0.5px solid var(--border);
     }
 
+    .plan-card .plan-card-inner {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 12px 16px;
+    }
+    .plan-card .btn-subscribe {
+      font-family: var(--font-body);
+      font-size: 13px;
+      font-weight: 600;
+      padding: 8px 16px;
+      border-radius: var(--radius-md);
+      border: 1px solid var(--teal-border);
+      background: var(--teal-pale-bg);
+      color: var(--teal-light);
+      cursor: pointer;
+      white-space: nowrap;
+    }
+    .plan-card .btn-subscribe:hover:not(:disabled) {
+      border-color: var(--teal-light);
+      color: var(--blue-pale);
+    }
+    .plan-card .btn-subscribe:disabled { opacity: 0.5; cursor: not-allowed; }
+
     tr.live-session td {
       background: rgba(29,158,117,0.06);
       border-bottom: 1px solid var(--teal-border);
@@ -590,6 +615,15 @@ export function dashboardPageHtml(): string {
 
     <div id="err" class="err" hidden></div>
     <div id="accountGate" class="callout" hidden style="border-color: rgba(186,117,23,0.35)"></div>
+    <div id="planCard" class="callout plan-card" hidden style="border-color: rgba(29,158,117,0.35)">
+      <div class="plan-card-inner">
+        <div>
+          <strong>Spectyra plan</strong>
+          <p id="planLine" style="margin:6px 0 0;font-size:13px;color:var(--text-secondary);max-width:560px"></p>
+        </div>
+        <button type="button" class="btn-subscribe" id="btnSubscribe" style="display:none">Subscribe</button>
+      </div>
+    </div>
     <div id="calloutZero" class="callout" hidden></div>
 
     <div class="filter-toolbar">
@@ -989,8 +1023,86 @@ export function dashboardPageHtml(): string {
       $('baLabelAfter').textContent = 'After: ' + fmtInt(a) + ' input tokens';
     }
 
+    async function refreshPlanCard(health) {
+      var card = $('planCard');
+      var line = $('planLine');
+      var btn = $('btnSubscribe');
+      if (!card || !line || !btn) return;
+      if (!health || health.spectyraAccountLinked === false) {
+        card.hidden = true;
+        return;
+      }
+      card.hidden = false;
+      line.textContent = 'Loading plan…';
+      btn.style.display = 'none';
+      try {
+        var r = await fetch('/v1/billing/status');
+        if (r.status === 503) {
+          line.textContent = 'Add your Spectyra API key (run spectyra-companion setup) to manage your plan from this dashboard.';
+          return;
+        }
+        if (!r.ok) {
+          line.textContent = 'Could not load plan status (' + r.status + ').';
+          return;
+        }
+        var st = await r.json();
+        var paid = st.subscription_status === 'active' || st.subscription_active === true;
+        var hasAccess = st.has_access === true;
+        var exempt = !!(st.org_platform_exempt || st.platform_billing_exempt);
+        var trialActive = st.trial_active === true;
+        var orgName = st.org && st.org.name ? st.org.name : 'your org';
+        if (exempt && hasAccess) {
+          line.textContent = 'Billing exempt — full access for ' + orgName + '.';
+          btn.style.display = 'none';
+        } else if (paid && hasAccess) {
+          line.textContent = 'Active subscription — ' + orgName + '.';
+          btn.style.display = 'none';
+        } else if (trialActive && hasAccess) {
+          var te = st.trial_ends_at ? new Date(st.trial_ends_at) : null;
+          line.textContent = 'Trial active' + (te && !isNaN(te.getTime()) ? ' (ends ' + te.toLocaleString() + ')' : '') + '.';
+          btn.style.display = 'none';
+        } else {
+          line.textContent = 'Trial ended or no active paid plan. Subscribe to restore full cloud access for this account.';
+          btn.style.display = 'inline-block';
+        }
+        if (!btn.dataset.boundPlan) {
+          btn.dataset.boundPlan = '1';
+          btn.addEventListener('click', async function() {
+            btn.disabled = true;
+            try {
+              var cr = await fetch('/v1/billing/checkout', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({}),
+              });
+              var data = await cr.json().catch(function() { return {}; });
+              if (cr.ok && data.checkout_url) {
+                window.open(String(data.checkout_url), '_blank', 'noopener,noreferrer');
+              } else {
+                alert(data.error || data.message || ('Checkout failed: ' + cr.status));
+              }
+            } catch (e) {
+              alert(e && e.message ? e.message : 'Checkout failed');
+            }
+            btn.disabled = false;
+          });
+        }
+      } catch (e) {
+        line.textContent = 'Could not reach billing status.';
+        btn.style.display = 'none';
+      }
+    }
+
     async function load() {
       $('err').hidden = true;
+      try {
+        if (typeof URLSearchParams !== 'undefined' && window.location.search) {
+          var q = new URLSearchParams(window.location.search);
+          if (q.get('upgraded') === '1') {
+            history.replaceState({}, '', '/dashboard');
+          }
+        }
+      } catch (e) {}
 
       let health = null;
       try {
@@ -1026,6 +1138,8 @@ export function dashboardPageHtml(): string {
           ag.textContent = '';
         }
       }
+
+      void refreshPlanCard(health);
 
       let sessions = [];
       try {

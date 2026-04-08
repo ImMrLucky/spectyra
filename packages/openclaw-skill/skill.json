@@ -2,7 +2,7 @@
   "name": "spectyra",
   "version": "1.0.0",
   "displayName": "Spectyra Optimization",
-  "description": "Route OpenClaw through Spectyra's local companion for token optimization and savings. Requires a Spectyra account (email/password) and Spectyra API key. No agent code changes required.",
+  "description": "Route OpenClaw through Spectyra's local companion for token optimization on every spectyra/* LLM call: chat, agents, cron/tasks, skills, and tool-using runs. Requires a Spectyra account and API key. No agent code changes required.",
   "author": "Spectyra",
   "homepage": "https://spectyra.ai",
   "repository": {

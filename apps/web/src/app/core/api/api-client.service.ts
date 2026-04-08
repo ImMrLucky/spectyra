@@ -257,4 +257,65 @@ export class ApiClientService {
   revokeLicenseKey(id: string): Observable<any> {
     return this.dashboardCall<any>('DELETE', `${this.baseUrl}/license/keys/${id}`);
   }
+
+  /** Self-service: subscription, pause, delete (JWT only) */
+  getAccountSummary(): Observable<{
+    user_id: string;
+    access_state: string;
+    pause_savings_until: string | null;
+    owned_subscriptions: Array<{
+      org_id: string;
+      org_name: string;
+      stripe_subscription_id: string;
+      subscription_status: string;
+      cancel_at_period_end: boolean | null;
+      subscription_current_period_end: string | null;
+    }>;
+    has_cancellable_subscription: boolean;
+  }> {
+    return this.dashboardCall('GET', `${this.baseUrl}/account/summary`);
+  }
+
+  cancelSubscriptionAtPeriodEnd(): Observable<{
+    ok: boolean;
+    org_ids_updated: string[];
+    warnings: string[];
+  }> {
+    return this.dashboardCall('POST', `${this.baseUrl}/account/subscription/cancel-at-period-end`, {});
+  }
+
+  keepSubscription(): Observable<{
+    ok: boolean;
+    org_ids_updated: string[];
+    warnings: string[];
+  }> {
+    return this.dashboardCall('POST', `${this.baseUrl}/account/subscription/keep`, {});
+  }
+
+  pauseCloudService(): Observable<{
+    access_state: string;
+    pause_savings_until: string | null;
+    stripe: { warnings?: string[] };
+  }> {
+    return this.dashboardCall('POST', `${this.baseUrl}/account/pause-service`, {});
+  }
+
+  resumeCloudService(): Observable<{
+    access_state: string;
+    pause_savings_until: string | null;
+    stripe: { warnings?: string[] };
+  }> {
+    return this.dashboardCall('POST', `${this.baseUrl}/account/resume-service`, {});
+  }
+
+  deleteMyAccount(): Observable<{
+    deleted: boolean;
+    user_id: string;
+    orgs_deleted: string[];
+    memberships_removed: number;
+  }> {
+    return this.dashboardCall('POST', `${this.baseUrl}/account/delete`, {
+      confirm: 'DELETE_MY_ACCOUNT',
+    });
+  }
 }

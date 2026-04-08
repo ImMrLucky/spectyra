@@ -6,6 +6,7 @@ import { DesktopBridgeService } from '../../../core/desktop/desktop-bridge.servi
 import { CompanionAnalyticsService } from '../../../core/analytics/companion-analytics.service';
 import { TrialLicenseUiService, type LiveProductTopline } from '../../../core/agent-companion/trial-license-ui.service';
 import { OpenClawDesktopService, type OpenClawStatusSnapshot } from '../../../core/desktop/openclaw-desktop.service';
+import { environment } from '../../../../environments/environment';
 
 @Component({
   selector: 'app-openclaw-settings',
@@ -17,6 +18,14 @@ import { OpenClawDesktopService, type OpenClawStatusSnapshot } from '../../../co
         <h1 class="page-title">Settings</h1>
         <p class="page-sub">Provider configuration, model aliases, and diagnostics.</p>
       </header>
+
+      <section class="card">
+        <h2 class="card-title">Account &amp; billing</h2>
+        <p class="card-desc">
+          Cancel subscription, pause your cloud account, or delete your account — manage your Spectyra account in the browser.
+        </p>
+        <button type="button" class="btn sec" (click)="openCloudBilling()">Open account &amp; billing</button>
+      </section>
 
       <!-- ── Provider card ── -->
       <section class="card">
@@ -514,5 +523,10 @@ export class OpenClawSettingsPage implements OnInit {
     await new Promise((r) => setTimeout(r, 3000));
     await this.runDiag();
     this.restarting = false;
+  }
+
+  openCloudBilling(): void {
+    const url = `${environment.publicSiteUrl.replace(/\/$/, '')}/billing`;
+    window.open(url, '_blank', 'noopener,noreferrer');
   }
 }

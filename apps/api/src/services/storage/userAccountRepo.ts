@@ -32,7 +32,7 @@ export async function ensureUserAccountFlagsSchema(): Promise<void> {
   await query(`
     CREATE TABLE IF NOT EXISTS user_account_flags (
       user_id UUID PRIMARY KEY,
-      access_state TEXT NOT NULL DEFAULT 'active' CHECK (access_state IN ('active', 'paused')),
+      access_state TEXT NOT NULL DEFAULT 'active' CHECK (access_state IN ('active', 'paused', 'inactive')),
       paused_at TIMESTAMPTZ,
       updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
     )

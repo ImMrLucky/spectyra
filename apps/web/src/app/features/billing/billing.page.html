@@ -143,6 +143,87 @@
       </p>
     </div>
 
+    <!-- Self-service: cancel / pause / delete -->
+    <div class="card account-actions" *ngIf="!loading">
+      <h2>Subscription &amp; account</h2>
+      <p class="section-desc">
+        Manage your paid plan, pause your cloud account, or permanently delete your account.
+        Pausing stops future charges and gives you a grace period before read-only mode; cancelling a subscription stops renewal at the end of the current period.
+      </p>
+
+      <div class="account-row" *ngIf="accountSummary?.has_cancellable_subscription && !anySubScheduledCancel()">
+        <div>
+          <strong>Cancel paid renewal</strong>
+          <p class="hint">Stops auto-renew at the end of the current billing period. You keep access until then.</p>
+        </div>
+        <button type="button" class="btn-secondary" (click)="cancelPaidAtPeriodEnd()" [disabled]="accountActionBusy">
+          Cancel renewal
+        </button>
+      </div>
+
+      <div class="account-row" *ngIf="anySubScheduledCancel()">
+        <div>
+          <strong>Renewal cancelled</strong>
+          <p class="hint">Your subscription will end after the current period. You can resume auto-renew below.</p>
+        </div>
+        <button type="button" class="btn-primary" (click)="keepSubscriptionRenewal()" [disabled]="accountActionBusy">
+          Keep subscription
+        </button>
+      </div>
+
+      <div
+        class="account-row"
+        *ngIf="accountSummary && (accountSummary.access_state === 'active' || !accountSummary.access_state)"
+      >
+        <div>
+          <strong>Pause account</strong>
+          <p class="hint">Stops charging; full savings access for 30 days, then read-only API until you reactivate.</p>
+        </div>
+        <button type="button" class="btn-secondary" (click)="pauseMyAccount()" [disabled]="accountActionBusy">
+          Pause account
+        </button>
+      </div>
+
+      <p class="hint subtle" *ngIf="accountSummary?.access_state === 'inactive'">
+        Your account is set to <strong>Inactive</strong> by an administrator. Contact support to restore full savings, or manage billing below.
+      </p>
+
+      <div class="account-row" *ngIf="accountSummary?.access_state === 'paused'">
+        <div>
+          <strong>Paused</strong>
+          <p class="hint" *ngIf="accountSummary?.pause_savings_until">
+            Savings grace until {{ formatDate(accountSummary!.pause_savings_until!) }} — then read-only until reactivated.
+          </p>
+          <p class="hint" *ngIf="!accountSummary?.pause_savings_until">Reactivate to restore full cloud access and billing.</p>
+        </div>
+        <button type="button" class="btn-primary" (click)="resumeMyAccount()" [disabled]="accountActionBusy">
+          Reactivate account
+        </button>
+      </div>
+
+      <div class="account-row danger-zone">
+        <div>
+          <strong>Delete account</strong>
+          <p class="hint">Removes org data you own, memberships, and your login. This cannot be undone.</p>
+          <input
+            type="text"
+            class="input confirm-input"
+            [(ngModel)]="deleteConfirmText"
+            placeholder="Type DELETE_MY_ACCOUNT to enable"
+            autocomplete="off"
+          />
+        </div>
+        <button
+          type="button"
+          class="btn-danger"
+          (click)="deleteMyAccount()"
+          [disabled]="accountActionBusy || deleteConfirmText !== 'DELETE_MY_ACCOUNT'"
+        >
+          Delete my account
+        </button>
+      </div>
+    </div>
+
     <!-- Organization Info -->
     <div class="card info" *ngIf="billingStatus?.org">
       <h3>Organization</h3>

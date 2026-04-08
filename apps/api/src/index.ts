@@ -15,6 +15,7 @@ import { studioRouter } from "./routes/studio.js";
 import { proofRouter } from "./routes/proof.js";
 import { replaySimulateRouter } from "./routes/replaySimulate.js";
 import { billingRouter } from "./routes/billing.js";
+import { accountRouter } from "./routes/account.js";
 import { authRouter } from "./routes/auth.js";
 import { licenseRouter } from "./routes/license.js";
 import { integrationsRouter } from "./routes/integrations.js";
@@ -114,6 +115,7 @@ app.use("/v1", studioRouter); // POST /v1/studio/run (authenticated)
 app.use("/v1/proof", proofRouter);
 app.use("/v1/replay/simulate", replaySimulateRouter);
 app.use("/v1/billing", billingRouter);
+app.use("/v1/account", accountRouter);
 app.use("/v1/superuser", superuserRouter);
 app.use("/v1/auth", authRouter);
 app.use("/v1/license", licenseRouter);

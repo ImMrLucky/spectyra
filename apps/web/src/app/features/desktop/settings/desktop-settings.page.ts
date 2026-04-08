@@ -5,6 +5,7 @@ import { RouterModule } from '@angular/router';
 import { CompanionAnalyticsService } from '../../../core/analytics/companion-analytics.service';
 import { TrialLicenseUiService, type LiveProductTopline } from '../../../core/agent-companion/trial-license-ui.service';
 import { DesktopBridgeService } from '../../../core/desktop/desktop-bridge.service';
+import { environment } from '../../../../environments/environment';
 
 @Component({
   selector: 'app-desktop-settings',
@@ -16,6 +17,14 @@ import { DesktopBridgeService } from '../../../core/desktop/desktop-bridge.servi
         <h1 class="page-title">Settings</h1>
         <p class="page-sub">Desktop preferences and companion configuration.</p>
       </header>
+
+      <div class="settings-card">
+        <h3 class="sc-title">Account &amp; billing</h3>
+        <p class="sc-desc">
+          Cancel your subscription, pause your cloud account, or delete your account. Opens the Spectyra web app (sign in if prompted).
+        </p>
+        <button type="button" class="btn-secondary" (click)="openCloudBilling()">Open account &amp; billing</button>
+      </div>
 
       <!-- Companion status -->
       <div class="status-card" [class.ok]="companionOk">
@@ -407,6 +416,13 @@ export class DesktopSettingsPage implements OnInit {
     private trialUi: TrialLicenseUiService,
     private desktopBridge: DesktopBridgeService,
   ) {}
+
+  openCloudBilling(): void {
+    const url = `${environment.publicSiteUrl.replace(/\/$/, '')}/billing`;
+    if (typeof window !== 'undefined') {
+      window.open(url, '_blank', 'noopener,noreferrer');
+    }
+  }
 
   get activeProviderLabel(): string {
     switch (this.activeProvider) {

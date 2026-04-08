@@ -65,8 +65,20 @@ import { activateLicense } from "@spectyra/optimization-engine";
 import { spectyraOpenClawModelDefinitions } from "@spectyra/shared";
 import { recordOpenClawTrafficIfApplicable, getOpenClawIntegrationDiagnostics } from "./openclawTraffic.js";
 import { dashboardPageHtml } from "./dashboardPageHtml.js";
+import { DEFAULT_SPECTYRA_CLOUD_API_V1 } from "./cloudDefaults.js";
 
 const cfg: CompanionConfig = loadConfig();
+
+function cloudApiV1BaseUrl(): string {
+  return process.env.SPECTYRA_API_URL?.trim() || DEFAULT_SPECTYRA_CLOUD_API_V1;
+}
+
+/** Browser-safe return URL for Stripe after Checkout (localhost dashboard). */
+function localDashboardOrigin(): string {
+  const snap = loadConfig();
+  const host = snap.bindHost === "0.0.0.0" ? "127.0.0.1" : snap.bindHost;
+  return `http://${host}:${snap.port}`;
+}
 
 const SPECTYRA_MODEL_IDS = spectyraOpenClawModelDefinitions().map((d) => d.id);
 
@@ -267,6 +279,72 @@ app.get("/diagnostics/integrations/openclaw", (_req, res) => {
     configPresent: o.configPresent,
     lastSeenRequestAt: o.lastSeenRequestAt,
   });
+});
+
+/**
+ * Proxy Spectyra Cloud billing using the org API key from ~/.spectyra/desktop/config.json.
+ * Lets the local dashboard and tools subscribe without opening the Spectyra web app.
+ */
+app.get("/v1/billing/status", async (_req, res) => {
+  const c = loadConfig();
+  const key = c.spectyraApiKey?.trim();
+  if (!key) {
+    res.status(503).json({
+      error: "No Spectyra API key",
+      message: "Run spectyra-companion setup and sign in so your API key is saved locally.",
+    });
+    return;
+  }
+  try {
+    const r = await fetch(`${cloudApiV1BaseUrl()}/billing/status`, {
+      headers: { "X-SPECTYRA-API-KEY": key },
+    });
+    const body = (await r.json().catch(() => ({}))) as Record<string, unknown>;
+    res.status(r.status).json(body);
+  } catch (e: unknown) {
+    const msg = e instanceof Error ? e.message : "Cloud request failed";
+    res.status(502).json({ error: msg });
+  }
+});
+
+app.post("/v1/billing/checkout", async (req, res) => {
+  const c = loadConfig();
+  const key = c.spectyraApiKey?.trim();
+  if (!key) {
+    res.status(503).json({
+      error: "No Spectyra API key",
+      message: "Run spectyra-companion setup and sign in so your API key is saved locally.",
+    });
+    return;
+  }
+  const origin = localDashboardOrigin();
+  const rawBody =
+    req.body && typeof req.body === "object" && !Array.isArray(req.body)
+      ? (req.body as Record<string, unknown>)
+      : {};
+  const success_url =
+    typeof rawBody.success_url === "string" && rawBody.success_url.trim()
+      ? rawBody.success_url.trim()
+      : `${origin}/dashboard?upgraded=1`;
+  const cancel_url =
+    typeof rawBody.cancel_url === "string" && rawBody.cancel_url.trim()
+      ? rawBody.cancel_url.trim()
+      : `${origin}/dashboard`;
+  try {
+    const r = await fetch(`${cloudApiV1BaseUrl()}/billing/checkout`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "X-SPECTYRA-API-KEY": key,
+      },
+      body: JSON.stringify({ success_url, cancel_url }),
+    });
+    const body = (await r.json().catch(() => ({}))) as Record<string, unknown>;
+    res.status(r.status).json(body);
+  } catch (e: unknown) {
+    const msg = e instanceof Error ? e.message : "Cloud request failed";
+    res.status(502).json({ error: msg });
+  }
 });
 
 /**

@@ -298,6 +298,23 @@ Your org's SDK access is controlled in Settings. An admin can enable it.
 
 ---
 
+## Cloud account management (REST, browser session)
+
+Custom apps can call the Spectyra API with a **Supabase JWT** (`Authorization: Bearer …`) on the `/v1/account/*` routes:
+
+| Method | Path | Purpose |
+|--------|------|---------|
+| GET | `/v1/account/summary` | Access state, owned subscriptions, cancel flags |
+| POST | `/v1/account/subscription/cancel-at-period-end` | Stop renewal after current period |
+| POST | `/v1/account/subscription/keep` | Undo scheduled cancellation |
+| POST | `/v1/account/pause-service` | Pause account (same semantics as dashboard) |
+| POST | `/v1/account/resume-service` | Reactivate |
+| POST | `/v1/account/delete` | Body `{ "confirm": "DELETE_MY_ACCOUNT" }` — irreversible |
+
+Base URL is your deployed API (e.g. `https://…/v1`). End users typically use the web app **Plan & licensing** page or the Local Companion `spectyra-companion account` command.
+
+---
+
 ## License
 
 MIT

@@ -70,7 +70,7 @@ Existing adapters: SDK, Local Companion, OpenClaw JSONL, Claude hooks/JSONL, Ope
 | 6 | Sessions / History / Compare / Security | **Shells** — History aggregates locally; charts TBD |
 | 7 | Polish | Ongoing |
 
-## Trial / 60-day UX (product default; server uses `orgs.trial_ends_at`)
+## Trial / 14-day UX (product default; server uses `orgs.trial_ends_at`)
 
 - **Optimization ON** when `runMode === 'on'` and `licenseAllowsFullOptimization`.
 - **Projected** savings when not licensed or in `observe` — UI uses `TrialLicenseUiService.computeTopline()`.
