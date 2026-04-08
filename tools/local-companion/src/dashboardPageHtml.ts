@@ -556,6 +556,23 @@ export function dashboardPageHtml(): string {
       .hero-value { font-size: 1.8rem; }
       .header { flex-direction: column; align-items: flex-start; gap: 12px; }
     }
+
+    .mission-footer {
+      margin-top: 40px;
+      padding-top: 24px;
+      border-top: 1px solid var(--border);
+      font-size: 12px;
+      line-height: 1.55;
+      color: var(--text-muted);
+      text-align: center;
+    }
+    .mission-footer p {
+      margin: 0 auto 8px;
+      max-width: 42rem;
+    }
+    .mission-footer p:last-child {
+      margin-bottom: 0;
+    }
   </style>
 </head>
 <body>
@@ -777,6 +794,14 @@ export function dashboardPageHtml(): string {
     <p class="hint">
       Auto-refreshes while open. Run <code>spectyra-companion dashboard</code> to reopen.
     </p>
+
+    <footer class="mission-footer" aria-label="Spectyra mission">
+      <p>At Spectyra, we believe the future of AI must be both powerful and responsible.</p>
+      <p>
+        As part of our core mission, we commit to allocating 10% of all profits to organizations advancing AI safety and
+        guardrails.
+      </p>
+    </footer>
   </div>
 
   <script>
