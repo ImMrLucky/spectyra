@@ -9,6 +9,7 @@ import Stripe from "stripe";
 import {
   getOrgById,
   getOrgByStripeCustomerId,
+  syncOrgSeatLimitToMemberFloor,
   updateOrgSubscription,
   updateOrgStripeCustomerId,
 } from "../services/storage/orgsRepo.js";
@@ -20,6 +21,7 @@ import {
   type AuthenticatedRequest,
 } from "../middleware/auth.js";
 import { hasActiveAccess } from "../services/storage/orgsRepo.js";
+import { isSavingsObserveOnly } from "../billing/savingsEligibility.js";
 import { safeLog } from "../utils/redaction.js";
 
 export const billingRouter = Router();
@@ -166,7 +168,7 @@ billingRouter.post("/checkout", async (req: AuthenticatedRequest, res) => {
       line_items: [
         {
           price: process.env.STRIPE_PRICE_ID || "", // Set in env
-          quantity: 1,
+          quantity: Math.max(1, org.seat_limit ?? 1),
         },
       ],
       subscription_data: {
@@ -238,6 +240,15 @@ billingRouter.post("/webhook", async (req, res) => {
         const org = await getOrgByStripeCustomerId(customerId);
         if (org) {
           const isActive = subscription.status === "active" || subscription.status === "trialing";
+          const qty = subscription.items?.data?.[0]?.quantity;
+          const seatLimit =
+            isActive &&
+            typeof qty === "number" &&
+            Number.isFinite(qty) &&
+            qty >= 1
+              ? qty
+              : null;
+
           await updateOrgSubscription(
             org.id,
             subscription.id,
@@ -246,8 +257,16 @@ billingRouter.post("/webhook", async (req, res) => {
             {
               currentPeriodEndUnix: subscription.current_period_end ?? null,
               cancelAtPeriodEnd: subscription.cancel_at_period_end ?? null,
+              seatLimit,
             },
           );
+          if (
+            subscription.status === "canceled" ||
+            subscription.status === "unpaid" ||
+            subscription.status === "incomplete_expired"
+          ) {
+            await syncOrgSeatLimitToMemberFloor(org.id);
+          }
           safeLog("info", "Subscription updated", {
             org_id: org.id,
             status: subscription.status,
@@ -266,7 +285,9 @@ billingRouter.post("/webhook", async (req, res) => {
           await updateOrgSubscription(org.id, null, "canceled", false, {
             currentPeriodEndUnix: null,
             cancelAtPeriodEnd: false,
+            seatLimit: null,
           });
+          await syncOrgSeatLimitToMemberFloor(org.id);
           safeLog("info", "Subscription canceled", { org_id: org.id });
         }
         break;
@@ -400,6 +421,7 @@ billingRouter.get("/status", async (req: AuthenticatedRequest, res) => {
     }
     
     const hasAccess = hasActiveAccess(org, billingAccessOpts(req));
+    const observeOnly = isSavingsObserveOnly(org, billingAccessOpts(req));
     const trialEnd = org.trial_ends_at ? new Date(org.trial_ends_at) : null;
     const isTrialActive = trialEnd ? trialEnd > new Date() : false;
     
@@ -409,6 +431,8 @@ billingRouter.get("/status", async (req: AuthenticatedRequest, res) => {
         name: org.name,
       },
       has_access: hasAccess,
+      observe_only_savings: observeOnly,
+      observe_only_override: org.observe_only_override,
       trial_ends_at: org.trial_ends_at,
       trial_active: isTrialActive,
       subscription_status: org.subscription_status,
@@ -416,6 +440,7 @@ billingRouter.get("/status", async (req: AuthenticatedRequest, res) => {
       platform_role: req.auth?.platformRole ?? null,
       platform_billing_exempt: !!req.auth?.platformRole,
       org_platform_exempt: !!org.platform_exempt,
+      stripe_customer_id: org.stripe_customer_id,
     });
   } catch (error: any) {
     if (!res.headersSent) {

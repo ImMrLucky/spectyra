@@ -2,7 +2,7 @@
 
 **OpenAI-compatible HTTP server** on your machine. Optimizes prompts **before** they go to OpenAI, Anthropic-compatible clients, OpenClaw, Claude Code, or anything that lets you set a **custom API base URL**.
 
-No changes to your application code — only configuration (environment variables or UI).
+No changes to your application code — only configuration (OpenClaw + companion). **You do not need a `.env` or `SPECTYRA_API_URL` for the normal flow:** the published companion uses Spectyra’s hosted API and Supabase by default (optional env overrides for staging or advanced setups).
 
 ---
 

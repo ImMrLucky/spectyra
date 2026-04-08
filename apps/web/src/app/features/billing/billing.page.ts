@@ -90,6 +90,7 @@ export class BillingPage implements OnInit {
       subscriptionStatus: b['subscription_status'] as string | null | undefined,
       subscriptionActive: b['subscription_active'] as boolean | null | undefined,
       platformExempt: !!(b['org_platform_exempt'] || b['platform_billing_exempt']),
+      observeOnlySavings: b['observe_only_savings'] === true,
     });
   }
 

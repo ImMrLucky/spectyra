@@ -39,6 +39,10 @@ export interface MeResponse {
   } | null;
   has_access: boolean;
   trial_active: boolean;
+  observe_only_savings?: boolean;
+  observe_only_override?: boolean | null;
+  account_email?: string | null;
+  spectyra_api_key_id?: string;
   /** Installer URLs from API (DESKTOP_DOWNLOAD_* env). Optional for older servers. */
   desktop_downloads?: {
     mac_url: string | null;

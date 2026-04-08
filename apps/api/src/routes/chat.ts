@@ -1,7 +1,7 @@
 import { Router } from "express";
 import { v4 as uuidv4 } from "uuid";
 import { requireSpectyraApiKey, optionalProviderKey, type AuthenticatedRequest } from "../middleware/auth.js";
-import { requireActiveAccess } from "../middleware/trialGate.js";
+import { attachSavingsObserveContext } from "../middleware/trialGate.js";
 import { resolveProvider } from "../services/llm/providerResolver.js";
 import { runOptimizedOrBaseline } from "../services/optimizer/optimizer.js";
 import { createOptimizerProvider } from "../services/optimizer/providerAdapter.js";
@@ -28,8 +28,7 @@ export const chatRouter = Router();
 // Apply authentication middleware to all chat routes
 chatRouter.use(requireSpectyraApiKey);
 chatRouter.use(optionalProviderKey);
-// Require active access (trial or subscription) for live provider calls
-chatRouter.use(requireActiveAccess);
+chatRouter.use(attachSavingsObserveContext);
 
 chatRouter.post("/", async (req: AuthenticatedRequest, res) => {
   try {
@@ -149,6 +148,7 @@ chatRouter.post("/", async (req: AuthenticatedRequest, res) => {
       return res.json({
         run_id: uuidv4(),
         created_at: new Date().toISOString(),
+        observe_only_savings: !!req.context?.savingsObserveOnly,
         mode: "optimized",
         path,
         optimization_level: optimizationLevel,
@@ -284,10 +284,12 @@ chatRouter.post("/", async (req: AuthenticatedRequest, res) => {
       orgId: req.context?.org.id,
       projectId: req.context?.project?.id || null,
       providerKeyFingerprint: req.context?.providerKeyFingerprint || null,
+      apiKeyId: req.context?.apiKeyId ?? null,
+      accountEmail: req.auth?.email?.trim() || null,
     });
     
-    // For optimized runs without baseline, write estimated savings
-    if (mode === "optimized") {
+    // Accrue estimated ledger savings only when not in Observe-only (trial ended / unpaid / superuser).
+    if (mode === "optimized" && !req.context?.savingsObserveOnly) {
       await writeEstimatedSavings(
         workloadKey,
         path,
@@ -308,6 +310,7 @@ chatRouter.post("/", async (req: AuthenticatedRequest, res) => {
     // Core Moat v1: Include optimizations_applied and token breakdown in response
     const response: any = {
       ...safeRun,
+      observe_only_savings: !!req.context?.savingsObserveOnly,
       // Core Moat v1 fields (always included for transparency)
       optimizations_applied: result.optimizationsApplied || [],
       token_breakdown: result.tokenBreakdown || {},

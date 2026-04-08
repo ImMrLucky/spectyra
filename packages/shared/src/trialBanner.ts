@@ -25,6 +25,8 @@ export interface TrialBannerStateInput {
   subscriptionActive?: boolean | null;
   /** Superuser / comp org — no upgrade messaging. */
   platformExempt?: boolean | null;
+  /** From API: trial ended / unpaid — real savings off; Observe-only until subscribe. */
+  observeOnlySavings?: boolean | null;
   now?: Date;
   /** Default 7: above this is informational only */
   reminderDays?: number;
@@ -62,6 +64,18 @@ export function trialBannerState(input: TrialBannerStateInput): TrialBannerState
       title: "",
       detail: "",
       showUpgradeCta: false,
+    };
+  }
+
+  if (input.observeOnlySavings === true) {
+    const end = safeDate(input.trialEndsAtIso);
+    return {
+      severity: "expired",
+      daysRemaining: 0,
+      trialEndsAt: end,
+      title: "Observe only",
+      detail: `Your plan is in Observe mode: you can keep using ${product}, but savings stay projected until you subscribe.`,
+      showUpgradeCta: true,
     };
   }
 

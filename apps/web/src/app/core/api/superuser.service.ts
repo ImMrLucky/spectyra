@@ -82,4 +82,14 @@ export class SuperuserService {
       exempt,
     });
   }
+
+  setSavingsObserveMode(
+    orgId: string,
+    mode: 'auto' | 'force_observe' | 'force_full',
+  ): Observable<{ org: AdminOrg }> {
+    return this.http.patch<{ org: AdminOrg }>(
+      `${this.base}/orgs/${encodeURIComponent(orgId)}/savings-observe-mode`,
+      { mode },
+    );
+  }
 }

@@ -39,6 +39,7 @@ import {
   getApiKeyByHash,
   verifyApiKey,
   updateApiKeyLastUsed,
+  getDefaultOrgSeatLimit,
   getOrgById,
   hasActiveAccess,
   getProjectById,
@@ -57,6 +58,8 @@ export interface RequestContext {
   apiKeyId: string;
   providerKeyOverride?: string;
   providerKeyFingerprint?: string;
+  /** When true, usage is Observe-only (projected savings; ledger may skip accruing). */
+  savingsObserveOnly?: boolean;
   // For Supabase JWT auth
   userId?: string;
   userRole?: string;
@@ -705,6 +708,8 @@ export async function requireOrgMembership(
         stripe_customer_id: null,
         subscription_status: "trial",
         sdk_access_enabled: false,
+        seat_limit: getDefaultOrgSeatLimit(),
+        observe_only_override: null,
       };
     }
     req.context.userRole = membership.role;
@@ -713,6 +718,29 @@ export async function requireOrgMembership(
   } catch (error: any) {
     safeLog("error", "Org membership middleware error", { error: error.message });
     res.status(500).json({ error: "Internal server error" });
+  }
+}
+
+/** Decode email from Authorization Bearer JWT payload (for owner check when service role is unavailable). */
+function readEmailFromBearerJwt(req: Request): string | undefined {
+  const authHeader = req.headers.authorization;
+  if (!authHeader?.startsWith("Bearer ")) return undefined;
+  const token = authHeader.substring(7);
+  try {
+    const parts = token.split(".");
+    if (parts.length !== 3) return undefined;
+    const payload = JSON.parse(Buffer.from(parts[1], "base64").toString()) as Record<string, unknown>;
+    const meta = payload.user_metadata;
+    const fromMeta =
+      meta &&
+      typeof meta === "object" &&
+      typeof (meta as { email?: string }).email === "string"
+        ? (meta as { email: string }).email
+        : undefined;
+    const raw = typeof payload.email === "string" ? payload.email : fromMeta;
+    return raw?.trim() || undefined;
+  } catch {
+    return undefined;
   }
 }
 
@@ -746,18 +774,22 @@ export async function requireOwner(
     }
 
     const sessionEmail = req.auth.email?.trim();
-    if (
-      sessionEmail &&
-      sessionEmail.toLowerCase() === ownerEmail.toLowerCase()
-    ) {
-      safeLog("info", "Owner access granted (verified session email)", {
+    if (sessionEmail) {
+      if (sessionEmail.toLowerCase() === ownerEmail.toLowerCase()) {
+        safeLog("info", "Owner access granted (verified session email)", {
+          email: sessionEmail,
+        });
+        next();
+        return;
+      }
+      safeLog("warn", "Non-owner access attempt (session email)", {
         email: sessionEmail,
+        userId: req.auth.userId,
       });
-      next();
+      res.status(403).json({ error: "Access denied: Owner only" });
       return;
     }
 
-    // Get user email from Supabase
     const supabaseUrl = process.env.SUPABASE_URL;
     if (!supabaseUrl) {
       safeLog("error", "SUPABASE_URL not configured");
@@ -765,38 +797,27 @@ export async function requireOwner(
       return;
     }
 
-    // Query Supabase auth.users table via service role
-    // Note: This requires Supabase service role key
     const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
     if (!supabaseServiceKey) {
-      // Fallback: decode JWT (already verified by requireUserSession; used when email claim was missing from req.auth)
-      const authHeader = req.headers.authorization;
-      if (authHeader && authHeader.startsWith("Bearer ")) {
-        const token = authHeader.substring(7);
-        try {
-          const parts = token.split(".");
-          if (parts.length === 3) {
-            const payload = JSON.parse(Buffer.from(parts[1], "base64").toString());
-            const userEmail =
-              (typeof payload.email === "string" && payload.email) ||
-              (payload.user_metadata &&
-              typeof payload.user_metadata === "object" &&
-              typeof (payload.user_metadata as { email?: string }).email === "string"
-                ? (payload.user_metadata as { email: string }).email
-                : undefined);
-
-            if (userEmail && userEmail.toLowerCase() === ownerEmail.toLowerCase()) {
-              safeLog("info", "Owner access granted (JWT decode)", { email: userEmail });
-              next();
-              return;
-            }
-          }
-        } catch {
-          /* fall through */
+      const jwtEmail = readEmailFromBearerJwt(req);
+      if (jwtEmail) {
+        if (jwtEmail.toLowerCase() === ownerEmail.toLowerCase()) {
+          safeLog("info", "Owner access granted (JWT decode)", { email: jwtEmail });
+          next();
+          return;
         }
+        safeLog("warn", "Non-owner access attempt (JWT decode)", {
+          email: jwtEmail,
+          userId: req.auth.userId,
+        });
+        res.status(403).json({ error: "Access denied: Owner only" });
+        return;
       }
 
-      safeLog("warn", "SUPABASE_SERVICE_ROLE_KEY not configured; owner email did not match session/JWT");
+      safeLog(
+        "warn",
+        "SUPABASE_SERVICE_ROLE_KEY not configured and no email in JWT; cannot verify owner",
+      );
       res.status(503).json({ error: "Owner verification not configured" });
       return;
     }

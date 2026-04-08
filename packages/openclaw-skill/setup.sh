@@ -11,13 +11,18 @@ BOLD='\033[1m'
 DIM='\033[2m'
 RESET='\033[0m'
 
-SPECTYRA_API="https://spectyra.up.railway.app/v1"
+# Must match tools/local-companion/src/cloudDefaults.ts (DEFAULT_SPECTYRA_CLOUD_API_V1).
+# Optional: SPECTYRA_API_URL for staging; unset = production Cloud API.
+SPECTYRA_API="${SPECTYRA_API_URL:-https://spectyra.up.railway.app/v1}"
 SUPABASE_URL="https://jajqvceuenqeblbgsigt.supabase.co"
 SUPABASE_ANON_KEY="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImphanF2Y2V1ZW5xZWJsYmdzaWd0Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3Njk0MDI4MDgsImV4cCI6MjA4NDk3ODgwOH0.IJ7CSyX-_-lahfaOzM9U5EIpR6tcW-GhiMZeCY_efno"
 COMPANION_URL="http://127.0.0.1:4111"
 CONFIG_DIR="$HOME/.spectyra/desktop"
 COMPANION_DIR="$HOME/.spectyra/companion"
 COMPANION_BIN_DIR="$HOME/.spectyra/bin"
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+PERSIST_PY="$SCRIPT_DIR/persist_spectyra_desktop_config.py"
+CONFIG_JSON="$CONFIG_DIR/config.json"
 
 ok()   { echo -e "  ${GREEN}✓${RESET} $*"; }
 info() { echo -e "  ${CYAN}→${RESET} $*"; }
@@ -84,23 +89,22 @@ if [ "$SIGNED_IN" = false ]; then
       SIGNED_IN=true
 
       LICENSE_KEY=""
+      API_KEY=""
 
-      # Try bootstrap first (works for brand-new users)
-      BOOTSTRAP_RESP=$(curl -sf -X POST "$SPECTYRA_API/auth/bootstrap" \
+      # Idempotent org + API key (POST /auth/bootstrap with {} wrongly requires org_name and always fails)
+      ENSURE_TMP=$(mktemp)
+      ECODE=$(curl -sS -o "$ENSURE_TMP" -w "%{http_code}" -X POST "$SPECTYRA_API/auth/ensure-account" \
         -H "Authorization: Bearer $SPECTYRA_TOKEN" \
         -H "Content-Type: application/json" \
-        -d "{}" 2>/dev/null || echo '{}')
-      API_KEY=$(echo "$BOOTSTRAP_RESP" | grep -o '"api_key"[[:space:]]*:[[:space:]]*"[^"]*"' | head -1 | sed 's/.*"api_key"[[:space:]]*:[[:space:]]*"//' | sed 's/"$//' || true)
-      LICENSE_KEY=$(echo "$BOOTSTRAP_RESP" | grep -o '"license_key"[[:space:]]*:[[:space:]]*"[^"]*"' | head -1 | sed 's/.*"license_key"[[:space:]]*:[[:space:]]*"//' | sed 's/"$//' || true)
-      if [ -n "$API_KEY" ]; then
-        mkdir -p "$CONFIG_DIR"
-        if [ -f "$CONFIG_DIR/config.json" ]; then
-          TMP=$(mktemp)
-          cat "$CONFIG_DIR/config.json" | sed "s/\"apiKey\"[[:space:]]*:[[:space:]]*\"[^\"]*\"/\"apiKey\": \"$API_KEY\"/" > "$TMP" && mv "$TMP" "$CONFIG_DIR/config.json"
-        fi
+        -d "{}" || echo "000")
+      if [ "$ECODE" = "200" ] || [ "$ECODE" = "201" ]; then
+        API_KEY=$(python3 -c "import json,sys; print(json.load(open(sys.argv[1])).get('api_key') or '')" "$ENSURE_TMP" 2>/dev/null || true)
+        LICENSE_KEY=$(python3 -c "import json,sys; print(json.load(open(sys.argv[1])).get('license_key') or '')" "$ENSURE_TMP" 2>/dev/null || true)
+      else
+        warn "Spectyra ensure-account returned HTTP $ECODE (org may still exist — continuing)"
       fi
+      rm -f "$ENSURE_TMP"
 
-      # Existing user: bootstrap returns 400 — generate a license key directly
       if [ -z "$LICENSE_KEY" ]; then
         LK_RESP=$(curl -sf -X POST "$SPECTYRA_API/license/generate" \
           -H "Authorization: Bearer $SPECTYRA_TOKEN" \
@@ -111,6 +115,21 @@ if [ "$SIGNED_IN" = false ]; then
 
       if [ -n "$LICENSE_KEY" ]; then
         ok "License key provisioned"
+      fi
+
+      mkdir -p "$CONFIG_DIR"
+      export SPECTYRA_ACCOUNT_EMAIL="$auth_email"
+      export SPECTYRA_ORG_API_KEY="$API_KEY"
+      export SPECTYRA_LICENSE_KEY="$LICENSE_KEY"
+      if [ -f "$PERSIST_PY" ]; then
+        echo "$LOGIN_RESP" | python3 "$PERSIST_PY" "$CONFIG_JSON"
+        ok "Saved Spectyra session to $CONFIG_JSON"
+      else
+        warn "Missing $PERSIST_PY — run spectyra-companion setup to finish account linking."
+      fi
+      unset SPECTYRA_ACCOUNT_EMAIL SPECTYRA_ORG_API_KEY SPECTYRA_LICENSE_KEY
+      if [ -z "$API_KEY" ]; then
+        info "No new API key returned (account may already exist). Add one at spectyra.ai → Settings if needed."
       fi
     else
       ERR_MSG=$(echo "$LOGIN_RESP" | grep -o '"error_description"[[:space:]]*:[[:space:]]*"[^"]*"' | head -1 | sed 's/.*"error_description"[[:space:]]*:[[:space:]]*"//' | sed 's/"$//' || echo "Sign-in failed")
@@ -123,7 +142,7 @@ if [ "$SIGNED_IN" = false ]; then
     read -rp "  Email: " auth_email
     read -rsp "  Password (min 8 chars): " auth_password
     echo ""
-    read -rp "  Organization name: " auth_org
+    read -rp "  Workspace name (optional — Enter uses default from your email): " auth_org
 
     info "Creating account..."
     SIGNUP_RESP=$(curl -sf -X POST "$SUPABASE_URL/auth/v1/signup" \
@@ -132,6 +151,8 @@ if [ "$SIGNED_IN" = false ]; then
       -d "{\"email\": \"$auth_email\", \"password\": \"$auth_password\"}" 2>/dev/null || echo '{"error":"request_failed"}')
 
     SPECTYRA_TOKEN=$(echo "$SIGNUP_RESP" | grep -o '"access_token"[[:space:]]*:[[:space:]]*"[^"]*"' | head -1 | sed 's/.*"access_token"[[:space:]]*:[[:space:]]*"//' | sed 's/"$//' || true)
+    LOGIN_RESP=""
+    SESSION_JSON="$SIGNUP_RESP"
 
     # Handle email confirmation if needed
     if [ -z "$SPECTYRA_TOKEN" ]; then
@@ -148,6 +169,7 @@ if [ "$SIGNED_IN" = false ]; then
           -H "Content-Type: application/json" \
           -d "{\"email\": \"$auth_email\", \"password\": \"$auth_password\"}" 2>/dev/null || echo '{}')
         SPECTYRA_TOKEN=$(echo "$LOGIN_RESP" | grep -o '"access_token"[[:space:]]*:[[:space:]]*"[^"]*"' | head -1 | sed 's/.*"access_token"[[:space:]]*:[[:space:]]*"//' | sed 's/"$//' || true)
+        SESSION_JSON="$LOGIN_RESP"
       fi
     fi
 
@@ -155,13 +177,41 @@ if [ "$SIGNED_IN" = false ]; then
       ok "Account created for $auth_email"
       SIGNED_IN=true
 
-      # Bootstrap org + get API key + license key
-      BOOTSTRAP_RESP=$(curl -sf -X POST "$SPECTYRA_API/auth/bootstrap" \
+      API_KEY=""
+      LICENSE_KEY=""
+      ORG_JSON=$(AUTH_ORG="$auth_org" python3 -c "import json,os; print(json.dumps({'org_name': os.environ['AUTH_ORG']}))")
+      ENSURE_TMP=$(mktemp)
+      ECODE=$(curl -sS -o "$ENSURE_TMP" -w "%{http_code}" -X POST "$SPECTYRA_API/auth/ensure-account" \
         -H "Authorization: Bearer $SPECTYRA_TOKEN" \
         -H "Content-Type: application/json" \
-        -d "{\"org_name\": \"$auth_org\"}" 2>/dev/null || echo '{}')
-      API_KEY=$(echo "$BOOTSTRAP_RESP" | grep -o '"api_key"[[:space:]]*:[[:space:]]*"[^"]*"' | head -1 | sed 's/.*"api_key"[[:space:]]*:[[:space:]]*"//' | sed 's/"$//' || true)
-      LICENSE_KEY=$(echo "$BOOTSTRAP_RESP" | grep -o '"license_key"[[:space:]]*:[[:space:]]*"[^"]*"' | head -1 | sed 's/.*"license_key"[[:space:]]*:[[:space:]]*"//' | sed 's/"$//' || true)
+        -d "$ORG_JSON" || echo "000")
+      if [ "$ECODE" = "200" ] || [ "$ECODE" = "201" ]; then
+        API_KEY=$(python3 -c "import json,sys; print(json.load(open(sys.argv[1])).get('api_key') or '')" "$ENSURE_TMP" 2>/dev/null || true)
+        LICENSE_KEY=$(python3 -c "import json,sys; print(json.load(open(sys.argv[1])).get('license_key') or '')" "$ENSURE_TMP" 2>/dev/null || true)
+      else
+        warn "Spectyra ensure-account returned HTTP $ECODE"
+      fi
+      rm -f "$ENSURE_TMP"
+
+      if [ -z "$LICENSE_KEY" ]; then
+        LK_RESP=$(curl -sf -X POST "$SPECTYRA_API/license/generate" \
+          -H "Authorization: Bearer $SPECTYRA_TOKEN" \
+          -H "Content-Type: application/json" \
+          -d '{"device_name":"openclaw-skill-setup"}' 2>/dev/null || echo '{}')
+        LICENSE_KEY=$(echo "$LK_RESP" | grep -o '"license_key"[[:space:]]*:[[:space:]]*"[^"]*"' | head -1 | sed 's/.*"license_key"[[:space:]]*:[[:space:]]*"//' | sed 's/"$//' || true)
+      fi
+
+      mkdir -p "$CONFIG_DIR"
+      export SPECTYRA_ACCOUNT_EMAIL="$auth_email"
+      export SPECTYRA_ORG_API_KEY="$API_KEY"
+      export SPECTYRA_LICENSE_KEY="$LICENSE_KEY"
+      if [ -f "$PERSIST_PY" ]; then
+        echo "$SESSION_JSON" | python3 "$PERSIST_PY" "$CONFIG_JSON"
+        ok "Saved Spectyra session to $CONFIG_JSON"
+      else
+        warn "Missing $PERSIST_PY — run spectyra-companion setup to finish account linking."
+      fi
+      unset SPECTYRA_ACCOUNT_EMAIL SPECTYRA_ORG_API_KEY SPECTYRA_LICENSE_KEY
     else
       err "Could not create account. You can sign up later at spectyra.ai"
     fi
@@ -208,38 +258,44 @@ if [ "$PROVIDER_SET" = false ]; then
   if [ -n "$provider_key" ]; then
     mkdir -p "$CONFIG_DIR"
 
-    # Write provider-keys.json
-    cat > "$CONFIG_DIR/provider-keys.json" <<KEYJSON
-{"$PROVIDER": "$provider_key"}
-KEYJSON
+    export SP_PROVIDER="$PROVIDER"
+    export SP_PROV_KEY="$provider_key"
+    python3 <<'PY'
+import json, os
+from pathlib import Path
 
-    # Write or update config.json
-    LK_VALUE="null"
-    if [ -n "${LICENSE_KEY:-}" ]; then
-      LK_VALUE="\"$LICENSE_KEY\""
-    fi
-    if [ ! -f "$CONFIG_DIR/config.json" ]; then
-      cat > "$CONFIG_DIR/config.json" <<CONFJSON
-{
-  "runMode": "on",
-  "telemetryMode": "local",
-  "promptSnapshots": "local_only",
-  "provider": "$PROVIDER",
-  "aliasSmartModel": "gpt-4o-mini",
-  "aliasFastModel": "gpt-4o-mini",
-  "aliasQualityModel": "gpt-4o",
-  "port": 4111,
-  "licenseKey": $LK_VALUE,
-  "providerKeys": {"$PROVIDER": "$provider_key"}
-}
-CONFJSON
-    else
-      # Update existing config with license key if we got one
-      if [ -n "${LICENSE_KEY:-}" ]; then
-        TMP=$(mktemp)
-        sed "s/\"licenseKey\"[[:space:]]*:[[:space:]]*null/\"licenseKey\": \"$LICENSE_KEY\"/" "$CONFIG_DIR/config.json" > "$TMP" && mv "$TMP" "$CONFIG_DIR/config.json"
-      fi
-    fi
+cfg_path = Path(os.path.expanduser("~/.spectyra/desktop/config.json"))
+keys_path = Path(os.path.expanduser("~/.spectyra/desktop/provider-keys.json"))
+prov = os.environ["SP_PROVIDER"]
+key = os.environ["SP_PROV_KEY"]
+
+cfg: dict = {}
+if cfg_path.exists():
+    try:
+        cfg = json.loads(cfg_path.read_text(encoding="utf-8"))
+    except Exception:
+        cfg = {}
+
+cfg.setdefault("runMode", "on")
+cfg.setdefault("telemetryMode", "local")
+cfg.setdefault("promptSnapshots", "local_only")
+cfg["provider"] = prov
+cfg["aliasSmartModel"] = "gpt-4o-mini"
+cfg["aliasFastModel"] = "gpt-4o-mini"
+cfg["aliasQualityModel"] = "gpt-4o"
+if not cfg.get("port"):
+    cfg["port"] = 4111
+pk = cfg.get("providerKeys")
+if not isinstance(pk, dict):
+    pk = {}
+pk[prov] = key
+cfg["providerKeys"] = pk
+
+cfg_path.parent.mkdir(parents=True, exist_ok=True)
+cfg_path.write_text(json.dumps(cfg, indent=2) + "\n", encoding="utf-8")
+keys_path.write_text(json.dumps({prov: key}, indent=2) + "\n", encoding="utf-8")
+PY
+    unset SP_PROVIDER SP_PROV_KEY
 
     ok "Key saved for $PROVIDER"
     PROVIDER_SET=true

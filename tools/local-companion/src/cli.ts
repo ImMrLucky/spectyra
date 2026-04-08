@@ -28,6 +28,7 @@ import {
   saveDesktopConfig,
   saveSupabaseSession,
 } from "./desktopSession.js";
+import { DEFAULT_SPECTYRA_CLOUD_API_V1, DEFAULT_SPECTYRA_WEB_ORIGIN } from "./cloudDefaults.js";
 
 const PROVIDER_KEYS_FILE = join(DESKTOP_CONFIG_DIR, "provider-keys.json");
 const COMPANION_DIR = join(homedir(), ".spectyra", "companion");
@@ -43,8 +44,8 @@ function providerDisplayName(id: string): string {
   }
 }
 
-const SPECTYRA_API = process.env.SPECTYRA_API_URL?.trim() || "https://spectyra.up.railway.app/v1";
-const WEB_ORIGIN = process.env.SPECTYRA_WEB_ORIGIN?.trim() || "https://spectyra.ai";
+const SPECTYRA_API = process.env.SPECTYRA_API_URL?.trim() || DEFAULT_SPECTYRA_CLOUD_API_V1;
+const WEB_ORIGIN = process.env.SPECTYRA_WEB_ORIGIN?.trim() || DEFAULT_SPECTYRA_WEB_ORIGIN;
 
 const GREEN = "\x1b[32m";
 const YELLOW = "\x1b[33m";

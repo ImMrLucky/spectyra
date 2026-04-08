@@ -12,7 +12,7 @@ openclaw skills install spectyra
 
 ## Setup
 
-You need a **Spectyra account** (email + password) and **Spectyra API key** so usage is tied to your org (analytics, billing, upgrades). Install the companion and run guided setup:
+You need a **Spectyra account** (email + password) and a **Spectyra API key** — that’s all OpenClaw needs for identity and billing (one workspace per account on the server; you don’t configure orgs). Install the companion and run guided setup:
 
 ```bash
 npm install -g @spectyra/local-companion

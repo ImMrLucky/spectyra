@@ -16,6 +16,8 @@ import type {
 } from "@spectyra/core-types";
 import { queryOne } from "./storage/db.js";
 import { isBillingExemptOrgId } from "../billing/billingExempt.js";
+import { getOrgById, type HasActiveAccessOpts } from "./storage/orgsRepo.js";
+import { isSavingsObserveOnly } from "../billing/savingsEligibility.js";
 
 interface OrgRow {
   id: string;
@@ -26,6 +28,7 @@ interface OrgRow {
   optimized_runs_limit: number | null;
   sdk_access_enabled: boolean;
   platform_exempt: boolean;
+  observe_only_override: boolean | null;
 }
 
 const PLAN_LIMITS: Record<PlanType, { cloudAnalytics: boolean; desktop: boolean; sdk: boolean }> = {
@@ -64,13 +67,21 @@ function resolveLicenseStatus(org: OrgRow): LicenseStatus {
   return "missing";
 }
 
+/** Superuser override + billing-derived observe-only for SDK/UI license display. */
+function effectiveLicenseStatus(org: OrgRow): LicenseStatus {
+  if (org.observe_only_override === true) return "expired";
+  if (org.observe_only_override === false) return "valid";
+  return resolveLicenseStatus(org);
+}
+
 export async function getEntitlement(orgId: string): Promise<EntitlementInfo> {
   const org = await queryOne<OrgRow>(`
     SELECT id, plan, subscription_status, trial_ends_at,
            COALESCE(optimized_runs_used, 0) AS optimized_runs_used,
            optimized_runs_limit,
            sdk_access_enabled,
-           COALESCE(platform_exempt, false) AS platform_exempt
+           COALESCE(platform_exempt, false) AS platform_exempt,
+           observe_only_override
     FROM orgs WHERE id = $1
   `, [orgId]);
 
@@ -97,7 +108,7 @@ export async function getEntitlement(orgId: string): Promise<EntitlementInfo> {
       plan: "enterprise",
       trialState: "converted",
       trialEndsAt: null,
-      licenseStatus: "valid",
+      licenseStatus: effectiveLicenseStatus(org),
       optimizedRunsLimit: null,
       optimizedRunsUsed: org.optimized_runs_used,
       cloudAnalyticsEnabled: true,
@@ -110,7 +121,7 @@ export async function getEntitlement(orgId: string): Promise<EntitlementInfo> {
     plan,
     trialState: trial.state,
     trialEndsAt: trial.endsAt,
-    licenseStatus: resolveLicenseStatus(org),
+    licenseStatus: effectiveLicenseStatus(org),
     /** No per-period cap — only trial/subscription (see `canRunOptimized`). Counts remain for analytics. */
     optimizedRunsLimit: null,
     optimizedRunsUsed: org.optimized_runs_used,
@@ -145,9 +156,16 @@ export async function recordOptimizedRun(orgId: string): Promise<void> {
 
 /**
  * Check whether the org can run optimized (mode=on) calls.
- * Gated only by trial active or paid subscription — not by run counts.
+ * Gated by trial/subscription, Observe-only savings mode, and superuser override — not by run counts.
  */
-export async function canRunOptimized(orgId: string): Promise<boolean> {
+export async function canRunOptimized(
+  orgId: string,
+  opts?: HasActiveAccessOpts,
+): Promise<boolean> {
+  const org = await getOrgById(orgId);
+  if (!org) return false;
+  if (org.observe_only_override === false) return true;
+  if (isSavingsObserveOnly(org, opts)) return false;
   const ent = await getEntitlement(orgId);
   return ent.licenseStatus === "valid";
 }

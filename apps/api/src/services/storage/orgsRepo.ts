@@ -24,18 +24,53 @@ export type { Org, Project, ApiKey };
 /** Default trial length for new orgs (bootstrap, register, etc.). */
 export const DEFAULT_ORG_TRIAL_DAYS = 60;
 
+/** Default max org members when env unset or invalid (new orgs and provisioning). */
+export function getDefaultOrgSeatLimit(): number {
+  const raw = process.env.DEFAULT_ORG_SEAT_LIMIT?.trim();
+  if (!raw) return 5;
+  const n = parseInt(raw, 10);
+  return Number.isFinite(n) && n >= 1 ? n : 5;
+}
+
+export async function countOrgMembers(orgId: string): Promise<number> {
+  const row = await queryOne<{ n: string }>(
+    `SELECT count(*)::text AS n FROM org_memberships WHERE org_id = $1`,
+    [orgId],
+  );
+  return parseInt(row?.n ?? "0", 10);
+}
+
+/**
+ * After subscription ends, keep at least current member count (and a floor of 5) so
+ * existing teams are not blocked from operating until seats are adjusted manually.
+ */
+export async function syncOrgSeatLimitToMemberFloor(orgId: string): Promise<void> {
+  await query(
+    `
+    UPDATE orgs
+    SET seat_limit = GREATEST(
+      $2::int,
+      (SELECT count(*)::int FROM org_memberships WHERE org_id = $1)
+    )
+    WHERE id = $1
+    `,
+    [orgId, getDefaultOrgSeatLimit()],
+  );
+}
+
 export async function createOrg(
   name: string,
   trialDays: number = DEFAULT_ORG_TRIAL_DAYS,
 ): Promise<Org> {
   const trialEndsAt = new Date();
   trialEndsAt.setDate(trialEndsAt.getDate() + trialDays);
+  const seats = getDefaultOrgSeatLimit();
   
   const result = await query<Org>(`
-    INSERT INTO orgs (name, trial_ends_at, subscription_status, sdk_access_enabled)
-    VALUES ($1, $2, 'trial', $3)
-    RETURNING id, name, created_at, trial_ends_at, stripe_customer_id, subscription_status, sdk_access_enabled, platform_exempt
-  `, [name, trialEndsAt.toISOString(), true]);
+    INSERT INTO orgs (name, trial_ends_at, subscription_status, sdk_access_enabled, seat_limit)
+    VALUES ($1, $2, 'trial', $3, $4)
+    RETURNING id, name, created_at, trial_ends_at, stripe_customer_id, subscription_status, sdk_access_enabled, platform_exempt, seat_limit, observe_only_override
+  `, [name, trialEndsAt.toISOString(), true, seats]);
   
   return result.rows[0];
 }
@@ -46,7 +81,8 @@ export async function createOrg(
 export async function getAllOrgs(): Promise<Org[]> {
   const result = await query<Org>(`
     SELECT id, name, created_at, trial_ends_at, stripe_customer_id, stripe_subscription_id,
-           subscription_current_period_end, cancel_at_period_end, subscription_status, sdk_access_enabled, platform_exempt
+           subscription_current_period_end, cancel_at_period_end, subscription_status, sdk_access_enabled, platform_exempt,
+           seat_limit, observe_only_override
     FROM orgs 
     ORDER BY created_at DESC
   `);
@@ -60,7 +96,8 @@ export async function getAllOrgs(): Promise<Org[]> {
 export async function getOrgById(id: string): Promise<Org | null> {
   const result = await queryOne<Org>(`
     SELECT id, name, created_at, trial_ends_at, stripe_customer_id, stripe_subscription_id,
-           subscription_current_period_end, cancel_at_period_end, subscription_status, sdk_access_enabled, platform_exempt
+           subscription_current_period_end, cancel_at_period_end, subscription_status, sdk_access_enabled, platform_exempt,
+           seat_limit, observe_only_override
     FROM orgs 
     WHERE id = $1
   `, [id]);
@@ -80,7 +117,7 @@ export async function updateOrgName(orgId: string, newName: string): Promise<Org
     UPDATE orgs 
     SET name = $1 
     WHERE id = $2
-    RETURNING id, name, created_at, trial_ends_at, stripe_customer_id, subscription_status, sdk_access_enabled, platform_exempt
+    RETURNING id, name, created_at, trial_ends_at, stripe_customer_id, subscription_status, sdk_access_enabled, platform_exempt, seat_limit, observe_only_override
   `, [newName.trim(), orgId]);
   
   if (result.rowCount === 0) {
@@ -474,7 +511,8 @@ export async function deleteOrg(orgId: string): Promise<void> {
 export async function getOrgByStripeCustomerId(customerId: string): Promise<Org | null> {
   const result = await queryOne<Org>(`
     SELECT id, name, created_at, trial_ends_at, stripe_customer_id, stripe_subscription_id,
-           subscription_current_period_end, cancel_at_period_end, subscription_status, sdk_access_enabled, platform_exempt
+           subscription_current_period_end, cancel_at_period_end, subscription_status, sdk_access_enabled, platform_exempt,
+           seat_limit, observe_only_override
     FROM orgs 
     WHERE stripe_customer_id = $1
   `, [customerId]);
@@ -499,8 +537,25 @@ export async function updateOrgStripeCustomerId(orgId: string, customerId: strin
 export async function setOrgPlatformExempt(orgId: string, exempt: boolean): Promise<Org> {
   const result = await query<Org>(`
     UPDATE orgs SET platform_exempt = $2 WHERE id = $1
-    RETURNING id, name, created_at, trial_ends_at, stripe_customer_id, subscription_status, sdk_access_enabled, platform_exempt
+    RETURNING id, name, created_at, trial_ends_at, stripe_customer_id, subscription_status, sdk_access_enabled, platform_exempt, seat_limit, observe_only_override
   `, [orgId, exempt]);
+  if (result.rowCount === 0) {
+    throw new Error(`Organization ${orgId} not found`);
+  }
+  return result.rows[0];
+}
+
+/**
+ * Superuser: force Observe-only savings, allow real savings despite billing, or clear override (null).
+ */
+export async function setOrgObserveOnlyOverride(
+  orgId: string,
+  override: boolean | null,
+): Promise<Org> {
+  const result = await query<Org>(`
+    UPDATE orgs SET observe_only_override = $2 WHERE id = $1
+    RETURNING id, name, created_at, trial_ends_at, stripe_customer_id, subscription_status, sdk_access_enabled, platform_exempt, seat_limit, observe_only_override
+  `, [orgId, override]);
   if (result.rowCount === 0) {
     throw new Error(`Organization ${orgId} not found`);
   }
@@ -518,6 +573,8 @@ export async function updateOrgSubscription(
   stripeExtras?: {
     currentPeriodEndUnix?: number | null;
     cancelAtPeriodEnd?: boolean | null;
+    /** Stripe subscription item quantity → org seat cap when set. */
+    seatLimit?: number | null;
   },
 ): Promise<void> {
   // Map Stripe subscription status to DB. Trialing must count as paid access.
@@ -540,6 +597,12 @@ export async function updateOrgSubscription(
       ? new Date(stripeExtras.currentPeriodEndUnix * 1000).toISOString()
       : null;
 
+  const seatLimitFromStripe = stripeExtras?.seatLimit;
+  const seatLimitParam =
+    typeof seatLimitFromStripe === "number" && Number.isFinite(seatLimitFromStripe) && seatLimitFromStripe >= 1
+      ? Math.floor(seatLimitFromStripe)
+      : null;
+
   await query(
     `
     UPDATE orgs
@@ -554,6 +617,10 @@ export async function updateOrgSubscription(
           WHEN $1::text = 'canceled' THEN false
           WHEN $4::boolean IS NULL THEN cancel_at_period_end
           ELSE $4::boolean
+        END,
+        seat_limit = CASE
+          WHEN $6::integer IS NULL THEN seat_limit
+          ELSE GREATEST(1, $6::integer)
         END
     WHERE id = $5
     `,
@@ -563,6 +630,7 @@ export async function updateOrgSubscription(
       periodEnd,
       stripeExtras?.cancelAtPeriodEnd ?? null,
       orgId,
+      seatLimitParam,
     ],
   );
 }

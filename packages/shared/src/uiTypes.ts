@@ -50,6 +50,9 @@ export interface BillingStatusPartial {
   /** From GET /v1/billing/status when using JWT */
   org_platform_exempt?: boolean;
   has_access?: boolean;
+  /** True when trial ended / unpaid (or superuser forced) — no accruing “real” savings. */
+  observe_only_savings?: boolean;
+  observe_only_override?: boolean | null;
   savings_active?: boolean;
   entitlement_ends_at?: string | null;
   days_remaining?: number | null;

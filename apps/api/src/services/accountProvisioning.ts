@@ -9,6 +9,7 @@ import { tx, query } from "./storage/db.js";
 import { safeLog } from "../utils/redaction.js";
 import {
   createApiKey,
+  getDefaultOrgSeatLimit,
   getOrgById,
   getOrgProjects,
   hashApiKey,
@@ -82,13 +83,14 @@ export async function provisionSpectyraAccountIfNeeded(
     const trialEndsAt = new Date();
     trialEndsAt.setDate(trialEndsAt.getDate() + DEFAULT_ORG_TRIAL_DAYS);
 
+    const seats = getDefaultOrgSeatLimit();
     const orgRes = await client.query<Org>(
       `
-      INSERT INTO orgs (name, trial_ends_at, subscription_status, sdk_access_enabled)
-      VALUES ($1, $2, 'trial', true)
-      RETURNING id, name, created_at, trial_ends_at, stripe_customer_id, subscription_status, sdk_access_enabled, platform_exempt
+      INSERT INTO orgs (name, trial_ends_at, subscription_status, sdk_access_enabled, seat_limit)
+      VALUES ($1, $2, 'trial', true, $3)
+      RETURNING id, name, created_at, trial_ends_at, stripe_customer_id, subscription_status, sdk_access_enabled, platform_exempt, seat_limit, observe_only_override
     `,
-      [trimmedOrg, trialEndsAt.toISOString()],
+      [trimmedOrg, trialEndsAt.toISOString(), seats],
     );
     const orgRow = orgRes.rows[0];
 

@@ -15,6 +15,24 @@ import {
   isBillingExemptEmail,
   isBillingExemptOrgId,
 } from "../billing/billingExempt.js";
+import { isSavingsObserveOnly } from "../billing/savingsEligibility.js";
+
+/**
+ * Sets `req.context.savingsObserveOnly` from org billing + superuser override.
+ * Does not block requests — use so chat/replay stay available in Observe-only mode.
+ */
+export function attachSavingsObserveContext(
+  req: AuthenticatedRequest,
+  res: Response,
+  next: NextFunction,
+): void {
+  if (!req.context?.org) {
+    res.status(401).json({ error: "Not authenticated" });
+    return;
+  }
+  req.context.savingsObserveOnly = isSavingsObserveOnly(req.context.org, billingAccessOpts(req));
+  next();
+}
 
 /**
  * Require active access (trial or subscription) for live provider calls.
@@ -104,7 +122,7 @@ export async function requireOptimizedRunQuota(
     return;
   }
 
-  const allowed = await canRunOptimized(orgId);
+  const allowed = await canRunOptimized(orgId, billingAccessOpts(req));
   if (!allowed) {
     const entitlement = await getEntitlement(orgId);
     res.status(402).json({

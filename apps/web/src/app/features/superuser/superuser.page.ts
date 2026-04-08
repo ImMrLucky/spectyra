@@ -96,6 +96,18 @@ import { forkJoin } from 'rxjs';
         <div class="org-row" *ngFor="let o of orgs">
           <span class="mono">{{ o.name }}</span>
           <span class="oid">{{ o.id }}</span>
+          <mat-form-field appearance="outline" class="su-observe">
+            <mat-label>Savings</mat-label>
+            <mat-select
+              [value]="savingsMode(o)"
+              (selectionChange)="setSavingsMode(o, $event.value)"
+              [disabled]="saving"
+            >
+              <mat-option value="auto">Billing default</mat-option>
+              <mat-option value="force_observe">Observe-only</mat-option>
+              <mat-option value="force_full">Real savings (comp)</mat-option>
+            </mat-select>
+          </mat-form-field>
           <mat-slide-toggle
             [checked]="!!o.platform_exempt"
             (change)="toggleOrg(o, $event.checked)"
@@ -169,6 +181,10 @@ import { forkJoin } from 'rxjs';
         font-weight: 600;
         min-width: 140px;
       }
+      .su-observe {
+        min-width: 200px;
+        margin-right: 12px;
+      }
     `,
   ],
 })
@@ -236,6 +252,28 @@ export class SuperuserPage implements OnInit {
       error: (e) => {
         this.error = e.error?.error || e.message || 'Failed';
         this.saving = false;
+      },
+    });
+  }
+
+  savingsMode(o: AdminOrg): 'auto' | 'force_observe' | 'force_full' {
+    if (o.observe_only_override === true) return 'force_observe';
+    if (o.observe_only_override === false) return 'force_full';
+    return 'auto';
+  }
+
+  setSavingsMode(o: AdminOrg, mode: 'auto' | 'force_observe' | 'force_full') {
+    this.saving = true;
+    this.superuser.setSavingsObserveMode(o.id, mode).subscribe({
+      next: (r) => {
+        const ix = this.orgs.findIndex((x) => x.id === o.id);
+        if (ix >= 0) this.orgs[ix] = { ...this.orgs[ix], ...r.org };
+        this.saving = false;
+      },
+      error: (e) => {
+        this.error = e.error?.error || e.message || 'Failed';
+        this.saving = false;
+        this.reload();
       },
     });
   }

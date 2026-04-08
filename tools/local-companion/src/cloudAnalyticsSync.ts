@@ -6,12 +6,11 @@
 import { sessionToSyncedPayload } from "@spectyra/analytics-core";
 import type { SessionAnalyticsRecord } from "@spectyra/analytics-core";
 import type { CompanionConfig } from "./config.js";
+import { DEFAULT_SPECTYRA_CLOUD_API_V1 } from "./cloudDefaults.js";
 import { getValidSupabaseAccessToken, loadDesktopConfig } from "./desktopSession.js";
 
-const DEFAULT_API = "https://spectyra.up.railway.app/v1";
-
 function spectyraApiBase(): string {
-  return process.env.SPECTYRA_API_URL?.trim() || DEFAULT_API;
+  return process.env.SPECTYRA_API_URL?.trim() || DEFAULT_SPECTYRA_CLOUD_API_V1;
 }
 
 export function shouldAttemptCloudAnalyticsSync(cfg: CompanionConfig): boolean {

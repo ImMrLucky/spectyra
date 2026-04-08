@@ -15,7 +15,7 @@ import {
   countSuperusers,
   type PlatformRoleName,
 } from "../services/storage/platformRolesRepo.js";
-import { setOrgPlatformExempt } from "../services/storage/orgsRepo.js";
+import { setOrgPlatformExempt, setOrgObserveOnlyOverride } from "../services/storage/orgsRepo.js";
 import { safeLog } from "../utils/redaction.js";
 
 export const superuserRouter = Router();
@@ -107,6 +107,35 @@ superuserRouter.delete(
       res.json({ deleted: ok });
     } catch (e: any) {
       safeLog("error", "superuser delete platform user", { error: e.message });
+      res.status(500).json({ error: e.message || "Internal error" });
+    }
+  },
+);
+
+superuserRouter.patch(
+  "/orgs/:orgId/savings-observe-mode",
+  requireUserSession,
+  requireSuperuser,
+  async (req, res) => {
+    try {
+      const orgId = req.params.orgId;
+      const mode = (req.body as { mode?: string })?.mode;
+      let override: boolean | null = null;
+      if (mode === "auto" || mode === undefined) override = null;
+      else if (mode === "force_observe") override = true;
+      else if (mode === "force_full") override = false;
+      else {
+        res.status(400).json({ error: "mode must be auto | force_observe | force_full" });
+        return;
+      }
+      const org = await setOrgObserveOnlyOverride(orgId, override);
+      res.json({ org });
+    } catch (e: any) {
+      if (e.message?.includes("not found")) {
+        res.status(404).json({ error: e.message });
+        return;
+      }
+      safeLog("error", "superuser savings observe mode", { error: e.message });
       res.status(500).json({ error: e.message || "Internal error" });
     }
   },

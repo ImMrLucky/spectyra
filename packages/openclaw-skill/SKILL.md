@@ -67,7 +67,7 @@ spectyra-companion setup
 
 | What gets set up                            | What it means                                                                                                                                                                                   |
 |---------------------------------------------|-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
-| **Spectyra account**                        | Sign up or sign in with **email and password** so usage is tied to your org (analytics, billing, upgrades).                                                                                     |
+| **Spectyra account**                        | Sign up or sign in with **email and password**. That’s your identity; the cloud ties usage, billing, and your **API key** to that account (you don’t manage “organizations” in OpenClaw — it’s one workspace behind the scenes). |
 | **Spectyra API key**                        | Saved locally so the companion can authenticate to Spectyra services.                                                                                                                           |
 | **LLM provider key**                        | Your OpenAI / Anthropic / Groq key is stored **on disk** (e.g. under `~/.spectyra/…`) for the companion to call the real provider after optimization. It is not sent to Spectyra for inference. |
 | **OpenClaw** (if `openclaw` is `Installed`) | Adds the **Spectyra provider** ( `spectyra/smart` and related models) and sets the **default model** so new OpenClaw sessions use Spectyra. You can always change models at any time.           |
@@ -159,13 +159,10 @@ openclaw config set models.providers.spectyra '{"baseUrl":"http://127.0.0.1:4111
 ### Start the companion
 
 ```bash
-SPECTYRA_PORT=4111 \
-SPECTYRA_BIND_HOST=127.0.0.1 \
-SPECTYRA_PROVIDER=openai \
-SPECTYRA_PROVIDER_KEYS_FILE=~/.spectyra/desktop/provider-keys.json \
-SPECTYRA_RUN_MODE=on \
 spectyra-companion start --open
 ```
+
+That uses your saved `~/.spectyra/desktop/config.json` and the same built-in defaults as a fresh install — you do **not** need to export `SPECTYRA_PORT`, `SPECTYRA_API_URL`, or other variables for a normal start. (Optional: set `SPECTYRA_PORT` or other vars only if you need non-default behavior.)
 
 ### Default model
 
@@ -217,7 +214,7 @@ Your AI Provider (OpenAI / Anthropic / Groq)
 
 - Inference stays on your machine; your **LLM provider** key is not sent to Spectyra for chat forwarding.
 - **Savings** show at **http://127.0.0.1:4111/dashboard** while the companion runs.
-- Your **Spectyra account and API key** link this usage to **Spectyra** for org-level analytics, billing, and plan changes (same account as the web app).
+- Your **email (account) and API key** uniquely identify you to Spectyra for analytics, billing, and upgrades — same login as the web app. No separate “org” concept is required for OpenClaw; the API key is scoped to your account’s workspace.
 
 ---
 

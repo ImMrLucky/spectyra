@@ -33,6 +33,7 @@ import { safeLog } from "../utils/redaction.js";
 import { audit } from "../services/audit/audit.js";
 import { requireOrgRole } from "../middleware/requireRole.js";
 import { getEntitlement } from "../services/entitlement.js";
+import { isSavingsObserveOnly } from "../billing/savingsEligibility.js";
 import type { SupabaseAdminUser } from "../types/supabase.js";
 import { isBillingExemptEmail } from "../billing/billingExempt.js";
 import {
@@ -451,7 +452,8 @@ authRouter.post("/login", requireSpectyraApiKey, optionalProviderKey, async (req
     }
     
     const hasAccess = hasActiveAccess(org);
-    
+    const observeOnly = isSavingsObserveOnly(org);
+
     res.json({
       org: {
         id: org.id,
@@ -461,6 +463,9 @@ authRouter.post("/login", requireSpectyraApiKey, optionalProviderKey, async (req
       },
       project: req.context.project,
       has_access: hasAccess,
+      observe_only_savings: observeOnly,
+      observe_only_override: org.observe_only_override,
+      spectyra_api_key_id: req.context.apiKeyId,
     });
   } catch (error: any) {
     safeLog("error", "Login error", { error: error.message });
@@ -535,6 +540,7 @@ authRouter.get("/me", async (req: AuthenticatedRequest, res) => {
             const projects = await getOrgProjects(org.id);
 
             const hasAccess = hasActiveAccess(org, billingAccessOpts(req));
+            const observeOnly = isSavingsObserveOnly(org, billingAccessOpts(req));
             const trialEnd = org.trial_ends_at ? new Date(org.trial_ends_at) : null;
             const isTrialActive = trialEnd ? trialEnd > new Date() : false;
 
@@ -548,6 +554,9 @@ authRouter.get("/me", async (req: AuthenticatedRequest, res) => {
               projects: projects,
               has_access: hasAccess,
               trial_active: isTrialActive,
+              observe_only_savings: observeOnly,
+              observe_only_override: org.observe_only_override,
+              account_email: req.auth?.email ?? null,
               platform_role: req.auth?.platformRole ?? null,
               org_platform_exempt: !!org.platform_exempt,
               desktop_downloads: desktopDownloadsPayload(),
@@ -591,6 +600,7 @@ authRouter.get("/me", async (req: AuthenticatedRequest, res) => {
           }
           
           const hasAccess = hasActiveAccess(org);
+          const observeOnly = isSavingsObserveOnly(org);
           const trialEnd = org.trial_ends_at ? new Date(org.trial_ends_at) : null;
           const isTrialActive = trialEnd ? trialEnd > new Date() : false;
           
@@ -604,6 +614,9 @@ authRouter.get("/me", async (req: AuthenticatedRequest, res) => {
             project: req.context.project,
             has_access: hasAccess,
             trial_active: isTrialActive,
+            observe_only_savings: observeOnly,
+            observe_only_override: org.observe_only_override,
+            spectyra_api_key_id: req.context.apiKeyId,
             desktop_downloads: desktopDownloadsPayload(),
             openclaw_desktop_downloads: openclawDesktopDownloadsPayload(),
           });

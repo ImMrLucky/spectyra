@@ -13,6 +13,8 @@ export interface AdminOrg {
   sdk_access_enabled: boolean;
   /** Org-wide API/chat bypass (set from superuser console). */
   platform_exempt?: boolean;
+  /** Superuser savings tri-state (null = billing default). */
+  observe_only_override?: boolean | null;
   stats?: {
     projects: number;
     api_keys: number;

@@ -1,8 +1,7 @@
 import { Router } from "express";
 import { requireSpectyraApiKey, optionalProviderKey, type AuthenticatedRequest } from "../middleware/auth.js";
-import { requireActiveAccess, allowEstimatorMode } from "../middleware/trialGate.js";
+import { attachSavingsObserveContext } from "../middleware/trialGate.js";
 import { resolveProvider } from "../services/llm/providerResolver.js";
-import { hasActiveAccess } from "../services/storage/orgsRepo.js";
 import { readFileSync } from "fs";
 import { join, dirname } from "path";
 import { fileURLToPath } from "url";
@@ -36,33 +35,11 @@ export const replayRouter = Router();
 // Apply authentication middleware
 replayRouter.use(requireSpectyraApiKey);
 replayRouter.use(optionalProviderKey);
-// Check trial access per-request (estimator mode allowed even if trial expired)
+replayRouter.use(attachSavingsObserveContext);
 
 replayRouter.post("/", async (req: AuthenticatedRequest, res) => {
-  // Check if estimator mode - if so, allow even if trial expired
   const isEstimatorMode = req.body.proof_mode === "estimator";
-  
-  if (!isEstimatorMode) {
-    // For live mode, require active access
-    if (!req.context) {
-      return res.status(401).json({ error: "Not authenticated" });
-    }
-    
-    const org = req.context.org;
-    if (!org || !hasActiveAccess(org)) {
-      const trialEnd = org?.trial_ends_at ? new Date(org.trial_ends_at) : null;
-      const trialEnded = trialEnd ? trialEnd < new Date() : false;
-      
-      return res.status(402).json({
-        error: "Payment Required",
-        message: "Your trial has expired. Use estimator mode for demos, or subscribe for live runs.",
-        trial_ended: trialEnded,
-        subscription_active: org?.subscription_status === "active",
-        billing_url: "/billing",
-      });
-    }
-  }
-  
+
   try {
     const { scenario_id, provider, model, optimization_level, proof_mode } = req.body as {
       scenario_id: string;
@@ -227,6 +204,8 @@ replayRouter.post("/", async (req: AuthenticatedRequest, res) => {
       orgId: req.context?.org.id,
       projectId: req.context?.project?.id || null,
       providerKeyFingerprint: req.context?.providerKeyFingerprint || null,
+      apiKeyId: req.context?.apiKeyId ?? null,
+      accountEmail: req.auth?.email?.trim() || null,
     });
     
     // Run optimized
@@ -355,13 +334,15 @@ replayRouter.post("/", async (req: AuthenticatedRequest, res) => {
       orgId: req.context?.org.id,
       projectId: req.context?.project?.id || null,
       providerKeyFingerprint: req.context?.providerKeyFingerprint || null,
+      apiKeyId: req.context?.apiKeyId ?? null,
+      accountEmail: req.auth?.email?.trim() || null,
     });
     
     // Create replay record
     await saveReplay(replayId, scenario_id, workloadKey, scenario.path, optimizationLevel, provider, model, baselineId, optimizedId);
     
-    // Write verified savings to ledger (only for live mode)
-    if (!isEstimatorMode) {
+    // Verified ledger savings only for live mode and paid/trial (not Observe-only).
+    if (!isEstimatorMode && !req.context?.savingsObserveOnly) {
       await writeVerifiedSavings(
         replayId,
         workloadKey,
@@ -401,7 +382,11 @@ replayRouter.post("/", async (req: AuthenticatedRequest, res) => {
         tokensSaved,
         pctSaved,
         costSavedUsd,
-        savings_type: isEstimatorMode ? "estimated_demo" : "verified",
+        savings_type: isEstimatorMode
+          ? "estimated_demo"
+          : req.context?.savingsObserveOnly
+            ? "observe_projected"
+            : "verified",
       },
       quality: {
         baseline_pass: baselineQuality.pass,

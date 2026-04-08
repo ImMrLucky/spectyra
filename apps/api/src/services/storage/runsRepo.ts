@@ -45,6 +45,8 @@ export async function saveRun(run: RunRecord & {
   orgId?: string;
   projectId?: string | null;
   providerKeyFingerprint?: string | null;
+  apiKeyId?: string | null;
+  accountEmail?: string | null;
 }): Promise<void> {
   // Enterprise Security: Check org settings for data storage controls
   const orgSettings = await getOrgSettingsForRun(run.orgId);
@@ -85,12 +87,13 @@ export async function saveRun(run: RunRecord & {
       phrasebook_tokens_before, phrasebook_tokens_after, phrasebook_tokens_saved,
       codemap_tokens_before, codemap_tokens_after, codemap_tokens_saved,
       org_id, project_id, provider_key_fingerprint,
+      api_key_id, account_email,
       created_at
     ) VALUES (
       $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20,
       $21, $22, $23, $24, $25, $26, $27, $28, $29, $30, $31, $32, $33, $34, $35, $36, $37, $38, $39,
       $40, $41, $42, $43, $44, $45, $46, $47, $48,
-      $49, $50, $51, $52
+      $49, $50, $51, $52, $53, $54
     )
   `, [
     run.id,
@@ -143,6 +146,8 @@ export async function saveRun(run: RunRecord & {
     run.orgId || null,
     run.projectId || null,
     run.providerKeyFingerprint || null,
+    run.apiKeyId || null,
+    run.accountEmail || null,
     run.createdAt,
   ]);
 }

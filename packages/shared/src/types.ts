@@ -48,6 +48,13 @@ export interface Org {
   sdk_access_enabled: boolean;
   /** Superuser-granted: org always has access (trial/subscription checks skipped). */
   platform_exempt?: boolean;
+  /** Max distinct users (org_memberships rows); Stripe quantity can update this. */
+  seat_limit: number;
+  /**
+   * Superuser tri-state: null = billing rules (Observe after trial if unpaid);
+   * true = force Observe-only savings; false = force real savings (comp).
+   */
+  observe_only_override: boolean | null;
 }
 
 /**
@@ -156,7 +163,7 @@ export interface Savings {
   tokensSaved: number;
   pctSaved: number;
   costSavedUsd: number;
-  savings_type?: "verified" | "estimated" | "shadow_verified" | "estimated_demo";
+  savings_type?: "verified" | "estimated" | "shadow_verified" | "estimated_demo" | "observe_projected";
 }
 
 export interface RunRecord {
