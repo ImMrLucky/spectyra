@@ -58,6 +58,77 @@ function ok(msg: string) { console.log(`  ${GREEN}✓${RESET} ${msg}`); }
 function info(msg: string) { console.log(`  ${CYAN}→${RESET} ${msg}`); }
 function warn(msg: string) { console.log(`  ${YELLOW}!${RESET} ${msg}`); }
 
+/** Supabase / HaveIBeenPwned style messages — user should pick another password and retry. */
+function isPasswordRetryMessage(msg: string): boolean {
+  const t = msg.toLowerCase();
+  return (
+    t.includes("weak") ||
+    t.includes("easy to guess") ||
+    t.includes("pwned") ||
+    t.includes("breach") ||
+    t.includes("common password") ||
+    t.includes("hibp") ||
+    t.includes("known to be") ||
+    t.includes("leaked")
+  );
+}
+
+function printSpectyraApiKeyCopyBlock(apiKey: string): void {
+  console.log("");
+  console.log(
+    `  ${BOLD}Your Spectyra API key${RESET} — copy it now; it may not be shown again (also saved in ~/.spectyra/desktop/config.json):`,
+  );
+  console.log("");
+  console.log(`  ${CYAN}${apiKey}${RESET}`);
+  console.log("");
+}
+
+async function handleEnsureAccountAfterSignIn(
+  accessToken: string,
+  config: Record<string, unknown>,
+  ensureBody: Record<string, unknown>,
+): Promise<void> {
+  try {
+    const ensured = await postEnsureAccount(accessToken, ensureBody);
+    if (ensured.api_key) {
+      config.apiKey = ensured.api_key;
+      ok("Spectyra org API key stored on this machine.");
+      printSpectyraApiKeyCopyBlock(ensured.api_key);
+    } else if (ensured.already_provisioned) {
+      info(
+        "Account already had an organization — the cloud API key is not shown again. " +
+          "Add or copy a key in the Spectyra web app (Settings → API keys).",
+      );
+    }
+    if (ensured.license_key) {
+      config.licenseKey = ensured.license_key;
+      ok("License key provisioned");
+    }
+    if (config.apiKey || config.licenseKey) saveDesktopConfig(config);
+
+    if (!config.licenseKey) {
+      try {
+        const lkResp = await fetchJson(`${SPECTYRA_API}/license/generate`, {
+          method: "POST",
+          headers: { Authorization: `Bearer ${accessToken}`, "Content-Type": "application/json" },
+          body: JSON.stringify({ device_name: "spectyra-companion-setup" }),
+        });
+        if (lkResp?.license_key) {
+          config.licenseKey = lkResp.license_key;
+          saveDesktopConfig(config);
+          ok("License key provisioned");
+        }
+      } catch {
+        /* optional */
+      }
+    }
+  } catch (e) {
+    warn(
+      `Could not finish Spectyra account setup: ${e instanceof Error ? e.message : String(e)}. Check API URL or try again.`,
+    );
+  }
+}
+
 function ask(prompt: string, hidden = false): Promise<string> {
   return new Promise((resolve) => {
     const rl = createInterface({ input: process.stdin, output: process.stdout });
@@ -285,41 +356,7 @@ async function runSetup() {
           signedIn = true;
           config.accountEmail = email.trim();
           saveSupabaseSession(config, resp);
-          try {
-            const ensured = await postEnsureAccount(resp.access_token, {});
-            if (ensured.api_key) {
-              config.apiKey = ensured.api_key;
-              ok("Spectyra API key saved (first-time setup)");
-            } else if (ensured.already_provisioned) {
-              info("Account already had an organization (no new API key shown). Add one in Spectyra Settings if needed.");
-            }
-            if (ensured.license_key) {
-              config.licenseKey = ensured.license_key;
-              ok("License key provisioned");
-            }
-            if (config.apiKey || config.licenseKey) saveDesktopConfig(config);
-
-            if (!config.licenseKey) {
-              try {
-                const lkResp = await fetchJson(`${SPECTYRA_API}/license/generate`, {
-                  method: "POST",
-                  headers: { Authorization: `Bearer ${resp.access_token}`, "Content-Type": "application/json" },
-                  body: JSON.stringify({ device_name: "spectyra-companion-setup" }),
-                });
-                if (lkResp?.license_key) {
-                  config.licenseKey = lkResp.license_key;
-                  saveDesktopConfig(config);
-                  ok("License key provisioned");
-                }
-              } catch {
-                /* optional */
-              }
-            }
-          } catch (e) {
-            warn(
-              `Could not finish Spectyra account setup: ${e instanceof Error ? e.message : String(e)}. Check API URL or try again.`,
-            );
-          }
+          await handleEnsureAccountAfterSignIn(resp.access_token as string, config, {});
         } else {
           warn(resp.error_description || resp.msg || "Sign-in failed");
         }
@@ -328,90 +365,122 @@ async function runSetup() {
       }
     } else {
       console.log("");
-      const email = await ask("Email: ");
-      const password = await ask("Password (min 8 chars): ", true);
-      const orgName = await ask("Organization name: ");
+      const email = (await ask("Email: ")).trim();
+      if (!email.includes("@")) {
+        warn("Enter a valid email address, then run setup again.");
+      } else {
+        const orgLine = await ask("Organization name (optional — Enter uses a name from your email): ");
+        const orgNameTrim = orgLine.trim();
+        const ensureBody: Record<string, unknown> =
+          orgNameTrim.length > 0 ? { org_name: orgNameTrim } : {};
 
-      info("Creating account...");
-      try {
-        const signupResp = await fetchJson(`${SUPABASE_URL}/auth/v1/signup`, {
-          method: "POST",
-          headers: { apikey: SUPABASE_ANON_KEY, "Content-Type": "application/json" },
-          body: JSON.stringify({ email, password }),
-        });
+        let signupDone = false;
+        while (!signupDone) {
+          const password = await ask("Password (min 8 chars): ", true);
+          if (password.length < 8) {
+            warn("Password must be at least 8 characters.");
+            const shortRetry = await ask("Try a different password? [Y/n] ");
+            if (shortRetry.trim().toLowerCase().startsWith("n")) break;
+            continue;
+          }
 
-        if (signupResp.msg && !signupResp.id && !signupResp.access_token) {
-          warn(String(signupResp.msg));
-        }
-
-        let token = signupResp.access_token || null;
-        let grantForSession: Record<string, unknown> = signupResp;
-
-        if (!token && signupResp.id) {
+          info("Creating account...");
           try {
-            const acRes = await fetch(`${SPECTYRA_API}/auth/auto-confirm`, {
+            const signupResp = await fetchJson(`${SUPABASE_URL}/auth/v1/signup`, {
               method: "POST",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({ email }),
+              headers: { apikey: SUPABASE_ANON_KEY, "Content-Type": "application/json" },
+              body: JSON.stringify({ email, password }),
             });
-            if (!acRes.ok) {
-              const detail = await acRes.text().catch(() => "");
-              warn(
-                `Email confirmation helper failed (${acRes.status}). ` +
-                  `Check Spectyra API deployment and Supabase service role. ${detail.slice(0, 120)}`,
-              );
-            }
-          } catch (e) {
-            warn(`auto-confirm request failed: ${e instanceof Error ? e.message : String(e)}`);
-          }
 
-          await new Promise((r) => setTimeout(r, 1000));
-
-          const loginResp = await fetchJson(`${SUPABASE_URL}/auth/v1/token?grant_type=password`, {
-            method: "POST",
-            headers: { apikey: SUPABASE_ANON_KEY, "Content-Type": "application/json" },
-            body: JSON.stringify({ email, password }),
-          });
-          grantForSession = loginResp;
-          token = loginResp.access_token || null;
-        }
-
-        if (token) {
-          ok(`Account created for ${email}`);
-          signedIn = true;
-          config.accountEmail = email.trim();
-          saveSupabaseSession(config, grantForSession);
-          try {
-            const ensured = await postEnsureAccount(token, { org_name: orgName.trim() });
-            if (ensured.api_key) {
-              config.apiKey = ensured.api_key;
-              ok("Spectyra API key saved — store it securely");
-            } else if (ensured.already_provisioned) {
-              info(
-                "This account already had a Spectyra organization — the cloud API key is not shown again. " +
-                  "Create or copy a key in the Spectyra web app (Settings), or revoke and create a new default key.",
-              );
-            }
-            if (ensured.license_key) {
-              config.licenseKey = ensured.license_key;
-              ok("License key provisioned");
-            }
-            if (config.apiKey || config.licenseKey) saveDesktopConfig(config);
-          } catch (e) {
-            warn(
-              `Could not finish Spectyra account setup: ${e instanceof Error ? e.message : String(e)}. Check API URL or try again.`,
+            const errText = String(
+              signupResp.msg || signupResp.error_description || signupResp.message || "",
             );
+
+            if (errText && !signupResp.access_token && !signupResp.id) {
+              warn(errText);
+              if (/already (registered|exists)|user already|duplicate/i.test(errText)) {
+                info(`If this is your email, run ${CYAN}spectyra-companion setup${RESET} again and choose “Have a Spectyra account? [y]” to sign in.`);
+                break;
+              }
+              if (isPasswordRetryMessage(errText)) {
+                const again = await ask("Choose a stronger password? [Y/n] ");
+                if (again.trim().toLowerCase().startsWith("n")) break;
+                continue;
+              }
+              const again = await ask("Try a different password? [Y/n] ");
+              if (again.trim().toLowerCase().startsWith("n")) break;
+              continue;
+            }
+
+            if (signupResp.msg && !signupResp.id && !signupResp.access_token && !errText) {
+              warn(String(signupResp.msg));
+            }
+
+            let token = (signupResp.access_token as string | undefined) || null;
+            let grantForSession: Record<string, unknown> = signupResp;
+
+            if (!token && signupResp.id) {
+              try {
+                const acRes = await fetch(`${SPECTYRA_API}/auth/auto-confirm`, {
+                  method: "POST",
+                  headers: { "Content-Type": "application/json" },
+                  body: JSON.stringify({ email }),
+                });
+                if (!acRes.ok) {
+                  const detail = await acRes.text().catch(() => "");
+                  warn(
+                    `Email confirmation helper failed (${acRes.status}). ` +
+                      `Check Spectyra API deployment and Supabase service role. ${detail.slice(0, 120)}`,
+                  );
+                }
+              } catch (e) {
+                warn(`auto-confirm request failed: ${e instanceof Error ? e.message : String(e)}`);
+              }
+
+              await new Promise((r) => setTimeout(r, 1000));
+
+              const loginResp = await fetchJson(`${SUPABASE_URL}/auth/v1/token?grant_type=password`, {
+                method: "POST",
+                headers: { apikey: SUPABASE_ANON_KEY, "Content-Type": "application/json" },
+                body: JSON.stringify({ email, password }),
+              });
+              grantForSession = loginResp;
+              token = (loginResp.access_token as string | undefined) || null;
+            }
+
+            if (token) {
+              ok(`Account created for ${email}`);
+              signedIn = true;
+              config.accountEmail = email;
+              saveSupabaseSession(config, grantForSession);
+              await handleEnsureAccountAfterSignIn(token, config, ensureBody);
+              signupDone = true;
+            } else {
+              warn(
+                "Could not create a session after sign-up (email confirmation or sign-in failed). " +
+                  `You can also register at ${WEB_ORIGIN}`,
+              );
+              const again = await ask("Try a different password? [Y/n] ");
+              if (again.trim().toLowerCase().startsWith("n")) break;
+            }
+          } catch {
+            warn("Could not reach Spectyra.");
+            break;
           }
-        } else {
-          warn(
-            "Could not create a session after sign-up (check password, email confirmation, and messages above). " +
-              `Or register at ${WEB_ORIGIN}`,
-          );
         }
-      } catch {
-        warn("Could not reach Spectyra.");
       }
     }
+  }
+
+  if (!signedIn) {
+    console.log("");
+    warn("Account setup is not complete — provider keys and OpenClaw were not changed.");
+    console.log(
+      `${DIM}  Run ${CYAN}spectyra-companion setup${RESET}${DIM} again after fixing email/password above.${RESET}`,
+    );
+    console.log("");
+    process.exitCode = 1;
+    return;
   }
 
   if (signedIn) {
