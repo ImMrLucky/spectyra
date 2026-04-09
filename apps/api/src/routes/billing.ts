@@ -13,6 +13,7 @@ import {
   updateOrgSubscription,
   updateOrgStripeCustomerId,
   clearOrgStripeCustomerId,
+  type Org,
 } from "../services/storage/orgsRepo.js";
 import {
   requireSpectyraApiKey,
@@ -38,6 +39,104 @@ function isStripeNoSuchCustomerError(err: unknown): boolean {
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY || "", {
   apiVersion: "2024-11-20.acacia" as Stripe.LatestApiVersion,
 });
+
+/** Webhooks may send expandable Stripe fields as id string or nested object. */
+function stripeCustomerId(
+  customer:
+    | Stripe.Subscription["customer"]
+    | Stripe.Checkout.Session["customer"],
+): string | null {
+  if (customer == null) return null;
+  if (typeof customer === "string") return customer;
+  if (typeof customer === "object" && "id" in customer && typeof customer.id === "string") {
+    return customer.id;
+  }
+  return null;
+}
+
+function stripeSubscriptionIdField(
+  sub: Stripe.Checkout.Session["subscription"],
+): string | null {
+  if (sub == null) return null;
+  if (typeof sub === "string") return sub;
+  if (typeof sub === "object" && typeof sub.id === "string") return sub.id;
+  return null;
+}
+
+function metadataSpectyraOrgId(
+  meta: Stripe.Metadata | null | undefined,
+): string | null {
+  const raw = meta?.spectyra_org_id;
+  return typeof raw === "string" && raw.length > 0 ? raw : null;
+}
+
+async function resolveOrgForStripeSubscription(
+  customerId: string | null,
+  metadataOrgId: string | null,
+): Promise<Org | null> {
+  if (customerId) {
+    const byCustomer = await getOrgByStripeCustomerId(customerId);
+    if (byCustomer) return byCustomer;
+  }
+  if (metadataOrgId) {
+    const trimmed = metadataOrgId.trim();
+    if (/^[0-9a-f-]{36}$/i.test(trimmed)) {
+      return getOrgById(trimmed);
+    }
+  }
+  return null;
+}
+
+async function applySubscriptionPayloadToOrg(
+  subscription: Stripe.Subscription,
+): Promise<void> {
+  const customerId = stripeCustomerId(subscription.customer);
+  const metadataOrgId = metadataSpectyraOrgId(subscription.metadata);
+  const org = await resolveOrgForStripeSubscription(customerId, metadataOrgId);
+  if (!org) {
+    safeLog("warn", "Subscription webhook: no org for customer or metadata", {
+      customer_id: customerId,
+      spectyra_org_id: metadataOrgId,
+      subscription_id: subscription.id,
+    });
+    return;
+  }
+
+  const isActive =
+    subscription.status === "active" || subscription.status === "trialing";
+  const qty = subscription.items?.data?.[0]?.quantity;
+  const seatLimit =
+    isActive &&
+    typeof qty === "number" &&
+    Number.isFinite(qty) &&
+    qty >= 1
+      ? qty
+      : null;
+
+  await updateOrgSubscription(
+    org.id,
+    subscription.id,
+    subscription.status,
+    isActive,
+    {
+      currentPeriodEndUnix: subscription.current_period_end ?? null,
+      cancelAtPeriodEnd: subscription.cancel_at_period_end ?? null,
+      seatLimit,
+    },
+  );
+  if (
+    subscription.status === "canceled" ||
+    subscription.status === "unpaid" ||
+    subscription.status === "incomplete_expired"
+  ) {
+    await syncOrgSeatLimitToMemberFloor(org.id);
+  }
+  safeLog("info", "Subscription updated", {
+    org_id: org.id,
+    status: subscription.status,
+    active: isActive,
+  });
+}
 
 /**
  * POST /v1/billing/checkout
@@ -292,52 +391,15 @@ billingRouter.post("/webhook", async (req, res) => {
       case "customer.subscription.created":
       case "customer.subscription.updated": {
         const subscription = event.data.object as Stripe.Subscription;
-        const customerId = subscription.customer as string;
-        
-        const org = await getOrgByStripeCustomerId(customerId);
-        if (org) {
-          const isActive = subscription.status === "active" || subscription.status === "trialing";
-          const qty = subscription.items?.data?.[0]?.quantity;
-          const seatLimit =
-            isActive &&
-            typeof qty === "number" &&
-            Number.isFinite(qty) &&
-            qty >= 1
-              ? qty
-              : null;
-
-          await updateOrgSubscription(
-            org.id,
-            subscription.id,
-            subscription.status,
-            isActive,
-            {
-              currentPeriodEndUnix: subscription.current_period_end ?? null,
-              cancelAtPeriodEnd: subscription.cancel_at_period_end ?? null,
-              seatLimit,
-            },
-          );
-          if (
-            subscription.status === "canceled" ||
-            subscription.status === "unpaid" ||
-            subscription.status === "incomplete_expired"
-          ) {
-            await syncOrgSeatLimitToMemberFloor(org.id);
-          }
-          safeLog("info", "Subscription updated", {
-            org_id: org.id,
-            status: subscription.status,
-            active: isActive,
-          });
-        }
+        await applySubscriptionPayloadToOrg(subscription);
         break;
       }
-      
+
       case "customer.subscription.deleted": {
         const subscription = event.data.object as Stripe.Subscription;
-        const customerId = subscription.customer as string;
-        
-        const org = await getOrgByStripeCustomerId(customerId);
+        const customerId = stripeCustomerId(subscription.customer);
+        const metadataOrgId = metadataSpectyraOrgId(subscription.metadata);
+        const org = await resolveOrgForStripeSubscription(customerId, metadataOrgId);
         if (org) {
           await updateOrgSubscription(org.id, null, "canceled", false, {
             currentPeriodEndUnix: null,
@@ -346,16 +408,43 @@ billingRouter.post("/webhook", async (req, res) => {
           });
           await syncOrgSeatLimitToMemberFloor(org.id);
           safeLog("info", "Subscription canceled", { org_id: org.id });
+        } else {
+          safeLog("warn", "subscription.deleted: no org matched", {
+            customer_id: customerId,
+            spectyra_org_id: metadataOrgId,
+          });
         }
         break;
       }
-      
+
       case "checkout.session.completed": {
         const session = event.data.object as Stripe.Checkout.Session;
-        const customerId = session.customer as string;
-        
-        // Subscription will be created via subscription.created event
-        safeLog("info", "Checkout completed", { customer_id: customerId });
+        const customerId = stripeCustomerId(session.customer);
+
+        if (session.mode === "subscription") {
+          const subId = stripeSubscriptionIdField(session.subscription);
+          if (subId) {
+            try {
+              const sub = await stripe.subscriptions.retrieve(subId);
+              await applySubscriptionPayloadToOrg(sub);
+            } catch (e: unknown) {
+              const msg = e instanceof Error ? e.message : String(e);
+              safeLog("error", "checkout.session.completed: retrieve subscription failed", {
+                error: msg,
+                subscription_id: subId,
+              });
+            }
+          } else {
+            safeLog("warn", "checkout.session.completed: missing subscription id", {
+              customer_id: customerId,
+            });
+          }
+        } else {
+          safeLog("info", "Checkout completed (non-subscription)", {
+            customer_id: customerId,
+            mode: session.mode,
+          });
+        }
         break;
       }
       
