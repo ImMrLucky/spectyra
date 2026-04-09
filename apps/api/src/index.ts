@@ -61,13 +61,30 @@ const allowedOrigins = process.env.ALLOWED_ORIGINS
   ? process.env.ALLOWED_ORIGINS.split(",").map(o => o.trim())
   : [];
 
+/** Browser dashboard served from @spectyra/local-companion (billing checkout, plan status). */
+function isSpectyraLocalCompanionOrigin(origin: string): boolean {
+  try {
+    const u = new URL(origin);
+    if (u.protocol !== "http:") return false;
+    const h = u.hostname;
+    return h === "127.0.0.1" || h === "localhost" || h === "::1";
+  } catch {
+    return false;
+  }
+}
+
 app.use(cors({
   origin: (origin, callback) => {
     // Allow requests with no origin (mobile apps, Postman, etc.)
     if (!origin) {
       return callback(null, true);
     }
-    
+
+    // Local companion dashboard: direct fetch from browser to this API (any loopback port)
+    if (isSpectyraLocalCompanionOrigin(origin)) {
+      return callback(null, true);
+    }
+
     // If ALLOWED_ORIGINS is set, enforce it
     if (allowedOrigins.length > 0) {
       if (allowedOrigins.includes(origin)) {

@@ -176,7 +176,28 @@ app.get("/", (_req, res) => {
 });
 
 app.get("/dashboard", (_req, res) => {
-  res.type("html").send(dashboardPageHtml());
+  res.type("html").send(dashboardPageHtml(resolveSpectyraCloudApiV1Base()));
+});
+
+/**
+ * Credentials for the dashboard to call Spectyra Cloud `/v1` directly (billing URL shows Railway in DevTools).
+ * Same-origin only; do not cache.
+ */
+app.get("/v1/session/billing-auth", async (_req, res) => {
+  await ensureDesktopSessionRefreshed().catch(() => undefined);
+  res.setHeader("Cache-Control", "no-store");
+  const token = await getValidSupabaseAccessToken(loadDesktopConfig());
+  if (token) {
+    res.json({ scheme: "bearer", credential: token });
+    return;
+  }
+  const snap = loadConfig();
+  const key = snap.spectyraApiKey?.trim() || snap.licenseKey?.trim();
+  if (!key) {
+    res.status(401).json({ error: "No Spectyra session or API key" });
+    return;
+  }
+  res.json({ scheme: "apikey", credential: key });
 });
 
 // ── Health & Config ──────────────────────────────────────────────────────────

@@ -1,10 +1,11 @@
 /**
  * Self-contained HTML for the local savings dashboard (served from the companion).
- * Uses same-origin fetches only — works when the page is opened at /dashboard.
+ * Billing calls go to the Spectyra Cloud `/v1` URL in the browser (see Network tab); credentials come from GET /v1/session/billing-auth on the companion.
  *
  * Brand: Spectyra brand system (spectyra-brand.md)
  */
-export function dashboardPageHtml(): string {
+export function dashboardPageHtml(cloudV1Base: string): string {
+  const cloudV1Json = JSON.stringify(cloudV1Base.replace(/\/$/, ""));
   return `<!DOCTYPE html>
 <html lang="en">
 <head>
@@ -889,6 +890,65 @@ export function dashboardPageHtml(): string {
   <script>
     const $ = id => document.getElementById(id);
     const SCOPE_STORAGE_KEY = 'spectyraDashboardScope';
+    var SPECTYRA_CLOUD_V1 = ${cloudV1Json};
+
+    async function fetchBillingCredentials() {
+      try {
+        var ar = await fetch('/v1/session/billing-auth');
+        if (!ar.ok) return null;
+        return await ar.json();
+      } catch (e) {
+        return null;
+      }
+    }
+    function billingAuthHeaders(cred) {
+      if (!cred || !cred.scheme) return {};
+      if (cred.scheme === 'bearer') return { Authorization: 'Bearer ' + cred.credential };
+      if (cred.scheme === 'apikey') return { 'X-SPECTYRA-API-KEY': cred.credential };
+      return {};
+    }
+    function stripLeadingSlash(s) {
+      s = String(s);
+      return s.charAt(0) === '/' ? s.slice(1) : s;
+    }
+    function trimTrailingSlash(s) {
+      s = String(s);
+      return s.charAt(s.length - 1) === '/' ? s.slice(0, -1) : s;
+    }
+    async function billingCloudGet(path) {
+      var p = stripLeadingSlash(path);
+      var cred = await fetchBillingCredentials();
+      var local = function() { return fetch('/v1/' + p); };
+      if (!cred) return local();
+      var base = trimTrailingSlash(SPECTYRA_CLOUD_V1);
+      try {
+        return await fetch(base + '/' + p, { headers: billingAuthHeaders(cred) });
+      } catch (e) {
+        return local();
+      }
+    }
+    async function billingCloudPost(path, body) {
+      var p = stripLeadingSlash(path);
+      var cred = await fetchBillingCredentials();
+      var local = function() {
+        return fetch('/v1/' + p, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(body || {}),
+        });
+      };
+      if (!cred) return local();
+      var base = trimTrailingSlash(SPECTYRA_CLOUD_V1);
+      try {
+        return await fetch(base + '/' + p, {
+          method: 'POST',
+          headers: Object.assign({ 'Content-Type': 'application/json' }, billingAuthHeaders(cred)),
+          body: JSON.stringify(body || {}),
+        });
+      } catch (e) {
+        return local();
+      }
+    }
 
     function fmtUsd(n) {
       if (typeof n !== 'number' || isNaN(n)) return '\\$0.00';
@@ -1109,7 +1169,7 @@ export function dashboardPageHtml(): string {
         planHint.textContent = '';
       }
       try {
-        var r = await fetch('/v1/billing/status');
+        var r = await billingCloudGet('billing/status');
         if (r.status === 503) {
           line.textContent = 'Add your Spectyra API key (run spectyra-companion setup) to manage your plan from this dashboard.';
           return;
@@ -1146,10 +1206,10 @@ export function dashboardPageHtml(): string {
           btn.addEventListener('click', async function() {
             btn.disabled = true;
             try {
-              var cr = await fetch('/v1/billing/checkout', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({}),
+              var origin = window.location.origin;
+              var cr = await billingCloudPost('billing/checkout', {
+                success_url: origin + '/dashboard?upgraded=1',
+                cancel_url: origin + '/dashboard',
               });
               var data = await cr.json().catch(function() { return {}; });
               if (cr.ok && data.checkout_url) {
