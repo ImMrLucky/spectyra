@@ -648,7 +648,12 @@ export function dashboardPageHtml(cloudV1Base: string): string {
     }
     .account-menu button:disabled { opacity: 0.4; cursor: not-allowed; }
 
-    .modal-backdrop {
+    /* Do not set display:flex on .modal-backdrop alone — it overrides the HTML [hidden] attribute
+       and keeps the overlay visible on load. Only flex when actually shown. */
+    .modal-backdrop[hidden] {
+      display: none !important;
+    }
+    .modal-backdrop:not([hidden]) {
       position: fixed;
       inset: 0;
       z-index: 100;
