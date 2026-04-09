@@ -12,6 +12,7 @@ import {
   syncOrgSeatLimitToMemberFloor,
   updateOrgSubscription,
   updateOrgStripeCustomerId,
+  clearOrgStripeCustomerId,
 } from "../services/storage/orgsRepo.js";
 import {
   requireSpectyraApiKey,
@@ -25,6 +26,13 @@ import { isSavingsObserveOnly } from "../billing/savingsEligibility.js";
 import { safeLog } from "../utils/redaction.js";
 
 export const billingRouter = Router();
+
+function isStripeNoSuchCustomerError(err: unknown): boolean {
+  const e = err as { code?: string; message?: string };
+  if (e?.code === "resource_missing") return true;
+  const m = typeof e?.message === "string" ? e.message : "";
+  return /No such customer/i.test(m);
+}
 
 // Initialize Stripe (use type assertion for newer API version)
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY || "", {
@@ -136,19 +144,38 @@ billingRouter.post("/checkout", async (req: AuthenticatedRequest, res) => {
       return res.status(401).json({ error: "Not authenticated" });
     }
     
-    const { success_url, cancel_url } = req.body as {
+    const { success_url, cancel_url, checkout_quantity } = req.body as {
       success_url?: string;
       cancel_url?: string;
+      /** When set, Stripe line-item qty (OpenClaw / companion typically sends 1). Capped at org seat_limit. */
+      checkout_quantity?: unknown;
     };
-    
+
     const org = await getOrgById(orgId);
     if (!org) {
       return res.status(404).json({ error: "Organization not found" });
     }
+
+    const seatCap = Math.max(1, org.seat_limit ?? 1);
+    let quantity = seatCap;
+    if (
+      checkout_quantity !== undefined &&
+      checkout_quantity !== null &&
+      checkout_quantity !== ""
+    ) {
+      const n =
+        typeof checkout_quantity === "number"
+          ? checkout_quantity
+          : parseInt(String(checkout_quantity), 10);
+      if (!Number.isFinite(n) || n < 1) {
+        return res.status(400).json({
+          error: "checkout_quantity must be a positive integer",
+        });
+      }
+      quantity = Math.min(seatCap, Math.floor(n));
+    }
     
-    // Create or get Stripe customer
-    let customerId = org.stripe_customer_id;
-    if (!customerId) {
+    const createStripeCustomer = async () => {
       const customer = await stripe.customers.create({
         email: req.auth?.email?.trim() || `${org.id}@spectyra.local`,
         name: org.name,
@@ -156,19 +183,24 @@ billingRouter.post("/checkout", async (req: AuthenticatedRequest, res) => {
           spectyra_org_id: org.id,
         },
       });
-      customerId = customer.id;
-      await updateOrgStripeCustomerId(org.id, customerId);
+      await updateOrgStripeCustomerId(org.id, customer.id);
+      return customer.id;
+    };
+
+    // Create or get Stripe customer
+    let customerId = org.stripe_customer_id;
+    if (!customerId) {
+      customerId = await createStripeCustomer();
     }
-    
-    // Create checkout session
-    const session = await stripe.checkout.sessions.create({
+
+    const sessionParams: Stripe.Checkout.SessionCreateParams = {
       customer: customerId,
       mode: "subscription",
       payment_method_types: ["card"],
       line_items: [
         {
           price: process.env.STRIPE_PRICE_ID || "", // Set in env
-          quantity: Math.max(1, org.seat_limit ?? 1),
+          quantity,
         },
       ],
       subscription_data: {
@@ -190,15 +222,40 @@ billingRouter.post("/checkout", async (req: AuthenticatedRequest, res) => {
       metadata: {
         spectyra_org_id: org.id,
       },
-    });
-    
+    };
+
+    let session: Stripe.Response<Stripe.Checkout.Session>;
+    try {
+      session = await stripe.checkout.sessions.create(sessionParams);
+    } catch (firstErr: unknown) {
+      // Common: org has a customer id from test mode but API now uses live keys (or vice versa).
+      if (org.stripe_customer_id && isStripeNoSuchCustomerError(firstErr)) {
+        safeLog("warn", "Checkout: stale Stripe customer id, recreating", { org_id: org.id });
+        await clearOrgStripeCustomerId(org.id);
+        customerId = await createStripeCustomer();
+        session = await stripe.checkout.sessions.create({
+          ...sessionParams,
+          customer: customerId,
+        });
+      } else {
+        throw firstErr;
+      }
+    }
+
     res.json({
       checkout_url: session.url,
       session_id: session.id,
     });
   } catch (error: any) {
-    safeLog("error", "Checkout error", { error: error.message });
-    res.status(500).json({ error: error.message || "Internal server error" });
+    const msg = error?.message || "Internal server error";
+    const code = error?.code;
+    const type = error?.type;
+    safeLog("error", "Checkout error", { error: msg, code, type });
+    res.status(500).json({
+      error: msg,
+      stripe_code: typeof code === "string" ? code : undefined,
+      stripe_type: typeof type === "string" ? type : undefined,
+    });
   }
 });
 

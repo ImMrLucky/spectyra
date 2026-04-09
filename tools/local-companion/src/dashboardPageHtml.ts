@@ -1210,6 +1210,7 @@ export function dashboardPageHtml(cloudV1Base: string): string {
               var cr = await billingCloudPost('billing/checkout', {
                 success_url: origin + '/dashboard?upgraded=1',
                 cancel_url: origin + '/dashboard',
+                checkout_quantity: 1,
               });
               var data = await cr.json().catch(function() { return {}; });
               if (cr.ok && data.checkout_url) {

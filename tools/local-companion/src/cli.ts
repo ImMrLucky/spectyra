@@ -262,6 +262,7 @@ async function postBillingCheckout(accessToken: string): Promise<string | null> 
     body: JSON.stringify({
       success_url,
       cancel_url,
+      checkout_quantity: 1,
     }),
   });
   const data = (await res.json().catch(() => ({}))) as { checkout_url?: string; error?: string };

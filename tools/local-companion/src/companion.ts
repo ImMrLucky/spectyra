@@ -415,7 +415,12 @@ app.post("/v1/billing/checkout", async (req, res) => {
         "Content-Type": "application/json",
         ...auth.headers,
       },
-      body: JSON.stringify({ success_url, cancel_url }),
+      body: JSON.stringify({
+        success_url,
+        cancel_url,
+        // OpenClaw / local dashboard: single-seat subscription (org seat_limit may be higher for team web).
+        checkout_quantity: 1,
+      }),
     });
     const body = (await r.json().catch(() => ({}))) as Record<string, unknown>;
     res.status(r.status).json(body);

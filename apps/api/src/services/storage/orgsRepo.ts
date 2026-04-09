@@ -531,6 +531,18 @@ export async function updateOrgStripeCustomerId(orgId: string, customerId: strin
   `, [customerId, orgId]);
 }
 
+/** Clear stored Stripe customer (e.g. test→live key change left a customer id from the wrong mode). */
+export async function clearOrgStripeCustomerId(orgId: string): Promise<void> {
+  await query(
+    `
+    UPDATE orgs
+    SET stripe_customer_id = NULL
+    WHERE id = $1
+  `,
+    [orgId],
+  );
+}
+
 /**
  * Superuser-only: mark org as exempt from subscription/trial gates (API key + chat flows).
  */
