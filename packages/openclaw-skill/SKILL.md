@@ -56,7 +56,7 @@ As part of our core mission, we commit to allocating 10% of all profits to organ
 ---
 
 ## Install (once)
-**Use either macOS (Terminal) or Windows (Cmd Prompt)**
+**Use either macOS (Terminal) or Windows (Cmd Prompt / Powershell)**
 ```bash
 # install spectyra skill
 openclaw skills install spectyra
@@ -74,21 +74,9 @@ Run this once after the skill and npm package are installed:
 ```bash
 spectyra-companion setup
 ```
-
-**What it does:** an interactive wizard in your terminal that walks through first-time configuration. It does **not** start the optimization server by itself; it **writes config** and (when possible) **configures OpenClaw** for you.
-
-| What gets set up                            | What it means                                                                                                                                                                                   |
-|---------------------------------------------|-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
-| **Spectyra account**                        | Sign up or sign in with **email and password**. That’s your identity; the cloud ties usage, billing, and your **API key** to that account (you don’t manage “organizations” in OpenClaw — it’s one workspace behind the scenes). |
-| **Spectyra API key**                        | Saved locally so the companion can authenticate to Spectyra services.                                                                                                                           |
-| **LLM provider key**                        | Your OpenAI / Anthropic / Groq key is stored **on disk** (e.g. under `~/.spectyra/…`) for the companion to call the real provider after optimization. It is not sent to Spectyra for inference. |
-| **OpenClaw** (if `openclaw` is `Installed`) | Adds the **Spectyra provider** ( `spectyra/smart` and related models) and sets the **default model** so new OpenClaw sessions use Spectyra. You can always change models at any time.           |
-
-If `openclaw` is not installed or not on `PATH`, finish provider keys and account steps here anyway; you can paste the Spectyra provider block into OpenClaw later (see **Manual setup**).
-
 ---
 
-## Usage
+## Usage (How to Start/Run)
 
 **Start the companion** (keep this terminal open):
 
@@ -101,6 +89,19 @@ That opens **local savings** at **http://127.0.0.1:4111/dashboard**. Then use Op
 If anything fails: `spectyra-companion status` and `curl http://127.0.0.1:4111/health`.
 
 **Note:** Only **one** Local Companion process should run (default port `4111`).
+
+---
+
+**What it does:** an interactive wizard in your terminal that walks through first-time configuration. It does **not** start the optimization server by itself; it **writes config** and (when possible) **configures OpenClaw** for you.
+
+| What gets set up                            | What it means                                                                                                                                                                                   |
+|---------------------------------------------|-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| **Spectyra account**                        | Sign up or sign in with **email and password**. That’s your identity; the cloud ties usage, billing, and your **API key** to that account (you don’t manage “organizations” in OpenClaw — it’s one workspace behind the scenes). |
+| **Spectyra API key**                        | Saved locally so the companion can authenticate to Spectyra services.                                                                                                                           |
+| **LLM provider key**                        | Your OpenAI / Anthropic / Groq key is stored **on disk** (e.g. under `~/.spectyra/…`) for the companion to call the real provider after optimization. It is not sent to Spectyra for inference. |
+| **OpenClaw** (if `openclaw` is `Installed`) | Adds the **Spectyra provider** ( `spectyra/smart` and related models) and sets the **default model** so new OpenClaw sessions use Spectyra. You can always change models at any time.           |
+
+If `openclaw` is not installed or not on `PATH`, finish provider keys and account steps here anyway; you can paste the Spectyra provider block into OpenClaw later (see **Manual setup**).
 
 ---
 

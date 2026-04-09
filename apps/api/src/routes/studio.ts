@@ -1,7 +1,7 @@
 /**
  * Spectyra Studio API Route (v1)
  *
- * POST /v1/admin/studio/run
+ * POST /v1/studio/run
  *
  * Thin wrapper around the Optimizer dry-run pipeline to produce Raw vs Spectyra
  * side-by-side results for a selected scenario.
@@ -18,7 +18,7 @@ export const studioRouter = Router();
 // Live mode BYOK/vault enforcement happens inside provider resolution.
 studioRouter.use(requireUserSession, optionalProviderKey);
 
-studioRouter.post("/studio/run", async (req: AuthenticatedRequest, res) => {
+studioRouter.post("/run", async (req: AuthenticatedRequest, res) => {
   try {
     const body = req.body as StudioRunRequest;
     if (!body || !body.scenarioId) {

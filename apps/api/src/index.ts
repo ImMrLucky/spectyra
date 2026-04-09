@@ -128,7 +128,9 @@ app.use("/v1/admin", optimizerLabHealthRouter); // Legacy: GET /optimize/health
 app.use("/v1/admin", optimizerLabRouter); // Legacy: POST /optimize
 app.use("/v1/observe", optimizerLabHealthRouter); // New: GET /v1/observe/health
 app.use("/v1/observe", optimizerLabRouter); // New: POST /v1/observe/optimize
-app.use("/v1", studioRouter); // POST /v1/studio/run (authenticated)
+// Must be under /v1/studio only — a bare /v1 mount would run requireUserSession on
+// every /v1/* route (breaking Stripe webhooks, /v1/auth, /v1/billing, etc.).
+app.use("/v1/studio", studioRouter); // POST /v1/studio/run (authenticated)
 app.use("/v1/proof", proofRouter);
 app.use("/v1/replay/simulate", replaySimulateRouter);
 app.use("/v1/billing", billingRouter);
