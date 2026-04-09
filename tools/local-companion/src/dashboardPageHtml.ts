@@ -593,6 +593,130 @@ export function dashboardPageHtml(cloudV1Base: string): string {
     }
     .plan-actions .btn-plan-secondary:disabled,
     .plan-actions .btn-plan-danger:disabled { opacity: 0.45; cursor: not-allowed; }
+
+    .plan-manage-wrap {
+      position: relative;
+      margin-top: 10px;
+      max-width: 560px;
+    }
+    .btn-manage-account {
+      font-family: var(--font-body);
+      font-size: 12px;
+      font-weight: 500;
+      padding: 6px 12px;
+      border-radius: var(--radius-sm);
+      cursor: pointer;
+      border: 0.5px solid var(--border);
+      background: var(--bg-elevated);
+      color: var(--text-secondary);
+    }
+    .btn-manage-account:hover {
+      border-color: var(--blue);
+      color: var(--blue-light);
+    }
+    .account-menu {
+      position: absolute;
+      left: 0;
+      top: 100%;
+      margin-top: 6px;
+      min-width: 220px;
+      padding: 6px;
+      border-radius: var(--radius-md);
+      border: 0.5px solid var(--border);
+      background: var(--bg-card);
+      box-shadow: 0 8px 24px rgba(0,0,0,0.2);
+      z-index: 40;
+    }
+    .account-menu button {
+      display: block;
+      width: 100%;
+      text-align: left;
+      font-family: var(--font-body);
+      font-size: 12px;
+      font-weight: 500;
+      padding: 8px 10px;
+      margin: 0;
+      border: none;
+      border-radius: var(--radius-sm);
+      background: transparent;
+      color: var(--text-secondary);
+      cursor: pointer;
+    }
+    .account-menu button:hover:not(:disabled) {
+      background: var(--bg-elevated);
+      color: var(--blue-light);
+    }
+    .account-menu button:disabled { opacity: 0.4; cursor: not-allowed; }
+
+    .modal-backdrop {
+      position: fixed;
+      inset: 0;
+      z-index: 100;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+      background: rgba(8, 12, 18, 0.72);
+      backdrop-filter: blur(4px);
+    }
+    .modal-panel {
+      width: 100%;
+      max-width: 400px;
+      padding: 20px 22px;
+      border-radius: var(--radius-lg);
+      border: 0.5px solid var(--border);
+      background: var(--bg-card);
+      box-shadow: 0 16px 48px rgba(0,0,0,0.35);
+    }
+    .modal-title {
+      font-family: var(--font-display);
+      font-size: 14px;
+      font-weight: 600;
+      color: var(--blue-light);
+      margin: 0 0 12px;
+    }
+    .modal-body {
+      font-size: 13px;
+      line-height: 1.55;
+      color: var(--text-secondary);
+      margin-bottom: 18px;
+    }
+    .modal-body p { margin: 0 0 10px; }
+    .modal-body p:last-child { margin-bottom: 0; }
+    .modal-actions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      justify-content: flex-end;
+    }
+    .btn-modal-primary {
+      font-family: var(--font-body);
+      font-size: 13px;
+      font-weight: 600;
+      padding: 8px 16px;
+      border-radius: var(--radius-md);
+      border: 1px solid var(--teal-border);
+      background: var(--teal-pale-bg);
+      color: var(--teal-light);
+      cursor: pointer;
+    }
+    .btn-modal-primary:hover { border-color: var(--teal-light); }
+    .btn-modal-secondary {
+      font-family: var(--font-body);
+      font-size: 13px;
+      font-weight: 500;
+      padding: 8px 14px;
+      border-radius: var(--radius-md);
+      border: 0.5px solid var(--border);
+      background: transparent;
+      color: var(--text-muted);
+      cursor: pointer;
+    }
+    .btn-modal-secondary:hover {
+      border-color: var(--text-muted);
+      color: var(--text-secondary);
+    }
+
     #planSessionHint {
       font-size: 12px;
       color: var(--text-muted);
@@ -662,12 +786,14 @@ export function dashboardPageHtml(cloudV1Base: string): string {
           <strong>Spectyra plan</strong>
           <p id="planLine" style="margin:6px 0 0;font-size:13px;color:var(--text-secondary);max-width:560px"></p>
           <p id="planSessionHint" hidden></p>
-          <div id="planActions" class="plan-actions" hidden>
-            <button type="button" class="btn-plan-secondary" id="btnCancelRenewal" hidden>Cancel renewal</button>
-            <button type="button" class="btn-plan-secondary" id="btnKeepSubscription" hidden>Keep subscription</button>
-            <button type="button" class="btn-plan-secondary" id="btnPauseService" hidden>Pause service</button>
-            <button type="button" class="btn-plan-secondary" id="btnResumeService" hidden>Resume service</button>
-            <button type="button" class="btn-plan-danger" id="btnDeleteAccount" hidden>Delete account…</button>
+          <div id="planManageWrap" class="plan-manage-wrap" hidden>
+            <button type="button" class="btn-manage-account" id="btnManageAccount" aria-expanded="false" aria-haspopup="true">Manage account</button>
+            <div id="accountActionMenu" class="account-menu" hidden role="menu" aria-label="Account actions">
+              <button type="button" role="menuitem" id="menuCancelRenewal" hidden>Cancel renewal</button>
+              <button type="button" role="menuitem" id="menuKeepSubscription" hidden>Keep subscription</button>
+              <button type="button" role="menuitem" id="menuPauseService" hidden>Pause service</button>
+              <button type="button" role="menuitem" id="menuResumeService" hidden>Resume service</button>
+            </div>
           </div>
         </div>
         <button type="button" class="btn-subscribe" id="btnSubscribe" style="display:none">Activate Savings</button>
@@ -885,6 +1011,17 @@ export function dashboardPageHtml(cloudV1Base: string): string {
         guardrails.
       </p>
     </footer>
+  </div>
+
+  <div id="accountModal" class="modal-backdrop" hidden aria-hidden="true">
+    <div class="modal-panel" role="dialog" aria-modal="true" aria-labelledby="accountModalTitle">
+      <h3 class="modal-title" id="accountModalTitle"></h3>
+      <div class="modal-body" id="accountModalBody"></div>
+      <div class="modal-actions">
+        <button type="button" class="btn-modal-primary" id="accountModalPrimary"></button>
+        <button type="button" class="btn-modal-secondary" id="accountModalSecondary"></button>
+      </div>
+    </div>
   </div>
 
   <script>
@@ -1148,13 +1285,12 @@ export function dashboardPageHtml(cloudV1Base: string): string {
       var card = $('planCard');
       var line = $('planLine');
       var btn = $('btnSubscribe');
-      var planActions = $('planActions');
+      var planManageWrap = $('planManageWrap');
       var planHint = $('planSessionHint');
-      var bc = $('btnCancelRenewal');
-      var bk = $('btnKeepSubscription');
-      var bp = $('btnPauseService');
-      var br = $('btnResumeService');
-      var bd = $('btnDeleteAccount');
+      var bc = $('menuCancelRenewal');
+      var bk = $('menuKeepSubscription');
+      var bp = $('menuPauseService');
+      var br = $('menuResumeService');
       if (!card || !line || !btn) return;
       if (!health || health.spectyraAccountLinked === false) {
         card.hidden = true;
@@ -1163,7 +1299,7 @@ export function dashboardPageHtml(cloudV1Base: string): string {
       card.hidden = false;
       line.textContent = 'Loading plan…';
       btn.style.display = 'none';
-      if (planActions) planActions.hidden = true;
+      if (planManageWrap) planManageWrap.hidden = true;
       if (planHint) {
         planHint.hidden = true;
         planHint.textContent = '';
@@ -1225,21 +1361,21 @@ export function dashboardPageHtml(cloudV1Base: string): string {
           });
         }
 
-        if (!planActions || !bc || !bk || !bp || !br || !bd) return;
+        if (!planManageWrap || !bc || !bk || !bp || !br) return;
 
-        [bc, bk, bp, br, bd].forEach(function(b) {
+        [bc, bk, bp, br].forEach(function(b) {
           b.hidden = true;
         });
-        planActions.hidden = false;
+        planManageWrap.hidden = false;
 
         var sr = await fetch('/v1/account/summary');
         if (!sr.ok) {
           if (planHint) {
             planHint.hidden = false;
             planHint.textContent =
-              'Cancel, pause, and delete need a valid sign-in. Run: spectyra-companion setup — then refresh this page.';
+              'Account actions need a valid sign-in. Run: spectyra-companion setup — then refresh this page.';
           }
-          planActions.hidden = true;
+          planManageWrap.hidden = true;
           return;
         }
         var sum = await sr.json();
@@ -1257,24 +1393,109 @@ export function dashboardPageHtml(cloudV1Base: string): string {
         if (canKeep) bk.hidden = false;
         if (sum.access_state === 'active') bp.hidden = false;
         if (sum.access_state === 'paused') br.hidden = false;
-        bd.hidden = false;
 
-        var showRow = !bc.hidden || !bk.hidden || !bp.hidden || !br.hidden || !bd.hidden;
-        planActions.hidden = !showRow;
+        var showManage = !bc.hidden || !bk.hidden || !bp.hidden || !br.hidden;
+        planManageWrap.hidden = !showManage;
+        var accountMenu = $('accountActionMenu');
+        if (accountMenu) accountMenu.hidden = true;
+        var btnM = $('btnManageAccount');
+        if (btnM) btnM.setAttribute('aria-expanded', 'false');
 
-        if (!planActions.dataset.boundAccount) {
-          planActions.dataset.boundAccount = '1';
-          bc.addEventListener('click', async function() {
-            if (!confirm('Cancel renewal at the end of the current billing period? You keep access until then.')) return;
-            try {
-              await postAccountAction('/v1/account/subscription/cancel-at-period-end', {});
-              alert('Renewal cancelled. Access continues until the end of the period.');
-              location.reload();
-            } catch (e) {
-              alert(e && e.message ? e.message : String(e));
+        if (!planManageWrap.dataset.boundAccount) {
+          planManageWrap.dataset.boundAccount = '1';
+          function closeAccountMenu() {
+            var am = $('accountActionMenu');
+            var bm = $('btnManageAccount');
+            if (am) am.hidden = true;
+            if (bm) bm.setAttribute('aria-expanded', 'false');
+          }
+          function hideAccountModal() {
+            var modal = $('accountModal');
+            if (modal) {
+              modal.hidden = true;
+              modal.setAttribute('aria-hidden', 'true');
+            }
+          }
+          function showAccountModal(opts) {
+            $('accountModalTitle').textContent = opts.title;
+            $('accountModalBody').innerHTML = opts.bodyHtml;
+            $('accountModalPrimary').textContent = opts.primaryLabel;
+            $('accountModalSecondary').textContent = opts.secondaryLabel;
+            $('accountModalPrimary').onclick = function() {
+              hideAccountModal();
+              if (opts.onPrimary) opts.onPrimary();
+            };
+            $('accountModalSecondary').onclick = function() {
+              hideAccountModal();
+              if (opts.onSecondary) opts.onSecondary();
+            };
+            var modal = $('accountModal');
+            modal.hidden = false;
+            modal.setAttribute('aria-hidden', 'false');
+          }
+          $('btnManageAccount').addEventListener('click', function(ev) {
+            ev.stopPropagation();
+            var menu = $('accountActionMenu');
+            if (!menu) return;
+            var willOpen = menu.hidden;
+            menu.hidden = !willOpen;
+            $('btnManageAccount').setAttribute('aria-expanded', willOpen ? 'true' : 'false');
+          });
+          document.addEventListener('click', function(ev) {
+            var wrap = $('planManageWrap');
+            if (!wrap || wrap.hidden) return;
+            if (wrap.contains(ev.target)) return;
+            closeAccountMenu();
+          });
+          $('accountModal').addEventListener('click', function(ev) {
+            if (ev.target === $('accountModal')) hideAccountModal();
+          });
+          document.addEventListener('keydown', function(ev) {
+            if (ev.key === 'Escape') {
+              closeAccountMenu();
+              hideAccountModal();
             }
           });
+          bc.addEventListener('click', function() {
+            closeAccountMenu();
+            showAccountModal({
+              title: 'Cancel renewal?',
+              bodyHtml:
+                '<p>You’ll stop saving on AI usage if you cancel.</p><p>Are you sure you want to continue without optimization?</p>',
+              primaryLabel: 'Keep Saving',
+              secondaryLabel: 'Cancel Anyway',
+              onSecondary: async function() {
+                try {
+                  await postAccountAction('/v1/account/subscription/cancel-at-period-end', {});
+                  alert('Renewal cancelled. Access continues until the end of the period.');
+                  location.reload();
+                } catch (e) {
+                  alert(e && e.message ? e.message : String(e));
+                }
+              },
+            });
+          });
+          bp.addEventListener('click', function() {
+            closeAccountMenu();
+            showAccountModal({
+              title: 'Pause service?',
+              bodyHtml:
+                '<p>Pausing stops billing collection and may limit Spectyra features until you resume.</p><p>Are you sure you want to pause now?</p>',
+              primaryLabel: 'Keep service active',
+              secondaryLabel: 'Pause anyway',
+              onSecondary: async function() {
+                try {
+                  await postAccountAction('/v1/account/pause-service', {});
+                  alert('Service paused.');
+                  location.reload();
+                } catch (e) {
+                  alert(e && e.message ? e.message : String(e));
+                }
+              },
+            });
+          });
           bk.addEventListener('click', async function() {
+            closeAccountMenu();
             try {
               await postAccountAction('/v1/account/subscription/keep', {});
               alert('Subscription will continue after the current period.');
@@ -1283,32 +1504,11 @@ export function dashboardPageHtml(cloudV1Base: string): string {
               alert(e && e.message ? e.message : String(e));
             }
           });
-          bp.addEventListener('click', async function() {
-            if (!confirm('Pause your Spectyra service? You can resume later from here or the web app.')) return;
-            try {
-              await postAccountAction('/v1/account/pause-service', {});
-              alert('Service paused.');
-              location.reload();
-            } catch (e) {
-              alert(e && e.message ? e.message : String(e));
-            }
-          });
           br.addEventListener('click', async function() {
+            closeAccountMenu();
             try {
               await postAccountAction('/v1/account/resume-service', {});
               alert('Service resumed.');
-              location.reload();
-            } catch (e) {
-              alert(e && e.message ? e.message : String(e));
-            }
-          });
-          bd.addEventListener('click', async function() {
-            if (!confirm('Permanently delete your Spectyra account and associated data? This cannot be undone.')) return;
-            var c = prompt('Type DELETE_MY_ACCOUNT to confirm:');
-            if (c !== 'DELETE_MY_ACCOUNT') return;
-            try {
-              await postAccountAction('/v1/account/delete', { confirm: 'DELETE_MY_ACCOUNT' });
-              alert('Account deleted. You may clear local files under ~/.spectyra if needed.');
               location.reload();
             } catch (e) {
               alert(e && e.message ? e.message : String(e));
@@ -1318,7 +1518,7 @@ export function dashboardPageHtml(cloudV1Base: string): string {
       } catch (e) {
         line.textContent = 'Could not reach billing status.';
         btn.style.display = 'none';
-        if (planActions) planActions.hidden = true;
+        if (planManageWrap) planManageWrap.hidden = true;
       }
     }
 
