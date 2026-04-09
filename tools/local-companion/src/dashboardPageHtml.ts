@@ -627,7 +627,11 @@ export function dashboardPageHtml(cloudV1Base: string): string {
       box-shadow: 0 8px 24px rgba(0,0,0,0.2);
       z-index: 40;
     }
-    .account-menu button {
+    /* display:block would override [hidden] on items — hide must win */
+    .account-menu button[hidden] {
+      display: none !important;
+    }
+    .account-menu button:not([hidden]) {
       display: block;
       width: 100%;
       text-align: left;
@@ -642,11 +646,11 @@ export function dashboardPageHtml(cloudV1Base: string): string {
       color: var(--text-secondary);
       cursor: pointer;
     }
-    .account-menu button:hover:not(:disabled) {
+    .account-menu button:not([hidden]):hover:not(:disabled) {
       background: var(--bg-elevated);
       color: var(--blue-light);
     }
-    .account-menu button:disabled { opacity: 0.4; cursor: not-allowed; }
+    .account-menu button:not([hidden]):disabled { opacity: 0.4; cursor: not-allowed; }
 
     /* Do not set display:flex on .modal-backdrop alone — it overrides the HTML [hidden] attribute
        and keeps the overlay visible on load. Only flex when actually shown. */
