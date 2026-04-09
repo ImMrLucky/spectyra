@@ -583,6 +583,7 @@ billingRouter.get("/status", async (req: AuthenticatedRequest, res) => {
       trial_active: isTrialActive,
       subscription_status: org.subscription_status,
       subscription_active: org.subscription_status === "active",
+      cancel_at_period_end: !!org.cancel_at_period_end,
       platform_role: req.auth?.platformRole ?? null,
       platform_billing_exempt: !!req.auth?.platformRole,
       org_platform_exempt: !!org.platform_exempt,

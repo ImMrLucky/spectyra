@@ -25,7 +25,6 @@ export function dashboardPageHtml(cloudV1Base: string): string {
       --border-bright:   rgba(55,138,221,0.25);
       --text-primary:    #e8f1fb;
       --text-secondary:  #7a9fc0;
-      --text-muted:      #3d5a78;
 
       --navy:            #0C447C;
       --navy-deep:       #042C53;
@@ -103,7 +102,7 @@ export function dashboardPageHtml(cloudV1Base: string): string {
       font-weight: 400;
       letter-spacing: 0.04em;
       text-transform: uppercase;
-      color: var(--text-muted);
+      color: var(--text-secondary);
       padding: 6px 12px;
       border-radius: var(--radius-sm);
       border: 0.5px solid var(--border);
@@ -177,7 +176,7 @@ export function dashboardPageHtml(cloudV1Base: string): string {
     }
     .hero-pct-sub {
       font-size: 12px;
-      color: var(--text-muted);
+      color: var(--text-secondary);
       max-width: 220px;
       line-height: 1.4;
     }
@@ -198,7 +197,7 @@ export function dashboardPageHtml(cloudV1Base: string): string {
       font-weight: 500;
       text-transform: uppercase;
       letter-spacing: 0.06em;
-      color: var(--text-muted);
+      color: var(--text-secondary);
     }
     .filter-toolbar select {
       flex: 1;
@@ -228,7 +227,7 @@ export function dashboardPageHtml(cloudV1Base: string): string {
       border-radius: 50%;
       border: 0.5px solid var(--border);
       background: var(--bg-elevated);
-      color: var(--text-muted);
+      color: var(--text-secondary);
       font-size: 11px;
       font-weight: 600;
       display: flex;
@@ -283,7 +282,7 @@ export function dashboardPageHtml(cloudV1Base: string): string {
       font-weight: 600;
       text-transform: uppercase;
       letter-spacing: 0.08em;
-      color: var(--text-muted);
+      color: var(--text-secondary);
     }
 
     /* ── Metric cards ───────────────────────────────────── */
@@ -307,7 +306,7 @@ export function dashboardPageHtml(cloudV1Base: string): string {
       font-weight: 500;
       text-transform: uppercase;
       letter-spacing: 0.06em;
-      color: var(--text-muted);
+      color: var(--text-secondary);
       margin-bottom: 8px;
     }
     .metric-value {
@@ -320,7 +319,7 @@ export function dashboardPageHtml(cloudV1Base: string): string {
     .metric-sub {
       font-family: var(--font-mono);
       font-size: 11px;
-      color: var(--text-muted);
+      color: var(--text-secondary);
       margin-top: 4px;
     }
     .insight-blurb {
@@ -330,29 +329,6 @@ export function dashboardPageHtml(cloudV1Base: string): string {
       margin-bottom: 20px;
       padding: 0 2px;
     }
-    .explain-box {
-      background: var(--bg-card);
-      border: 1px solid var(--border);
-      border-radius: var(--radius-lg);
-      padding: 16px 18px;
-      margin-bottom: 20px;
-      font-size: 13px;
-      line-height: 1.55;
-      color: var(--text-secondary);
-    }
-    .explain-box h2 {
-      font-family: var(--font-display);
-      font-size: 12px;
-      font-weight: 600;
-      text-transform: uppercase;
-      letter-spacing: 0.06em;
-      color: var(--text-muted);
-      margin-bottom: 10px;
-    }
-    .explain-box ul { margin: 0; padding-left: 1.1em; }
-    .explain-box li { margin-bottom: 6px; }
-    .explain-box strong { color: var(--blue-light); font-weight: 600; }
-
     /* ── Before / After bar ─────────────────────────────── */
     .before-after {
       background: var(--bg-card);
@@ -374,7 +350,7 @@ export function dashboardPageHtml(cloudV1Base: string): string {
       font-weight: 500;
       text-transform: uppercase;
       letter-spacing: 0.06em;
-      color: var(--text-muted);
+      color: var(--text-secondary);
     }
     .ba-pct {
       font-family: var(--font-mono);
@@ -408,7 +384,7 @@ export function dashboardPageHtml(cloudV1Base: string): string {
       margin-top: 8px;
       font-family: var(--font-mono);
       font-size: 11px;
-      color: var(--text-muted);
+      color: var(--text-secondary);
     }
     .ba-labels .after { color: var(--teal-light); }
 
@@ -419,7 +395,7 @@ export function dashboardPageHtml(cloudV1Base: string): string {
       font-weight: 600;
       text-transform: uppercase;
       letter-spacing: 0.08em;
-      color: var(--text-muted);
+      color: var(--text-secondary);
       margin-bottom: 10px;
       display: flex;
       align-items: center;
@@ -433,7 +409,7 @@ export function dashboardPageHtml(cloudV1Base: string): string {
       border-radius: var(--radius-sm);
       border: 0.5px solid var(--border);
       background: transparent;
-      color: var(--text-muted);
+      color: var(--text-secondary);
       cursor: pointer;
       transition: border-color 0.15s, color 0.15s;
     }
@@ -452,7 +428,7 @@ export function dashboardPageHtml(cloudV1Base: string): string {
       font-weight: 500;
       text-transform: uppercase;
       letter-spacing: 0.06em;
-      color: var(--text-muted);
+      color: var(--text-secondary);
       text-align: left;
       padding: 10px 14px;
       border-bottom: 1px solid var(--border);
@@ -481,7 +457,7 @@ export function dashboardPageHtml(cloudV1Base: string): string {
     td .pct.negative { background: var(--amber-pale-bg); color: var(--amber-light); }
 
     .empty-state {
-      color: var(--text-muted);
+      color: var(--text-secondary);
       font-size: 13px;
       padding: 24px 14px;
       text-align: center;
@@ -491,7 +467,7 @@ export function dashboardPageHtml(cloudV1Base: string): string {
     .hint {
       margin-top: 24px;
       font-size: 12px;
-      color: var(--text-muted);
+      color: var(--text-secondary);
       text-align: center;
     }
     .hint code {
@@ -541,6 +517,46 @@ export function dashboardPageHtml(cloudV1Base: string): string {
       align-items: flex-start;
       justify-content: space-between;
       gap: 12px 16px;
+    }
+    .plan-card .plan-card-left {
+      flex: 1;
+      min-width: 0;
+    }
+    .plan-card-heading-row {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 12px;
+      width: 100%;
+    }
+    .plan-card-heading-row > strong {
+      font-family: var(--font-display);
+      font-size: 1rem;
+      font-weight: 600;
+      color: var(--blue-light);
+    }
+    .plan-overview-tip .help-body {
+      width: min(400px, 92vw);
+    }
+    .help-body-overview-title {
+      font-family: var(--font-display);
+      font-size: 12px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      color: var(--blue-light);
+      margin: 0 0 10px;
+    }
+    .help-tip .help-body ul.help-overview-list {
+      margin: 10px 0 0;
+      padding-left: 1.1em;
+    }
+    .help-tip .help-body ul.help-overview-list li {
+      margin-bottom: 6px;
+    }
+    .help-tip .help-body ul.help-overview-list strong {
+      color: var(--blue-light);
+      font-weight: 600;
     }
     .plan-card .btn-subscribe {
       font-family: var(--font-body);
@@ -718,17 +734,17 @@ export function dashboardPageHtml(cloudV1Base: string): string {
       border-radius: var(--radius-md);
       border: 0.5px solid var(--border);
       background: transparent;
-      color: var(--text-muted);
+      color: var(--text-secondary);
       cursor: pointer;
     }
     .btn-modal-secondary:hover {
-      border-color: var(--text-muted);
+      border-color: var(--text-secondary);
       color: var(--text-secondary);
     }
 
     #planSessionHint {
       font-size: 12px;
-      color: var(--text-muted);
+      color: var(--text-secondary);
       margin-top: 8px;
       max-width: 560px;
     }
@@ -762,7 +778,7 @@ export function dashboardPageHtml(cloudV1Base: string): string {
       border-top: 1px solid var(--border);
       font-size: 12px;
       line-height: 1.55;
-      color: var(--text-muted);
+      color: var(--text-secondary);
       text-align: center;
     }
     .mission-footer p {
@@ -791,17 +807,32 @@ export function dashboardPageHtml(cloudV1Base: string): string {
     <div id="accountGate" class="callout" hidden style="border-color: rgba(186,117,23,0.35)"></div>
     <div id="planCard" class="callout plan-card" hidden style="border-color: rgba(29,158,117,0.35)">
       <div class="plan-card-inner">
-        <div>
-          <strong>Spectyra plan</strong>
+        <div class="plan-card-left">
+          <div class="plan-card-heading-row">
+            <strong>Spectyra plan</strong>
+            <details class="help-tip plan-overview-tip">
+              <summary aria-label="What this page shows">?</summary>
+              <div class="help-body">
+                <p class="help-body-overview-title">What this page shows</p>
+                <p>This dashboard is <strong>local only</strong>. Dollar amounts are <strong>estimates</strong> from input-token counts and typical model pricing — your real invoice can differ.</p>
+                <p>Use the <strong>scope</strong> menu below to switch between everything you have recorded, one live session, or a single completed session.</p>
+                <ul class="help-overview-list">
+                  <li><strong>Money (top)</strong> — Rough dollars saved on <strong>input</strong> to the AI (smaller prompts = less you pay).</li>
+                  <li><strong>Total input % reduced</strong> — Aggregate percentage: (sum of raw input − sum of optimized input) ÷ sum of raw input. This can differ from averages shown per call.</li>
+                  <li><strong>Input tokens before → after</strong> — How much text Spectyra sent to the model after shrinking long tool output, trimming repeats, and similar fixes.</li>
+                  <li><strong>Scores below</strong> — Extra signals: steadiness, repeated content, and hints (not all are dollars).</li>
+                  <li><strong>Reply tokens</strong> — Model output size when the API reports usage.</li>
+                </ul>
+              </div>
+            </details>
+          </div>
           <p id="planLine" style="margin:6px 0 0;font-size:13px;color:var(--text-secondary);max-width:560px"></p>
           <p id="planSessionHint" hidden></p>
           <div id="planManageWrap" class="plan-manage-wrap" hidden>
             <button type="button" class="btn-manage-account" id="btnManageAccount" aria-expanded="false" aria-haspopup="true">Manage account</button>
             <div id="accountActionMenu" class="account-menu" hidden role="menu" aria-label="Account actions">
               <button type="button" role="menuitem" id="menuCancelRenewal" hidden>Cancel renewal</button>
-              <button type="button" role="menuitem" id="menuKeepSubscription" hidden>Keep subscription</button>
-              <button type="button" role="menuitem" id="menuPauseService" hidden>Pause service</button>
-              <button type="button" role="menuitem" id="menuResumeService" hidden>Resume service</button>
+              <button type="button" role="menuitem" id="menuReactivateService" hidden>Reactivate service</button>
             </div>
           </div>
         </div>
@@ -824,26 +855,6 @@ export function dashboardPageHtml(cloudV1Base: string): string {
           <p><strong>Past sessions</strong> (when listed) use completed session totals from disk. New traffic is tagged with a session id so calls after a restart still roll up correctly.</p>
         </div>
       </details>
-    </div>
-
-    <div class="explain-box">
-      <div class="section-head-row" style="margin-bottom:12px">
-        <h2 style="margin:0">What this page shows</h2>
-        <details class="help-tip">
-          <summary aria-label="Help: overview">?</summary>
-          <div class="help-body">
-            <p>This dashboard is <strong>local only</strong>. Dollar amounts are <strong>estimates</strong> from input-token counts and typical model pricing — your real invoice can differ.</p>
-            <p>Use the <strong>scope</strong> menu above to switch between everything you have recorded, one live session, or a single completed session.</p>
-          </div>
-        </details>
-      </div>
-      <ul>
-        <li><strong>Money (top)</strong> — Rough dollars saved on <strong>input</strong> to the AI (smaller prompts = less you pay).</li>
-        <li><strong>Total input % reduced</strong> — Aggregate percentage: (sum of raw input − sum of optimized input) ÷ sum of raw input. This can differ from averages shown per call.</li>
-        <li><strong>Input tokens before → after</strong> — How much text Spectyra sent to the model after shrinking long tool output, trimming repeats, and similar fixes.</li>
-        <li><strong>Scores below</strong> — Extra signals: steadiness, repeated content, and hints (not all are dollars).</li>
-        <li><strong>Reply tokens</strong> — Model output size when the API reports usage.</li>
-      </ul>
     </div>
 
     <div class="hero" id="hero">
@@ -1029,6 +1040,16 @@ export function dashboardPageHtml(cloudV1Base: string): string {
       <div class="modal-actions">
         <button type="button" class="btn-modal-primary" id="accountModalPrimary"></button>
         <button type="button" class="btn-modal-secondary" id="accountModalSecondary"></button>
+      </div>
+    </div>
+  </div>
+
+  <div id="accountResultModal" class="modal-backdrop" hidden aria-hidden="true">
+    <div class="modal-panel" role="dialog" aria-modal="true" aria-labelledby="accountResultModalTitle">
+      <h3 class="modal-title" id="accountResultModalTitle"></h3>
+      <div class="modal-body" id="accountResultModalBody"></div>
+      <div class="modal-actions">
+        <button type="button" class="btn-modal-primary" id="accountResultModalOk">OK</button>
       </div>
     </div>
   </div>
@@ -1297,12 +1318,18 @@ export function dashboardPageHtml(cloudV1Base: string): string {
       var planManageWrap = $('planManageWrap');
       var planHint = $('planSessionHint');
       var bc = $('menuCancelRenewal');
-      var bk = $('menuKeepSubscription');
-      var bp = $('menuPauseService');
-      var br = $('menuResumeService');
+      var bk = $('menuReactivateService');
       if (!card || !line || !btn) return;
       if (!health || health.spectyraAccountLinked === false) {
-        card.hidden = true;
+        card.hidden = false;
+        line.textContent =
+          'Connect your Spectyra account (run spectyra-companion setup) to see plan status and billing actions here.';
+        btn.style.display = 'none';
+        if (planManageWrap) planManageWrap.hidden = true;
+        if (planHint) {
+          planHint.hidden = true;
+          planHint.textContent = '';
+        }
         return;
       }
       card.hidden = false;
@@ -1331,12 +1358,20 @@ export function dashboardPageHtml(cloudV1Base: string): string {
         var hasAccess = st.has_access === true;
         var exempt = !!(st.org_platform_exempt || st.platform_billing_exempt);
         var trialActive = st.trial_active === true;
+        var cancelEnd = !!st.cancel_at_period_end;
         var orgName = st.org && st.org.name ? st.org.name : 'your org';
         if (exempt && hasAccess) {
           line.textContent = 'Billing exempt — full access for ' + orgName + '.';
           btn.style.display = 'none';
         } else if (paid && hasAccess) {
-          line.textContent = 'Active subscription — ' + orgName + '.';
+          if (cancelEnd) {
+            line.textContent =
+              'Active subscription — ' +
+              orgName +
+              '. This plan will cancel at the end of the current billing period.';
+          } else {
+            line.textContent = 'Active subscription — ' + orgName + '.';
+          }
           btn.style.display = 'none';
         } else if (trialActive && hasAccess) {
           var te = st.trial_ends_at ? new Date(st.trial_ends_at) : null;
@@ -1370,9 +1405,9 @@ export function dashboardPageHtml(cloudV1Base: string): string {
           });
         }
 
-        if (!planManageWrap || !bc || !bk || !bp || !br) return;
+        if (!planManageWrap || !bc || !bk) return;
 
-        [bc, bk, bp, br].forEach(function(b) {
+        [bc, bk].forEach(function(b) {
           b.hidden = true;
         });
         planManageWrap.hidden = false;
@@ -1400,10 +1435,8 @@ export function dashboardPageHtml(cloudV1Base: string): string {
         }
         if (canCancel) bc.hidden = false;
         if (canKeep) bk.hidden = false;
-        if (sum.access_state === 'active') bp.hidden = false;
-        if (sum.access_state === 'paused') br.hidden = false;
 
-        var showManage = !bc.hidden || !bk.hidden || !bp.hidden || !br.hidden;
+        var showManage = !bc.hidden || !bk.hidden;
         planManageWrap.hidden = !showManage;
         var accountMenu = $('accountActionMenu');
         if (accountMenu) accountMenu.hidden = true;
@@ -1423,6 +1456,38 @@ export function dashboardPageHtml(cloudV1Base: string): string {
             if (modal) {
               modal.hidden = true;
               modal.setAttribute('aria-hidden', 'true');
+            }
+          }
+          function hideResultModal() {
+            var m = $('accountResultModal');
+            if (m) {
+              m.hidden = true;
+              m.setAttribute('aria-hidden', 'true');
+            }
+          }
+          function showResultModal(opts) {
+            var titleEl = $('accountResultModalTitle');
+            var bodyEl = $('accountResultModalBody');
+            var btn = $('accountResultModalOk');
+            if (!titleEl || !bodyEl || !btn) return;
+            titleEl.textContent = opts.title || 'Done';
+            bodyEl.innerHTML = '';
+            if (opts.bodyHtml) {
+              bodyEl.innerHTML = opts.bodyHtml;
+            } else if (opts.plainMessage) {
+              var p = document.createElement('p');
+              p.textContent = opts.plainMessage;
+              bodyEl.appendChild(p);
+            }
+            btn.textContent = opts.okLabel || 'OK';
+            btn.onclick = function() {
+              hideResultModal();
+              if (opts.onOk) opts.onOk();
+            };
+            var rm = $('accountResultModal');
+            if (rm) {
+              rm.hidden = false;
+              rm.setAttribute('aria-hidden', 'false');
             }
           }
           function showAccountModal(opts) {
@@ -1459,10 +1524,14 @@ export function dashboardPageHtml(cloudV1Base: string): string {
           $('accountModal').addEventListener('click', function(ev) {
             if (ev.target === $('accountModal')) hideAccountModal();
           });
+          $('accountResultModal').addEventListener('click', function(ev) {
+            if (ev.target === $('accountResultModal')) hideResultModal();
+          });
           document.addEventListener('keydown', function(ev) {
             if (ev.key === 'Escape') {
               closeAccountMenu();
               hideAccountModal();
+              hideResultModal();
             }
           });
           bc.addEventListener('click', function() {
@@ -1476,29 +1545,19 @@ export function dashboardPageHtml(cloudV1Base: string): string {
               onSecondary: async function() {
                 try {
                   await postAccountAction('/v1/account/subscription/cancel-at-period-end', {});
-                  alert('Renewal cancelled. Access continues until the end of the period.');
-                  location.reload();
+                  showResultModal({
+                    title: 'Renewal cancelled',
+                    bodyHtml:
+                      '<p>Access continues until the end of the current billing period.</p>',
+                    onOk: function() {
+                      location.reload();
+                    },
+                  });
                 } catch (e) {
-                  alert(e && e.message ? e.message : String(e));
-                }
-              },
-            });
-          });
-          bp.addEventListener('click', function() {
-            closeAccountMenu();
-            showAccountModal({
-              title: 'Pause service?',
-              bodyHtml:
-                '<p>Pausing stops billing collection and may limit Spectyra features until you resume.</p><p>Are you sure you want to pause now?</p>',
-              primaryLabel: 'Keep service active',
-              secondaryLabel: 'Pause anyway',
-              onSecondary: async function() {
-                try {
-                  await postAccountAction('/v1/account/pause-service', {});
-                  alert('Service paused.');
-                  location.reload();
-                } catch (e) {
-                  alert(e && e.message ? e.message : String(e));
+                  showResultModal({
+                    title: 'Could not cancel renewal',
+                    plainMessage: e && e.message ? e.message : String(e),
+                  });
                 }
               },
             });
@@ -1507,20 +1566,19 @@ export function dashboardPageHtml(cloudV1Base: string): string {
             closeAccountMenu();
             try {
               await postAccountAction('/v1/account/subscription/keep', {});
-              alert('Subscription will continue after the current period.');
-              location.reload();
+              showResultModal({
+                title: 'Subscription reactivated',
+                bodyHtml:
+                  '<p>Your plan will renew after the current billing period.</p>',
+                onOk: function() {
+                  location.reload();
+                },
+              });
             } catch (e) {
-              alert(e && e.message ? e.message : String(e));
-            }
-          });
-          br.addEventListener('click', async function() {
-            closeAccountMenu();
-            try {
-              await postAccountAction('/v1/account/resume-service', {});
-              alert('Service resumed.');
-              location.reload();
-            } catch (e) {
-              alert(e && e.message ? e.message : String(e));
+              showResultModal({
+                title: 'Could not reactivate subscription',
+                plainMessage: e && e.message ? e.message : String(e),
+              });
             }
           });
         }
