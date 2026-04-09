@@ -120,6 +120,7 @@ export async function getSavingsSummary(opts?: { sessionId?: string }): Promise<
   let totalTokensSaved = 0;
   let totalCostSaved = 0;
   let totalPct = 0;
+  let savingsPctRunCount = 0;
   let totalTokensBefore = 0;
   let totalTokensAfter = 0;
   let runsSkippedToolThread = 0;
@@ -163,7 +164,7 @@ export async function getSavingsSummary(opts?: { sessionId?: string }): Promise<
     totalRuns: runs.length,
     totalTokensSaved,
     totalCostSaved,
-    avgSavingsPct: runs.length > 0 ? totalPct / runs.length : 0,
+    avgSavingsPct: savingsPctRunCount > 0 ? totalPct / savingsPctRunCount : 0,
     aggregateInputReductionPct,
     totalTokensBefore,
     totalTokensAfter,

@@ -15,8 +15,7 @@ type Cache = { allows: boolean; at: number };
 let cache: Cache | null = null;
 
 function cloudBase(): string {
-  const c = loadConfig();
-  return resolveSpectyraCloudApiV1Base(c.port);
+  return resolveSpectyraCloudApiV1Base();
 }
 
 function parseAllows(body: Record<string, unknown>): boolean {

@@ -45,9 +45,7 @@ function providerDisplayName(id: string): string {
   }
 }
 
-const SPECTYRA_API = resolveSpectyraCloudApiV1Base(
-  parseInt(process.env.SPECTYRA_PORT || "4111", 10),
-);
+const SPECTYRA_API = resolveSpectyraCloudApiV1Base();
 const WEB_ORIGIN = process.env.SPECTYRA_WEB_ORIGIN?.trim() || DEFAULT_SPECTYRA_WEB_ORIGIN;
 
 const GREEN = "\x1b[32m";

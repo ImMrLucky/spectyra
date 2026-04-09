@@ -155,25 +155,28 @@ export function optimize(messages: ChatMessage[], runMode: SpectyraRunMode, lice
   let inputTokensAfter = estimateTokens(resultMessages);
 
   const projected = Math.max(0, pipeline.projectedTokenSavings);
+  /** Do not inflate token/cost deltas when unlicensed (e.g. trial ended) — avoids dashboard savings climbing on preview-only runs. */
   const useProjectedMetrics =
-    pipeline.licenseLimited ||
-    (licenseStatus === "active" && runMode === "observe") ||
-    (toolThread && mergeFailed);
+    !pipeline.licenseLimited &&
+    ((licenseStatus === "active" && runMode === "observe") ||
+      (toolThread && mergeFailed));
 
   if (useProjectedMetrics && projected > 0) {
     inputTokensAfter = Math.max(0, inputTokensBefore - projected);
   }
 
   const tokensSaved = Math.max(0, inputTokensBefore - inputTokensAfter);
-  const updates = learningUpdatesFromPipelineRun({
-    scopeId: learningProfile.scopeId,
-    appliedTransformIds: pipeline.transformsApplied,
-    tokensSaved,
-    featureIds: features.map((f) => f.featureId),
-    success: true,
-  });
-  for (const u of updates) applyUpdate(learningProfile, u);
-  saveCompanionLearningProfile(learningProfile);
+  if (!pipeline.licenseLimited) {
+    const updates = learningUpdatesFromPipelineRun({
+      scopeId: learningProfile.scopeId,
+      appliedTransformIds: pipeline.transformsApplied,
+      tokensSaved,
+      featureIds: features.map((f) => f.featureId),
+      success: true,
+    });
+    for (const u of updates) applyUpdate(learningProfile, u);
+    saveCompanionLearningProfile(learningProfile);
+  }
 
   return {
     messages: resultMessages,

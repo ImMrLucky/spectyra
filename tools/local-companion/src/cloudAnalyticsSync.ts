@@ -9,8 +9,8 @@ import type { CompanionConfig } from "./config.js";
 import { resolveSpectyraCloudApiV1Base } from "./cloudDefaults.js";
 import { getValidSupabaseAccessToken, loadDesktopConfig } from "./desktopSession.js";
 
-function spectyraApiBase(cfg: CompanionConfig): string {
-  return resolveSpectyraCloudApiV1Base(cfg.port);
+function spectyraApiBase(): string {
+  return resolveSpectyraCloudApiV1Base();
 }
 
 export function shouldAttemptCloudAnalyticsSync(cfg: CompanionConfig): boolean {
@@ -45,7 +45,7 @@ export async function syncSessionSummaryToCloud(
   const config = loadDesktopConfig();
   const token = await getValidSupabaseAccessToken(config);
   if (!token) return;
-  const base = spectyraApiBase(cfg).replace(/\/$/, "");
+  const base = spectyraApiBase().replace(/\/$/, "");
   const url = `${base}/analytics/sessions`;
   const payload = sessionToSyncedPayload(rec);
   const res = await fetch(url, {

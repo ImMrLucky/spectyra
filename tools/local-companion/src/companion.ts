@@ -79,8 +79,7 @@ import {
 const cfg: CompanionConfig = loadConfig();
 
 function cloudApiV1BaseUrl(): string {
-  const snap = loadConfig();
-  return resolveSpectyraCloudApiV1Base(snap.port);
+  return resolveSpectyraCloudApiV1Base();
 }
 
 /**
@@ -147,6 +146,14 @@ function providerConfigured(): boolean {
   const p = c.provider;
   if (p !== "openai" && p !== "anthropic" && p !== "groq") return false;
   return isProviderKeyConfigured(p);
+}
+
+/**
+ * Only persist runs, sessions, events, prompt snapshots, and cloud sync when billing allows real optimization.
+ * Unpaid / unlinked traffic still uses the companion as a router but must not mutate analytics or learning.
+ */
+function shouldRecordCompanionAnalytics(opt: OptimizeResult): boolean {
+  return !opt.licenseLimited;
 }
 
 function parseMaxTokensOpenAiCompatible(body: Record<string, unknown>): number | undefined {
@@ -593,20 +600,22 @@ app.post("/v1/chat/completions", async (req, res) => {
         inputTokens: cap?.prompt_tokens ?? optResult.inputTokensAfter,
         outputTokens: cap?.completion_tokens ?? 0,
       };
-      const report = attachSessionToReport(
-        buildReport(runId, resolved.provider, resolved.upstreamModel, optResult, streamUsage, icfg),
-        req.headers as Record<string, string | string[] | undefined>,
-      );
-      await persistLocally(runId, report, optResult, messages, icfg);
-      const sk = sessionRegistry.sessionKeyFromRequest(req.headers as any);
-      if (icfg.telemetryMode !== "off") {
-        await sessionRegistry.recordStep(sk, report);
-        const tr = sessionRegistry.getOrCreateTracker(sk);
-        ingestCompanionChatCompleted({
-          sessionId: tr.sessionId,
-          runId: report.runId,
-          report,
-        });
+      if (shouldRecordCompanionAnalytics(optResult)) {
+        const report = attachSessionToReport(
+          buildReport(runId, resolved.provider, resolved.upstreamModel, optResult, streamUsage, icfg),
+          req.headers as Record<string, string | string[] | undefined>,
+        );
+        await persistLocally(runId, report, optResult, messages, icfg);
+        const sk = sessionRegistry.sessionKeyFromRequest(req.headers as any);
+        if (icfg.telemetryMode !== "off") {
+          await sessionRegistry.recordStep(sk, report);
+          const tr = sessionRegistry.getOrCreateTracker(sk);
+          ingestCompanionChatCompleted({
+            sessionId: tr.sessionId,
+            runId: report.runId,
+            report,
+          });
+        }
       }
       return;
     }
@@ -620,27 +629,29 @@ app.post("/v1/chat/completions", async (req, res) => {
     );
 
     const runId = crypto.randomUUID();
-    const report = attachSessionToReport(
-      buildReport(
-        runId,
-        resolved.provider,
-        resolved.upstreamModel,
-        optResult,
-        providerResult.usage,
-        icfg,
-      ),
-      req.headers as Record<string, string | string[] | undefined>,
-    );
-    await persistLocally(runId, report, optResult, messages, icfg);
-    const sk = sessionRegistry.sessionKeyFromRequest(req.headers as any);
-    if (icfg.telemetryMode !== "off") {
-      await sessionRegistry.recordStep(sk, report);
-      const tr = sessionRegistry.getOrCreateTracker(sk);
-      ingestCompanionChatCompleted({
-        sessionId: tr.sessionId,
-        runId: report.runId,
-        report,
-      });
+    if (shouldRecordCompanionAnalytics(optResult)) {
+      const report = attachSessionToReport(
+        buildReport(
+          runId,
+          resolved.provider,
+          resolved.upstreamModel,
+          optResult,
+          providerResult.usage,
+          icfg,
+        ),
+        req.headers as Record<string, string | string[] | undefined>,
+      );
+      await persistLocally(runId, report, optResult, messages, icfg);
+      const sk = sessionRegistry.sessionKeyFromRequest(req.headers as any);
+      if (icfg.telemetryMode !== "off") {
+        await sessionRegistry.recordStep(sk, report);
+        const tr = sessionRegistry.getOrCreateTracker(sk);
+        ingestCompanionChatCompleted({
+          sessionId: tr.sessionId,
+          runId: report.runId,
+          report,
+        });
+      }
     }
 
     const usage = {
@@ -683,6 +694,7 @@ app.post("/v1/chat/completions", async (req, res) => {
         tokensSaved: Math.max(0, optResult.inputTokensBefore - optResult.inputTokensAfter),
         transforms: optResult.transforms,
         inferencePath: "direct_provider",
+        analyticsRecorded: !optResult.licenseLimited,
       },
     });
   } catch (err: unknown) {
@@ -697,7 +709,6 @@ app.post("/v1/chat/completions", async (req, res) => {
 // ── Anthropic-compatible endpoint ────────────────────────────────────────────
 
 app.post("/v1/messages", async (req, res) => {
-  recordOpenClawTrafficIfApplicable(req);
   try {
     const icfg = loadConfig();
     const rawModel: string = req.body.model || "claude-3-5-sonnet-latest";
@@ -711,6 +722,10 @@ app.post("/v1/messages", async (req, res) => {
     }
 
     const { resolved, optResult } = await resolveAndOptimizeLocally(icfg, messages, rawModel);
+
+    if (shouldRecordCompanionAnalytics(optResult)) {
+      recordOpenClawTrafficIfApplicable(req);
+    }
 
     const policyMsg = evaluateWorkflowPolicyFromEvents(companionEventEngine.snapshot(), icfg.workflowPolicyMode);
     if (policyMsg.shouldBlock) {
@@ -735,27 +750,29 @@ app.post("/v1/messages", async (req, res) => {
     );
 
     const runId = crypto.randomUUID();
-    const report = attachSessionToReport(
-      buildReport(
-        runId,
-        resolved.provider,
-        resolved.upstreamModel,
-        optResult,
-        providerResult.usage,
-        icfg,
-      ),
-      req.headers as Record<string, string | string[] | undefined>,
-    );
-    await persistLocally(runId, report, optResult, messages, icfg);
-    const sk = sessionRegistry.sessionKeyFromRequest(req.headers as any);
-    if (icfg.telemetryMode !== "off") {
-      await sessionRegistry.recordStep(sk, report);
-      const tr = sessionRegistry.getOrCreateTracker(sk);
-      ingestCompanionChatCompleted({
-        sessionId: tr.sessionId,
-        runId: report.runId,
-        report,
-      });
+    if (shouldRecordCompanionAnalytics(optResult)) {
+      const report = attachSessionToReport(
+        buildReport(
+          runId,
+          resolved.provider,
+          resolved.upstreamModel,
+          optResult,
+          providerResult.usage,
+          icfg,
+        ),
+        req.headers as Record<string, string | string[] | undefined>,
+      );
+      await persistLocally(runId, report, optResult, messages, icfg);
+      const sk = sessionRegistry.sessionKeyFromRequest(req.headers as any);
+      if (icfg.telemetryMode !== "off") {
+        await sessionRegistry.recordStep(sk, report);
+        const tr = sessionRegistry.getOrCreateTracker(sk);
+        ingestCompanionChatCompleted({
+          sessionId: tr.sessionId,
+          runId: report.runId,
+          report,
+        });
+      }
     }
 
     res.json({
@@ -774,6 +791,7 @@ app.post("/v1/messages", async (req, res) => {
         mode: icfg.optimizationRunMode,
         tokensSaved: Math.max(0, optResult.inputTokensBefore - optResult.inputTokensAfter),
         inferencePath: "direct_provider",
+        analyticsRecorded: !optResult.licenseLimited,
       },
     });
   } catch (err: unknown) {
@@ -933,15 +951,21 @@ function buildReport(
   usage: { inputTokens: number; outputTokens: number },
   modeCfg: CompanionConfig,
 ): SavingsReport {
-  const saved = opt.inputTokensBefore - opt.inputTokensAfter;
-  const pct = opt.inputTokensBefore > 0 ? (saved / opt.inputTokensBefore) * 100 : 0;
+  const savedRaw = opt.inputTokensBefore - opt.inputTokensAfter;
+  const saved = opt.licenseLimited ? 0 : Math.max(0, savedRaw);
+  const pct = opt.licenseLimited ? 0 : opt.inputTokensBefore > 0 ? (saved / opt.inputTokensBefore) * 100 : 0;
   const costInBefore = estimateInputCostUsd(opt.inputTokensBefore, model);
-  const costInAfter = estimateInputCostUsd(opt.inputTokensAfter, model);
+  const costInAfter = estimateInputCostUsd(
+    opt.licenseLimited ? opt.inputTokensBefore : opt.inputTokensAfter,
+    model,
+  );
   const costOut = estimateOutputCostUsd(usage.outputTokens, model);
   const costBefore = costInBefore + costOut;
   const costAfter = costInAfter + costOut;
-  const estSavings = Math.max(0, costBefore - costAfter);
-  const derived = deriveSavingsMetrics(opt.features, opt.flowSignals);
+  const estSavings = opt.licenseLimited ? 0 : Math.max(0, costBefore - costAfter);
+  const derived = opt.licenseLimited
+    ? { duplicateReductionPct: undefined, flowStabilityScore: undefined, compressibleUnitsHint: undefined }
+    : deriveSavingsMetrics(opt.features, opt.flowSignals);
   const notes: string[] = [];
   if (opt.optimizationSkippedReason === "tool_merge_failed") {
     notes.push(
@@ -950,9 +974,9 @@ function buildReport(
   } else if (opt.optimizationSkippedReason === "run_mode_off") {
     notes.push("Run mode is off; optimization skipped.");
   }
-  if (opt.licenseLimited && saved > 0) {
+  if (opt.licenseLimited) {
     notes.push(
-      "Projected input-token reduction — no active trial or paid plan, so the provider still received the full messages. Activate savings on the local dashboard to apply trims.",
+      "No estimated savings are recorded without an active trial or paid plan (provider received full messages). Activate savings on the local dashboard to apply trims and see dollar estimates.",
     );
   } else if (!opt.licenseLimited && modeCfg.optimizationRunMode === "observe" && saved > 0) {
     notes.push("Run mode is observe: projected savings shown; the provider received unoptimized messages.");
@@ -962,7 +986,7 @@ function buildReport(
       "Spectyra account not complete: sign in and save your Spectyra API key (run spectyra-companion setup). Showing preview savings only.",
     );
   }
-  if (opt.flowSignals?.isStuckLoop) {
+  if (opt.flowSignals?.isStuckLoop && !opt.licenseLimited) {
     notes.push("Flow: retry / error-loop pattern detected — consider clarifying the task or trimming context.");
   }
   return {
@@ -972,24 +996,24 @@ function buildReport(
     provider,
     model,
     inputTokensBefore: opt.inputTokensBefore,
-    inputTokensAfter: opt.inputTokensAfter,
+    inputTokensAfter: opt.licenseLimited ? opt.inputTokensBefore : opt.inputTokensAfter,
     outputTokens: usage.outputTokens,
     estimatedCostBefore: costBefore,
     estimatedCostAfter: costAfter,
     estimatedSavings: estSavings,
     estimatedSavingsPct: pct,
-    contextReductionPct: pct > 0 ? pct : undefined,
-    duplicateReductionPct: derived.duplicateReductionPct,
-    flowReductionPct: derived.flowStabilityScore,
-    messageTurnCount: opt.messageCount,
-    compressibleUnitsHint: derived.compressibleUnitsHint,
-    repeatedContextTokensAvoided: opt.repeatedContextTokensAvoided,
-    repeatedToolOutputTokensAvoided: opt.repeatedToolOutputTokensAvoided,
+    contextReductionPct: opt.licenseLimited ? undefined : pct > 0 ? pct : undefined,
+    duplicateReductionPct: opt.licenseLimited ? undefined : derived.duplicateReductionPct,
+    flowReductionPct: opt.licenseLimited ? undefined : derived.flowStabilityScore,
+    messageTurnCount: opt.licenseLimited ? undefined : opt.messageCount,
+    compressibleUnitsHint: opt.licenseLimited ? undefined : derived.compressibleUnitsHint,
+    repeatedContextTokensAvoided: opt.licenseLimited ? 0 : opt.repeatedContextTokensAvoided,
+    repeatedToolOutputTokensAvoided: opt.licenseLimited ? 0 : opt.repeatedToolOutputTokensAvoided,
     telemetryMode: modeCfg.telemetryMode,
     promptSnapshotMode: modeCfg.promptSnapshots,
     inferencePath: "direct_provider",
     providerBillingOwner: "customer",
-    transformsApplied: opt.transforms,
+    transformsApplied: opt.licenseLimited ? [] : opt.transforms,
     notes: notes.length > 0 ? notes : undefined,
     success: true,
     createdAt: new Date().toISOString(),
@@ -1016,15 +1040,18 @@ async function persistLocally(
     await saveRun(report).catch(() => {});
   }
   if (modeCfg.promptSnapshots === "local_only") {
+    const lim = opt.licenseLimited;
+    const afterTok = lim ? opt.inputTokensBefore : opt.inputTokensAfter;
+    const savedSnap = lim ? 0 : Math.max(0, opt.inputTokensBefore - opt.inputTokensAfter);
     const comparison: PromptComparison = {
       originalMessagesSummary: originalMessages.map((m) => ({ role: m.role, len: (m.content ?? "").length })),
       optimizedMessagesSummary: opt.messages.map((m) => ({ role: m.role, len: (m.content ?? "").length })),
       diffSummary: {
         inputTokensBefore: opt.inputTokensBefore,
-        inputTokensAfter: opt.inputTokensAfter,
-        tokensSaved: Math.max(0, opt.inputTokensBefore - opt.inputTokensAfter),
-        pctSaved: opt.inputTokensBefore > 0 ? ((opt.inputTokensBefore - opt.inputTokensAfter) / opt.inputTokensBefore) * 100 : 0,
-        transformsApplied: opt.transforms,
+        inputTokensAfter: afterTok,
+        tokensSaved: savedSnap,
+        pctSaved: opt.inputTokensBefore > 0 ? (savedSnap / opt.inputTokensBefore) * 100 : 0,
+        transformsApplied: lim ? [] : opt.transforms,
       },
       storageMode: "local_only",
       localOnly: true,
