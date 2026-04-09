@@ -1358,20 +1358,12 @@ export function dashboardPageHtml(cloudV1Base: string): string {
         var hasAccess = st.has_access === true;
         var exempt = !!(st.org_platform_exempt || st.platform_billing_exempt);
         var trialActive = st.trial_active === true;
-        var cancelEnd = !!st.cancel_at_period_end;
         var orgName = st.org && st.org.name ? st.org.name : 'your org';
         if (exempt && hasAccess) {
           line.textContent = 'Billing exempt — full access for ' + orgName + '.';
           btn.style.display = 'none';
         } else if (paid && hasAccess) {
-          if (cancelEnd) {
-            line.textContent =
-              'Active subscription — ' +
-              orgName +
-              '. This plan will cancel at the end of the current billing period.';
-          } else {
-            line.textContent = 'Active subscription — ' + orgName + '.';
-          }
+          line.textContent = 'Active subscription — ' + orgName + '.';
           btn.style.display = 'none';
         } else if (trialActive && hasAccess) {
           var te = st.trial_ends_at ? new Date(st.trial_ends_at) : null;
@@ -1420,10 +1412,31 @@ export function dashboardPageHtml(cloudV1Base: string): string {
               'Account actions need a valid sign-in. Run: spectyra-companion setup — then refresh this page.';
           }
           planManageWrap.hidden = true;
+          if (paid && hasAccess && !exempt && st.cancel_at_period_end) {
+            line.textContent =
+              'Active subscription — ' +
+              orgName +
+              '. This plan will cancel at the end of the current billing period.';
+          }
           return;
         }
         var sum = await sr.json();
         var owned = sum.owned_subscriptions || [];
+        if (paid && hasAccess && !exempt) {
+          var cancelScheduled = !!st.cancel_at_period_end;
+          for (var ix = 0; ix < owned.length; ix++) {
+            if (owned[ix].cancel_at_period_end) {
+              cancelScheduled = true;
+              break;
+            }
+          }
+          if (cancelScheduled) {
+            line.textContent =
+              'Active subscription — ' +
+              orgName +
+              '. This plan will cancel at the end of the current billing period.';
+          }
+        }
         var canCancel = false;
         var canKeep = false;
         for (var i = 0; i < owned.length; i++) {
