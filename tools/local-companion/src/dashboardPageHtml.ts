@@ -669,7 +669,7 @@ export function dashboardPageHtml(): string {
             <button type="button" class="btn-plan-danger" id="btnDeleteAccount" hidden>Delete account…</button>
           </div>
         </div>
-        <button type="button" class="btn-subscribe" id="btnSubscribe" style="display:none">Subscribe</button>
+        <button type="button" class="btn-subscribe" id="btnSubscribe" style="display:none">Activate Savings</button>
       </div>
     </div>
     <div id="calloutZero" class="callout" hidden></div>
@@ -874,7 +874,7 @@ export function dashboardPageHtml(): string {
     </div>
 
     <p class="hint">
-      Auto-refreshes while open. Run <code>spectyra-companion dashboard</code> to reopen.
+      Updates on open and when you switch back to this tab; while linked, data refreshes about every 30s (faster if the account is not linked yet). Use <strong>Refresh</strong> anytime.
     </p>
 
     <footer class="mission-footer" aria-label="Spectyra mission">
@@ -1138,7 +1138,7 @@ export function dashboardPageHtml(): string {
           line.textContent = 'Trial active' + (te && !isNaN(te.getTime()) ? ' (ends ' + te.toLocaleString() + ')' : '') + '.';
           btn.style.display = 'none';
         } else {
-          line.textContent = 'Trial ended or no active paid plan. Subscribe to restore full cloud access for this account.';
+          line.textContent = 'Trial ended or no active paid plan. Activate your account to restore full access to savings.';
           btn.style.display = 'inline-block';
         }
         if (!btn.dataset.boundPlan) {
@@ -1261,6 +1261,23 @@ export function dashboardPageHtml(): string {
       }
     }
 
+    /** While waiting for setup/sign-in, poll a bit faster; once linked, slow down to avoid flicker. */
+    var pollTimerId = null;
+    var lastPollIntervalMs = 0;
+    var POLL_FAST_MS = 5000;
+    var POLL_SLOW_MS = 28000;
+
+    function armDashboardPoll(accountLinkedOk) {
+      var ms = accountLinkedOk ? POLL_SLOW_MS : POLL_FAST_MS;
+      if (pollTimerId !== null && ms === lastPollIntervalMs) return;
+      lastPollIntervalMs = ms;
+      if (pollTimerId !== null) clearInterval(pollTimerId);
+      pollTimerId = setInterval(function() {
+        if (document.hidden) return;
+        load();
+      }, ms);
+    }
+
     async function load() {
       $('err').hidden = true;
       try {
@@ -1281,13 +1298,19 @@ export function dashboardPageHtml(): string {
         $('statusText').textContent = 'Offline';
         $('err').textContent = 'Cannot reach companion. Is spectyra-companion running?';
         $('err').hidden = false;
+        armDashboardPoll(false);
         return;
       }
 
       if (health?.status === 'ok') {
         $('status').className = 'status online';
-        const mode = health.runMode === 'observe' ? 'Observe only' : 'Active';
-        $('statusText').textContent = mode;
+        var stText = 'Active';
+        if (health.spectyraAccountLinked === true && health.billingAllowsRealSavings === false) {
+          stText = 'Upgrade to save';
+        } else if (health.runMode === 'observe') {
+          stText = 'Observe only';
+        }
+        $('statusText').textContent = stText;
       } else {
         $('status').className = 'status offline';
         $('statusText').textContent = 'Error';
@@ -1387,8 +1410,8 @@ export function dashboardPageHtml(): string {
             callout.hidden = false;
             callout.innerHTML =
               '<strong>Why is savings still \\$0?</strong><br />' +
-              'Common reasons: <strong>Observe</strong> mode (preview only — change to Active in config), ' +
-              'no <strong>license</strong> yet (we show what you could save, but the provider may still get the full prompt), ' +
+              'Common reasons: <strong>no active plan</strong> after trial (projected savings only until you activate), ' +
+              '<strong>Observe</strong> run mode (no trimming to the model), ' +
               'or this stretch of calls had no smaller prompt to send. ' +
               'Use the <strong>Live</strong> row for your current OpenClaw session; completed rows appear when a session is finished.';
           } else {
@@ -1453,12 +1476,28 @@ export function dashboardPageHtml(): string {
           appendSessionRow(sess, null);
         }
       }
+
+      var linkedOk = health && health.status === 'ok' && health.spectyraAccountLinked === true;
+      armDashboardPoll(linkedOk);
     }
 
     $('sessionScope').addEventListener('change', load);
     $('btnRefresh').addEventListener('click', load);
+    document.addEventListener('visibilitychange', function() {
+      if (!document.hidden) load();
+    });
+    document.addEventListener(
+      'click',
+      function (ev) {
+        var t = ev.target;
+        if (t && typeof t.closest === 'function' && t.closest('.help-tip')) return;
+        document.querySelectorAll('details.help-tip[open]').forEach(function (el) {
+          el.removeAttribute('open');
+        });
+      },
+      true,
+    );
     load();
-    setInterval(load, 4000);
   </script>
 </body>
 </html>`;

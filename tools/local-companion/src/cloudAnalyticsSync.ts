@@ -6,11 +6,11 @@
 import { sessionToSyncedPayload } from "@spectyra/analytics-core";
 import type { SessionAnalyticsRecord } from "@spectyra/analytics-core";
 import type { CompanionConfig } from "./config.js";
-import { DEFAULT_SPECTYRA_CLOUD_API_V1 } from "./cloudDefaults.js";
+import { resolveSpectyraCloudApiV1Base } from "./cloudDefaults.js";
 import { getValidSupabaseAccessToken, loadDesktopConfig } from "./desktopSession.js";
 
-function spectyraApiBase(): string {
-  return process.env.SPECTYRA_API_URL?.trim() || DEFAULT_SPECTYRA_CLOUD_API_V1;
+function spectyraApiBase(cfg: CompanionConfig): string {
+  return resolveSpectyraCloudApiV1Base(cfg.port);
 }
 
 export function shouldAttemptCloudAnalyticsSync(cfg: CompanionConfig): boolean {
@@ -45,7 +45,7 @@ export async function syncSessionSummaryToCloud(
   const config = loadDesktopConfig();
   const token = await getValidSupabaseAccessToken(config);
   if (!token) return;
-  const base = spectyraApiBase().replace(/\/$/, "");
+  const base = spectyraApiBase(cfg).replace(/\/$/, "");
   const url = `${base}/analytics/sessions`;
   const payload = sessionToSyncedPayload(rec);
   const res = await fetch(url, {

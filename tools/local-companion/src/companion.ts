@@ -65,17 +65,22 @@ import { activateLicense } from "@spectyra/optimization-engine";
 import { spectyraOpenClawModelDefinitions } from "@spectyra/shared";
 import { recordOpenClawTrafficIfApplicable, getOpenClawIntegrationDiagnostics } from "./openclawTraffic.js";
 import { dashboardPageHtml } from "./dashboardPageHtml.js";
-import { DEFAULT_SPECTYRA_CLOUD_API_V1 } from "./cloudDefaults.js";
+import { resolveSpectyraCloudApiV1Base } from "./cloudDefaults.js";
 import {
   loadDesktopConfig,
   getValidSupabaseAccessToken,
   ensureDesktopSessionRefreshed,
 } from "./desktopSession.js";
+import {
+  refreshBillingEntitlement,
+  getCachedBillingAllowsRealSavings,
+} from "./billingEntitlement.js";
 
 const cfg: CompanionConfig = loadConfig();
 
 function cloudApiV1BaseUrl(): string {
-  return process.env.SPECTYRA_API_URL?.trim() || DEFAULT_SPECTYRA_CLOUD_API_V1;
+  const snap = loadConfig();
+  return resolveSpectyraCloudApiV1Base(snap.port);
 }
 
 /**
@@ -121,7 +126,7 @@ const SPECTYRA_MODEL_IDS = spectyraOpenClawModelDefinitions().map((d) => d.id);
 
 function licenseSnapshot(): {
   licenseKeyPresent: boolean;
-  /** True when a key is set and passes local activation (trial or paid). */
+  /** True when a key is set, billing allows savings, and local activation passes. */
   licenseAllowsFullOptimization: boolean;
 } {
   const c = loadConfig();
@@ -129,7 +134,11 @@ function licenseSnapshot(): {
   if (!key) {
     return { licenseKeyPresent: false, licenseAllowsFullOptimization: false };
   }
-  return { licenseKeyPresent: true, licenseAllowsFullOptimization: activateLicense(key) };
+  const billingOk = getCachedBillingAllowsRealSavings() === true;
+  return {
+    licenseKeyPresent: true,
+    licenseAllowsFullOptimization: billingOk && activateLicense(key),
+  };
 }
 
 /** Upstream API key present for the configured provider (never exposes the key). */
@@ -167,9 +176,12 @@ app.get("/dashboard", (_req, res) => {
 
 app.get("/health", async (_req, res) => {
   await ensureDesktopSessionRefreshed().catch(() => undefined);
+  await refreshBillingEntitlement();
   const lic = licenseSnapshot();
   const pc = providerConfigured();
   const snap = loadConfig();
+  const billingAllows =
+    snap.spectyraAccountLinked && getCachedBillingAllowsRealSavings() === true;
   res.json({
     status: "ok",
     service: "spectyra-local-companion",
@@ -202,7 +214,14 @@ app.get("/health", async (_req, res) => {
     companionReady: pc,
     /** Without this, real input optimization stays in preview (observe-style) until setup saves session + Spectyra API key. */
     savingsEnabled:
-      snap.spectyraAccountLinked && snap.optimizationRunMode === "on" && snap.runMode === "on",
+      snap.spectyraAccountLinked &&
+      snap.optimizationRunMode === "on" &&
+      snap.runMode === "on" &&
+      billingAllows,
+    /**
+     * Linked org has active trial or paid access (Spectyra Cloud billing). When false and linked, only projected savings apply.
+     */
+    billingAllowsRealSavings: snap.spectyraAccountLinked ? billingAllows : null,
   });
 });
 
@@ -513,7 +532,7 @@ app.post("/v1/chat/completions", async (req, res) => {
     const rawModel: string = req.body.model || "gpt-4o-mini";
     const messages = normalizeOpenAiCompatibleMessages(req.body.messages);
 
-    const { resolved, optResult } = resolveAndOptimizeLocally(icfg, messages, rawModel);
+    const { resolved, optResult } = await resolveAndOptimizeLocally(icfg, messages, rawModel);
 
     const policy = evaluateWorkflowPolicyFromEvents(companionEventEngine.snapshot(), icfg.workflowPolicyMode);
     if (policy.shouldBlock) {
@@ -691,7 +710,7 @@ app.post("/v1/messages", async (req, res) => {
       });
     }
 
-    const { resolved, optResult } = resolveAndOptimizeLocally(icfg, messages, rawModel);
+    const { resolved, optResult } = await resolveAndOptimizeLocally(icfg, messages, rawModel);
 
     const policyMsg = evaluateWorkflowPolicyFromEvents(companionEventEngine.snapshot(), icfg.workflowPolicyMode);
     if (policyMsg.shouldBlock) {
@@ -933,7 +952,7 @@ function buildReport(
   }
   if (opt.licenseLimited && saved > 0) {
     notes.push(
-      "Projected input-token reduction — no valid Spectyra license, so the provider still received the original messages.",
+      "Projected input-token reduction — no active trial or paid plan, so the provider still received the full messages. Activate savings on the local dashboard to apply trims.",
     );
   } else if (!opt.licenseLimited && modeCfg.optimizationRunMode === "observe" && saved > 0) {
     notes.push("Run mode is observe: projected savings shown; the provider received unoptimized messages.");
@@ -1020,6 +1039,7 @@ const SESSION_REFRESH_INTERVAL_MS = 14 * 60 * 1000;
 
 const server = app.listen(cfg.port, cfg.bindHost, () => {
   void ensureDesktopSessionRefreshed().catch(() => undefined);
+  void refreshBillingEntitlement().catch(() => undefined);
   setInterval(() => {
     void ensureDesktopSessionRefreshed().catch(() => undefined);
   }, SESSION_REFRESH_INTERVAL_MS);

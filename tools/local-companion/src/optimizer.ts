@@ -4,9 +4,8 @@
  * ALL optimization runs in-process. ZERO customer data leaves the environment.
  *
  * License model:
- *   - Valid trial or paid → full optimization applied, all efficiencies
- *   - No valid license → observe-only: full pipeline runs so user SEES
- *     projected savings, but zero optimization is applied.
+ *   - Linked org with active trial or paid plan (Spectyra Cloud billing) → full optimization when run mode is on
+ *   - Otherwise → observe-only: full pipeline runs so user SEES projected savings, but zero optimization is applied
  */
 
 import type { SpectyraRunMode } from "@spectyra/core-types";

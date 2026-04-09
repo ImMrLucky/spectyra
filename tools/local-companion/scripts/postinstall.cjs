@@ -14,7 +14,7 @@ console.log(`  Next steps:`);
 console.log(`    1. Run ${C}spectyra-companion setup${R}   ${D}(Spectyra account + API key, provider key, OpenClaw)${R}`);
 console.log(`    2. Run ${C}spectyra-companion start --open${R}   ${D}(starts companion + opens savings dashboard)${R}`);
 console.log(`    3. Use OpenClaw as usual — optimization is automatic`);
-console.log(`    4. Subscribe after trial: ${C}spectyra-companion upgrade${R}   ${D}(Stripe checkout in browser)${R}`);
+console.log(`    4. Activate savings after trial: ${C}spectyra-companion upgrade${R}   ${D}(Stripe checkout in browser)${R}`);
 console.log("");
 console.log(`  ${D}Or just run ${C}spectyra-companion${R}${D} — it will guide you through setup on first launch.${R}`);
 console.log("");

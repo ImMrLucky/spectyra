@@ -10,6 +10,7 @@
 
 import { resolveSpectyraModel } from "@spectyra/shared";
 import type { CompanionConfig } from "./config.js";
+import { resolveLicenseKeyForOptimize } from "./billingEntitlement.js";
 import { optimize, type ChatMessage, type OptimizeResult } from "./optimizer.js";
 
 export interface LocalOptimizationStageResult {
@@ -20,12 +21,14 @@ export interface LocalOptimizationStageResult {
 /**
  * Resolve `spectyra/*` aliases and run the Spectyra optimization pipeline for the current run mode
  * (off / observe / on). Does not call the upstream LLM.
+ *
+ * Real input trimming requires a linked account with active trial or subscription (see billing status).
  */
-export function resolveAndOptimizeLocally(
+export async function resolveAndOptimizeLocally(
   cfg: CompanionConfig,
   messages: ChatMessage[],
   rawModel: string,
-): LocalOptimizationStageResult {
+): Promise<LocalOptimizationStageResult> {
   const resolved = resolveSpectyraModel(rawModel, {
     provider: cfg.provider,
     aliasSmartModel: cfg.aliasSmartModel,
@@ -33,9 +36,7 @@ export function resolveAndOptimizeLocally(
     aliasQualityModel: cfg.aliasQualityModel,
     providerTierModels: cfg.providerTierModels,
   });
-  const licenseForOptimize = cfg.spectyraAccountLinked
-    ? (cfg.licenseKey?.trim() || cfg.spectyraApiKey)
-    : undefined;
+  const licenseForOptimize = await resolveLicenseKeyForOptimize(cfg);
   const optResult = optimize(messages, cfg.optimizationRunMode, licenseForOptimize);
   return { resolved, optResult };
 }

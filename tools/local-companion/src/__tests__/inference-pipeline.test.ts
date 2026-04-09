@@ -6,6 +6,8 @@ import { resolveAndOptimizeLocally } from "../inferencePipeline.js";
 import type { CompanionConfig } from "../config.js";
 import { mapCompanionInferenceError } from "../httpErrors.js";
 
+process.env.SPECTYRA_BYPASS_ACCOUNT_CHECK = "true";
+
 function baseCfg(over: Partial<CompanionConfig> = {}): CompanionConfig {
   return {
     runMode: "on",
@@ -30,8 +32,8 @@ function baseCfg(over: Partial<CompanionConfig> = {}): CompanionConfig {
   };
 }
 
-function run() {
-  const { resolved, optResult } = resolveAndOptimizeLocally(
+async function run() {
+  const { resolved, optResult } = await resolveAndOptimizeLocally(
     baseCfg(),
     [{ role: "user", content: "hi" }],
     "spectyra/quality",
@@ -42,13 +44,13 @@ function run() {
 
   let threw = false;
   try {
-    resolveAndOptimizeLocally(baseCfg(), [{ role: "user", content: "x" }], "spectyra/unknown");
+    await resolveAndOptimizeLocally(baseCfg(), [{ role: "user", content: "x" }], "spectyra/unknown");
   } catch {
     threw = true;
   }
   assert.ok(threw);
 
-  const { resolved: rOpenai } = resolveAndOptimizeLocally(
+  const { resolved: rOpenai } = await resolveAndOptimizeLocally(
     baseCfg(),
     [{ role: "user", content: "hi" }],
     "spectyra/openai/smart",
@@ -57,7 +59,7 @@ function run() {
   assert.equal(rOpenai.provider, "openai");
   assert.equal(rOpenai.upstreamModel, "gpt-4o-mini");
 
-  const { resolved: rAnth } = resolveAndOptimizeLocally(
+  const { resolved: rAnth } = await resolveAndOptimizeLocally(
     baseCfg({
       providerTierModels: { anthropic: { quality: "claude-opus-4-20250514" } },
     }),
@@ -73,7 +75,7 @@ function run() {
   const m503 = mapCompanionInferenceError(new Error("Provider key not configured for openai"));
   assert.equal(m503.status, 503);
 
-  const toolThread = resolveAndOptimizeLocally(
+  const toolThread = await resolveAndOptimizeLocally(
     baseCfg({ runMode: "on" }),
     [
       { role: "user", content: "run tool" },
@@ -94,4 +96,4 @@ function run() {
   console.log("local-companion inference tests OK");
 }
 
-run();
+void run();

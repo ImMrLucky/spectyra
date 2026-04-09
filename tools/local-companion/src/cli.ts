@@ -29,7 +29,7 @@ import {
   saveDesktopConfig,
   saveSupabaseSession,
 } from "./desktopSession.js";
-import { DEFAULT_SPECTYRA_CLOUD_API_V1, DEFAULT_SPECTYRA_WEB_ORIGIN } from "./cloudDefaults.js";
+import { DEFAULT_SPECTYRA_WEB_ORIGIN, resolveSpectyraCloudApiV1Base } from "./cloudDefaults.js";
 
 const PROVIDER_KEYS_FILE = join(DESKTOP_CONFIG_DIR, "provider-keys.json");
 const COMPANION_DIR = join(homedir(), ".spectyra", "companion");
@@ -45,7 +45,9 @@ function providerDisplayName(id: string): string {
   }
 }
 
-const SPECTYRA_API = process.env.SPECTYRA_API_URL?.trim() || DEFAULT_SPECTYRA_CLOUD_API_V1;
+const SPECTYRA_API = resolveSpectyraCloudApiV1Base(
+  parseInt(process.env.SPECTYRA_PORT || "4111", 10),
+);
 const WEB_ORIGIN = process.env.SPECTYRA_WEB_ORIGIN?.trim() || DEFAULT_SPECTYRA_WEB_ORIGIN;
 
 const GREEN = "\x1b[32m";
@@ -84,6 +86,21 @@ function printSpectyraApiKeyCopyBlock(apiKey: string): void {
   console.log("");
 }
 
+/** Create a new org API key via JWT (shown once) — used when ensure-account does not return a key for existing orgs. */
+async function postCreateOrgApiKeyForSetup(accessToken: string): Promise<string | null> {
+  const res = await fetch(`${SPECTYRA_API}/auth/api-keys`, {
+    method: "POST",
+    headers: { Authorization: `Bearer ${accessToken}`, "Content-Type": "application/json" },
+    body: JSON.stringify({ name: "Local companion (auto, setup)" }),
+  });
+  const data = (await res.json().catch(() => ({}))) as { key?: string; error?: string };
+  if (!res.ok) {
+    warn(data.error || `Could not create API key (HTTP ${res.status})`);
+    return null;
+  }
+  return typeof data.key === "string" && data.key.trim() ? data.key.trim() : null;
+}
+
 async function handleEnsureAccountAfterSignIn(
   accessToken: string,
   config: Record<string, unknown>,
@@ -97,9 +114,21 @@ async function handleEnsureAccountAfterSignIn(
       printSpectyraApiKeyCopyBlock(ensured.api_key);
     } else if (ensured.already_provisioned) {
       info(
-        "Account already had an organization — the cloud API key is not shown again. " +
-          "Add or copy a key in the Spectyra web app (Settings → API keys).",
+        "Account already had an organization — ensure-account does not re-show the original API key.",
       );
+      if (!config.apiKey || config.apiKey === "null") {
+        info("Creating a new org API key for this machine (you can revoke it in Settings → API keys)…");
+        const newKey = await postCreateOrgApiKeyForSetup(accessToken);
+        if (newKey) {
+          config.apiKey = newKey;
+          ok("Spectyra org API key stored on this machine.");
+          printSpectyraApiKeyCopyBlock(newKey);
+        } else {
+          warn(
+            "Add a key manually: Spectyra web app → Settings → API keys → create key, then paste into ~/.spectyra/desktop/config.json as \"apiKey\".",
+          );
+        }
+      }
     }
     if (ensured.license_key) {
       config.licenseKey = ensured.license_key;
@@ -315,7 +344,7 @@ function printTrialBannerLine(accessToken: string): Promise<void> {
 
 async function runUpgrade(): Promise<void> {
   console.log("");
-  console.log(`${BOLD}Spectyra — Subscribe${RESET}`);
+  console.log(`${BOLD}Spectyra — Activate Savings${RESET}`);
   console.log(`${DIM}  Secure Stripe checkout (opens in your browser); after payment you return to http://127.0.0.1:<port>/dashboard.${RESET}`);
   console.log("");
   const config = loadDesktopConfig();
