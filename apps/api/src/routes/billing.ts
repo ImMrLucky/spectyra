@@ -87,21 +87,11 @@ async function resolveOrgForStripeSubscription(
   return null;
 }
 
-async function applySubscriptionPayloadToOrg(
+/** Apply Stripe subscription fields to a known org row (webhooks resolve org; self-service already has org id). */
+export async function applySubscriptionPayloadToKnownOrg(
+  orgId: string,
   subscription: Stripe.Subscription,
 ): Promise<void> {
-  const customerId = stripeCustomerId(subscription.customer);
-  const metadataOrgId = metadataSpectyraOrgId(subscription.metadata);
-  const org = await resolveOrgForStripeSubscription(customerId, metadataOrgId);
-  if (!org) {
-    safeLog("warn", "Subscription webhook: no org for customer or metadata", {
-      customer_id: customerId,
-      spectyra_org_id: metadataOrgId,
-      subscription_id: subscription.id,
-    });
-    return;
-  }
-
   const isActive =
     subscription.status === "active" || subscription.status === "trialing";
   const qty = subscription.items?.data?.[0]?.quantity;
@@ -114,7 +104,7 @@ async function applySubscriptionPayloadToOrg(
       : null;
 
   await updateOrgSubscription(
-    org.id,
+    orgId,
     subscription.id,
     subscription.status,
     isActive,
@@ -129,13 +119,32 @@ async function applySubscriptionPayloadToOrg(
     subscription.status === "unpaid" ||
     subscription.status === "incomplete_expired"
   ) {
-    await syncOrgSeatLimitToMemberFloor(org.id);
+    await syncOrgSeatLimitToMemberFloor(orgId);
   }
   safeLog("info", "Subscription updated", {
-    org_id: org.id,
+    org_id: orgId,
     status: subscription.status,
     active: isActive,
   });
+}
+
+/** Used by webhooks and self-service subscription routes to keep `orgs` in sync with Stripe. */
+export async function applySubscriptionPayloadToOrg(
+  subscription: Stripe.Subscription,
+): Promise<void> {
+  const customerId = stripeCustomerId(subscription.customer);
+  const metadataOrgId = metadataSpectyraOrgId(subscription.metadata);
+  const org = await resolveOrgForStripeSubscription(customerId, metadataOrgId);
+  if (!org) {
+    safeLog("warn", "Subscription webhook: no org for customer or metadata", {
+      customer_id: customerId,
+      spectyra_org_id: metadataOrgId,
+      subscription_id: subscription.id,
+    });
+    return;
+  }
+
+  await applySubscriptionPayloadToKnownOrg(org.id, subscription);
 }
 
 /**

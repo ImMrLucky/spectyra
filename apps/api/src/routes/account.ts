@@ -18,6 +18,7 @@ import {
 import { countSuperusers, getPlatformRoleByEmail } from "../services/storage/platformRolesRepo.js";
 import { safeLog } from "../utils/redaction.js";
 import type { SupabaseAdminUser } from "../types/supabase.js";
+import { applySubscriptionPayloadToKnownOrg } from "./billing.js";
 
 export const accountRouter = Router();
 
@@ -141,6 +142,17 @@ accountRouter.post(
             cancel_at_period_end: true,
           });
           updated.push(o.org_id);
+          try {
+            const sub = await stripe.subscriptions.retrieve(o.stripe_subscription_id);
+            await applySubscriptionPayloadToKnownOrg(o.org_id, sub);
+          } catch (syncErr: unknown) {
+            const msg = syncErr instanceof Error ? syncErr.message : String(syncErr);
+            safeLog("warn", "cancel-at-period-end: DB sync after Stripe update failed", {
+              org_id: o.org_id,
+              error: msg,
+            });
+            warnings.push(`org ${o.org_id}: local sync failed (${msg})`);
+          }
         } catch (e: unknown) {
           const msg = e instanceof Error ? e.message : String(e);
           warnings.push(`org ${o.org_id}: ${msg}`);
@@ -183,6 +195,17 @@ accountRouter.post("/subscription/keep", requireUserSession, async (req: Authent
           cancel_at_period_end: false,
         });
         updated.push(o.org_id);
+        try {
+          const sub = await stripe.subscriptions.retrieve(o.stripe_subscription_id);
+          await applySubscriptionPayloadToKnownOrg(o.org_id, sub);
+        } catch (syncErr: unknown) {
+          const msg = syncErr instanceof Error ? syncErr.message : String(syncErr);
+          safeLog("warn", "keep subscription: DB sync after Stripe update failed", {
+            org_id: o.org_id,
+            error: msg,
+          });
+          warnings.push(`org ${o.org_id}: local sync failed (${msg})`);
+        }
       } catch (e: unknown) {
         const msg = e instanceof Error ? e.message : String(e);
         warnings.push(`org ${o.org_id}: ${msg}`);
