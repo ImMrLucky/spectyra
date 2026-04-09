@@ -81,7 +81,7 @@ No Desktop app required. With the companion running:
 
 The page polls local APIs (`/v1/savings/summary`, `/v1/analytics/sessions`) so OpenClaw traffic through `spectyra/smart` shows up automatically.
 
-After you run **`spectyra-companion setup`** (Spectyra API key in `~/.spectyra/desktop/config.json`), the dashboard also shows **plan status** and a **Subscribe** button. That uses **`GET /v1/billing/status`** and **`POST /v1/billing/checkout`** on the companion, which **proxy** to Spectyra Cloud with your API key — you do not need to open the Spectyra web app. Stripe Checkout still opens in a browser tab (that is where payment happens). Success/cancel return URLs default to this dashboard (`http://127.0.0.1:<port>/dashboard`). CLI **`spectyra-companion upgrade`** uses the same return URLs unless you set `SPECTYRA_CHECKOUT_RETURN_WEB=1` to use the hosted site instead.
+After you run **`spectyra-companion setup`** (Supabase session + Spectyra org API key in `~/.spectyra/desktop/config.json`), the dashboard shows **plan status**, **Subscribe**, and (when the session is valid) **Cancel renewal / Keep subscription / Pause / Resume / Delete account**. The companion **refreshes the Supabase access token** on startup, every ~14 minutes, and on **`/health`** / **`/config`** when the file on disk has a `refresh_token` — so you should **not** need to re-run setup just because the short-lived access token expired (unless the refresh token was revoked or never saved). Proxies prefer **Bearer JWT** when refreshed, and fall back to **`X-SPECTYRA-API-KEY`** for billing when needed. The dashboard URL is **`http://127.0.0.1:<port>/dashboard`** (HTTP on localhost is normal; Stripe success/cancel still return there). Stripe Checkout opens in a browser tab for payment. CLI **`spectyra-companion upgrade`** uses the same return URLs unless you set `SPECTYRA_CHECKOUT_RETURN_WEB=1` to use the hosted site instead.
 
 ### Measure savings on one request (sanity check)
 
@@ -102,8 +102,14 @@ This sends a chat completion with repetitive context and prints local before/aft
 |--------|------|---------|
 | GET | `/` | Redirects to `/dashboard` |
 | GET | `/dashboard` | Local savings UI (HTML) |
-| GET | `/v1/billing/status` | Proxies to Spectyra Cloud (requires linked API key) |
+| GET | `/v1/billing/status` | Proxies to Spectyra Cloud (JWT preferred, else org API key) |
 | POST | `/v1/billing/checkout` | Proxies Stripe Checkout session creation (same) |
+| GET | `/v1/account/summary` | Proxies account summary (JWT only) |
+| POST | `/v1/account/subscription/cancel-at-period-end` | Cancel renewal (JWT) |
+| POST | `/v1/account/subscription/keep` | Undo cancel-at-period-end (JWT) |
+| POST | `/v1/account/pause-service` | Pause service (JWT) |
+| POST | `/v1/account/resume-service` | Resume service (JWT) |
+| POST | `/v1/account/delete` | Delete account — body `{ "confirm": "DELETE_MY_ACCOUNT" }` (JWT) |
 | GET | `/health` | Status, mode, inference path |
 | GET | `/config` | Companion configuration (includes `provider`, alias models) |
 | GET | `/v1/models` | OpenAI-style model list (`spectyra/smart`, `spectyra/fast`, `spectyra/quality`) |

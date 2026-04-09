@@ -70,6 +70,17 @@ export async function getValidSupabaseAccessToken(config: Record<string, unknown
   return refreshSupabaseSession(config);
 }
 
+/**
+ * If `~/.spectyra/desktop/config.json` has a Supabase session whose access token is expired
+ * but `refresh_token` is still valid, exchange it and write the new tokens to disk.
+ *
+ * Call this before reporting `spectyraAccountLinked` (health/config) so users are not stuck
+ * “unlinked” until they re-run setup. No-op when session is already valid or absent.
+ */
+export async function ensureDesktopSessionRefreshed(): Promise<void> {
+  await getValidSupabaseAccessToken(loadDesktopConfig());
+}
+
 /** Decode email claim from a Supabase JWT (UX only; not cryptographically verified here). */
 export function emailFromAccessTokenJwt(accessToken: string | undefined): string | undefined {
   if (!accessToken || typeof accessToken !== "string") return undefined;

@@ -559,6 +559,46 @@ export function dashboardPageHtml(): string {
     }
     .plan-card .btn-subscribe:disabled { opacity: 0.5; cursor: not-allowed; }
 
+    .plan-actions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-top: 12px;
+      max-width: 560px;
+    }
+    .plan-actions .btn-plan-secondary,
+    .plan-actions .btn-plan-danger {
+      font-family: var(--font-body);
+      font-size: 12px;
+      font-weight: 500;
+      padding: 6px 12px;
+      border-radius: var(--radius-sm);
+      cursor: pointer;
+      border: 0.5px solid var(--border);
+      background: var(--bg-elevated);
+      color: var(--text-secondary);
+    }
+    .plan-actions .btn-plan-secondary:hover:not(:disabled) {
+      border-color: var(--blue);
+      color: var(--blue-light);
+    }
+    .plan-actions .btn-plan-danger {
+      border-color: rgba(186,117,23,0.35);
+      color: var(--amber-light);
+    }
+    .plan-actions .btn-plan-danger:hover:not(:disabled) {
+      border-color: var(--amber-light);
+      color: var(--amber-pale-bg);
+    }
+    .plan-actions .btn-plan-secondary:disabled,
+    .plan-actions .btn-plan-danger:disabled { opacity: 0.45; cursor: not-allowed; }
+    #planSessionHint {
+      font-size: 12px;
+      color: var(--text-muted);
+      margin-top: 8px;
+      max-width: 560px;
+    }
+
     tr.live-session td {
       background: rgba(29,158,117,0.06);
       border-bottom: 1px solid var(--teal-border);
@@ -620,6 +660,14 @@ export function dashboardPageHtml(): string {
         <div>
           <strong>Spectyra plan</strong>
           <p id="planLine" style="margin:6px 0 0;font-size:13px;color:var(--text-secondary);max-width:560px"></p>
+          <p id="planSessionHint" hidden></p>
+          <div id="planActions" class="plan-actions" hidden>
+            <button type="button" class="btn-plan-secondary" id="btnCancelRenewal" hidden>Cancel renewal</button>
+            <button type="button" class="btn-plan-secondary" id="btnKeepSubscription" hidden>Keep subscription</button>
+            <button type="button" class="btn-plan-secondary" id="btnPauseService" hidden>Pause service</button>
+            <button type="button" class="btn-plan-secondary" id="btnResumeService" hidden>Resume service</button>
+            <button type="button" class="btn-plan-danger" id="btnDeleteAccount" hidden>Delete account…</button>
+          </div>
         </div>
         <button type="button" class="btn-subscribe" id="btnSubscribe" style="display:none">Subscribe</button>
       </div>
@@ -1023,10 +1071,30 @@ export function dashboardPageHtml(): string {
       $('baLabelAfter').textContent = 'After: ' + fmtInt(a) + ' input tokens';
     }
 
+    async function postAccountAction(path, body) {
+      var r = await fetch(path, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body || {}),
+      });
+      var data = await r.json().catch(function() { return {}; });
+      if (!r.ok) {
+        throw new Error(data.error || data.message || ('Request failed: ' + r.status));
+      }
+      return data;
+    }
+
     async function refreshPlanCard(health) {
       var card = $('planCard');
       var line = $('planLine');
       var btn = $('btnSubscribe');
+      var planActions = $('planActions');
+      var planHint = $('planSessionHint');
+      var bc = $('btnCancelRenewal');
+      var bk = $('btnKeepSubscription');
+      var bp = $('btnPauseService');
+      var br = $('btnResumeService');
+      var bd = $('btnDeleteAccount');
       if (!card || !line || !btn) return;
       if (!health || health.spectyraAccountLinked === false) {
         card.hidden = true;
@@ -1035,6 +1103,11 @@ export function dashboardPageHtml(): string {
       card.hidden = false;
       line.textContent = 'Loading plan…';
       btn.style.display = 'none';
+      if (planActions) planActions.hidden = true;
+      if (planHint) {
+        planHint.hidden = true;
+        planHint.textContent = '';
+      }
       try {
         var r = await fetch('/v1/billing/status');
         if (r.status === 503) {
@@ -1042,7 +1115,10 @@ export function dashboardPageHtml(): string {
           return;
         }
         if (!r.ok) {
-          line.textContent = 'Could not load plan status (' + r.status + ').';
+          var errObj = await r.json().catch(function() { return {}; });
+          var errMsg = errObj.error || errObj.message || '';
+          line.textContent =
+            'Could not load plan status (' + r.status + ')' + (errMsg ? ': ' + errMsg : '') + '.';
           return;
         }
         var st = await r.json();
@@ -1087,9 +1163,101 @@ export function dashboardPageHtml(): string {
             btn.disabled = false;
           });
         }
+
+        if (!planActions || !bc || !bk || !bp || !br || !bd) return;
+
+        [bc, bk, bp, br, bd].forEach(function(b) {
+          b.hidden = true;
+        });
+        planActions.hidden = false;
+
+        var sr = await fetch('/v1/account/summary');
+        if (!sr.ok) {
+          if (planHint) {
+            planHint.hidden = false;
+            planHint.textContent =
+              'Cancel, pause, and delete need a valid sign-in. Run: spectyra-companion setup — then refresh this page.';
+          }
+          planActions.hidden = true;
+          return;
+        }
+        var sum = await sr.json();
+        var owned = sum.owned_subscriptions || [];
+        var canCancel = false;
+        var canKeep = false;
+        for (var i = 0; i < owned.length; i++) {
+          var o = owned[i];
+          var stat = String(o.subscription_status || '').toLowerCase();
+          var activeLike = stat === 'active' || stat === 'trialing' || stat === 'past_due';
+          if (activeLike && !o.cancel_at_period_end) canCancel = true;
+          if (o.cancel_at_period_end) canKeep = true;
+        }
+        if (canCancel) bc.hidden = false;
+        if (canKeep) bk.hidden = false;
+        if (sum.access_state === 'active') bp.hidden = false;
+        if (sum.access_state === 'paused') br.hidden = false;
+        bd.hidden = false;
+
+        var showRow = !bc.hidden || !bk.hidden || !bp.hidden || !br.hidden || !bd.hidden;
+        planActions.hidden = !showRow;
+
+        if (!planActions.dataset.boundAccount) {
+          planActions.dataset.boundAccount = '1';
+          bc.addEventListener('click', async function() {
+            if (!confirm('Cancel renewal at the end of the current billing period? You keep access until then.')) return;
+            try {
+              await postAccountAction('/v1/account/subscription/cancel-at-period-end', {});
+              alert('Renewal cancelled. Access continues until the end of the period.');
+              location.reload();
+            } catch (e) {
+              alert(e && e.message ? e.message : String(e));
+            }
+          });
+          bk.addEventListener('click', async function() {
+            try {
+              await postAccountAction('/v1/account/subscription/keep', {});
+              alert('Subscription will continue after the current period.');
+              location.reload();
+            } catch (e) {
+              alert(e && e.message ? e.message : String(e));
+            }
+          });
+          bp.addEventListener('click', async function() {
+            if (!confirm('Pause your Spectyra service? You can resume later from here or the web app.')) return;
+            try {
+              await postAccountAction('/v1/account/pause-service', {});
+              alert('Service paused.');
+              location.reload();
+            } catch (e) {
+              alert(e && e.message ? e.message : String(e));
+            }
+          });
+          br.addEventListener('click', async function() {
+            try {
+              await postAccountAction('/v1/account/resume-service', {});
+              alert('Service resumed.');
+              location.reload();
+            } catch (e) {
+              alert(e && e.message ? e.message : String(e));
+            }
+          });
+          bd.addEventListener('click', async function() {
+            if (!confirm('Permanently delete your Spectyra account and associated data? This cannot be undone.')) return;
+            var c = prompt('Type DELETE_MY_ACCOUNT to confirm:');
+            if (c !== 'DELETE_MY_ACCOUNT') return;
+            try {
+              await postAccountAction('/v1/account/delete', { confirm: 'DELETE_MY_ACCOUNT' });
+              alert('Account deleted. You may clear local files under ~/.spectyra if needed.');
+              location.reload();
+            } catch (e) {
+              alert(e && e.message ? e.message : String(e));
+            }
+          });
+        }
       } catch (e) {
         line.textContent = 'Could not reach billing status.';
         btn.style.display = 'none';
+        if (planActions) planActions.hidden = true;
       }
     }
 
@@ -1132,7 +1300,7 @@ export function dashboardPageHtml(): string {
           const em = health.accountEmail ? ' Account email (from session): ' + health.accountEmail + '. ' : '';
           ag.textContent =
             em +
-            'Spectyra org is not fully linked on this machine. Run spectyra-companion setup and sign in so ~/.spectyra/desktop/config.json contains your Supabase session and Spectyra API key. Until then, input savings stay in preview only.';
+            'Spectyra is not fully linked on this machine. Try refreshing the page once — the companion refreshes your Supabase session from disk when it can. If this message stays, run spectyra-companion setup and sign in so ~/.spectyra/desktop/config.json has a valid session (including refresh token) and your org API key. Until then, input savings stay in preview only.';
         } else {
           ag.hidden = true;
           ag.textContent = '';

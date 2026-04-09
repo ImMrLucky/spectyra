@@ -13,7 +13,7 @@
  * - Designed for OpenClaw, Cursor, Copilot, and other LLM tools
  */
 
-import express, { type Response } from "express";
+import express, { type Request, type Response } from "express";
 import cors from "cors";
 import crypto from "crypto";
 import { Readable } from "node:stream";
@@ -66,11 +66,48 @@ import { spectyraOpenClawModelDefinitions } from "@spectyra/shared";
 import { recordOpenClawTrafficIfApplicable, getOpenClawIntegrationDiagnostics } from "./openclawTraffic.js";
 import { dashboardPageHtml } from "./dashboardPageHtml.js";
 import { DEFAULT_SPECTYRA_CLOUD_API_V1 } from "./cloudDefaults.js";
+import {
+  loadDesktopConfig,
+  getValidSupabaseAccessToken,
+  ensureDesktopSessionRefreshed,
+} from "./desktopSession.js";
 
 const cfg: CompanionConfig = loadConfig();
 
 function cloudApiV1BaseUrl(): string {
   return process.env.SPECTYRA_API_URL?.trim() || DEFAULT_SPECTYRA_CLOUD_API_V1;
+}
+
+/**
+ * Match CLI: prefer Supabase JWT for cloud calls when the session can be refreshed;
+ * fall back to org API key (same as inference) for billing when no session.
+ * Account-only routes must use JWT — use mode "sessionOnly".
+ */
+async function spectyraCloudAuthHeaders(
+  mode: "billing" | "sessionOnly",
+): Promise<{ ok: true; headers: Record<string, string> } | { ok: false; status: number; message: string }> {
+  const token = await getValidSupabaseAccessToken(loadDesktopConfig());
+  if (token) {
+    return { ok: true, headers: { Authorization: `Bearer ${token}` } };
+  }
+  if (mode === "sessionOnly") {
+    return {
+      ok: false,
+      status: 401,
+      message:
+        "Sign-in session expired or missing — run spectyra-companion setup and sign in again. Account actions need a browser session.",
+    };
+  }
+  const snap = loadConfig();
+  const key = snap.spectyraApiKey?.trim() || snap.licenseKey?.trim();
+  if (!key) {
+    return {
+      ok: false,
+      status: 503,
+      message: "No Spectyra API key — run spectyra-companion setup.",
+    };
+  }
+  return { ok: true, headers: { "X-SPECTYRA-API-KEY": key } };
 }
 
 /** Browser-safe return URL for Stripe after Checkout (localhost dashboard). */
@@ -128,7 +165,8 @@ app.get("/dashboard", (_req, res) => {
 
 // ── Health & Config ──────────────────────────────────────────────────────────
 
-app.get("/health", (_req, res) => {
+app.get("/health", async (_req, res) => {
+  await ensureDesktopSessionRefreshed().catch(() => undefined);
   const lic = licenseSnapshot();
   const pc = providerConfigured();
   const snap = loadConfig();
@@ -168,7 +206,8 @@ app.get("/health", (_req, res) => {
   });
 });
 
-app.get("/config", (_req, res) => {
+app.get("/config", async (_req, res) => {
+  await ensureDesktopSessionRefreshed().catch(() => undefined);
   const snap = loadConfig();
   res.json({
     runMode: snap.runMode,
@@ -286,18 +325,14 @@ app.get("/diagnostics/integrations/openclaw", (_req, res) => {
  * Lets the local dashboard and tools subscribe without opening the Spectyra web app.
  */
 app.get("/v1/billing/status", async (_req, res) => {
-  const c = loadConfig();
-  const key = c.spectyraApiKey?.trim();
-  if (!key) {
-    res.status(503).json({
-      error: "No Spectyra API key",
-      message: "Run spectyra-companion setup and sign in so your API key is saved locally.",
-    });
+  const auth = await spectyraCloudAuthHeaders("billing");
+  if (!auth.ok) {
+    res.status(auth.status).json({ error: auth.message });
     return;
   }
   try {
     const r = await fetch(`${cloudApiV1BaseUrl()}/billing/status`, {
-      headers: { "X-SPECTYRA-API-KEY": key },
+      headers: auth.headers,
     });
     const body = (await r.json().catch(() => ({}))) as Record<string, unknown>;
     res.status(r.status).json(body);
@@ -308,13 +343,9 @@ app.get("/v1/billing/status", async (_req, res) => {
 });
 
 app.post("/v1/billing/checkout", async (req, res) => {
-  const c = loadConfig();
-  const key = c.spectyraApiKey?.trim();
-  if (!key) {
-    res.status(503).json({
-      error: "No Spectyra API key",
-      message: "Run spectyra-companion setup and sign in so your API key is saved locally.",
-    });
+  const auth = await spectyraCloudAuthHeaders("billing");
+  if (!auth.ok) {
+    res.status(auth.status).json({ error: auth.message });
     return;
   }
   const origin = localDashboardOrigin();
@@ -335,7 +366,7 @@ app.post("/v1/billing/checkout", async (req, res) => {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        "X-SPECTYRA-API-KEY": key,
+        ...auth.headers,
       },
       body: JSON.stringify({ success_url, cancel_url }),
     });
@@ -345,6 +376,59 @@ app.post("/v1/billing/checkout", async (req, res) => {
     const msg = e instanceof Error ? e.message : "Cloud request failed";
     res.status(502).json({ error: msg });
   }
+});
+
+/** Proxy JWT-only account routes (cancel / pause / delete) for the local dashboard. */
+app.get("/v1/account/summary", async (_req, res) => {
+  const auth = await spectyraCloudAuthHeaders("sessionOnly");
+  if (!auth.ok) {
+    res.status(auth.status).json({ error: auth.message });
+    return;
+  }
+  try {
+    const r = await fetch(`${cloudApiV1BaseUrl()}/account/summary`, { headers: auth.headers });
+    const body = (await r.json().catch(() => ({}))) as Record<string, unknown>;
+    res.status(r.status).json(body);
+  } catch (e: unknown) {
+    const msg = e instanceof Error ? e.message : "Cloud request failed";
+    res.status(502).json({ error: msg });
+  }
+});
+
+async function proxyAccountPost(path: string, req: Request, res: Response): Promise<void> {
+  const auth = await spectyraCloudAuthHeaders("sessionOnly");
+  if (!auth.ok) {
+    res.status(auth.status).json({ error: auth.message });
+    return;
+  }
+  try {
+    const r = await fetch(`${cloudApiV1BaseUrl()}${path}`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", ...auth.headers },
+      body: JSON.stringify(req.body && typeof req.body === "object" ? req.body : {}),
+    });
+    const body = (await r.json().catch(() => ({}))) as Record<string, unknown>;
+    res.status(r.status).json(body);
+  } catch (e: unknown) {
+    const msg = e instanceof Error ? e.message : "Cloud request failed";
+    res.status(502).json({ error: msg });
+  }
+}
+
+app.post("/v1/account/subscription/cancel-at-period-end", (req, res) => {
+  void proxyAccountPost("/account/subscription/cancel-at-period-end", req, res);
+});
+app.post("/v1/account/subscription/keep", (req, res) => {
+  void proxyAccountPost("/account/subscription/keep", req, res);
+});
+app.post("/v1/account/pause-service", (req, res) => {
+  void proxyAccountPost("/account/pause-service", req, res);
+});
+app.post("/v1/account/resume-service", (req, res) => {
+  void proxyAccountPost("/account/resume-service", req, res);
+});
+app.post("/v1/account/delete", (req, res) => {
+  void proxyAccountPost("/account/delete", req, res);
 });
 
 /**
@@ -932,7 +1016,14 @@ async function persistLocally(
 
 // ── Start ────────────────────────────────────────────────────────────────────
 
+const SESSION_REFRESH_INTERVAL_MS = 14 * 60 * 1000;
+
 const server = app.listen(cfg.port, cfg.bindHost, () => {
+  void ensureDesktopSessionRefreshed().catch(() => undefined);
+  setInterval(() => {
+    void ensureDesktopSessionRefreshed().catch(() => undefined);
+  }, SESSION_REFRESH_INTERVAL_MS);
+
   const origin = `http://${cfg.bindHost}:${cfg.port}`;
   console.log(`\nSpectyra Local Companion`);
   console.log(`  Listening: ${origin}`);
