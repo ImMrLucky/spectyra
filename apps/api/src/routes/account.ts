@@ -19,6 +19,7 @@ import { countSuperusers, getPlatformRoleByEmail } from "../services/storage/pla
 import { safeLog } from "../utils/redaction.js";
 import type { SupabaseAdminUser } from "../types/supabase.js";
 import { applySubscriptionPayloadToKnownOrg } from "./billing.js";
+import { cancelStripeSubscriptionsForOwnerOrgsOnAccountClosure } from "../billing/stripeSubscriptionCancelOnAccountDelete.js";
 
 export const accountRouter = Router();
 
@@ -321,6 +322,7 @@ accountRouter.post("/delete", requireUserSession, async (req: AuthenticatedReque
       return res.status(400).json({ error: "Cannot delete the last platform superuser from this flow" });
     }
 
+    const stripeClosure = await cancelStripeSubscriptionsForOwnerOrgsOnAccountClosure(userId, "at_period_end");
     const summary = await deleteUserDataAndMemberships({ userId, email: targetEmail ?? email });
 
     const delRes = await fetch(`${cfg.base}/auth/v1/admin/users/${userId}`, {
@@ -337,6 +339,8 @@ accountRouter.post("/delete", requireUserSession, async (req: AuthenticatedReque
         error: "Data removed but auth user deletion failed — contact support",
         orgs_deleted: summary.orgsDeleted,
         memberships_removed: summary.membershipsRemoved,
+        stripe_subscriptions_scheduled_period_end: stripeClosure.scheduledPeriodEnd,
+        stripe_warnings: stripeClosure.warnings.length ? stripeClosure.warnings : undefined,
       });
     }
 
@@ -346,6 +350,8 @@ accountRouter.post("/delete", requireUserSession, async (req: AuthenticatedReque
       user_id: userId,
       orgs_deleted: summary.orgsDeleted,
       memberships_removed: summary.membershipsRemoved,
+      stripe_subscriptions_scheduled_period_end: stripeClosure.scheduledPeriodEnd,
+      stripe_warnings: stripeClosure.warnings.length ? stripeClosure.warnings : undefined,
     });
   } catch (e: unknown) {
     const message = e instanceof Error ? e.message : "Internal server error";

@@ -29,6 +29,7 @@ import {
   invalidatePlatformRoleCache,
   listPlatformRoles,
 } from "../services/storage/platformRolesRepo.js";
+import { cancelStripeSubscriptionsForOwnerOrgsOnAccountClosure } from "../billing/stripeSubscriptionCancelOnAccountDelete.js";
 
 export const adminRouter = Router();
 
@@ -773,6 +774,7 @@ adminRouter.delete("/users/:userId", requireUserSession, requireOwner, async (re
       return res.status(400).json({ error: "Cannot delete the last platform superuser" });
     }
 
+    const stripeClosure = await cancelStripeSubscriptionsForOwnerOrgsOnAccountClosure(userId, "immediately");
     const summary = await deleteUserDataAndMemberships({ userId, email });
 
     const delRes = await fetch(`${cfg.base}/auth/v1/admin/users/${userId}`, {
@@ -787,7 +789,12 @@ adminRouter.delete("/users/:userId", requireUserSession, requireOwner, async (re
       });
       return res.status(502).json({
         error: "App data was removed but deleting the auth user failed. Retry or remove the user in Supabase Dashboard.",
-        partial: { ...summary },
+        partial: {
+          ...summary,
+          stripe_subscriptions_canceled: stripeClosure.canceledImmediately,
+          stripe_customers_deleted: stripeClosure.customersDeleted,
+          stripe_warnings: stripeClosure.warnings.length ? stripeClosure.warnings : undefined,
+        },
       });
     }
 
@@ -797,6 +804,9 @@ adminRouter.delete("/users/:userId", requireUserSession, requireOwner, async (re
       user_id: userId,
       orgs_deleted: summary.orgsDeleted,
       memberships_removed: summary.membershipsRemoved,
+      stripe_subscriptions_canceled: stripeClosure.canceledImmediately,
+      stripe_customers_deleted: stripeClosure.customersDeleted,
+      stripe_warnings: stripeClosure.warnings.length ? stripeClosure.warnings : undefined,
     });
   } catch (error: unknown) {
     const message = error instanceof Error ? error.message : "Internal server error";
