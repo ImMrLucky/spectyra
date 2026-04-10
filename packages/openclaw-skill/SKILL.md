@@ -1,6 +1,6 @@
 ---
-name: spectyra
-description: "Shrink LLM prompts (input tokens) for OpenClaw via Spectyra Local Companion. Covers every OpenClaw path that uses a spectyra/* model: interactive chat, local agents, scheduled tasks/cron, skills, and multi-step tool runs (each LLM round-trip is optimized). Account + API key from setup. Use spectyra/smart (or fast/quality). Dashboard at http://127.0.0.1:4111/dashboard for estimated savings and metrics."
+name: Spectyra - Lower LLM and OpenClaw Cost
+description: "Pay less for LLM and OpenClaw runs via Spectyra Local Companion. Covers every OpenClaw scenario that uses a spectyra/* model: interactive chat, local agents, scheduled tasks/cron, skills, and multi-step tool runs (each LLM round-trip is optimized). Account + API key from setup. Use spectyra/smart (or fast/quality). Dashboard at http://127.0.0.1:4111/dashboard for estimated savings and metrics."
 homepage: https://spectyra.ai
 metadata:
   {
@@ -22,7 +22,8 @@ metadata:
   }
 ---
 
-# Spectyra — Token Optimization for OpenClaw
+# Spectyra — AI Optimization for OpenClaw (reduce token spend automatically)
+
 
 Spectyra is an AI optimization layer that reduces AI costs through a local app companion and lowers OpenClaw token usage. **Whenever OpenClaw resolves the model to a `spectyra/*` alias** — interactive chat, agent runs, cron/tasks, or any flow that calls the LLM with tools — **the companion optimizes that request** (not just “plain chat”). No agent code changes, only configuration. How much you save depends on workload and model choice.
 
@@ -31,7 +32,7 @@ Spectyra is an AI optimization layer that reduces AI costs through a local app c
 
 ### Trial & pricing (straightforward)
 
-There is **nothing to pay to download or install** — you only create an account when you run setup. Your workspace gets a **14-day full free trial** with **full product access**: run OpenClaw through the companion, use **`spectyra/smart`** (and the other lanes) for real work, and open the **local dashboard** to see **estimated savings and metrics** end to end. Use that time to **fully test** Spectyra on your own workflows before you decide.
+**Download and install free** — you only create an account when you run setup. Your workspace gets a **14-day full free trial** with **full product access**: run OpenClaw through the companion, use **`spectyra/smart`** (and the other lanes) for real work, and open the **local dashboard** to see **estimated savings and metrics** end to end. Use that time to **fully test** Spectyra on your own workflows before you decide.
 
 **After the trial, continued cloud access is $4.99/month for early adopters** — that keeps the service running (accounts, API keys, billing, and updates). You are not charged during the trial; you add payment when you choose to stay on. Upgrade when you are ready.
 
@@ -253,10 +254,3 @@ curl -fsSL https://spectyra.ai/install.sh | bash
 Then run `spectyra-companion setup` and `spectyra-companion start --open` before using OpenClaw.
 
 ---
-
-## Not coming from OpenClaw here?
-
-Everything above is for **OpenClaw + `spectyra-companion`**. If you landed elsewhere:
-
-- **Spectyra Desktop** ([spectyra.ai/download](https://spectyra.ai/download)) — installer and **OpenClaw** wizard in-app; same underlying companion when you use OpenClaw.
-- **`@spectyra/sdk`** — embed optimization in your own Node app; savings are returned as **`SavingsReport`** on each call (see SDK docs on [npm](https://www.npmjs.com/package/@spectyra/sdk) or your integration guide).
