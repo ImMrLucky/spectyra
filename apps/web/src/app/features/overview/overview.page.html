@@ -17,10 +17,12 @@
     <div class="card download-banner">
       <div class="download-banner-inner">
         <div class="download-banner-text">
-          <h2>Desktop app</h2>
-          <p>Install Spectyra on your computer — no code, same account as the web app.</p>
+          <h2>OpenClaw + local companion</h2>
+          <p>
+            Use Spectyra with OpenClaw via the ClawHub skill and the local companion — same account as the web app, no Spectyra Desktop required for this path.
+          </p>
         </div>
-        <a routerLink="/download" class="btn btn-primary">Download</a>
+        <a routerLink="/integrations/openclaw" class="btn btn-primary">Get started</a>
       </div>
     </div>
 
@@ -28,30 +30,20 @@
     <div class="card">
       <div class="card-header">
         <h2>Integration Status</h2>
-        <a routerLink="/integrations" class="btn btn-sm btn-secondary">Manage</a>
+        <a routerLink="/integrations/openclaw" class="btn btn-sm btn-secondary">Manage</a>
       </div>
       
       <div *ngIf="!hasIntegrations" class="empty-state">
         <h3>No integrations configured</h3>
         <p>Get started by adding an integration to begin using Spectyra.</p>
         <div class="integration-tiles">
-          <div class="integration-tile" routerLink="/integrations">
-            <div class="tile-icon"><span class="material-icons">schema</span></div>
-            <h4>Claude Agent SDK</h4>
-            <p>Runtime control for agentic workflows</p>
-          </div>
-          <div class="integration-tile" routerLink="/integrations">
-            <div class="tile-icon"><span class="material-icons">chat</span></div>
-            <h4>Chat APIs</h4>
-            <p>Direct API integration</p>
-          </div>
-          <div class="integration-tile" routerLink="/integrations">
-            <div class="tile-icon"><span class="material-icons">link</span></div>
-            <h4>LangGraph / LangChain</h4>
-            <p>Framework integrations</p>
+          <div class="integration-tile" routerLink="/integrations/openclaw">
+            <div class="tile-icon"><span class="material-icons">smart_toy</span></div>
+            <h4>OpenClaw</h4>
+            <p>Skill + local companion on your machine</p>
           </div>
         </div>
-        <a routerLink="/integrations" class="btn btn-primary">View All Integrations</a>
+        <a routerLink="/integrations/openclaw" class="btn btn-primary">OpenClaw integration guide</a>
       </div>
 
       <div *ngIf="hasIntegrations && integrationStatus" class="integration-status">
@@ -90,7 +82,7 @@
     <div class="card" *ngIf="usage24h">
       <div class="card-header">
         <h2>Last 24 Hours</h2>
-        <a routerLink="/usage" class="btn btn-sm btn-secondary">View Details</a>
+        <a routerLink="/analytics" class="btn btn-sm btn-secondary">View Details</a>
       </div>
       <div class="usage-grid">
         <div class="usage-item">
@@ -112,7 +104,7 @@
     <div class="card" *ngIf="optimizationSavings.length > 0">
       <div class="card-header">
         <h2>Optimization Savings (Last 24h)</h2>
-        <a routerLink="/usage" class="btn btn-sm btn-secondary">View Details</a>
+        <a routerLink="/analytics" class="btn btn-sm btn-secondary">View Details</a>
       </div>
       <div class="optimization-savings-grid">
         <div *ngFor="let opt of optimizationSavings" class="optimization-savings-card">
@@ -148,11 +140,9 @@
       <div class="card">
         <div class="card-header">
           <h2>Top Policies Triggered</h2>
-          <a routerLink="/policies" class="btn btn-sm btn-secondary">Manage</a>
         </div>
         <div *ngIf="topPolicies.length === 0" class="empty-state-small">
           <p>No policies configured yet</p>
-          <a routerLink="/policies" class="btn btn-sm btn-primary">Create Policy</a>
         </div>
         <div *ngIf="topPolicies.length > 0" class="list">
           <div *ngFor="let policy of topPolicies" class="list-item">
@@ -167,13 +157,13 @@
     <div class="card">
       <div class="card-header">
         <h2>Recent Runs</h2>
-        <a routerLink="/runs" class="btn btn-sm btn-secondary">View All</a>
+        <a routerLink="/analytics" class="btn btn-sm btn-secondary">View savings</a>
       </div>
       
       <div *ngIf="!hasRuns" class="empty-state">
         <h3>No runs yet</h3>
         <p>Send your first run to see it appear here.</p>
-        <a routerLink="/integrations" class="btn btn-primary">Get Integration Code</a>
+        <a routerLink="/integrations/openclaw" class="btn btn-primary">OpenClaw setup</a>
       </div>
 
       <div *ngIf="hasRuns" class="runs-table">
@@ -204,7 +194,7 @@
               <td>{{ run.status }}</td>
               <td>{{ formatDate(run.created_at) }}</td>
               <td>
-                <a [routerLink]="['/runs', run.id]" class="btn-link">View</a>
+                <a routerLink="/analytics" class="btn-link">Savings</a>
               </td>
             </tr>
           </tbody>
@@ -218,20 +208,20 @@
         <h2>Quick Actions</h2>
       </div>
       <div class="actions-grid">
-        <a routerLink="/integrations" class="action-card">
+        <a routerLink="/integrations/openclaw" class="action-card">
           <div class="action-icon"><span class="material-icons">add_circle</span></div>
-          <h3>Add Integration</h3>
-          <p>Connect your application</p>
+          <h3>OpenClaw integration</h3>
+          <p>Skill + local companion</p>
         </a>
-        <a routerLink="/policies" class="action-card">
-          <div class="action-icon"><span class="material-icons">settings</span></div>
-          <h3>Create Policy</h3>
-          <p>Define governance rules</p>
-        </a>
-        <a routerLink="/runs" class="action-card">
+        <a routerLink="/analytics" class="action-card">
           <div class="action-icon"><span class="material-icons">bar_chart</span></div>
-          <h3>View Runs</h3>
-          <p>See all activity</p>
+          <h3>Savings analytics</h3>
+          <p>Trends and usage</p>
+        </a>
+        <a routerLink="/billing" class="action-card">
+          <div class="action-icon"><span class="material-icons">credit_card</span></div>
+          <h3>Plan &amp; billing</h3>
+          <p>Subscription and seats</p>
         </a>
       </div>
     </div>

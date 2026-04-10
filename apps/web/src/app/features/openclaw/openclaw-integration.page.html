@@ -1,0 +1,97 @@
+<div class="container">
+  <div class="page-header">
+    <h1>OpenClaw integration</h1>
+    <p class="subtitle">
+      Use Spectyra with <strong>OpenClaw</strong> and the <strong>local companion</strong> — optimize token usage on your machine and send requests directly to your AI provider with your own keys.
+      This path does <strong>not</strong> require the Spectyra Desktop app.
+    </p>
+  </div>
+
+  <div class="openclaw-callout">
+    <strong>Other ways to integrate</strong>
+    — We are working on additional integration types (for example embedding the <strong>SDK</strong> in your own applications). Those are not ready yet; this page focuses on
+    <strong>OpenClaw + local companion</strong> only.
+  </div>
+
+  <div class="card scenario-details">
+    <div class="section">
+      <h2>Who this is for</h2>
+      <ul class="bullet-list">
+        <li>You already use <strong>OpenClaw</strong> (or plan to) as your AI assistant / agent runtime.</li>
+        <li>You want <strong>spectyra/*</strong> models to route through Spectyra on <code>http://127.0.0.1:4111/v1</code> with optimization turned on.</li>
+        <li>You are okay installing the <strong>Spectyra Local Companion</strong> via npm and running <code>spectyra-companion setup</code> once.</li>
+      </ul>
+    </div>
+
+    <div class="section">
+      <h2>1. Install OpenClaw</h2>
+      <p class="fine-print">
+        If OpenClaw is not installed yet, follow the official install steps for your OS. The OpenClaw CLI is what you use to install skills from ClawHub and talk to your local gateway.
+      </p>
+      <p class="guide-links">
+        <a [href]="openclawDocsUrl" target="_blank" rel="noopener noreferrer">OpenClaw documentation</a>
+      </p>
+    </div>
+
+    <div class="section">
+      <h2>2. Install the Spectyra skill from ClawHub</h2>
+      <p class="fine-print">
+        The Spectyra skill is published for OpenClaw and lists install steps (including the ClawHub / CLI flow). After OpenClaw is on your PATH, install the skill — for example:
+      </p>
+      <div class="code-block">
+        <pre><code>openclaw skills install spectyra</code></pre>
+      </div>
+      <p class="fine-print">
+        Browse the public skill registry and learn how skills are versioned and installed:
+        <a [href]="clawhubHomeUrl" target="_blank" rel="noopener noreferrer">ClawHub</a>
+        ·
+        <a [href]="clawhubDocsUrl" target="_blank" rel="noopener noreferrer">ClawHub in the OpenClaw docs</a>
+      </p>
+    </div>
+
+    <div class="section">
+      <h2>3. Install &amp; run the Local Companion</h2>
+      <p class="fine-print">
+        The skill expects the <code>spectyra-companion</code> binary (npm package <code>&#64;spectyra/local-companion</code>). Install globally, run setup to link your Spectyra account and API key, then start the companion:
+      </p>
+      <div class="code-block">
+        <pre><code>npm install -g &#64;spectyra/local-companion&#64;latest
+spectyra-companion setup
+spectyra-companion start</code></pre>
+      </div>
+      <p class="fine-print">
+        Open the <strong>local dashboard</strong> at <code>http://127.0.0.1:4111/dashboard</code> for savings and metrics.
+      </p>
+    </div>
+
+    <div class="section">
+      <h2>4. OpenClaw provider config (reference)</h2>
+      <p class="fine-print">
+        OpenClaw should call Spectyra’s OpenAI-compatible endpoint. Your skill / docs may merge this for you; this JSON is the usual <code>models.providers.spectyra</code> shape:
+      </p>
+      <div class="section-header" style="margin-top: 8px">
+        <button type="button" class="btn btn-sm btn-secondary" (click)="copy(openclawConfigJson)">Copy JSON</button>
+      </div>
+      <div class="code-block">
+        <pre><code>{{ openclawConfigJson }}</code></pre>
+      </div>
+    </div>
+
+    <div class="section">
+      <h2>5. Guided setup &amp; diagnostics</h2>
+      <p class="fine-print">
+        For a step-by-step checklist (companion running, models visible in OpenClaw, optional sign-in), use the guided flow:
+      </p>
+      <p class="guide-links">
+        <a routerLink="/integrations/openclaw/setup">OpenClaw setup wizard</a>
+      </p>
+    </div>
+
+    <div class="section">
+      <h2>Models</h2>
+      <p class="fine-print">
+        Use <code>spectyra/smart</code> (and other <code>spectyra/*</code> lanes your install exposes) in OpenClaw. Run <code>openclaw models list</code> to confirm they appear after the companion is running.
+      </p>
+    </div>
+  </div>
+</div>

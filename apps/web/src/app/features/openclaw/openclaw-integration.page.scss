@@ -1,0 +1,10 @@
+/* Page-specific tweaks; base layout from integrations.page.scss */
+.page-header .subtitle strong {
+  font-weight: 600;
+}
+
+.section-header {
+  display: flex;
+  justify-content: flex-end;
+  margin-bottom: 8px;
+}

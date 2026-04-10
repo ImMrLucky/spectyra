@@ -67,19 +67,17 @@ export class AppComponent implements OnInit, OnDestroy, AfterViewInit {
 
   navItems: NavItem[] = [
     { label: 'Overview', route: '/overview', icon: 'space_dashboard', section: 'Product', requiresAuth: true },
-    { label: 'Studio', route: '/studio', icon: 'science', requiresAuth: true },
     { label: 'Observe', route: '/observe', icon: 'monitoring', requiresAuth: true },
-    { label: 'Integrations', route: '/integrations', icon: 'hub', requiresAuth: true },
-    { label: 'Desktop App', route: '/download', icon: 'computer', requiresAuth: true },
-
-    { label: 'Runs', route: '/runs', icon: 'receipt_long', section: 'Analytics', requiresAuth: true },
-    { label: 'Usage', route: '/usage', icon: 'bar_chart', requiresAuth: true },
+    {
+      label: 'OpenClaw integration',
+      route: '/integrations/openclaw',
+      icon: 'hub',
+      requiresAuth: true,
+    },
     { label: 'Savings', route: '/analytics', icon: 'trending_down', requiresAuth: true },
     { label: 'Plan & Billing', route: '/billing', icon: 'credit_card', requiresAuth: true },
 
     { label: 'Projects', route: '/projects', icon: 'folder_open', section: 'Manage', requiresAuth: true },
-    { label: 'Policies', route: '/policies', icon: 'policy', requiresAuth: true },
-    { label: 'Audit Logs', route: '/audit', icon: 'assignment', requiresAuth: true },
     { label: 'Settings', route: '/settings', icon: 'tune', requiresAuth: true },
 
     { label: 'Admin', route: '/admin', icon: 'admin_panel_settings', section: 'Admin', adminOnly: true, requiresAuth: true },

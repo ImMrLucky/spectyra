@@ -1021,7 +1021,7 @@ export function dashboardPageHtml(cloudV1Base: string): string {
     </div>
 
     <p class="hint">
-      Updates on open and when you switch back to this tab; while linked, data refreshes about every 30s (faster if the account is not linked yet). Use <strong>Refresh</strong> anytime.
+      Updates on open and when you switch back to this tab; while linked, metrics refresh about every 2 minutes (plan/billing less often to save resources). Faster refresh if the account is not linked yet. Use <strong>Refresh</strong> anytime.
     </p>
 
     <footer class="mission-footer" aria-label="Spectyra mission">
@@ -1311,7 +1311,8 @@ export function dashboardPageHtml(cloudV1Base: string): string {
       return data;
     }
 
-    async function refreshPlanCard(health) {
+    async function refreshPlanCard(health, opts) {
+      var silent = opts && opts.silent;
       var card = $('planCard');
       var line = $('planLine');
       var btn = $('btnSubscribe');
@@ -1333,7 +1334,9 @@ export function dashboardPageHtml(cloudV1Base: string): string {
         return;
       }
       card.hidden = false;
-      line.textContent = 'Loading plan…';
+      if (!silent) {
+        line.textContent = 'Loading plan…';
+      }
       btn.style.display = 'none';
       if (planManageWrap) planManageWrap.hidden = true;
       if (planHint) {
@@ -1602,11 +1605,14 @@ export function dashboardPageHtml(cloudV1Base: string): string {
       }
     }
 
-    /** While waiting for setup/sign-in, poll a bit faster; once linked, slow down to avoid flicker. */
+    /** While waiting for setup/sign-in, poll moderately; once linked, poll slowly — keeps the tab cheap to leave open. */
     var pollTimerId = null;
     var lastPollIntervalMs = 0;
-    var POLL_FAST_MS = 5000;
-    var POLL_SLOW_MS = 28000;
+    var POLL_FAST_MS = 20000;
+    var POLL_SLOW_MS = 120000;
+    /** Min time between billing/status + account summary fetches during automatic polling (not initial / manual / tab focus). */
+    var lastBillingFetchAt = 0;
+    var BILLING_POLL_MIN_MS = 5 * 60 * 1000;
 
     function armDashboardPoll(accountLinkedOk) {
       var ms = accountLinkedOk ? POLL_SLOW_MS : POLL_FAST_MS;
@@ -1615,11 +1621,12 @@ export function dashboardPageHtml(cloudV1Base: string): string {
       if (pollTimerId !== null) clearInterval(pollTimerId);
       pollTimerId = setInterval(function() {
         if (document.hidden) return;
-        load();
+        load('poll');
       }, ms);
     }
 
-    async function load() {
+    async function load(reason) {
+      var loadReason = typeof reason === 'string' ? reason : 'initial';
       $('err').hidden = true;
       try {
         if (typeof URLSearchParams !== 'undefined' && window.location.search) {
@@ -1671,7 +1678,19 @@ export function dashboardPageHtml(cloudV1Base: string): string {
         }
       }
 
-      void refreshPlanCard(health);
+      var linkedForBilling =
+        health && health.status === 'ok' && health.spectyraAccountLinked === true;
+      var skipCloudBilling =
+        linkedForBilling &&
+        loadReason === 'poll' &&
+        lastBillingFetchAt !== 0 &&
+        Date.now() - lastBillingFetchAt < BILLING_POLL_MIN_MS;
+      if (!skipCloudBilling) {
+        if (linkedForBilling) {
+          lastBillingFetchAt = Date.now();
+        }
+        void refreshPlanCard(health, { silent: loadReason === 'poll' });
+      }
 
       let sessions = [];
       try {
@@ -1685,11 +1704,12 @@ export function dashboardPageHtml(cloudV1Base: string): string {
         if (lr.ok) liveSession = await lr.json();
       } catch {}
 
-      let totalRunsGlobal = 0;
+      let savingsSummaryAll = null;
       try {
         const gs = await fetch('/v1/savings/summary');
-        if (gs.ok) totalRunsGlobal = (await gs.json()).totalRuns || 0;
+        if (gs.ok) savingsSummaryAll = await gs.json();
       } catch {}
+      let totalRunsGlobal = savingsSummaryAll ? savingsSummaryAll.totalRuns || 0 : 0;
 
       const prevScope = $('sessionScope').value || sessionStorage.getItem(SCOPE_STORAGE_KEY) || 'all';
       rebuildScopeSelect(sessions, prevScope);
@@ -1699,12 +1719,7 @@ export function dashboardPageHtml(cloudV1Base: string): string {
       let meta = { runs: 0, tokensSaved: 0, avgPct: 0, totalBeforeSum: 0, totalAfterSum: 0 };
 
       if (scope === 'all') {
-        let s = {};
-        try {
-          const sr = await fetch('/v1/savings/summary');
-          if (sr.ok) s = await sr.json();
-        } catch {}
-        meta = applySummaryFromRuns(s, 'all calls');
+        meta = applySummaryFromRuns(savingsSummaryAll || {}, 'all calls');
       } else if (scope.indexOf('live:') === 0) {
         const key = decodeURIComponent(scope.slice(5)) || 'default';
         let cur = liveSession;
@@ -1822,10 +1837,14 @@ export function dashboardPageHtml(cloudV1Base: string): string {
       armDashboardPoll(linkedOk);
     }
 
-    $('sessionScope').addEventListener('change', load);
-    $('btnRefresh').addEventListener('click', load);
+    $('sessionScope').addEventListener('change', function() {
+      load('manual');
+    });
+    $('btnRefresh').addEventListener('click', function() {
+      load('manual');
+    });
     document.addEventListener('visibilitychange', function() {
-      if (!document.hidden) load();
+      if (!document.hidden) load('visible');
     });
     document.addEventListener(
       'click',
@@ -1838,7 +1857,7 @@ export function dashboardPageHtml(cloudV1Base: string): string {
       },
       true,
     );
-    load();
+    load('initial');
   </script>
 </body>
 </html>`;
