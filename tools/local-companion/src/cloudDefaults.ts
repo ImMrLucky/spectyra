@@ -3,8 +3,9 @@
  * End users need no .env for account, billing, or analytics — optional overrides only.
  *
  * Keep in sync: packages/openclaw-skill/setup.sh (SPECTYRA_API default).
+ * Public hostname matches https://spectyra.ai; Vercel rewrites /v1 to Railway (see vercel.json).
  */
-export const DEFAULT_SPECTYRA_CLOUD_API_V1 = "https://spectyra.up.railway.app/v1";
+export const DEFAULT_SPECTYRA_CLOUD_API_V1 = "https://spectyra.ai/v1";
 export const DEFAULT_SPECTYRA_WEB_ORIGIN = "https://spectyra.ai";
 
 /**
@@ -33,7 +34,7 @@ export function urlLooksLikeLoopbackHttpUrl(apiUrl: string): boolean {
  *
  * Priority:
  * 1. `SPECTYRA_CLOUD_API_URL` — use when set (explicit production/staging API base).
- * 2. `SPECTYRA_API_URL` — use when set **unless** it is loopback; loopback falls back to the baked-in Railway URL
+ * 2. `SPECTYRA_API_URL` — use when set **unless** it is loopback; loopback falls back to the baked-in default
  *    (set `SPECTYRA_ALLOW_LOCAL_CLOUD_API=true` to allow a loopback URL for local API development).
  * 3. Baked-in `DEFAULT_SPECTYRA_CLOUD_API_V1`.
  */

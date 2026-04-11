@@ -176,11 +176,11 @@ app.get("/", (_req, res) => {
 });
 
 app.get("/dashboard", (_req, res) => {
-  res.type("html").send(dashboardPageHtml(resolveSpectyraCloudApiV1Base()));
+  res.type("html").send(dashboardPageHtml());
 });
 
 /**
- * Credentials for the dashboard to call Spectyra Cloud `/v1` directly (billing URL shows Railway in DevTools).
+ * Optional: legacy / direct browser calls to Spectyra Cloud (dashboard now uses same-origin `/v1/*` only).
  * Same-origin only; do not cache.
  */
 app.get("/v1/session/billing-auth", async (_req, res) => {
@@ -387,6 +387,14 @@ app.get("/v1/billing/status", async (_req, res) => {
     const msg = e instanceof Error ? e.message : "Cloud request failed";
     res.status(502).json({ error: msg });
   }
+});
+
+/**
+ * GET would 404 otherwise — browsers, bookmarks, or bad redirects often hit this URL without POST.
+ * Checkout sessions must be created via POST from the dashboard (or CLI `upgrade`).
+ */
+app.get("/v1/billing/checkout", (_req, res) => {
+  res.redirect(302, "/dashboard?checkout=use_post");
 });
 
 app.post("/v1/billing/checkout", async (req, res) => {

@@ -128,7 +128,7 @@
                 *ngIf="(!item.requiresAuth || isAuthenticated) && (!item.adminOnly || showAdminLink) && (!item.superuserOnly || showSuperuserLink)"
                 [routerLink]="item.route"
                 routerLinkActive="active"
-                [routerLinkActiveOptions]="{ exact: item.route === '/overview' }"
+                [routerLinkActiveOptions]="{ exact: item.route === '/overview' || item.route === '/contact' }"
                 class="nav-item"
                 [class.collapsed]="sidebarCollapsed"
               >

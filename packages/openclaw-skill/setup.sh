@@ -1,6 +1,12 @@
 #!/usr/bin/env bash
 # Spectyra skill post-install — full interactive setup, no browser required.
 # Runs after `openclaw skills install spectyra` merges config-fragment.json.
+#
+# SECURITY INVARIANTS (for auditors; see SECURITY.md in this folder):
+# - OpenAI/Anthropic/Groq API keys are written ONLY under ~/.spectyra/desktop/ (local disk).
+# - Those provider keys are NEVER sent in HTTP requests to Spectyra cloud — only used locally
+#   by the companion to call the upstream LLM API after optimization.
+# - Traffic to SPECTYRA_API is account/license related (same product as spectyra.ai), not provider secrets.
 set -euo pipefail
 
 GREEN='\033[0;32m'
@@ -12,11 +18,11 @@ DIM='\033[2m'
 RESET='\033[0m'
 
 # Must match tools/local-companion/src/cloudDefaults.ts (DEFAULT_SPECTYRA_CLOUD_API_V1).
-# Optional: SPECTYRA_API_URL for staging; unset = production Cloud API.
-SPECTYRA_API="${SPECTYRA_API_URL:-https://spectyra.up.railway.app/v1}"
+# Optional: SPECTYRA_API_URL for staging; unset = production Cloud API (same site as https://spectyra.ai).
+SPECTYRA_API="${SPECTYRA_API_URL:-https://spectyra.ai/v1}"
 SUPABASE_URL="https://jajqvceuenqeblbgsigt.supabase.co"
 SUPABASE_ANON_KEY="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImphanF2Y2V1ZW5xZWJsYmdzaWd0Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3Njk0MDI4MDgsImV4cCI6MjA4NDk3ODgwOH0.IJ7CSyX-_-lahfaOzM9U5EIpR6tcW-GhiMZeCY_efno"
-COMPANION_URL="http://127.0.0.1:4111"
+COMPANION_URL="http://localhost:4111"
 CONFIG_DIR="$HOME/.spectyra/desktop"
 COMPANION_DIR="$HOME/.spectyra/companion"
 COMPANION_BIN_DIR="$HOME/.spectyra/bin"

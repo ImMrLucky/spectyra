@@ -82,6 +82,8 @@ export class AppComponent implements OnInit, OnDestroy, AfterViewInit {
 
     { label: 'Admin', route: '/admin', icon: 'admin_panel_settings', section: 'Admin', adminOnly: true, requiresAuth: true },
     { label: 'Superuser', route: '/superuser', icon: 'security', superuserOnly: true, requiresAuth: true },
+
+    { label: 'Contact Us', route: '/contact', icon: 'mail', section: 'Help', requiresAuth: false },
   ];
 
   constructor(

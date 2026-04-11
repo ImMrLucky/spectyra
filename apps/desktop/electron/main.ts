@@ -895,7 +895,7 @@ ipcMain.handle("provider-keys:clear", async () => {
 });
 
 ipcMain.handle("license:activate", async (_e, licenseKey: string) => {
-  const apiUrl = process.env.SPECTYRA_API_URL || "https://spectyra.up.railway.app/v1";
+  const apiUrl = process.env.SPECTYRA_API_URL || "https://spectyra.ai/v1";
   try {
     const res = await fetch(`${apiUrl}/license/validate`, {
       method: "POST",
@@ -923,7 +923,7 @@ ipcMain.handle("license:activate", async (_e, licenseKey: string) => {
 
 ipcMain.handle("license:check", async () => {
   if (!config.licenseKey) return { ok: false, error: "No license key" };
-  const apiUrl = process.env.SPECTYRA_API_URL || "https://spectyra.up.railway.app/v1";
+  const apiUrl = process.env.SPECTYRA_API_URL || "https://spectyra.ai/v1";
   try {
     const res = await fetch(`${apiUrl}/license/validate`, {
       method: "POST",

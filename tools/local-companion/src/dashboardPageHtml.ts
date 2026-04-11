@@ -1,11 +1,10 @@
 /**
  * Self-contained HTML for the local savings dashboard (served from the companion).
- * Billing calls go to the Spectyra Cloud `/v1` URL in the browser (see Network tab); credentials come from GET /v1/session/billing-auth on the companion.
+ * Billing uses same-origin `fetch('/v1/billing/...')` — the companion proxies to Spectyra Cloud with API key / session (avoids browser CORS + duplicate requests to spectyra.ai).
  *
  * Brand: Spectyra brand system (spectyra-brand.md)
  */
-export function dashboardPageHtml(cloudV1Base: string): string {
-  const cloudV1Json = JSON.stringify(cloudV1Base.replace(/\/$/, ""));
+export function dashboardPageHtml(): string {
   return `<!DOCTYPE html>
 <html lang="en">
 <head>
@@ -1057,64 +1056,23 @@ export function dashboardPageHtml(cloudV1Base: string): string {
   <script>
     const $ = id => document.getElementById(id);
     const SCOPE_STORAGE_KEY = 'spectyraDashboardScope';
-    var SPECTYRA_CLOUD_V1 = ${cloudV1Json};
 
-    async function fetchBillingCredentials() {
-      try {
-        var ar = await fetch('/v1/session/billing-auth');
-        if (!ar.ok) return null;
-        return await ar.json();
-      } catch (e) {
-        return null;
-      }
-    }
-    function billingAuthHeaders(cred) {
-      if (!cred || !cred.scheme) return {};
-      if (cred.scheme === 'bearer') return { Authorization: 'Bearer ' + cred.credential };
-      if (cred.scheme === 'apikey') return { 'X-SPECTYRA-API-KEY': cred.credential };
-      return {};
-    }
     function stripLeadingSlash(s) {
       s = String(s);
       return s.charAt(0) === '/' ? s.slice(1) : s;
     }
-    function trimTrailingSlash(s) {
-      s = String(s);
-      return s.charAt(s.length - 1) === '/' ? s.slice(0, -1) : s;
-    }
+    /** Always hit the companion — it proxies to Spectyra Cloud with the saved API key (no cross-origin fetch to spectyra.ai). */
     async function billingCloudGet(path) {
       var p = stripLeadingSlash(path);
-      var cred = await fetchBillingCredentials();
-      var local = function() { return fetch('/v1/' + p); };
-      if (!cred) return local();
-      var base = trimTrailingSlash(SPECTYRA_CLOUD_V1);
-      try {
-        return await fetch(base + '/' + p, { headers: billingAuthHeaders(cred) });
-      } catch (e) {
-        return local();
-      }
+      return fetch('/v1/' + p);
     }
     async function billingCloudPost(path, body) {
       var p = stripLeadingSlash(path);
-      var cred = await fetchBillingCredentials();
-      var local = function() {
-        return fetch('/v1/' + p, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(body || {}),
-        });
-      };
-      if (!cred) return local();
-      var base = trimTrailingSlash(SPECTYRA_CLOUD_V1);
-      try {
-        return await fetch(base + '/' + p, {
-          method: 'POST',
-          headers: Object.assign({ 'Content-Type': 'application/json' }, billingAuthHeaders(cred)),
-          body: JSON.stringify(body || {}),
-        });
-      } catch (e) {
-        return local();
-      }
+      return fetch('/v1/' + p, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body || {}),
+      });
     }
 
     function fmtUsd(n) {
@@ -1389,7 +1347,8 @@ export function dashboardPageHtml(cloudV1Base: string): string {
               });
               var data = await cr.json().catch(function() { return {}; });
               if (cr.ok && data.checkout_url) {
-                window.open(String(data.checkout_url), '_blank', 'noopener,noreferrer');
+                // Same-tab avoids popup blockers (async click handlers often block window.open).
+                window.location.assign(String(data.checkout_url));
               } else {
                 alert(data.error || data.message || ('Checkout failed: ' + cr.status));
               }

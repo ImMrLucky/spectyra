@@ -4,6 +4,8 @@ Automatic token optimization for OpenClaw. Reduces AI costs by routing requests 
 
 **ClawHub / OpenClaw skills:** the published artifact is **`SKILL.md`** (YAML frontmatter + body). Files like `skill.json` / `setup.sh` are legacy extras for older merge-based installers and are not what OpenClaw’s skill index consumes.
 
+**Reviewers:** see **`SECURITY.md`** (network boundaries, provider keys, payments).
+
 ## Install
 
 ```bash
@@ -12,7 +14,7 @@ openclaw skills install spectyra
 
 ## Setup
 
-You need a **Spectyra account** (email + password) and a **Spectyra API key** — that’s all OpenClaw needs for identity and billing (one workspace per account on the server; you don’t configure orgs). Install the companion and run guided setup:
+You need a **Spectyra account** (email + password) and a **Spectyra API key** — that’s all OpenClaw needs for identity and your Spectyra workspace (one workspace per account on the server; you don’t configure orgs). Optional paid access is managed on **spectyra.ai**, not in this shell script. Install the companion and run guided setup:
 
 ```bash
 npm install -g @spectyra/local-companion
@@ -84,11 +86,7 @@ Then use OpenClaw with **`spectyra/smart`** (Control UI, gateway, or e.g. `openc
 
 ## One-line setup (OpenClaw + Spectyra together)
 
-If you don't have OpenClaw yet:
-
-```bash
-curl -fsSL https://spectyra.ai/install.sh | bash
-```
+If you don't have OpenClaw yet, you can use the installer from [spectyra.ai/install.sh](https://spectyra.ai/install.sh). **Prefer reviewing the script before executing it** (same pattern as in `SKILL.md`), or install OpenClaw and this skill via npm as documented above.
 
 Then run `spectyra-companion setup` and `spectyra-companion start --open` before chatting.
 

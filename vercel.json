@@ -5,6 +5,10 @@
   "framework": null,
   "rewrites": [
     {
+      "source": "/v1/:path*",
+      "destination": "https://spectyra.up.railway.app/v1/:path*"
+    },
+    {
       "source": "/(.*)",
       "destination": "/index.html"
     }
