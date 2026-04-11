@@ -180,7 +180,8 @@ app.get("/dashboard", (_req, res) => {
 });
 
 /**
- * Optional: legacy / direct browser calls to Spectyra Cloud (dashboard now uses same-origin `/v1/*` only).
+ * Returns credentials for clients that call Spectyra Cloud directly (CLI, tools). The dashboard uses
+ * same-origin `/v1/billing/*` only and does not need this for billing.
  * Same-origin only; do not cache.
  */
 app.get("/v1/session/billing-auth", async (_req, res) => {

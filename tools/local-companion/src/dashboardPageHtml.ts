@@ -2,9 +2,9 @@ import { resolveSpectyraCloudApiV1Base } from "./cloudDefaults.js";
 
 /**
  * Self-contained HTML for the local savings dashboard (served from the companion).
- * Billing prefers direct `fetch` to Spectyra Cloud (`/v1/billing/*`) with headers from
- * `GET /v1/session/billing-auth`. If that throws (CORS/network) or auth is missing in the
- * browser, the same request falls back to the companion proxy (`/v1/billing/*` same-origin).
+ * Billing: browser calls Spectyra Cloud directly (POST /v1/billing/checkout → Stripe redirect)
+ * using credentials from GET /v1/session/billing-auth. If that fails (no credentials, CORS, or
+ * network), falls back to same-origin /v1/billing/* (companion proxy).
  *
  * Brand: Spectyra brand system (spectyra-brand.md)
  */
@@ -1067,9 +1067,10 @@ export function dashboardPageHtml(): string {
       s = String(s);
       return s.charAt(0) === '/' ? s.slice(1) : s;
     }
+
     /**
-     * Credentials from companion for cross-origin calls. If JSON parse fails, treat as no headers.
-     * Prefer direct cloud fetch when CORS works; companion proxy does not rely on this endpoint.
+     * Credentials from the companion for direct cloud calls. Prefer Spectyra Cloud first so
+     * checkout returns a Stripe URL without going through the local proxy.
      */
     async function billingAuthHeaders() {
       var ar = await fetch('/v1/session/billing-auth');
@@ -1088,7 +1089,8 @@ export function dashboardPageHtml(): string {
       }
       return { err: new Response(null, { status: 401, statusText: 'No billing credentials' }) };
     }
-    /** Direct cloud first; on network/CORS failure (fetch throws) or missing browser auth, fall back to same-origin companion proxy. */
+
+    /** Direct cloud first; on network/CORS failure (fetch throws) or missing browser auth, same-origin companion proxy. */
     async function billingCloudGet(path) {
       var p = stripLeadingSlash(path);
       var auth = await billingAuthHeaders();
@@ -1096,11 +1098,11 @@ export function dashboardPageHtml(): string {
         try {
           return await fetch(SPECTYRA_CLOUD_V1 + '/' + p, { headers: auth.headers });
         } catch (e) {
-          /* e.g. CORS blocked, DNS — use companion (server-side auth + normalized URL) */
         }
       }
       return fetch('/v1/' + p);
     }
+
     async function billingCloudPost(path, body) {
       var p = stripLeadingSlash(path);
       var bodyStr = JSON.stringify(body || {});
