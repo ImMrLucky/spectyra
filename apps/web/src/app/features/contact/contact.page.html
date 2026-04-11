@@ -1,0 +1,41 @@
+<div class="contact-container">
+  <div class="contact-card">
+    <a routerLink="/" class="back-link">← Back to home</a>
+
+    <h1>Contact</h1>
+    <p class="lead">Questions about Spectyra? Send a message and we’ll get back to you.</p>
+
+    <div *ngIf="showThanks" class="thanks-banner" role="status">
+      Thanks — your message was sent. We’ll reply by email.
+    </div>
+
+    <ng-container *ngIf="accessKey; else notConfigured">
+      <form [attr.action]="formAction" method="POST" class="contact-form">
+        <input type="hidden" name="access_key" [attr.value]="accessKey" />
+        <input type="hidden" name="redirect" [attr.value]="redirectAfterSubmit" />
+
+        <label class="field">
+          <span>Name</span>
+          <input type="text" name="name" required autocomplete="name" />
+        </label>
+
+        <label class="field">
+          <span>Email</span>
+          <input type="email" name="email" required autocomplete="email" />
+        </label>
+
+        <label class="field">
+          <span>Message</span>
+          <textarea name="message" rows="6" required></textarea>
+        </label>
+
+        <button type="submit" class="btn-submit">Send message</button>
+      </form>
+      <p class="hint">You’ll leave this page briefly while the form is submitted, then return here.</p>
+    </ng-container>
+
+    <ng-template #notConfigured>
+      <p class="error-config">Contact form is not configured (missing access key in environment).</p>
+    </ng-template>
+  </div>
+</div>

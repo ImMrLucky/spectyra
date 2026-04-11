@@ -8,6 +8,7 @@
  * protected by RLS policies on the backend.
  */
 export const environment = {
+  web3formsAccessKey: '424167d5-572f-4cf8-984e-2c3c4c54cd18',
   production: true,
   /** Production web origin — used for auth email links when origin is not http(s) (e.g. desktop file://). */
   publicSiteUrl: 'https://spectyra.ai',

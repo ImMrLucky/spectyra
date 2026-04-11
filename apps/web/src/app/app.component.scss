@@ -393,4 +393,12 @@
   p:last-child {
     margin-bottom: 0;
   }
+
+  .footer-contact a {
+    color: var(--spectyra-blue);
+    text-decoration: none;
+    &:hover {
+      text-decoration: underline;
+    }
+  }
 }

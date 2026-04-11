@@ -3,6 +3,7 @@
  * Same companion & API endpoints as the OpenClaw edition; different route bundle.
  */
 export const environment = {
+  web3formsAccessKey: '424167d5-572f-4cf8-984e-2c3c4c54cd18',
   production: true,
   publicSiteUrl: 'https://spectyra.ai',
   isDesktop: true,

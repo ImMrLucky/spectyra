@@ -39,6 +39,7 @@
 
 .cta-buttons {
   display: flex;
+  flex-wrap: wrap;
   gap: 16px;
   justify-content: center;
 }
@@ -70,6 +71,17 @@
 
     &:hover {
       background: rgba(230, 241, 251, 0.12);
+    }
+  }
+
+  &.btn-tertiary {
+    background: transparent;
+    color: var(--spectyra-blue-pale);
+    border: 1px solid rgba(230, 241, 251, 0.35);
+
+    &:hover {
+      background: rgba(230, 241, 251, 0.08);
+      border-color: var(--spectyra-blue-pale);
     }
   }
 

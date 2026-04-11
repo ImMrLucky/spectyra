@@ -7,6 +7,7 @@ import { ProjectsPage } from './features/projects/projects.page';
 import { AdminPage } from './features/admin/admin.page';
 import { OptimizerLabPage } from './features/optimizer-lab/optimizer-lab.page';
 import { HomePage } from './features/home/home.page';
+import { ContactPage } from './features/contact/contact.page';
 import { OverviewPage } from './features/overview/overview.page';
 import { SavingsAnalyticsPage } from './features/analytics/savings-analytics.page';
 import { SecuritySettingsPage } from './features/settings/security.page';
@@ -19,6 +20,7 @@ import { superuserGuard } from './core/guards/superuser.guard';
 
 export const webRoutes: Routes = [
   { path: '', component: HomePage },
+  { path: 'contact', component: ContactPage },
   { path: 'register', component: RegisterPage },
   { path: 'login', component: LoginPage },
 

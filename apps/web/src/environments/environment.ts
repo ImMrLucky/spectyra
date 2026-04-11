@@ -1,4 +1,6 @@
 export const environment = {
+  /** Web3Forms access key (public; restrict domain in Web3Forms dashboard). */
+  web3formsAccessKey: '424167d5-572f-4cf8-984e-2c3c4c54cd18',
   production: false,
   /** Fallback for auth email links when `window` has no http(s) origin (e.g. file://). */
   publicSiteUrl: 'http://localhost:4200',

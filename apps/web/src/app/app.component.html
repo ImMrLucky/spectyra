@@ -80,6 +80,7 @@
         </ng-container>
 
         <span *ngIf="!isAuthenticated" class="auth-links">
+          <a routerLink="/contact">Contact</a>
           <a routerLink="/login">Login</a>
           <a routerLink="/register">Sign Up</a>
         </span>
@@ -146,6 +147,7 @@
               As part of our core mission, we commit to allocating 10% of all profits to organizations advancing AI
               safety and guardrails.
             </p>
+            <p class="footer-contact"><a routerLink="/contact">Contact us</a></p>
           </footer>
         </mat-sidenav-content>
       </mat-sidenav-container>
