@@ -6,12 +6,8 @@
 import { sessionToSyncedPayload } from "@spectyra/analytics-core";
 import type { SessionAnalyticsRecord } from "@spectyra/analytics-core";
 import type { CompanionConfig } from "./config.js";
-import { resolveSpectyraCloudApiV1Base } from "./cloudDefaults.js";
+import { fetchSpectyraV1 } from "./spectyraCloudFetch.js";
 import { getValidSupabaseAccessToken, loadDesktopConfig } from "./desktopSession.js";
-
-function spectyraApiBase(): string {
-  return resolveSpectyraCloudApiV1Base();
-}
 
 export function shouldAttemptCloudAnalyticsSync(cfg: CompanionConfig): boolean {
   if (cfg.telemetryMode === "off") return false;
@@ -45,10 +41,8 @@ export async function syncSessionSummaryToCloud(
   const config = loadDesktopConfig();
   const token = await getValidSupabaseAccessToken(config);
   if (!token) return;
-  const base = spectyraApiBase().replace(/\/$/, "");
-  const url = `${base}/analytics/sessions`;
   const payload = sessionToSyncedPayload(rec);
-  const res = await fetch(url, {
+  const res = await fetchSpectyraV1("analytics/sessions", {
     method: "POST",
     headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
     body: JSON.stringify(payload),

@@ -65,7 +65,7 @@ import { activateLicense } from "@spectyra/optimization-engine";
 import { spectyraOpenClawModelDefinitions } from "@spectyra/shared";
 import { recordOpenClawTrafficIfApplicable, getOpenClawIntegrationDiagnostics } from "./openclawTraffic.js";
 import { dashboardPageHtml } from "./dashboardPageHtml.js";
-import { resolveSpectyraCloudApiV1Base } from "./cloudDefaults.js";
+import { fetchSpectyraV1 } from "./spectyraCloudFetch.js";
 import {
   loadDesktopConfig,
   getValidSupabaseAccessToken,
@@ -77,10 +77,6 @@ import {
 } from "./billingEntitlement.js";
 
 const cfg: CompanionConfig = loadConfig();
-
-function cloudApiV1BaseUrl(): string {
-  return resolveSpectyraCloudApiV1Base();
-}
 
 /**
  * Match CLI: prefer Supabase JWT for cloud calls when the session can be refreshed;
@@ -380,7 +376,7 @@ app.get("/v1/billing/status", async (_req, res) => {
     return;
   }
   try {
-    const r = await fetch(`${cloudApiV1BaseUrl()}/billing/status`, {
+    const r = await fetchSpectyraV1("billing/status", {
       headers: auth.headers,
     });
     const body = (await r.json().catch(() => ({}))) as Record<string, unknown>;
@@ -420,7 +416,7 @@ app.post(["/v1/billing/checkout", "/v1/billing/checkout/"], async (req, res) => 
       ? rawBody.cancel_url.trim()
       : `${origin}/dashboard`;
   try {
-    const r = await fetch(`${cloudApiV1BaseUrl()}/billing/checkout`, {
+    const r = await fetchSpectyraV1("billing/checkout", {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -449,7 +445,7 @@ app.get("/v1/account/summary", async (_req, res) => {
     return;
   }
   try {
-    const r = await fetch(`${cloudApiV1BaseUrl()}/account/summary`, { headers: auth.headers });
+    const r = await fetchSpectyraV1("account/summary", { headers: auth.headers });
     const body = (await r.json().catch(() => ({}))) as Record<string, unknown>;
     res.status(r.status).json(body);
   } catch (e: unknown) {
@@ -465,7 +461,7 @@ async function proxyAccountPost(path: string, req: Request, res: Response): Prom
     return;
   }
   try {
-    const r = await fetch(`${cloudApiV1BaseUrl()}${path}`, {
+    const r = await fetchSpectyraV1(path.replace(/^\//, ""), {
       method: "POST",
       headers: { "Content-Type": "application/json", ...auth.headers },
       body: JSON.stringify(req.body && typeof req.body === "object" ? req.body : {}),

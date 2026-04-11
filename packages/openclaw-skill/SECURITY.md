@@ -8,7 +8,7 @@ This pack installs **`@spectyra/local-companion`** and merges OpenClaw config so
 - **Invariant:** That key is **not** sent to Spectyra’s cloud API for inference. The companion calls your provider **from your machine** after optimization.
 - **Network use of provider keys:** none to `spectyra.ai` for provider authentication.
 
-## What does go to Spectyra cloud (`https://spectyra.up.railway.app/v1` by default in setup; same API as spectyra.ai)
+## What does go to Spectyra cloud (default API base in `setup.sh`; same backend as spectyra.ai)
 
 - Account lifecycle: sign-in / ensure-account / license helpers used during setup (same product as the Spectyra web app).
 - **Not included:** raw LLM provider secrets in those requests.

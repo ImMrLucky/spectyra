@@ -29,7 +29,8 @@ import {
   saveDesktopConfig,
   saveSupabaseSession,
 } from "./desktopSession.js";
-import { DEFAULT_SPECTYRA_WEB_ORIGIN, resolveSpectyraCloudApiV1Base } from "./cloudDefaults.js";
+import { DEFAULT_SPECTYRA_WEB_ORIGIN } from "./cloudDefaults.js";
+import { fetchSpectyraV1 } from "./spectyraCloudFetch.js";
 
 const PROVIDER_KEYS_FILE = join(DESKTOP_CONFIG_DIR, "provider-keys.json");
 const COMPANION_DIR = join(homedir(), ".spectyra", "companion");
@@ -45,7 +46,6 @@ function providerDisplayName(id: string): string {
   }
 }
 
-const SPECTYRA_API = resolveSpectyraCloudApiV1Base();
 const WEB_ORIGIN = process.env.SPECTYRA_WEB_ORIGIN?.trim() || DEFAULT_SPECTYRA_WEB_ORIGIN;
 
 const GREEN = "\x1b[32m";
@@ -86,7 +86,7 @@ function printSpectyraApiKeyCopyBlock(apiKey: string): void {
 
 /** Create a new org API key via JWT (shown once) — used when ensure-account does not return a key for existing orgs. */
 async function postCreateOrgApiKeyForSetup(accessToken: string): Promise<string | null> {
-  const res = await fetch(`${SPECTYRA_API}/auth/api-keys`, {
+  const res = await fetchSpectyraV1("auth/api-keys", {
     method: "POST",
     headers: { Authorization: `Bearer ${accessToken}`, "Content-Type": "application/json" },
     body: JSON.stringify({ name: "Local companion (auto, setup)" }),
@@ -136,7 +136,7 @@ async function handleEnsureAccountAfterSignIn(
 
     if (!config.licenseKey) {
       try {
-        const lkResp = await fetchJson(`${SPECTYRA_API}/license/generate`, {
+        const lkResp = await fetchJsonFromSpectyra("license/generate", {
           method: "POST",
           headers: { Authorization: `Bearer ${accessToken}`, "Content-Type": "application/json" },
           body: JSON.stringify({ device_name: "spectyra-companion-setup" }),
@@ -194,6 +194,11 @@ async function fetchJson(url: string, opts: RequestInit): Promise<any> {
   return res.json();
 }
 
+async function fetchJsonFromSpectyra(segment: string, opts: RequestInit): Promise<any> {
+  const res = await fetchSpectyraV1(segment, opts);
+  return res.json();
+}
+
 /** Idempotent org + API key (+ license) provisioning — works without visiting the website. */
 async function postEnsureAccount(
   accessToken: string,
@@ -204,7 +209,7 @@ async function postEnsureAccount(
   license_key?: string | null;
   error?: string;
 }> {
-  const res = await fetch(`${SPECTYRA_API}/auth/ensure-account`, {
+  const res = await fetchSpectyraV1("auth/ensure-account", {
     method: "POST",
     headers: { Authorization: `Bearer ${accessToken}`, "Content-Type": "application/json" },
     body: JSON.stringify(body),
@@ -243,7 +248,7 @@ async function promptSignInForTokens(config: Record<string, unknown>): Promise<s
 }
 
 async function fetchBillingStatus(accessToken: string): Promise<Record<string, unknown>> {
-  const res = await fetch(`${SPECTYRA_API}/billing/status`, {
+  const res = await fetchSpectyraV1("billing/status", {
     headers: { Authorization: `Bearer ${accessToken}` },
   });
   return (await res.json().catch(() => ({}))) as Record<string, unknown>;
@@ -256,7 +261,7 @@ async function postBillingCheckout(accessToken: string): Promise<string | null> 
   const useWebReturn = process.env.SPECTYRA_CHECKOUT_RETURN_WEB === "1";
   const success_url = useWebReturn ? `${WEB_ORIGIN}/usage?upgraded=true` : `${localDash}?upgraded=1`;
   const cancel_url = useWebReturn ? `${WEB_ORIGIN}/usage` : localDash;
-  const res = await fetch(`${SPECTYRA_API}/billing/checkout`, {
+  const res = await fetchSpectyraV1("billing/checkout", {
     method: "POST",
     headers: { Authorization: `Bearer ${accessToken}`, "Content-Type": "application/json" },
     body: JSON.stringify({
@@ -271,7 +276,7 @@ async function postBillingCheckout(accessToken: string): Promise<string | null> 
 }
 
 async function postAccountCancelRenewal(accessToken: string): Promise<void> {
-  const res = await fetch(`${SPECTYRA_API}/account/subscription/cancel-at-period-end`, {
+  const res = await fetchSpectyraV1("account/subscription/cancel-at-period-end", {
     method: "POST",
     headers: { Authorization: `Bearer ${accessToken}`, "Content-Type": "application/json" },
     body: JSON.stringify({}),
@@ -282,7 +287,7 @@ async function postAccountCancelRenewal(accessToken: string): Promise<void> {
 }
 
 async function postAccountKeep(accessToken: string): Promise<void> {
-  const res = await fetch(`${SPECTYRA_API}/account/subscription/keep`, {
+  const res = await fetchSpectyraV1("account/subscription/keep", {
     method: "POST",
     headers: { Authorization: `Bearer ${accessToken}`, "Content-Type": "application/json" },
     body: JSON.stringify({}),
@@ -293,7 +298,7 @@ async function postAccountKeep(accessToken: string): Promise<void> {
 }
 
 async function postAccountPause(accessToken: string): Promise<void> {
-  const res = await fetch(`${SPECTYRA_API}/account/pause-service`, {
+  const res = await fetchSpectyraV1("account/pause-service", {
     method: "POST",
     headers: { Authorization: `Bearer ${accessToken}`, "Content-Type": "application/json" },
     body: JSON.stringify({}),
@@ -303,7 +308,7 @@ async function postAccountPause(accessToken: string): Promise<void> {
 }
 
 async function postAccountResume(accessToken: string): Promise<void> {
-  const res = await fetch(`${SPECTYRA_API}/account/resume-service`, {
+  const res = await fetchSpectyraV1("account/resume-service", {
     method: "POST",
     headers: { Authorization: `Bearer ${accessToken}`, "Content-Type": "application/json" },
     body: JSON.stringify({}),
@@ -313,7 +318,7 @@ async function postAccountResume(accessToken: string): Promise<void> {
 }
 
 async function postAccountDelete(accessToken: string): Promise<void> {
-  const res = await fetch(`${SPECTYRA_API}/account/delete`, {
+  const res = await fetchSpectyraV1("account/delete", {
     method: "POST",
     headers: { Authorization: `Bearer ${accessToken}`, "Content-Type": "application/json" },
     body: JSON.stringify({ confirm: "DELETE_MY_ACCOUNT" }),
@@ -575,7 +580,7 @@ async function runSetup() {
 
             if (!token && signupResp.id) {
               try {
-                const acRes = await fetch(`${SPECTYRA_API}/auth/auto-confirm`, {
+                const acRes = await fetchSpectyraV1("auth/auto-confirm", {
                   method: "POST",
                   headers: { "Content-Type": "application/json" },
                   body: JSON.stringify({ email }),

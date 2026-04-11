@@ -4,13 +4,14 @@
  *
  * Keep in sync: packages/openclaw-skill/setup.sh (SPECTYRA_API default).
  *
- * **Important:** `https://spectyra.ai/v1` is proxied from Vercel for GET, but POST to that host
- * currently returns HTTP 404 (requests do not reach the API). The live API is on Railway; see
- * vercel.json `destination`. Use the Railway `/v1` base for all server-side and CLI POST traffic.
+ * The **canonical** product API base is `https://spectyra.ai/v1`. Some deployments route that
+ * hostname only to static or partial stacks; **POST** may not reach the API. Outbound calls use
+ * `fetchSpectyraV1` in `spectyraCloudFetch.ts`, which retries on **404** against the Railway host
+ * listed in `SPECTYRA_CLOUD_API_RAILWAY_V1` (same app as in LAUNCH docs / vercel destination).
  */
 export const SPECTYRA_CLOUD_API_RAILWAY_V1 = "https://spectyra.up.railway.app/v1";
 
-export const DEFAULT_SPECTYRA_CLOUD_API_V1 = SPECTYRA_CLOUD_API_RAILWAY_V1;
+export const DEFAULT_SPECTYRA_CLOUD_API_V1 = "https://spectyra.ai/v1";
 export const DEFAULT_SPECTYRA_WEB_ORIGIN = "https://spectyra.ai";
 
 /**
@@ -54,24 +55,6 @@ export function normalizeSpectyraCloudApiV1Base(raw: string): string {
 }
 
 /**
- * If env still points at `spectyra.ai/v1`, remap to Railway — POST to spectyra.ai/v1/* returns 404.
- */
-function rewriteSpectyraAiV1BaseToRailway(v1Base: string): string {
-  const t = v1Base.trim().replace(/\/$/, "");
-  try {
-    const u = new URL(t.includes("://") ? t : `https://${t}`);
-    const path = u.pathname.replace(/\/$/, "") || "";
-    const host = u.hostname.toLowerCase();
-    if ((host === "spectyra.ai" || host === "www.spectyra.ai") && path === "/v1") {
-      return SPECTYRA_CLOUD_API_RAILWAY_V1.replace(/\/$/, "");
-    }
-  } catch {
-    /* keep t */
-  }
-  return t;
-}
-
-/**
  * Resolves the Spectyra Cloud `/v1` base URL for server-side fetches (billing, analytics, CLI, etc.).
  *
  * Priority:
@@ -79,25 +62,20 @@ function rewriteSpectyraAiV1BaseToRailway(v1Base: string): string {
  * 2. `SPECTYRA_API_URL` — use when set **unless** it is loopback; loopback falls back to the baked-in default
  *    (set `SPECTYRA_ALLOW_LOCAL_CLOUD_API=true` to allow a loopback URL for local API development).
  * 3. Baked-in `DEFAULT_SPECTYRA_CLOUD_API_V1`.
+ *
+ * Prefer `fetchSpectyraV1` from `spectyraCloudFetch.ts` for HTTP calls so 404 is retried against Railway.
  */
 export function resolveSpectyraCloudApiV1Base(): string {
   const def = DEFAULT_SPECTYRA_CLOUD_API_V1.replace(/\/$/, "");
   const explicitCloud = process.env.SPECTYRA_CLOUD_API_URL?.trim();
-  let resolved: string;
   if (explicitCloud) {
-    resolved = normalizeSpectyraCloudApiV1Base(explicitCloud);
-  } else {
-    const raw = process.env.SPECTYRA_API_URL?.trim();
-    if (!raw) {
-      resolved = def;
-    } else {
-      const allowLocal = process.env.SPECTYRA_ALLOW_LOCAL_CLOUD_API === "true";
-      if (!allowLocal && urlLooksLikeLoopbackHttpUrl(raw)) {
-        resolved = def;
-      } else {
-        resolved = normalizeSpectyraCloudApiV1Base(raw);
-      }
-    }
+    return normalizeSpectyraCloudApiV1Base(explicitCloud);
   }
-  return rewriteSpectyraAiV1BaseToRailway(resolved);
+  const raw = process.env.SPECTYRA_API_URL?.trim();
+  if (!raw) return def;
+  const allowLocal = process.env.SPECTYRA_ALLOW_LOCAL_CLOUD_API === "true";
+  if (!allowLocal && urlLooksLikeLoopbackHttpUrl(raw)) {
+    return def;
+  }
+  return normalizeSpectyraCloudApiV1Base(raw);
 }

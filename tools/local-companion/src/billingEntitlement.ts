@@ -5,7 +5,7 @@
 
 import { loadConfig, type CompanionConfig } from "./config.js";
 import { loadDesktopConfig, getValidSupabaseAccessToken } from "./desktopSession.js";
-import { resolveSpectyraCloudApiV1Base } from "./cloudDefaults.js";
+import { fetchSpectyraV1 } from "./spectyraCloudFetch.js";
 
 const TTL_MS = 45_000;
 const ERROR_STALE_KEEP_MS = 10 * 60_000;
@@ -13,10 +13,6 @@ const ERROR_STALE_KEEP_MS = 10 * 60_000;
 type Cache = { allows: boolean; at: number };
 
 let cache: Cache | null = null;
-
-function cloudBase(): string {
-  return resolveSpectyraCloudApiV1Base();
-}
 
 function parseAllows(body: Record<string, unknown>): boolean {
   if (body.has_access === true) return true;
@@ -44,7 +40,7 @@ async function fetchAndUpdateCache(): Promise<void> {
       cache = { allows: false, at: Date.now() };
       return;
     }
-    const r = await fetch(`${cloudBase()}/billing/status`, { headers });
+    const r = await fetchSpectyraV1("billing/status", { headers });
     if (!r.ok) {
       if (prev && Date.now() - prev.at < ERROR_STALE_KEEP_MS) {
         return;

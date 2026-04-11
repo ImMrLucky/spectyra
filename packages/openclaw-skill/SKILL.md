@@ -44,7 +44,7 @@ As part of our core mission, we commit to allocating 10% of all profits to organ
 
 ### Domains & trust (for reviewers)
 
-- **Website:** `https://spectyra.ai` — production **REST API** for tools uses **`https://spectyra.up.railway.app/v1`** (Railway; POST via `spectyra.ai/v1` can 404 from the edge — same backend as the web app).
+- **Website:** `https://spectyra.ai` — production **REST API** for hosted clients uses **`https://spectyra.up.railway.app/v1`** (same backend; companion CLI retries on 404 if needed). Override with `SPECTYRA_API_URL` / `SPECTYRA_CLOUD_API_URL`.
 - **Local companion:** listens on **`http://localhost:4111`** and proxies optimized traffic to your LLM provider; provider keys stay on your machine.
 - **No crypto / blockchain:** this skill does not move cryptocurrency or call wallet software. Marketplace labels such as “Can make purchases” are often triggered by **subscription-related wording**; see **`SECURITY.md`** in this pack for what is and is not sent over the network.
 
