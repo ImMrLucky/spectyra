@@ -2,9 +2,9 @@ import { resolveSpectyraCloudApiV1Base } from "./cloudDefaults.js";
 
 /**
  * Self-contained HTML for the local savings dashboard (served from the companion).
- * Billing calls Spectyra Cloud directly (`https://spectyra.ai/v1/...`) with credentials from
- * same-origin `GET /v1/session/billing-auth` (Bearer or API key). The API allows CORS from
- * loopback origins; this avoids relying on the companion POST proxy for checkout/status.
+ * Billing prefers direct `fetch` to Spectyra Cloud (`/v1/billing/*`) with headers from
+ * `GET /v1/session/billing-auth`. If that throws (CORS/network) or auth is missing in the
+ * browser, the same request falls back to the companion proxy (`/v1/billing/*` same-origin).
  *
  * Brand: Spectyra brand system (spectyra-brand.md)
  */
@@ -1067,11 +1067,19 @@ export function dashboardPageHtml(): string {
       s = String(s);
       return s.charAt(0) === '/' ? s.slice(1) : s;
     }
-    /** Credentials from companion (session JWT or org API key), then direct fetch to Spectyra Cloud (CORS allowed for localhost). */
+    /**
+     * Credentials from companion for cross-origin calls. If JSON parse fails, treat as no headers.
+     * Prefer direct cloud fetch when CORS works; companion proxy does not rely on this endpoint.
+     */
     async function billingAuthHeaders() {
       var ar = await fetch('/v1/session/billing-auth');
       if (!ar.ok) return { err: ar };
-      var a = await ar.json();
+      var a;
+      try {
+        a = await ar.json();
+      } catch (e) {
+        return { err: new Response(null, { status: 502, statusText: 'Invalid billing-auth response' }) };
+      }
       if (a.scheme === 'bearer' && a.credential) {
         return { headers: { Authorization: 'Bearer ' + a.credential } };
       }
@@ -1080,20 +1088,37 @@ export function dashboardPageHtml(): string {
       }
       return { err: new Response(null, { status: 401, statusText: 'No billing credentials' }) };
     }
+    /** Direct cloud first; on network/CORS failure (fetch throws) or missing browser auth, fall back to same-origin companion proxy. */
     async function billingCloudGet(path) {
       var p = stripLeadingSlash(path);
       var auth = await billingAuthHeaders();
-      if (auth.err) return auth.err;
-      return fetch(SPECTYRA_CLOUD_V1 + '/' + p, { headers: auth.headers });
+      if (!auth.err) {
+        try {
+          return await fetch(SPECTYRA_CLOUD_V1 + '/' + p, { headers: auth.headers });
+        } catch (e) {
+          /* e.g. CORS blocked, DNS — use companion (server-side auth + normalized URL) */
+        }
+      }
+      return fetch('/v1/' + p);
     }
     async function billingCloudPost(path, body) {
       var p = stripLeadingSlash(path);
+      var bodyStr = JSON.stringify(body || {});
       var auth = await billingAuthHeaders();
-      if (auth.err) return auth.err;
-      return fetch(SPECTYRA_CLOUD_V1 + '/' + p, {
+      if (!auth.err) {
+        try {
+          return await fetch(SPECTYRA_CLOUD_V1 + '/' + p, {
+            method: 'POST',
+            headers: Object.assign({ 'Content-Type': 'application/json' }, auth.headers),
+            body: bodyStr,
+          });
+        } catch (e) {
+        }
+      }
+      return fetch('/v1/' + p, {
         method: 'POST',
-        headers: Object.assign({ 'Content-Type': 'application/json' }, auth.headers),
-        body: JSON.stringify(body || {}),
+        headers: { 'Content-Type': 'application/json' },
+        body: bodyStr,
       });
     }
 
@@ -1336,7 +1361,13 @@ export function dashboardPageHtml(): string {
             'Could not load plan status (' + r.status + ')' + (errMsg ? ': ' + errMsg : '') + '.';
           return;
         }
-        var st = await r.json();
+        var st;
+        try {
+          st = await r.json();
+        } catch (parseErr) {
+          line.textContent = 'Could not load plan status (unexpected response).';
+          return;
+        }
         var paid = st.subscription_status === 'active' || st.subscription_active === true;
         var hasAccess = st.has_access === true;
         var exempt = !!(st.org_platform_exempt || st.platform_billing_exempt);
