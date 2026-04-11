@@ -1,10 +1,15 @@
+import { resolveSpectyraCloudApiV1Base } from "./cloudDefaults.js";
+
 /**
  * Self-contained HTML for the local savings dashboard (served from the companion).
- * Billing uses same-origin `fetch('/v1/billing/...')` — the companion proxies to Spectyra Cloud with API key / session (avoids browser CORS + duplicate requests to spectyra.ai).
+ * Billing calls Spectyra Cloud directly (`https://spectyra.ai/v1/...`) with credentials from
+ * same-origin `GET /v1/session/billing-auth` (Bearer or API key). The API allows CORS from
+ * loopback origins; this avoids relying on the companion POST proxy for checkout/status.
  *
  * Brand: Spectyra brand system (spectyra-brand.md)
  */
 export function dashboardPageHtml(): string {
+  const spectyraCloudV1Json = JSON.stringify(resolveSpectyraCloudApiV1Base());
   return `<!DOCTYPE html>
 <html lang="en">
 <head>
@@ -1056,21 +1061,38 @@ export function dashboardPageHtml(): string {
   <script>
     const $ = id => document.getElementById(id);
     const SCOPE_STORAGE_KEY = 'spectyraDashboardScope';
+    const SPECTYRA_CLOUD_V1 = ${spectyraCloudV1Json};
 
     function stripLeadingSlash(s) {
       s = String(s);
       return s.charAt(0) === '/' ? s.slice(1) : s;
     }
-    /** Always hit the companion — it proxies to Spectyra Cloud with the saved API key (no cross-origin fetch to spectyra.ai). */
+    /** Credentials from companion (session JWT or org API key), then direct fetch to Spectyra Cloud (CORS allowed for localhost). */
+    async function billingAuthHeaders() {
+      var ar = await fetch('/v1/session/billing-auth');
+      if (!ar.ok) return { err: ar };
+      var a = await ar.json();
+      if (a.scheme === 'bearer' && a.credential) {
+        return { headers: { Authorization: 'Bearer ' + a.credential } };
+      }
+      if (a.scheme === 'apikey' && a.credential) {
+        return { headers: { 'X-SPECTYRA-API-KEY': a.credential } };
+      }
+      return { err: new Response(null, { status: 401, statusText: 'No billing credentials' }) };
+    }
     async function billingCloudGet(path) {
       var p = stripLeadingSlash(path);
-      return fetch('/v1/' + p);
+      var auth = await billingAuthHeaders();
+      if (auth.err) return auth.err;
+      return fetch(SPECTYRA_CLOUD_V1 + '/' + p, { headers: auth.headers });
     }
     async function billingCloudPost(path, body) {
       var p = stripLeadingSlash(path);
-      return fetch('/v1/' + p, {
+      var auth = await billingAuthHeaders();
+      if (auth.err) return auth.err;
+      return fetch(SPECTYRA_CLOUD_V1 + '/' + p, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: Object.assign({ 'Content-Type': 'application/json' }, auth.headers),
         body: JSON.stringify(body || {}),
       });
     }
@@ -1303,7 +1325,7 @@ export function dashboardPageHtml(): string {
       }
       try {
         var r = await billingCloudGet('billing/status');
-        if (r.status === 503) {
+        if (r.status === 503 || r.status === 401) {
           line.textContent = 'Add your Spectyra API key (run spectyra-companion setup) to manage your plan from this dashboard.';
           return;
         }

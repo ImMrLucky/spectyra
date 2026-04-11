@@ -30,6 +30,25 @@ export function urlLooksLikeLoopbackHttpUrl(apiUrl: string): boolean {
 }
 
 /**
+ * Ensures the base URL targets the `/v1` API prefix. A common misconfiguration is
+ * `https://spectyra.ai` or `https://*.railway.app` without `/v1`, which yields HTTP 404 on `/billing/checkout`.
+ */
+export function normalizeSpectyraCloudApiV1Base(raw: string): string {
+  const t = raw.replace(/\/$/, "");
+  if (t.endsWith("/v1")) return t;
+  try {
+    const u = new URL(t.includes("://") ? t : `https://${t}`);
+    const path = u.pathname.replace(/\/$/, "") || "";
+    if (!path || path === "/") {
+      return `${u.origin}/v1`;
+    }
+  } catch {
+    /* fall through */
+  }
+  return `${t}/v1`;
+}
+
+/**
  * Resolves the Spectyra Cloud `/v1` base URL for server-side fetches (billing, analytics, CLI, etc.).
  *
  * Priority:
@@ -42,7 +61,7 @@ export function resolveSpectyraCloudApiV1Base(): string {
   const def = DEFAULT_SPECTYRA_CLOUD_API_V1.replace(/\/$/, "");
   const explicitCloud = process.env.SPECTYRA_CLOUD_API_URL?.trim();
   if (explicitCloud) {
-    return explicitCloud.replace(/\/$/, "");
+    return normalizeSpectyraCloudApiV1Base(explicitCloud);
   }
   const raw = process.env.SPECTYRA_API_URL?.trim();
   if (!raw) return def;
@@ -50,5 +69,5 @@ export function resolveSpectyraCloudApiV1Base(): string {
   if (!allowLocal && urlLooksLikeLoopbackHttpUrl(raw)) {
     return def;
   }
-  return raw.replace(/\/$/, "");
+  return normalizeSpectyraCloudApiV1Base(raw);
 }
