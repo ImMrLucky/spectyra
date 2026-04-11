@@ -14,7 +14,8 @@ export const environment = {
   publicSiteUrl: 'https://spectyra.ai',
   isDesktop: false,
   companionBaseUrl: 'http://127.0.0.1:4111',
-  apiUrl: 'https://spectyra.ai/v1',
+  /** Railway API — POST to spectyra.ai/v1/* does not reach the API (Vercel); same backend as vercel.json rewrite destination. */
+  apiUrl: 'https://spectyra.up.railway.app/v1',
   supabaseUrl: 'https://jajqvceuenqeblbgsigt.supabase.co',
   supabaseAnonKey: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImphanF2Y2V1ZW5xZWJsYmdzaWd0Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3Njk0MDI4MDgsImV4cCI6MjA4NDk3ODgwOH0.IJ7CSyX-_-lahfaOzM9U5EIpR6tcW-GhiMZeCY_efno',
   /** Optional override URLs (e.g. CDN). If empty, same-origin paths below are used. */

@@ -32,7 +32,7 @@ const PKG_VERSION = JSON.parse(
 // Configuration from Environment Variables
 // ============================================================================
 
-const SPECTYRA_API_URL = process.env.SPECTYRA_API_URL || "https://spectyra.ai/v1";
+const SPECTYRA_API_URL = process.env.SPECTYRA_API_URL || "https://spectyra.up.railway.app/v1";
 const SPECTYRA_API_KEY = process.env.SPECTYRA_API_KEY || "";
 const OPENAI_API_KEY = process.env.OPENAI_API_KEY || "";
 const ANTHROPIC_API_KEY = process.env.ANTHROPIC_API_KEY || "";

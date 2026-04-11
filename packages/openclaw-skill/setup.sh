@@ -19,7 +19,8 @@ RESET='\033[0m'
 
 # Must match tools/local-companion/src/cloudDefaults.ts (DEFAULT_SPECTYRA_CLOUD_API_V1).
 # Optional: SPECTYRA_API_URL for staging; unset = production Cloud API (same site as https://spectyra.ai).
-SPECTYRA_API="${SPECTYRA_API_URL:-https://spectyra.ai/v1}"
+# Default Railway /v1 — POST to https://spectyra.ai/v1/* returns 404 via Vercel; API is on Railway (see repo vercel.json).
+SPECTYRA_API="${SPECTYRA_API_URL:-https://spectyra.up.railway.app/v1}"
 SUPABASE_URL="https://jajqvceuenqeblbgsigt.supabase.co"
 SUPABASE_ANON_KEY="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImphanF2Y2V1ZW5xZWJsYmdzaWd0Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3Njk0MDI4MDgsImV4cCI6MjA4NDk3ODgwOH0.IJ7CSyX-_-lahfaOzM9U5EIpR6tcW-GhiMZeCY_efno"
 COMPANION_URL="http://localhost:4111"

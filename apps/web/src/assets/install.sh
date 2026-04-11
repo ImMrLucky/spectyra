@@ -14,7 +14,7 @@ BOLD='\033[1m'
 DIM='\033[2m'
 RESET='\033[0m'
 
-SPECTYRA_API="https://spectyra.ai/v1"
+SPECTYRA_API="https://spectyra.up.railway.app/v1"
 SUPABASE_URL="https://jajqvceuenqeblbgsigt.supabase.co"
 SUPABASE_ANON_KEY="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImphanF2Y2V1ZW5xZWJsYmdzaWd0Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3Njk0MDI4MDgsImV4cCI6MjA4NDk3ODgwOH0.IJ7CSyX-_-lahfaOzM9U5EIpR6tcW-GhiMZeCY_efno"
 OPENCLAW_INSTALL_URL="https://openclaw.ai/install.sh"

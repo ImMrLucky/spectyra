@@ -176,6 +176,7 @@ app.get("/", (_req, res) => {
 });
 
 app.get("/dashboard", (_req, res) => {
+  res.setHeader("Cache-Control", "no-store, no-cache, must-revalidate");
   res.type("html").send(dashboardPageHtml());
 });
 
@@ -391,14 +392,15 @@ app.get("/v1/billing/status", async (_req, res) => {
 });
 
 /**
- * GET would 404 otherwise — browsers, bookmarks, or bad redirects often hit this URL without POST.
- * Checkout sessions must be created via POST from the dashboard (or CLI `upgrade`).
+ * GET redirects to the dashboard (checkout is POST-only). Register with and without trailing slash —
+ * browsers often normalize URLs with a final `/`, which would otherwise 404.
  */
-app.get("/v1/billing/checkout", (_req, res) => {
+function redirectCheckoutGetToDashboard(_req: Request, res: Response): void {
   res.redirect(302, "/dashboard?checkout=use_post");
-});
+}
+app.get(["/v1/billing/checkout", "/v1/billing/checkout/"], redirectCheckoutGetToDashboard);
 
-app.post("/v1/billing/checkout", async (req, res) => {
+app.post(["/v1/billing/checkout", "/v1/billing/checkout/"], async (req, res) => {
   const auth = await spectyraCloudAuthHeaders("billing");
   if (!auth.ok) {
     res.status(auth.status).json({ error: auth.message });

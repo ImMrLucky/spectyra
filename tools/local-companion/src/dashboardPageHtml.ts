@@ -1,12 +1,15 @@
+import { companionPackageVersion } from "./packageVersion.js";
+
 /**
  * Self-contained HTML for the local savings dashboard (served from the companion).
  * Billing uses only same-origin GET|POST /v1/billing/* (and /v1/account/*). The companion
- * proxies to Spectyra Cloud with JWT or API key — the browser never calls spectyra.ai, so
- * Vercel/edge 404s and CORS do not apply. Stripe still opens from the checkout_url in the JSON response.
+ * proxies to the production API (Railway /v1 by default) with JWT or API key — the browser never
+ * calls the API host directly. Stripe still opens from the checkout_url in the JSON response.
  *
  * Brand: Spectyra brand system (spectyra-brand.md)
  */
 export function dashboardPageHtml(): string {
+  const companionVer = companionPackageVersion().replace(/[^0-9a-z._-]/gi, "");
   return `<!DOCTYPE html>
 <html lang="en">
 <head>
@@ -1026,6 +1029,9 @@ export function dashboardPageHtml(): string {
     </p>
 
     <footer class="mission-footer" aria-label="Spectyra mission">
+      <p class="hint" style="opacity:0.75;font-size:12px;margin-bottom:12px">
+        Local Companion <strong>v${companionVer}</strong> — plan/checkout requests go to this host only (<code>/v1/…</code>), not the public site.
+      </p>
       <p>At Spectyra, we believe the future of AI must be both powerful and responsible.</p>
       <p>
         As part of our core mission, we commit to allocating 10% of all profits to organizations advancing AI safety and
