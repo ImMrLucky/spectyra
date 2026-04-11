@@ -4,7 +4,7 @@
  * Handles Stripe checkout and webhooks for org-based subscriptions
  */
 
-import { Router } from "express";
+import { Router, type Response } from "express";
 import Stripe from "stripe";
 import {
   getOrgById,
@@ -25,8 +25,51 @@ import {
 import { hasActiveAccess } from "../services/storage/orgsRepo.js";
 import { isSavingsObserveOnly } from "../billing/savingsEligibility.js";
 import { safeLog } from "../utils/redaction.js";
+import {
+  provisionSpectyraAccountIfNeeded,
+  defaultOrgNameFromEmail,
+} from "../services/accountProvisioning.js";
 
 export const billingRouter = Router();
+
+/**
+ * Companion / CLI users may have a valid Supabase JWT before any `org_memberships` row exists.
+ * Idempotently create org + membership (same contract as POST /v1/auth/ensure-account).
+ */
+async function resolveOrgIdForJwtBilling(
+  req: AuthenticatedRequest,
+  res: Response,
+): Promise<string | null> {
+  if (!req.auth?.userId) {
+    return null;
+  }
+  const { queryOne } = await import("../services/storage/db.js");
+  const membership = await queryOne<{ org_id: string }>(
+    `SELECT org_id FROM org_memberships WHERE user_id = $1 LIMIT 1`,
+    [req.auth.userId],
+  );
+  if (membership) {
+    return membership.org_id;
+  }
+  try {
+    const outcome = await provisionSpectyraAccountIfNeeded({
+      userId: req.auth.userId,
+      orgName: defaultOrgNameFromEmail(req.auth.email) || "My workspace",
+      projectName: "Default Project",
+      auditReq: req,
+    });
+    safeLog("info", "Billing: auto-provisioned org for JWT user without membership", {
+      user_id: req.auth.userId,
+      org_id: outcome.org.id,
+    });
+    return outcome.org.id;
+  } catch (provErr: unknown) {
+    safeLog("error", "Billing: account provisioning failed", { err: provErr });
+    const msg = provErr instanceof Error ? provErr.message : "Account setup failed";
+    res.status(500).json({ error: msg });
+    return null;
+  }
+}
 
 function isStripeNoSuchCustomerError(err: unknown): boolean {
   const e = err as { code?: string; message?: string };
@@ -201,16 +244,10 @@ billingRouter.post("/checkout", async (req: AuthenticatedRequest, res) => {
       }
 
       if (jwtAuthSucceeded && req.auth?.userId) {
-        const { queryOne } = await import("../services/storage/db.js");
-        const membership = await queryOne<{ org_id: string }>(`
-          SELECT org_id FROM org_memberships WHERE user_id = $1 LIMIT 1
-        `, [req.auth.userId]);
-
-        if (!membership) {
-          return res.status(404).json({ error: "Organization not found" });
+        orgId = await resolveOrgIdForJwtBilling(req, res);
+        if (res.headersSent) {
+          return;
         }
-
-        orgId = membership.org_id;
       }
     }
 
@@ -514,16 +551,10 @@ billingRouter.get("/status", async (req: AuthenticatedRequest, res) => {
           return res.status(401).json({ error: "Not authenticated" });
         }
 
-        const { queryOne } = await import("../services/storage/db.js");
-        const membership = await queryOne<{ org_id: string }>(`
-          SELECT org_id FROM org_memberships WHERE user_id = $1 LIMIT 1
-        `, [req.auth.userId]);
-
-        if (!membership) {
-          return res.status(404).json({ error: "Organization not found" });
+        orgId = await resolveOrgIdForJwtBilling(req, res);
+        if (res.headersSent) {
+          return;
         }
-
-        orgId = membership.org_id;
       }
       
       // If response was already sent (error case from middleware), return early
