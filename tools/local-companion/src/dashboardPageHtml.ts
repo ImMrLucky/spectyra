@@ -1,15 +1,12 @@
-import { resolveSpectyraCloudApiV1Base } from "./cloudDefaults.js";
-
 /**
  * Self-contained HTML for the local savings dashboard (served from the companion).
- * Billing: browser calls Spectyra Cloud directly (POST /v1/billing/checkout → Stripe redirect)
- * using credentials from GET /v1/session/billing-auth. If that fails (no credentials, CORS, or
- * network), falls back to same-origin /v1/billing/* (companion proxy).
+ * Billing uses only same-origin GET|POST /v1/billing/* (and /v1/account/*). The companion
+ * proxies to Spectyra Cloud with JWT or API key — the browser never calls spectyra.ai, so
+ * Vercel/edge 404s and CORS do not apply. Stripe still opens from the checkout_url in the JSON response.
  *
  * Brand: Spectyra brand system (spectyra-brand.md)
  */
 export function dashboardPageHtml(): string {
-  const spectyraCloudV1Json = JSON.stringify(resolveSpectyraCloudApiV1Base());
   return `<!DOCTYPE html>
 <html lang="en">
 <head>
@@ -1061,66 +1058,24 @@ export function dashboardPageHtml(): string {
   <script>
     const $ = id => document.getElementById(id);
     const SCOPE_STORAGE_KEY = 'spectyraDashboardScope';
-    const SPECTYRA_CLOUD_V1 = ${spectyraCloudV1Json};
 
     function stripLeadingSlash(s) {
       s = String(s);
       return s.charAt(0) === '/' ? s.slice(1) : s;
     }
 
-    /**
-     * Credentials from the companion for direct cloud calls. Prefer Spectyra Cloud first so
-     * checkout returns a Stripe URL without going through the local proxy.
-     */
-    async function billingAuthHeaders() {
-      var ar = await fetch('/v1/session/billing-auth');
-      if (!ar.ok) return { err: ar };
-      var a;
-      try {
-        a = await ar.json();
-      } catch (e) {
-        return { err: new Response(null, { status: 502, statusText: 'Invalid billing-auth response' }) };
-      }
-      if (a.scheme === 'bearer' && a.credential) {
-        return { headers: { Authorization: 'Bearer ' + a.credential } };
-      }
-      if (a.scheme === 'apikey' && a.credential) {
-        return { headers: { 'X-SPECTYRA-API-KEY': a.credential } };
-      }
-      return { err: new Response(null, { status: 401, statusText: 'No billing credentials' }) };
-    }
-
-    /** Direct cloud first; on network/CORS failure (fetch throws) or missing browser auth, same-origin companion proxy. */
+    /** Companion proxies to Spectyra Cloud (server-side auth). */
     async function billingCloudGet(path) {
       var p = stripLeadingSlash(path);
-      var auth = await billingAuthHeaders();
-      if (!auth.err) {
-        try {
-          return await fetch(SPECTYRA_CLOUD_V1 + '/' + p, { headers: auth.headers });
-        } catch (e) {
-        }
-      }
       return fetch('/v1/' + p);
     }
 
     async function billingCloudPost(path, body) {
       var p = stripLeadingSlash(path);
-      var bodyStr = JSON.stringify(body || {});
-      var auth = await billingAuthHeaders();
-      if (!auth.err) {
-        try {
-          return await fetch(SPECTYRA_CLOUD_V1 + '/' + p, {
-            method: 'POST',
-            headers: Object.assign({ 'Content-Type': 'application/json' }, auth.headers),
-            body: bodyStr,
-          });
-        } catch (e) {
-        }
-      }
       return fetch('/v1/' + p, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: bodyStr,
+        body: JSON.stringify(body || {}),
       });
     }
 
