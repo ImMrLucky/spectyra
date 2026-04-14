@@ -172,6 +172,8 @@ function companionEnv(): NodeJS.ProcessEnv {
     SPECTYRA_ALIAS_FAST_MODEL: config.aliasFastModel,
     SPECTYRA_ALIAS_QUALITY_MODEL: config.aliasQualityModel,
     SPECTYRA_BIND_HOST: "127.0.0.1",
+    /** Desktop app uses account + billing; npm OpenClaw defaults to free local mode. */
+    SPECTYRA_OPENCLAW_FREE: "false",
     SPECTYRA_DESKTOP_MANAGED: "1",
     SPECTYRA_ACCOUNT_SIGNED_IN: "1",
     SPECTYRA_KEY_SOURCE: "session",

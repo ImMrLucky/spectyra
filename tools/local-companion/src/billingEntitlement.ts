@@ -63,6 +63,10 @@ async function fetchAndUpdateCache(): Promise<void> {
  */
 export async function refreshBillingEntitlement(): Promise<void> {
   const cfg = loadConfig();
+  if (cfg.openclawFreeMode && !cfg.spectyraAccountLinked) {
+    cache = null;
+    return;
+  }
   if (!cfg.spectyraAccountLinked) {
     cache = null;
     return;
@@ -80,6 +84,7 @@ export async function refreshBillingEntitlement(): Promise<void> {
  */
 export function getCachedBillingAllowsRealSavings(): boolean | null {
   const cfg = loadConfig();
+  if (cfg.openclawFreeMode && !cfg.spectyraAccountLinked) return null;
   if (!cfg.spectyraAccountLinked) return null;
   if (process.env.SPECTYRA_BYPASS_ACCOUNT_CHECK === "true") return true;
   if (!cache) return null;
@@ -90,6 +95,7 @@ export function getCachedBillingAllowsRealSavings(): boolean | null {
  * License material to pass into the local optimization engine: only when billing allows real savings.
  */
 export async function resolveLicenseKeyForOptimize(cfg: CompanionConfig): Promise<string | undefined> {
+  if (cfg.openclawFreeMode) return undefined;
   if (!cfg.spectyraAccountLinked) return undefined;
   if (process.env.SPECTYRA_BYPASS_ACCOUNT_CHECK === "true") {
     return cfg.licenseKey?.trim() || cfg.spectyraApiKey;

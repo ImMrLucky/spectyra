@@ -22,7 +22,7 @@ export interface LocalOptimizationStageResult {
  * Resolve `spectyra/*` aliases and run the Spectyra optimization pipeline for the current run mode
  * (off / observe / on). Does not call the upstream LLM.
  *
- * Real input trimming requires a linked account with active trial or subscription (see billing status).
+ * Real input trimming: OpenClaw free mode uses full local optimization; linked accounts use billing status.
  */
 export async function resolveAndOptimizeLocally(
   cfg: CompanionConfig,
@@ -37,6 +37,8 @@ export async function resolveAndOptimizeLocally(
     providerTierModels: cfg.providerTierModels,
   });
   const licenseForOptimize = await resolveLicenseKeyForOptimize(cfg);
-  const optResult = optimize(messages, cfg.optimizationRunMode, licenseForOptimize);
+  const optResult = optimize(messages, cfg.optimizationRunMode, licenseForOptimize, {
+    openclawFreeMode: cfg.openclawFreeMode,
+  });
   return { resolved, optResult };
 }

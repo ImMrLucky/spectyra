@@ -609,7 +609,12 @@ billingRouter.get("/status", async (req: AuthenticatedRequest, res) => {
     const hasAccess = hasActiveAccess(org, billingAccessOpts(req));
     const observeOnly = isSavingsObserveOnly(org, billingAccessOpts(req));
     const trialEnd = org.trial_ends_at ? new Date(org.trial_ends_at) : null;
-    const isTrialActive = trialEnd ? trialEnd > new Date() : false;
+    /** Match `hasActiveAccess` trial rule so `trial_active` and `has_access` never disagree for app trial. */
+    const isTrialActive =
+      org.subscription_status === "trial" &&
+      !!trialEnd &&
+      !Number.isNaN(trialEnd.getTime()) &&
+      trialEnd > new Date();
     
     res.json({
       org: {

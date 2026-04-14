@@ -10,6 +10,7 @@ process.env.SPECTYRA_BYPASS_ACCOUNT_CHECK = "true";
 
 function baseCfg(over: Partial<CompanionConfig> = {}): CompanionConfig {
   return {
+    openclawFreeMode: false,
     runMode: "on",
     workflowPolicyMode: "enforce",
     telemetryMode: "local",

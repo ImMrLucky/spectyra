@@ -75,6 +75,13 @@ import {
   refreshBillingEntitlement,
   getCachedBillingAllowsRealSavings,
 } from "./billingEntitlement.js";
+import { readCompanionInstallState } from "./companionState.js";
+import {
+  sendAnonymousPing,
+  sendAnonymousEvent,
+  sendFirstOptimizationOnce,
+  maybeSendOptimizationPerformedEvent,
+} from "./anonymousTelemetry.js";
 
 const cfg: CompanionConfig = loadConfig();
 
@@ -125,6 +132,9 @@ function licenseSnapshot(): {
   licenseAllowsFullOptimization: boolean;
 } {
   const c = loadConfig();
+  if (c.openclawFreeMode) {
+    return { licenseKeyPresent: false, licenseAllowsFullOptimization: true };
+  }
   const key = c.spectyraAccountLinked ? c.licenseKey?.trim() || c.spectyraApiKey : undefined;
   if (!key) {
     return { licenseKeyPresent: false, licenseAllowsFullOptimization: false };
@@ -150,6 +160,12 @@ function providerConfigured(): boolean {
  */
 function shouldRecordCompanionAnalytics(opt: OptimizeResult): boolean {
   return !opt.licenseLimited;
+}
+
+function noteOpenClawFreeOptimizationTelemetry(modeCfg: CompanionConfig, opt: OptimizeResult): void {
+  if (!modeCfg.openclawFreeMode || opt.licenseLimited) return;
+  sendFirstOptimizationOnce();
+  maybeSendOptimizationPerformedEvent();
 }
 
 function parseMaxTokensOpenAiCompatible(body: Record<string, unknown>): number | undefined {
@@ -208,10 +224,13 @@ app.get("/health", async (_req, res) => {
   const snap = loadConfig();
   const billingAllows =
     snap.spectyraAccountLinked && getCachedBillingAllowsRealSavings() === true;
+  const install = readCompanionInstallState();
   res.json({
     status: "ok",
     service: "spectyra-local-companion",
     packageVersion: companionPackageVersion(),
+    openclawFreeMode: snap.openclawFreeMode,
+    installationId: install?.installationId ?? null,
     runMode: snap.runMode,
     optimizationRunMode: snap.optimizationRunMode,
     spectyraAccountLinked: snap.spectyraAccountLinked,
@@ -239,16 +258,55 @@ app.get("/health", async (_req, res) => {
     /** Ready for inference: valid provider + local API key present. */
     companionReady: pc,
     /** Without this, real input optimization stays in preview (observe-style) until setup saves session + Spectyra API key. */
-    savingsEnabled:
-      snap.spectyraAccountLinked &&
-      snap.optimizationRunMode === "on" &&
-      snap.runMode === "on" &&
-      billingAllows,
+    savingsEnabled: snap.openclawFreeMode
+      ? snap.optimizationRunMode === "on" && snap.runMode === "on" && pc
+      : snap.spectyraAccountLinked &&
+        snap.optimizationRunMode === "on" &&
+        snap.runMode === "on" &&
+        billingAllows,
     /**
      * Linked org has active trial or paid access (Spectyra Cloud billing). When false and linked, only projected savings apply.
      */
-    billingAllowsRealSavings: snap.spectyraAccountLinked ? billingAllows : null,
+    billingAllowsRealSavings: snap.openclawFreeMode
+      ? true
+      : snap.spectyraAccountLinked
+        ? billingAllows
+        : null,
   });
+});
+
+app.post("/v1/anonymous/ping", async (req, res) => {
+  try {
+    const r = await fetchSpectyraV1("anonymous/ping", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(req.body ?? {}),
+    });
+    res.status(r.status);
+    const t = await r.text();
+    if (t) res.type("application/json").send(t);
+    else res.end();
+  } catch (e: unknown) {
+    const msg = e instanceof Error ? e.message : String(e);
+    res.status(502).json({ error: msg });
+  }
+});
+
+app.post("/v1/anonymous/event", async (req, res) => {
+  try {
+    const r = await fetchSpectyraV1("anonymous/event", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(req.body ?? {}),
+    });
+    res.status(r.status);
+    const t = await r.text();
+    if (t) res.type("application/json").send(t);
+    else res.end();
+  } catch (e: unknown) {
+    const msg = e instanceof Error ? e.message : String(e);
+    res.status(502).json({ error: msg });
+  }
 });
 
 app.get("/config", async (_req, res) => {
@@ -639,6 +697,7 @@ app.post("/v1/chat/completions", async (req, res) => {
           req.headers as Record<string, string | string[] | undefined>,
         );
         await persistLocally(runId, report, optResult, messages, icfg);
+        noteOpenClawFreeOptimizationTelemetry(icfg, optResult);
         const sk = sessionRegistry.sessionKeyFromRequest(req.headers as any);
         if (icfg.telemetryMode !== "off") {
           await sessionRegistry.recordStep(sk, report);
@@ -675,6 +734,7 @@ app.post("/v1/chat/completions", async (req, res) => {
         req.headers as Record<string, string | string[] | undefined>,
       );
       await persistLocally(runId, report, optResult, messages, icfg);
+      noteOpenClawFreeOptimizationTelemetry(icfg, optResult);
       const sk = sessionRegistry.sessionKeyFromRequest(req.headers as any);
       if (icfg.telemetryMode !== "off") {
         await sessionRegistry.recordStep(sk, report);
@@ -796,6 +856,7 @@ app.post("/v1/messages", async (req, res) => {
         req.headers as Record<string, string | string[] | undefined>,
       );
       await persistLocally(runId, report, optResult, messages, icfg);
+      noteOpenClawFreeOptimizationTelemetry(icfg, optResult);
       const sk = sessionRegistry.sessionKeyFromRequest(req.headers as any);
       if (icfg.telemetryMode !== "off") {
         await sessionRegistry.recordStep(sk, report);
@@ -1009,12 +1070,14 @@ function buildReport(
   }
   if (opt.licenseLimited) {
     notes.push(
-      "No estimated savings are recorded without an active trial or paid plan (provider received full messages). Activate savings on the local dashboard to apply trims and see dollar estimates.",
+      modeCfg.openclawFreeMode
+        ? "Optimization was limited for this request."
+        : "No estimated savings are recorded without an active trial or paid plan (provider received full messages). Activate savings on the local dashboard to apply trims and see dollar estimates.",
     );
   } else if (!opt.licenseLimited && modeCfg.optimizationRunMode === "observe" && saved > 0) {
     notes.push("Run mode is observe: projected savings shown; the provider received unoptimized messages.");
   }
-  if (!modeCfg.spectyraAccountLinked && modeCfg.runMode === "on") {
+  if (!modeCfg.spectyraAccountLinked && modeCfg.runMode === "on" && !modeCfg.openclawFreeMode) {
     notes.push(
       "Spectyra account not complete: sign in and save your Spectyra API key (run spectyra-companion setup). Showing preview savings only.",
     );
@@ -1100,6 +1163,10 @@ const SESSION_REFRESH_INTERVAL_MS = 14 * 60 * 1000;
 const server = app.listen(cfg.port, cfg.bindHost, () => {
   void ensureDesktopSessionRefreshed().catch(() => undefined);
   void refreshBillingEntitlement().catch(() => undefined);
+  if (cfg.openclawFreeMode) {
+    sendAnonymousEvent("companion_started");
+    sendAnonymousPing(readCompanionInstallState());
+  }
   setInterval(() => {
     void ensureDesktopSessionRefreshed().catch(() => undefined);
   }, SESSION_REFRESH_INTERVAL_MS);
@@ -1107,7 +1174,7 @@ const server = app.listen(cfg.port, cfg.bindHost, () => {
   const origin = `http://${cfg.bindHost}:${cfg.port}`;
   console.log(`\nSpectyra Local Companion`);
   console.log(`  Listening: ${origin}`);
-  console.log(`  Savings UI: ${origin}/dashboard  (open in your browser)`);
+  console.log(`  Savings UI: http://127.0.0.1:${cfg.port}/dashboard  (open in your browser)`);
   console.log(
     `  Run mode:  ${cfg.runMode}` +
       (cfg.runMode !== cfg.optimizationRunMode
@@ -1117,8 +1184,12 @@ const server = app.listen(cfg.port, cfg.bindHost, () => {
   console.log(`  Telemetry: ${cfg.telemetryMode}`);
   console.log(`  Snapshots: ${cfg.promptSnapshots}`);
   console.log(`  Inference: direct to provider (no Spectyra cloud relay)`);
-  console.log(`  Billing:   customer account`);
-  console.log(`\nSet your LLM app's API base URL to: http://localhost:${cfg.port}/v1\n`);
+  if (cfg.openclawFreeMode) {
+    console.log(`  Mode:      OpenClaw local — full optimization without a Spectyra account`);
+  } else {
+    console.log(`  Billing:   customer account`);
+  }
+  console.log(`\nSet your LLM app's API base URL to: http://127.0.0.1:${cfg.port}/v1\n`);
 });
 server.on("error", (err: NodeJS.ErrnoException) => {
   console.error(

@@ -2,12 +2,12 @@
  * Spectyra Local Companion CLI
  *
  * Commands:
- *   spectyra-companion           Start the companion server (default)
- *   spectyra-companion start     Start the companion server
- *   spectyra-companion setup     Interactive setup (account + provider key + OpenClaw config)
+ *   spectyra-companion           Start the companion (default); use --open to open the dashboard
+ *   spectyra-companion start     Start the companion
+ *   spectyra-companion setup     Optional guided setup (account, provider key, OpenClaw)
  *   spectyra-companion status    Check if companion is running
- *   spectyra-companion dashboard Open the local savings page in your browser
- *   spectyra-companion upgrade   Sign in (if needed) and open Stripe checkout (returns to local /dashboard)
+ *   spectyra-companion dashboard Open http://127.0.0.1:<port>/dashboard (companion must be running)
+ *   spectyra-companion upgrade   Optional account billing (not required for OpenClaw)
  *   spectyra-companion account [web|cancel|keep|pause|resume|delete]
  */
 
@@ -16,9 +16,13 @@ import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { homedir } from "node:os";
 import { join } from "node:path";
 import { createInterface } from "node:readline";
-import { spectyraOpenClawModelDefinitions, trialBannerState } from "@spectyra/shared";
+import { trialBannerState } from "@spectyra/shared";
 import { companionPackageVersion } from "./packageVersion.js";
 import { listOpenClawProviderKeys } from "./openclawAuthFallback.js";
+import { applyOpenClawSpectyraProvider } from "./openclawAutoConfig.js";
+import { ensureCompanionInstallState } from "./companionState.js";
+import { sendAnonymousEvent } from "./anonymousTelemetry.js";
+import { isProviderKeyConfigured } from "./providers.js";
 import {
   DESKTOP_CONFIG_DIR,
   SUPABASE_ANON_KEY,
@@ -455,6 +459,69 @@ function saveProviderKeys(keys: Record<string, string>) {
   writeFileSync(PROVIDER_KEYS_FILE, JSON.stringify(keys) + "\n");
 }
 
+function normalizeCliProviderId(raw: string | undefined): string {
+  const t = (raw || "openai").trim().toLowerCase();
+  if (t === "anthropic" || t === "groq") return t;
+  return "openai";
+}
+
+/**
+ * Best-effort: fill provider-keys from env vars or a single key in OpenClaw auth-profiles
+ * so `spectyra-companion start` does not require interactive setup.
+ */
+function bootstrapProviderKeysIfMissing(): void {
+  mkdirSync(DESKTOP_CONFIG_DIR, { recursive: true });
+  let keys = loadProviderKeys();
+  if (!Object.values(keys).some((v) => !!v)) {
+    const openai = process.env.OPENAI_API_KEY?.trim();
+    const anth = process.env.ANTHROPIC_API_KEY?.trim();
+    const groq = process.env.GROQ_API_KEY?.trim();
+    if (openai) keys = { ...keys, openai };
+    else if (anth) keys = { ...keys, anthropic: anth };
+    else if (groq) keys = { ...keys, groq };
+    else {
+      const from = listOpenClawProviderKeys();
+      if (from.length === 1) {
+        keys = { ...keys, [from[0].provider]: from[0].key };
+      }
+    }
+    if (Object.keys(keys).length > 0) {
+      saveProviderKeys(keys);
+    }
+  }
+  keys = loadProviderKeys();
+  if (!Object.values(keys).some((v) => !!v)) return;
+  const cfg = loadDesktopConfig();
+  const preferred = keys.openai
+    ? "openai"
+    : keys.anthropic
+      ? "anthropic"
+      : keys.groq
+        ? "groq"
+        : normalizeCliProviderId(cfg.provider as string | undefined);
+  if (!cfg.provider) cfg.provider = preferred;
+  cfg.port = cfg.port || 4111;
+  cfg.providerKeys = keys;
+  saveDesktopConfig(cfg);
+  if (!process.env.SPECTYRA_PROVIDER) process.env.SPECTYRA_PROVIDER = preferred;
+  if (!process.env.SPECTYRA_PROVIDER_KEYS_FILE && existsSync(PROVIDER_KEYS_FILE)) {
+    process.env.SPECTYRA_PROVIDER_KEYS_FILE = PROVIDER_KEYS_FILE;
+  }
+}
+
+function hasUpstreamProviderConfigured(): boolean {
+  const config = loadDesktopConfig();
+  const p = normalizeCliProviderId(process.env.SPECTYRA_PROVIDER || (config.provider as string | undefined));
+  if (isProviderKeyConfigured(p)) return true;
+  for (const cand of ["openai", "anthropic", "groq"] as const) {
+    if (isProviderKeyConfigured(cand)) {
+      if (!process.env.SPECTYRA_PROVIDER) process.env.SPECTYRA_PROVIDER = cand;
+      return true;
+    }
+  }
+  return false;
+}
+
 // ── Setup command ──
 
 async function runSetup() {
@@ -773,39 +840,19 @@ async function runSetup() {
   console.log(`${BOLD}3. OpenClaw integration${RESET}`);
   console.log("");
 
-  try {
-    const { execFileSync } = await import("node:child_process");
-    execFileSync("which", ["openclaw"], { stdio: "ignore" });
-
-    info("Configuring OpenClaw to use Spectyra models...");
-
-    const providerJson = JSON.stringify({
-      baseUrl: "http://127.0.0.1:4111/v1",
-      apiKey: "SPECTYRA_LOCAL",
-      api: "openai-completions",
-      models: spectyraOpenClawModelDefinitions(),
-    });
-
-    try {
-      execFileSync("openclaw", ["config", "set", "models.providers.spectyra", providerJson, "--strict-json"], {
-        stdio: "pipe",
-      });
-      ok("Spectyra provider added to OpenClaw config");
-    } catch {
-      warn("Could not auto-configure OpenClaw. You may need to add the provider manually.");
+  {
+    const cfgPort = typeof config.port === "number" ? config.port : 4111;
+    const oc = applyOpenClawSpectyraProvider(cfgPort);
+    if (oc.openclawOnPath) {
+      info("Configuring OpenClaw to use Spectyra models...");
+      if (oc.providerSet) ok("Spectyra provider added to OpenClaw config");
+      else warn("Could not auto-configure OpenClaw. You may need to add the provider manually.");
+      if (oc.defaultModelSet) ok("Default model set to spectyra/smart");
+      else warn("Could not set default model.");
+    } else {
+      info("OpenClaw not found — skipping auto-config.");
+      console.log(`${DIM}  Install OpenClaw: curl -fsSL https://openclaw.ai/install.sh | bash${RESET}`);
     }
-
-    try {
-      execFileSync("openclaw", ["config", "set", "agents.defaults.model.primary", '"spectyra/smart"', "--strict-json"], {
-        stdio: "pipe",
-      });
-      ok("Default model set to spectyra/smart");
-    } catch {
-      warn("Could not set default model.");
-    }
-  } catch {
-    info("OpenClaw not found — skipping auto-config.");
-    console.log(`${DIM}  Install OpenClaw: curl -fsSL https://openclaw.ai/install.sh | bash${RESET}`);
   }
   console.log("");
 
@@ -896,29 +943,34 @@ async function runOpenDashboard(): Promise<void> {
 // ── Start command ──
 
 function needsSetup(): boolean {
-  const keys = loadProviderKeys();
+  if (hasUpstreamProviderConfigured()) return false;
   const config = loadDesktopConfig();
-  const hasKey = Object.values(keys).some((v) => !!v);
-  const hasInlineKey = config.providerKeys && typeof config.providerKeys === "object" &&
+  const hasInlineKey =
+    config.providerKeys &&
+    typeof config.providerKeys === "object" &&
     Object.values(config.providerKeys as Record<string, string>).some((v) => !!v);
-  return !hasKey && !hasInlineKey;
+  return !hasInlineKey;
 }
 
 async function runStart(openDashboard: boolean) {
+  ensureCompanionInstallState();
+  bootstrapProviderKeysIfMissing();
+
   if (needsSetup()) {
     console.log("");
-    console.log(`${BOLD}First time?${RESET} Let's get you set up.`);
-    console.log(`${DIM}  No provider key found — running guided setup first.${RESET}`);
+    console.log(`${BOLD}LLM provider key required${RESET}`);
+    console.log(
+      `${DIM}  Export OPENAI_API_KEY (or ANTHROPIC_API_KEY / GROQ_API_KEY), ensure OpenClaw has a provider key we can read, or run:${RESET}`,
+    );
+    console.log(`${DIM}  ${CYAN}spectyra-companion setup${RESET}`);
     console.log("");
     await runSetup();
     if (needsSetup()) {
-      warn("Setup incomplete — no provider key configured. Start aborted.");
-      console.log(`${DIM}  Run ${CYAN}spectyra-companion setup${RESET}${DIM} when ready.${RESET}`);
+      warn("No provider key configured — start aborted.");
+      console.log(`${DIM}  Set a key in your environment or run ${CYAN}spectyra-companion setup${RESET}${DIM}.${RESET}`);
       process.exitCode = 1;
       return;
     }
-    console.log("");
-    info("Setup done. Starting companion...");
     console.log("");
   }
 
@@ -939,16 +991,41 @@ async function runStart(openDashboard: boolean) {
 
   mkdirSync(COMPANION_DIR, { recursive: true });
 
-  await import("./companion.js");
+  const portNum = parseInt(process.env.SPECTYRA_PORT || "4111", 10);
+  info("Applying OpenClaw configuration…");
+  const oc = applyOpenClawSpectyraProvider(portNum);
+  if (oc.providerSet || oc.defaultModelSet) {
+    ok("OpenClaw is pointed at Spectyra on this machine.");
+    sendAnonymousEvent("openclaw_config_applied", {
+      providerSet: oc.providerSet,
+      defaultModelSet: oc.defaultModelSet,
+    });
+  } else if (!oc.openclawOnPath) {
+    info("OpenClaw not on PATH — skipped auto-config. Install OpenClaw to wire spectyra/* automatically.");
+  }
+
+  console.log("");
+  info("Starting Spectyra companion…");
+  console.log("");
+
+  try {
+    await import("./companion.js");
+  } catch (e) {
+    sendAnonymousEvent("companion_error", {
+      stage: "import",
+      message: e instanceof Error ? e.message : String(e),
+    });
+    throw e;
+  }
 
   if (openDashboard) {
     const port = process.env.SPECTYRA_PORT || "4111";
     const okHealth = await waitForCompanionHealth(port, 15000);
     if (okHealth) {
       openBrowser(`http://127.0.0.1:${port}/dashboard`);
-      ok(`Opened http://127.0.0.1:${port}/dashboard`);
+      ok(`Opened dashboard at http://127.0.0.1:${port}/dashboard`);
     } else {
-      warn("Companion did not become healthy in time — open /dashboard manually when ready.");
+      warn("Companion did not become healthy in time — open http://127.0.0.1:" + port + "/dashboard when ready.");
     }
   }
 }
@@ -977,14 +1054,14 @@ function runHelp(): void {
   console.log("");
   console.log("Options:");
   console.log("  --version, -V  Print package version and exit");
-  console.log("  --open, -o     With start: open the local savings page in your browser");
+  console.log("  --open, -o     With start: open http://127.0.0.1:<port>/dashboard");
   console.log("");
   console.log("Commands:");
-  console.log("  setup        Interactive setup (account + provider key + OpenClaw config)");
-  console.log("  start        Start the companion server (default)");
-  console.log("  dashboard    Open local savings in your browser (companion must be running)");
+  console.log("  setup        Optional: guided setup (account, provider key, OpenClaw)");
+  console.log("  start        Start the companion (default) — auto-wires OpenClaw when possible");
+  console.log("  dashboard    Open local dashboard (companion must be running)");
   console.log("  status       Check if companion is running");
-  console.log("  upgrade      Sign in (if needed) and open Stripe checkout in your browser");
+  console.log("  upgrade      Account billing (optional; not required for OpenClaw)");
   console.log("");
 }
 

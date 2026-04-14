@@ -809,6 +809,7 @@ export function dashboardPageHtml(): string {
 
     <div id="err" class="err" hidden></div>
     <div id="accountGate" class="callout" hidden style="border-color: rgba(186,117,23,0.35)"></div>
+    <div id="openclawOnboarding" class="callout" hidden style="border-color: rgba(55,138,221,0.35)"></div>
     <div id="planCard" class="callout plan-card" hidden style="border-color: rgba(29,158,117,0.35)">
       <div class="plan-card-inner">
         <div class="plan-card-left">
@@ -1289,6 +1290,18 @@ export function dashboardPageHtml(): string {
       var bc = $('menuCancelRenewal');
       var bk = $('menuReactivateService');
       if (!card || !line || !btn) return;
+      if (health && health.openclawFreeMode === true) {
+        card.hidden = false;
+        line.textContent =
+          'Spectyra is active locally — saving tokens and reducing AI cost in OpenClaw. Runs through the companion on this machine; no account required.';
+        btn.style.display = 'none';
+        if (planManageWrap) planManageWrap.hidden = true;
+        if (planHint) {
+          planHint.hidden = true;
+          planHint.textContent = '';
+        }
+        return;
+      }
       if (!health || health.spectyraAccountLinked === false) {
         card.hidden = false;
         line.textContent =
@@ -1628,7 +1641,9 @@ export function dashboardPageHtml(): string {
       if (health?.status === 'ok') {
         $('status').className = 'status online';
         var stText = 'Active';
-        if (health.spectyraAccountLinked === true && health.billingAllowsRealSavings === false) {
+        if (health.openclawFreeMode === true) {
+          stText = 'Spectyra active';
+        } else if (health.spectyraAccountLinked === true && health.billingAllowsRealSavings === false) {
           stText = 'Upgrade to save';
         } else if (health.runMode === 'observe') {
           stText = 'Observe only';
@@ -1641,7 +1656,7 @@ export function dashboardPageHtml(): string {
 
       const ag = $('accountGate');
       if (ag) {
-        if (health?.status === 'ok' && health.spectyraAccountLinked === false) {
+        if (health?.status === 'ok' && health.spectyraAccountLinked === false && health.openclawFreeMode !== true) {
           ag.hidden = false;
           const em = health.accountEmail ? ' Account email (from session): ' + health.accountEmail + '. ' : '';
           ag.textContent =
@@ -1653,8 +1668,46 @@ export function dashboardPageHtml(): string {
         }
       }
 
+      var ocOn = $('openclawOnboarding');
+      if (ocOn && health && health.openclawFreeMode === true) {
+        if (health.providerConfigured === false) {
+          ocOn.hidden = false;
+          ocOn.textContent =
+            'No LLM provider key detected yet. Export OPENAI_API_KEY (or set keys in OpenClaw), or run spectyra-companion setup. Then restart with: spectyra-companion start --open';
+        } else {
+          ocOn.hidden = true;
+          ocOn.textContent = '';
+        }
+      } else if (ocOn) {
+        ocOn.hidden = true;
+      }
+
+      if (health && health.openclawFreeMode === true && health.installationId) {
+        try {
+          void fetch('/v1/anonymous/event', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              installationId: health.installationId,
+              eventName: 'dashboard_opened',
+              appVersion: '${companionVer}',
+            }),
+          });
+        } catch (e) {}
+      }
+
+      var heroLbl = document.querySelector('.hero-label-row .hero-label');
+      if (heroLbl && health && health.openclawFreeMode === true) {
+        heroLbl.textContent = 'Estimated savings — Spectyra is active with OpenClaw';
+      } else if (heroLbl) {
+        heroLbl.textContent = 'Estimated savings (input cost)';
+      }
+
       var linkedForBilling =
-        health && health.status === 'ok' && health.spectyraAccountLinked === true;
+        health &&
+        health.status === 'ok' &&
+        health.spectyraAccountLinked === true &&
+        health.openclawFreeMode !== true;
       var skipCloudBilling =
         linkedForBilling &&
         loadReason === 'poll' &&
@@ -1739,12 +1792,20 @@ export function dashboardPageHtml(): string {
         if (callout) {
           if (showToolThreadExplain) {
             callout.hidden = false;
-            callout.innerHTML =
-              '<strong>Why is savings still \\$0?</strong><br />' +
-              'Common reasons: <strong>no active plan</strong> after trial (projected savings only until you activate), ' +
-              '<strong>Observe</strong> run mode (no trimming to the model), ' +
-              'or this stretch of calls had no smaller prompt to send. ' +
-              'Use the <strong>Live</strong> row for your current OpenClaw session; completed rows appear when a session is finished.';
+            if (health && health.openclawFreeMode === true) {
+              callout.innerHTML =
+                '<strong>Why is savings still \\$0?</strong><br />' +
+                'Common reasons: <strong>Observe</strong> run mode (projected only), tool-thread safety (merge could not apply trims), ' +
+                'or this stretch of calls had no smaller prompt to send. ' +
+                'Use the <strong>Live</strong> row for your current OpenClaw session; completed rows appear when a session is finished.';
+            } else {
+              callout.innerHTML =
+                '<strong>Why is savings still \\$0?</strong><br />' +
+                'Common reasons: <strong>no active plan</strong> after trial (projected savings only until you activate), ' +
+                '<strong>Observe</strong> run mode (no trimming to the model), ' +
+                'or this stretch of calls had no smaller prompt to send. ' +
+                'Use the <strong>Live</strong> row for your current OpenClaw session; completed rows appear when a session is finished.';
+            }
           } else {
             callout.hidden = true;
             callout.textContent = '';

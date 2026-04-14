@@ -15,6 +15,11 @@ import { defaultAliasModels, type UpstreamProviderId } from "@spectyra/shared";
 import type { WorkflowPolicyMode } from "@spectyra/workflow-policy";
 
 export interface CompanionConfig {
+  /**
+   * OpenClaw distributed path: full local optimization without Spectyra account or billing.
+   * Default true; set `SPECTYRA_OPENCLAW_FREE=false` for account-gated / desktop-style behavior.
+   */
+  openclawFreeMode: boolean;
   runMode: SpectyraRunMode;
   /**
    * enforce — may return 422 and skip the provider when policy rules trip (see workflow-policy defaults).
@@ -106,6 +111,10 @@ export function loadConfig(): CompanionConfig {
   const gate = readSpectyraAccountGate(dc);
   const bypassAccount = process.env.SPECTYRA_BYPASS_ACCOUNT_CHECK === "true";
   const spectyraAccountLinked = bypassAccount || gate.linked;
+  const openclawFreeMode =
+    process.env.SPECTYRA_OPENCLAW_FREE === "false" || process.env.SPECTYRA_OPENCLAW_FREE === "0"
+      ? false
+      : true;
   const provider = normalizeProviderId(process.env.SPECTYRA_PROVIDER || (dc.provider as string | undefined));
   const defaults = defaultAliasModels(provider);
   const licenseKey =
@@ -115,8 +124,13 @@ export function loadConfig(): CompanionConfig {
   const requestedRunMode =
     (process.env.SPECTYRA_RUN_MODE as SpectyraRunMode) || (dc.runMode as SpectyraRunMode) || "on";
   const optimizationRunMode: SpectyraRunMode =
-    requestedRunMode === "off" ? "off" : spectyraAccountLinked ? requestedRunMode : "observe";
+    requestedRunMode === "off"
+      ? "off"
+      : openclawFreeMode || spectyraAccountLinked
+        ? requestedRunMode
+        : "observe";
   return {
+    openclawFreeMode,
     runMode: requestedRunMode,
     workflowPolicyMode: parseWorkflowPolicyMode(process.env.SPECTYRA_WORKFLOW_POLICY),
     telemetryMode: (process.env.SPECTYRA_TELEMETRY as TelemetryMode) || (dc.telemetryMode as TelemetryMode) || "local",

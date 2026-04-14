@@ -6,6 +6,7 @@
   "license": "MIT",
   "files": [
     "SKILL.md",
+    "dashboard-preview.png",
     "SECURITY.md",
     "README.md",
     "skill.json",

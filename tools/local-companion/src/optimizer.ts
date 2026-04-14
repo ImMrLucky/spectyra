@@ -4,6 +4,7 @@
  * ALL optimization runs in-process. ZERO customer data leaves the environment.
  *
  * License model:
+ *   - OpenClaw free mode (default) → full local optimization without account/billing
  *   - Linked org with active trial or paid plan (Spectyra Cloud billing) → full optimization when run mode is on
  *   - Otherwise → observe-only: full pipeline runs so user SEES projected savings, but zero optimization is applied
  */
@@ -104,12 +105,20 @@ function fromCanonical(msgs: CanonicalMessage[]): ChatMessage[] {
   return msgs.map(m => ({ role: m.role, content: m.text ?? "" }));
 }
 
-export function optimize(messages: ChatMessage[], runMode: SpectyraRunMode, licenseKey?: string): OptimizeResult {
+export function optimize(
+  messages: ChatMessage[],
+  runMode: SpectyraRunMode,
+  licenseKey?: string,
+  opts?: { openclawFreeMode?: boolean },
+): OptimizeResult {
   const inputTokensBefore = estimateTokens(messages);
 
-  const licenseStatus: LicenseStatus = licenseKey
-    ? (activateLicense(licenseKey) ? "active" : "observe_only")
-    : "observe_only";
+  let licenseStatus: LicenseStatus = "observe_only";
+  if (opts?.openclawFreeMode) {
+    licenseStatus = "active";
+  } else if (licenseKey) {
+    licenseStatus = activateLicense(licenseKey) ? "active" : "observe_only";
+  }
 
   if (runMode === "off" && licenseStatus === "active") {
     return {
@@ -132,7 +141,12 @@ export function optimize(messages: ChatMessage[], runMode: SpectyraRunMode, lice
   const history = toHistoricalSignals(learningProfile);
   const calibration = mergeCalibrationForDetection(learningProfile, undefined);
   const features = detectFeatures(canonical, history, calibration);
-  const pipeline = runPipeline({ request: canonical, features, profile: learningProfile, licenseStatus });
+  const pipeline = runPipeline({
+    request: canonical,
+    features,
+    profile: learningProfile,
+    licenseStatus,
+  });
 
   const repeatedEst = estimateRepeatedTokensFromFeatures(features, inputTokensBefore);
   const toolThread = hasOpenAiToolThread(messages);
