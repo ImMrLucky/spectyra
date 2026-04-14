@@ -1,9 +1,9 @@
 {
   "name": "@spectyra/openclaw-skill",
-  "version": "1.0.2",
+  "version": "1.0.3",
   "private": false,
   "description": "Spectyra optimization skill for OpenClaw — routes spectyra/* models through Local Companion (chat, agents, cron, tools)",
-  "license": "MIT",
+  "license": "MIT-0",
   "files": [
     "SKILL.md",
     "dashboard-preview.png",

@@ -1,21 +1,19 @@
 ---
 name: spectyra
-version: 1.0.2
+version: 1.0.3
 description: "Reduce wasted tokens and AI cost in OpenClaw. Install the local companion, open the dashboard at http://127.0.0.1:4111/dashboard, and use spectyra/* models. No account or payment required."
 homepage: https://spectyra.ai
 metadata:
   openclaw:
     emoji: "◈"
     requires:
-      anyBins:
+      bins:
         - spectyra-companion
     install:
-      - id: npm
-        kind: node
+      - kind: node
         package: "@spectyra/local-companion"
         bins:
           - spectyra-companion
-        label: "Install Spectyra Local Companion (npm)"
 ---
 
 # Spectyra
@@ -60,7 +58,7 @@ The dashboard shows:
 
 ## Dashboard preview
 
-![Spectyra companion dashboard — savings and session activity](https://github.com/spectyra/spectyra/raw/main/packages/openclaw-skill/dashboard-preview.png)
+Open **http://127.0.0.1:4111/dashboard** after starting the companion — you’ll see estimated savings, token reduction, and session stats. (A reference screenshot lives in the [Spectyra repo](https://github.com/spectyra/spectyra/tree/main/packages/openclaw-skill) as `dashboard-preview.png`.)
 
 ---
 
