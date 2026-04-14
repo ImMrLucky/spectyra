@@ -6,6 +6,8 @@ Automatic token optimization for OpenClaw. Reduces AI costs by routing requests 
 
 **Reviewers:** see **`SECURITY.md`** (network boundaries, provider keys, payments).
 
+**Publishing to ClawHub (maintainers):** from this folder, pass **`--workdir .`** (or an absolute path to this folder). Otherwise the ClawHub CLI may resolve `.` against your OpenClaw default workspace instead of this directory, which fails validation with “SKILL.md required”. Example: `clawhub --workdir . publish . --slug spectyra --version X.Y.Z`.
+
 ## Install
 
 ```bash
