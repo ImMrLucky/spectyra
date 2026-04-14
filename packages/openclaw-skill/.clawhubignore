@@ -1,0 +1,3 @@
+# ClawHub only accepts text-based files in the published bundle (see clawhub docs/skill-format.md).
+# Keep the PNG in git for GitHub / raw URLs; exclude it from the ClawHub skill archive.
+dashboard-preview.png
