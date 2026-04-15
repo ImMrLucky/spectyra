@@ -19,3 +19,7 @@ apps/desktop/release/
 apps/web/src/assets/downloads/*.dmg
 apps/web/src/assets/downloads/*.exe
 apps/web/src/assets/downloads/*.zip
+
+# Python bytecode (e.g. if tools touch packages/*.py)
+__pycache__/
+*.py[cod]
