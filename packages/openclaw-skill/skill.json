@@ -1,8 +1,8 @@
 {
   "name": "spectyra",
-  "version": "1.0.4",
+  "version": "1.0.6",
   "displayName": "Spectyra Optimization",
-  "description": "Spectyra runs alongside OpenClaw to reduce token usage and cost on every LLM call in real time—without changing results. See live savings and optimization insights in the local dashboard at http://127.0.0.1:4111/dashboard. No account or payment required.",
+  "description": "Spectyra runs alongside OpenClaw to reduce token usage and cost on every LLM call in real time—without changing results. See live savings and optimization insights in the local dashboard at http://127.0.0.1:4111/dashboard. No Spectyra account required.",
   "author": "Spectyra",
   "homepage": "https://spectyra.ai",
   "repository": {

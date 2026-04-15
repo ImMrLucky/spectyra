@@ -1,10 +1,10 @@
 #!/usr/bin/env python3
 """
-Merge Supabase login JSON + Spectyra org API key / license into ~/.spectyra/desktop/config.json.
+Merge Supabase login JSON + Spectyra org access string (and optional device key from setup) into ~/.spectyra/desktop/config.json.
 Used by setup.sh — matches tools/local-companion desktopSession.saveSupabaseSession shape.
 
-Env (optional): SPECTYRA_ACCOUNT_EMAIL, SPECTYRA_ORG_API_KEY, SPECTYRA_LICENSE_KEY
-Stdin: JSON body from Supabase password grant or signup (access_token, refresh_token, expires_in).
+Env (optional): SPECTYRA_ACCOUNT_EMAIL, SPECTYRA_ORG_API_KEY, SPECTYRA_LICENSE_KEY (env names match desktop app; device slot uses LICENSE_KEY)
+Stdin: JSON from Supabase sign-in or signup (access_token, refresh_token, expires_in).
 """
 from __future__ import annotations
 

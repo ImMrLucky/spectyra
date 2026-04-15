@@ -4,7 +4,7 @@ Automatic token optimization for OpenClaw. Reduces AI costs by routing requests 
 
 **ClawHub / OpenClaw skills:** the published artifact is **`SKILL.md`** (YAML frontmatter + body). Files like `skill.json` / `setup.sh` are legacy extras for older merge-based installers and are not what OpenClaw’s skill index consumes.
 
-**Reviewers:** see **`SECURITY.md`** (network boundaries, provider keys, payments).
+**Reviewers:** see **`SECURITY.md`** (network boundaries, what stays local).
 
 **Publishing to ClawHub (maintainers):** from this folder, pass **`--workdir .`** (or an absolute path to this folder). Otherwise the ClawHub CLI may resolve `.` against your OpenClaw default workspace instead of this directory, which fails validation with “SKILL.md required”. Example: `clawhub --workdir . publish . --slug spectyra --version X.Y.Z`.
 
@@ -16,14 +16,14 @@ openclaw skills install spectyra
 
 ## Setup
 
-You need a **Spectyra account** (email + password) and a **Spectyra API key** — that’s all OpenClaw needs for identity and your Spectyra workspace (one workspace per account on the server; you don’t configure orgs). Optional paid access is managed on **spectyra.ai**, not in this shell script. Install the companion and run guided setup:
+Install the companion and start it (same path as **`SKILL.md`**):
 
 ```bash
-npm install -g @spectyra/local-companion
-spectyra-companion setup
+npm install -g @spectyra/local-companion@latest
+spectyra-companion start --open
 ```
 
-That flow signs you up or in and saves your provider key + OpenClaw wiring. Details are in **`SKILL.md`**.
+Optional: run **`spectyra-companion setup`** if you want a guided flow to store your **OpenAI / Anthropic / Groq** access on disk for the companion.
 
 ## Usage
 
@@ -40,15 +40,14 @@ Savings **vary by workload**. Use the local dashboard to measure real runs; opti
 When installed, this skill documents how to:
 
 1. Run the **Local Companion** from **`npm install -g @spectyra/local-companion`**
-2. **Point OpenClaw** at `http://127.0.0.1:4111/v1` (via **`spectyra-companion setup`**)
+2. **Point OpenClaw** at `http://127.0.0.1:4111/v1` (via **`spectyra-companion setup`** when you need to wire config)
 3. Use model aliases: **`spectyra/smart`**, **`spectyra/fast`**, **`spectyra/quality`**
 
 ## Requirements
 
 - **OpenClaw** installed and working
-- **Spectyra account + Spectyra API key** (email/password — created or signed in via **`spectyra-companion setup`** or the web app)
 - **`@spectyra/local-companion`** on your PATH (`npm install -g @spectyra/local-companion`)
-- **LLM provider API key** on disk — configured during **`spectyra-companion setup`**
+- **OpenAI, Anthropic, or Groq** access configured where the companion expects it (often via **`spectyra-companion setup`**)
 
 ## See savings
 
@@ -72,15 +71,14 @@ Your AI Provider (OpenAI, Anthropic, Groq)
 Response (optimized, cheaper)
 ```
 
-- Inference stays local; your provider key is not sent to Spectyra for chat.
+- Inference stays local; upstream LLM access is not sent to Spectyra for chat.
 - Savings show on the **local dashboard** at `/dashboard` (served by the companion).
 
 ## Quick start (minimal)
 
 ```bash
 openclaw skills install spectyra
-npm install -g @spectyra/local-companion
-spectyra-companion setup
+npm install -g @spectyra/local-companion@latest
 spectyra-companion start --open
 ```
 
@@ -90,7 +88,7 @@ Then use OpenClaw with **`spectyra/smart`** (Control UI, gateway, or e.g. `openc
 
 If you don't have OpenClaw yet, you can use the installer from [spectyra.ai/install.sh](https://spectyra.ai/install.sh). **Prefer reviewing the script before executing it** (same pattern as in `SKILL.md`), or install OpenClaw and this skill via npm as documented above.
 
-Then run `spectyra-companion setup` and `spectyra-companion start --open` before chatting.
+Then run `spectyra-companion start --open` before chatting (use **`spectyra-companion setup`** first if you still need to store upstream LLM access locally).
 
 ## See also (not required for this skill)
 
@@ -103,4 +101,4 @@ Then run `spectyra-companion setup` and `spectyra-companion start --open` before
 openclaw skills uninstall spectyra
 ```
 
-This removes the Spectyra provider from your OpenClaw config. Your AI provider key and Spectyra account are not affected.
+This removes the Spectyra provider from your OpenClaw config. Files under **`~/.spectyra/`** are not removed by that command.

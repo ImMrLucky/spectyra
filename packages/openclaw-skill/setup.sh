@@ -3,10 +3,10 @@
 # Runs after `openclaw skills install spectyra` merges config-fragment.json.
 #
 # SECURITY INVARIANTS (for auditors; see SECURITY.md in this folder):
-# - OpenAI/Anthropic/Groq API keys are written ONLY under ~/.spectyra/desktop/ (local disk).
-# - Those provider keys are NEVER sent in HTTP requests to Spectyra cloud — only used locally
-#   by the companion to call the upstream LLM API after optimization.
-# - Traffic to SPECTYRA_API is account/license related (same product as spectyra.ai), not provider secrets.
+# - OpenAI/Anthropic/Groq access values are written ONLY under ~/.spectyra/desktop/ (local disk).
+# - That material is NEVER sent to Spectyra cloud in HTTP — only used locally by the companion
+#   to call the upstream LLM HTTP API after optimization.
+# - Traffic to SPECTYRA_API is account-related (same product as spectyra.ai), not upstream LLM material.
 set -euo pipefail
 
 GREEN='\033[0;32m'
@@ -64,7 +64,10 @@ SIGNED_IN=false
 
 # Check for existing session
 if [ -f "$CONFIG_DIR/config.json" ]; then
-  EXISTING_KEY=$(cat "$CONFIG_DIR/config.json" 2>/dev/null | grep -o '"apiKey"[[:space:]]*:[[:space:]]*"[^"]*"' | head -1 | sed 's/.*"apiKey"[[:space:]]*:[[:space:]]*"//' | sed 's/"$//' || true)
+  EXISTING_KEY=$(python3 -c 'import json,sys; p=sys.argv[1];
+from pathlib import Path
+path=Path(p)
+print((json.loads(path.read_text()).get("apiKey") or "") if path.exists() else "")' "$CONFIG_JSON" 2>/dev/null || true)
   if [ -n "$EXISTING_KEY" ] && [ "$EXISTING_KEY" != "null" ] && [ "$EXISTING_KEY" != "" ]; then
     ok "Existing Spectyra session found"
     SIGNED_IN=true
@@ -80,7 +83,7 @@ if [ "$SIGNED_IN" = false ]; then
     # ── Sign in ──
     echo ""
     read -rp "  Email: " auth_email
-    read -rsp "  Password: " auth_password
+    read -rsp "  Sign-in phrase: " auth_password
     echo ""
 
     info "Signing in..."
@@ -98,10 +101,10 @@ if [ "$SIGNED_IN" = false ]; then
       LICENSE_KEY=""
       API_KEY=""
 
-      # Idempotent org + API key (POST /auth/bootstrap with {} wrongly requires org_name and always fails)
+      # Idempotent org + org access string (POST /auth/bootstrap with {} wrongly requires org_name and always fails)
       ENSURE_TMP=$(mktemp)
       ECODE=$(curl -sS -o "$ENSURE_TMP" -w "%{http_code}" -X POST "$SPECTYRA_API/auth/ensure-account" \
-        -H "Authorization: Bearer $SPECTYRA_TOKEN" \
+        --oauth2-bearer "$SPECTYRA_TOKEN" \
         -H "Content-Type: application/json" \
         -d "{}" || echo "000")
       if [ "$ECODE" = "200" ] || [ "$ECODE" = "201" ]; then
@@ -114,14 +117,14 @@ if [ "$SIGNED_IN" = false ]; then
 
       if [ -z "$LICENSE_KEY" ]; then
         LK_RESP=$(curl -sf -X POST "$SPECTYRA_API/license/generate" \
-          -H "Authorization: Bearer $SPECTYRA_TOKEN" \
+          --oauth2-bearer "$SPECTYRA_TOKEN" \
           -H "Content-Type: application/json" \
           -d '{"device_name":"openclaw-skill-setup"}' 2>/dev/null || echo '{}')
         LICENSE_KEY=$(echo "$LK_RESP" | grep -o '"license_key"[[:space:]]*:[[:space:]]*"[^"]*"' | head -1 | sed 's/.*"license_key"[[:space:]]*:[[:space:]]*"//' | sed 's/"$//' || true)
       fi
 
       if [ -n "$LICENSE_KEY" ]; then
-        ok "License key provisioned"
+        ok "Spectyra device key saved"
       fi
 
       mkdir -p "$CONFIG_DIR"
@@ -136,7 +139,7 @@ if [ "$SIGNED_IN" = false ]; then
       fi
       unset SPECTYRA_ACCOUNT_EMAIL SPECTYRA_ORG_API_KEY SPECTYRA_LICENSE_KEY
       if [ -z "$API_KEY" ]; then
-        info "No new API key returned (account may already exist). Add one at spectyra.ai → Settings if needed."
+        info "No new org access string returned (account may already exist). Check spectyra.ai → Settings if needed."
       fi
     else
       ERR_MSG=$(echo "$LOGIN_RESP" | grep -o '"error_description"[[:space:]]*:[[:space:]]*"[^"]*"' | head -1 | sed 's/.*"error_description"[[:space:]]*:[[:space:]]*"//' | sed 's/"$//' || echo "Sign-in failed")
@@ -147,7 +150,7 @@ if [ "$SIGNED_IN" = false ]; then
     # ── Sign up ──
     echo ""
     read -rp "  Email: " auth_email
-    read -rsp "  Password (min 8 chars): " auth_password
+    read -rsp "  Sign-in phrase (min 8 chars): " auth_password
     echo ""
     read -rp "  Workspace name (optional — Enter uses default from your email): " auth_org
 
@@ -189,7 +192,7 @@ if [ "$SIGNED_IN" = false ]; then
       ORG_JSON=$(AUTH_ORG="$auth_org" python3 -c "import json,os; print(json.dumps({'org_name': os.environ['AUTH_ORG']}))")
       ENSURE_TMP=$(mktemp)
       ECODE=$(curl -sS -o "$ENSURE_TMP" -w "%{http_code}" -X POST "$SPECTYRA_API/auth/ensure-account" \
-        -H "Authorization: Bearer $SPECTYRA_TOKEN" \
+        --oauth2-bearer "$SPECTYRA_TOKEN" \
         -H "Content-Type: application/json" \
         -d "$ORG_JSON" || echo "000")
       if [ "$ECODE" = "200" ] || [ "$ECODE" = "201" ]; then
@@ -202,7 +205,7 @@ if [ "$SIGNED_IN" = false ]; then
 
       if [ -z "$LICENSE_KEY" ]; then
         LK_RESP=$(curl -sf -X POST "$SPECTYRA_API/license/generate" \
-          -H "Authorization: Bearer $SPECTYRA_TOKEN" \
+          --oauth2-bearer "$SPECTYRA_TOKEN" \
           -H "Content-Type: application/json" \
           -d '{"device_name":"openclaw-skill-setup"}' 2>/dev/null || echo '{}')
         LICENSE_KEY=$(echo "$LK_RESP" | grep -o '"license_key"[[:space:]]*:[[:space:]]*"[^"]*"' | head -1 | sed 's/.*"license_key"[[:space:]]*:[[:space:]]*"//' | sed 's/"$//' || true)
@@ -226,23 +229,23 @@ if [ "$SIGNED_IN" = false ]; then
 fi
 echo ""
 
-# ── 2. AI Provider key ──
-echo -e "${BOLD}2. AI provider key${RESET}"
+# ── 2. Upstream LLM access ──
+echo -e "${BOLD}2. OpenAI / Anthropic / Groq${RESET}"
 echo ""
 
 PROVIDER_SET=false
 
-# Check if provider key already exists
+# Check if upstream access already exists
 if [ -f "$CONFIG_DIR/provider-keys.json" ]; then
   EXISTING_KEYS=$(cat "$CONFIG_DIR/provider-keys.json" 2>/dev/null || echo '{}')
   if echo "$EXISTING_KEYS" | grep -qE '"(openai|anthropic|groq)"[[:space:]]*:[[:space:]]*"[^"]+' 2>/dev/null; then
-    ok "Provider key already configured"
+    ok "Upstream access already saved"
     PROVIDER_SET=true
   fi
 fi
 
 if [ "$PROVIDER_SET" = false ]; then
-  echo -e "  ${DIM}Your API key stays on this machine — never sent to Spectyra.${RESET}"
+  echo -e "  ${DIM}Your upstream access stays on this machine — not sent to Spectyra.${RESET}"
   echo ""
   echo "  Which provider?"
   echo "    1) OpenAI"
@@ -259,14 +262,14 @@ if [ "$PROVIDER_SET" = false ]; then
   esac
 
   echo ""
-  read -rsp "  Paste your $PROVIDER API key: " provider_key
+  read -rsp "  Paste your $PROVIDER access value: " provider_key
   echo ""
 
   if [ -n "$provider_key" ]; then
     mkdir -p "$CONFIG_DIR"
 
     export SP_PROVIDER="$PROVIDER"
-    export SP_PROV_KEY="$provider_key"
+    export SP_PROV_VALUE="$provider_key"
     python3 <<'PY'
 import json, os
 from pathlib import Path
@@ -274,7 +277,7 @@ from pathlib import Path
 cfg_path = Path(os.path.expanduser("~/.spectyra/desktop/config.json"))
 keys_path = Path(os.path.expanduser("~/.spectyra/desktop/provider-keys.json"))
 prov = os.environ["SP_PROVIDER"]
-key = os.environ["SP_PROV_KEY"]
+key = os.environ["SP_PROV_VALUE"]
 
 cfg: dict = {}
 if cfg_path.exists():
@@ -302,12 +305,12 @@ cfg_path.parent.mkdir(parents=True, exist_ok=True)
 cfg_path.write_text(json.dumps(cfg, indent=2) + "\n", encoding="utf-8")
 keys_path.write_text(json.dumps({prov: key}, indent=2) + "\n", encoding="utf-8")
 PY
-    unset SP_PROVIDER SP_PROV_KEY
+    unset SP_PROVIDER SP_PROV_VALUE
 
-    ok "Key saved for $PROVIDER"
+    ok "Saved for $PROVIDER"
     PROVIDER_SET=true
   else
-    warn "No key provided. Add one later in the Spectyra Desktop app."
+    warn "No value provided. Add later in the Spectyra Desktop app."
   fi
 fi
 echo ""
@@ -359,7 +362,7 @@ if [ "$COMPANION_RUNNING" = false ] && [ "$PROVIDER_SET" = true ]; then
   if [ -n "$COMPANION_SCRIPT" ]; then
     info "Starting companion on port 4111..."
 
-    # Determine provider key env var
+    # Determine default upstream from config
     PROVIDER_FROM_CONFIG="openai"
     if [ -f "$CONFIG_DIR/config.json" ]; then
       PROVIDER_FROM_CONFIG=$(cat "$CONFIG_DIR/config.json" | grep -o '"provider"[[:space:]]*:[[:space:]]*"[^"]*"' | head -1 | sed 's/.*"provider"[[:space:]]*:[[:space:]]*"//' | sed 's/"$//' || echo "openai")
@@ -429,7 +432,7 @@ PLIST
 fi
 
 if [ "$COMPANION_RUNNING" = false ] && [ "$PROVIDER_SET" = false ]; then
-  warn "Skipped — add a provider key first (step 2 above)."
+  warn "Skipped — complete step 2 (upstream access) first."
 fi
 echo ""
 
@@ -447,14 +450,14 @@ else
   echo -e "  ${BOLD}Almost there!${RESET}"
   echo ""
   if [ "$PROVIDER_SET" = false ]; then
-    echo "  Remaining: add an AI provider key"
+    echo "  Remaining: add upstream LLM access (step 2)"
   fi
   echo "  Remaining: start the Local Companion"
   echo ""
   echo -e "  Option A: Download the ${BOLD}Spectyra Desktop app${RESET} (includes everything):"
   echo -e "            ${CYAN}https://spectyra.ai/download${RESET}"
   echo ""
-  echo -e "  Option B: Re-run this setup after adding a provider key:"
+  echo -e "  Option B: Re-run this setup after step 2:"
   echo -e "            ${CYAN}openclaw skills install spectyra${RESET}"
 fi
 echo ""
