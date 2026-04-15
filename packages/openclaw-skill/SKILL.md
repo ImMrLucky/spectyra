@@ -1,6 +1,6 @@
 ---
 name: spectyra
-version: 1.0.6
+version: 1.0.8
 description: "Reduce wasted tokens and AI cost in OpenClaw. Install the local companion, open the dashboard at http://127.0.0.1:4111/dashboard, and use spectyra/* models. No Spectyra account required."
 homepage: https://spectyra.ai
 metadata:
@@ -36,7 +36,7 @@ Dashboard:
 
 `http://127.0.0.1:4111/dashboard`
 
----
+___
 
 ## What Spectyra does
 
@@ -44,7 +44,7 @@ Spectyra helps reduce wasted tokens and lower AI cost while you use OpenClaw.
 
 It applies **multiple optimization layers** across prompt structure, context handling, repeated instructions, and flow efficiency—not a single “compress the prompt” trick. Spectyra is **not just compression**. It is designed to remove waste **without changing the result you are trying to get**: the intended outcome should stay aligned.
 
----
+___
 
 ## What you will see
 
@@ -54,13 +54,13 @@ The dashboard shows:
 - Optimization activity and health  
 - Request- and session-level views of what changed  
 
----
+___
 
 ## Dashboard preview
 
-Open **http://127.0.0.1:4111/dashboard** after starting the companion — you’ll see estimated savings, token reduction, and session stats. (A reference screenshot lives in the [Spectyra repo](https://github.com/spectyra/spectyra/tree/main/packages/openclaw-skill) as `dashboard-preview.png`.)
+Open **http://127.0.0.1:4111/dashboard** after starting the companion — you’ll see estimated savings, token reduction, and session stats.
 
----
+___
 
 ## Using OpenClaw
 
