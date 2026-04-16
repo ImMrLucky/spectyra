@@ -41,8 +41,8 @@ LLM optimization • OpenClaw • token reduction • prompt optimization • ag
 
 or via CLI:
 
-```bash
-openclaw skills install immrlucky/spectyra
+run in mac terminal or cmd prompt:
+openclaw skills install spectyra
 
 ## Install & Start Local Companion (run once)
 npm install -g @spectyra/local-companion@latest && spectyra-companion start --open
