@@ -8,6 +8,11 @@ This pack installs **`@spectyra/local-companion`** and merges OpenClaw config so
 - **Invariant:** That material is **not** sent to Spectyra’s cloud for model calls. The companion calls the upstream service **from your machine** after optimization.
 - **Network:** none of that upstream material goes to `spectyra.ai` for provider authentication.
 
+## Cloud API base URL (`SPECTYRA_API` in `setup.sh`)
+
+- **Default:** `https://spectyra.ai/v1` — same public Spectyra Cloud API as `tools/local-companion/src/cloudDefaults.ts` (`DEFAULT_SPECTYRA_CLOUD_API_V1`). This matches the **spectyra.ai** product domain (not a third-party host).
+- The companion may also retry certain requests against a Railway deployment hostname when resolving the public hostname; that is the **same application** as documented in-repo (`spectyraCloudFetch.ts`, `vercel.json`). It is not a separate product.
+
 ## What may go to Spectyra cloud (default base in `setup.sh`; same backend as spectyra.ai)
 
 - Account lifecycle helpers during setup (same product as the Spectyra web app).

@@ -1,6 +1,6 @@
 ---
 name: spectyra
-version: 1.0.5
+version: 1.0.9
 description: "Reduce wasted tokens and AI cost in OpenClaw. Install the local companion, open the dashboard at http://127.0.0.1:4111/dashboard, and use spectyra/* models. No Spectyra account required."
 homepage: https://spectyra.ai
 metadata:

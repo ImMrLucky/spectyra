@@ -32,9 +32,86 @@
   font-size: 18px;
   margin: 0 0 32px 0;
   opacity: 0.9;
-  max-width: 600px;
+  max-width: 640px;
   margin-left: auto;
   margin-right: auto;
+}
+
+.hero-link {
+  color: var(--spectyra-blue-pale);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  font-weight: 500;
+
+  &:hover {
+    color: #fff;
+  }
+}
+
+.install-block {
+  max-width: 720px;
+  margin: 0 auto 28px;
+  text-align: left;
+}
+
+.install-label {
+  font-size: 13px;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  opacity: 0.85;
+  margin: 0 0 8px;
+}
+
+.install-command {
+  display: block;
+  background: rgba(0, 0, 0, 0.22);
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  border-radius: var(--radius-input);
+  padding: 16px 18px;
+  font-size: 14px;
+  line-height: 1.5;
+  overflow-x: auto;
+  color: var(--spectyra-blue-pale);
+  margin: 0 0 14px;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.dashboard-hint {
+  margin: 0;
+  font-size: 16px;
+  opacity: 0.95;
+  line-height: 1.5;
+}
+
+.inline-code {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-size: 0.9em;
+  padding: 0.12em 0.4em;
+  border-radius: 4px;
+  background: rgba(0, 0, 0, 0.2);
+}
+
+.hero-section .inline-code {
+  color: var(--spectyra-blue-pale);
+}
+
+.feature-card .inline-code,
+.how-it-works .inline-code,
+.cta-section .inline-code {
+  background: rgba(0, 0, 0, 0.06);
+  color: var(--text-primary);
+}
+
+.text-link {
+  color: var(--spectyra-blue);
+  font-weight: 500;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+
+  &:hover {
+    color: var(--text-primary);
+  }
 }
 
 .cta-buttons {

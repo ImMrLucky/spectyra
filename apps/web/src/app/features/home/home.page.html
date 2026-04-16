@@ -1,143 +1,113 @@
 <div class="home-container">
     <div class="hero-section">
-        <h1>Spectyra</h1>
-        <p class="tagline">Make AI Agents Act Like Real Engineers</p>
+        <h1>Spectyra for OpenClaw</h1>
+        <p class="tagline">Local companion, live token savings, <code class="inline-code">spectyra/*</code> models</p>
 
         <p class="description">
-            Spectyra is the guardrail layer for agentic AI.
-            It ensures your AI follows rules, uses the right tools, reads errors before patching,
-            and stops wasting tokens on retries and hallucinated actions.
+            Run Spectyra next to OpenClaw: optimize LLM traffic through a small process on your machine,
+            then watch estimated savings in real time on the local dashboard. Install the skill from
+            <a href="https://clawhub.ai/immrlucky/spectyra" target="_blank" rel="noopener noreferrer" class="hero-link">ClawHub</a>,
+            then install and start the Local Companion.
         </p>
 
+        <div class="install-block">
+            <p class="install-label">Install and start the Local Companion</p>
+            <pre class="install-command">npm install -g @spectyra/local-companion@latest &amp;&amp; spectyra-companion start --open</pre>
+            <p class="dashboard-hint">
+                After it starts, open the <strong>real-time savings</strong> dashboard:
+                <a href="http://127.0.0.1:4111/dashboard" target="_blank" rel="noopener noreferrer" class="hero-link">http://127.0.0.1:4111/dashboard</a>
+            </p>
+        </div>
+
         <div class="cta-buttons">
-            <a routerLink="/register" class="btn btn-primary">Start Free Trial</a>
+            <a href="https://clawhub.ai/immrlucky/spectyra" target="_blank" rel="noopener noreferrer" class="btn btn-primary">View skill on ClawHub</a>
             <a routerLink="/login" class="btn btn-secondary">Sign In</a>
             <a routerLink="/contact" class="btn btn-tertiary">Contact</a>
         </div>
     </div>
 
-
     <div class="features-section">
-    <h2>Key Features</h2>
-    <div class="features-grid">
-      <div class="feature-card">
-        <div class="feature-icon">
-          <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-            <path d="M12 2L2 7L12 12L22 7L12 2Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-            <path d="M2 17L12 22L22 17" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-            <path d="M2 12L12 17L22 12" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-          </svg>
-        </div>
-        <h3>Token Optimization</h3>
-        <p>Reduce token usage by up to 70% by preventing redundant semantic computations</p>
-      </div>
-      <div class="feature-card">
-        <div class="feature-icon">
-          <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-            <path d="M12 2V22M17 5H9.5C8.57174 5 7.6815 5.36875 7.02513 6.02513C6.36875 6.6815 6 7.57174 6 8.5C6 9.42826 6.36875 10.3185 7.02513 10.9749C7.6815 11.6313 8.57174 12 9.5 12H14.5C15.4283 12 16.3185 12.3687 16.9749 13.0251C17.6313 13.6815 18 14.5717 18 15.5C18 16.4283 17.6313 17.3185 16.9749 17.9749C16.3185 18.6313 15.4283 19 14.5 19H6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-          </svg>
-        </div>
-          <h3>Cost Savings</h3>
-          <p>
-              Stop AI from looping, guessing, and re-editing the wrong files.
-              Spectyra enforces correct workflows so agents succeed on the first attempt—cutting cost and time.
-          </p>
-
-      </div>
-      <div class="feature-card">
-        <div class="feature-icon">
-          <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-            <rect x="3" y="11" width="18" height="11" rx="2" ry="2" stroke="currentColor" stroke-width="2"/>
-            <path d="M7 11V7C7 4.79086 8.79086 3 11 3H13C15.2091 3 17 4.79086 17 7V11" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
-            <circle cx="12" cy="16.5" r="1.5" fill="currentColor"/>
-          </svg>
+        <h2>Built for OpenClaw right now</h2>
+        <div class="features-grid">
+            <div class="feature-card">
+                <div class="feature-icon">
+                    <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                        <path d="M12 2L2 7L12 12L22 7L12 2Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                        <path d="M2 17L12 22L22 17" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                        <path d="M2 12L12 17L22 12" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                    </svg>
+                </div>
+                <h3>ClawHub skill</h3>
+                <p>
+                    Install the published skill from ClawHub so OpenClaw picks up <code class="inline-code">spectyra/smart</code>
+                    and the companion install path documented in <code class="inline-code">SKILL.md</code>.
+                </p>
             </div>
-            <h3>BYOK Security</h3>
-            <p>
-                Bring Your Own Key architecture—your LLM provider keys never touch our servers.
-                Spectyra operates as a policy and workflow layer only.
-            </p>
-      </div>
-      <div class="feature-card">
-        <div class="feature-icon">
-          <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-            <path d="M3 3V21H21" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-            <path d="M7 16L12 11L16 15L21 10" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-            <path d="M21 10V3H14" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-          </svg>
-        </div>
-          <h3>Safe Before Production</h3>
-          <p>
-              Replay real failures, test policies, and preview agent behavior before it touches your codebase.
-          </p>
-
-      </div>
-      <div class="feature-card">
-        <div class="feature-icon">
-          <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-            <path d="M16 21V19C16 17.9391 15.5786 16.9217 14.8284 16.1716C14.0783 15.4214 13.0609 15 12 15H5C3.93913 15 2.92172 15.4214 2.17157 16.1716C1.42143 16.9217 1 17.9391 1 19V21" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-            <path d="M8.5 11C10.7091 11 12.5 9.20914 12.5 7C12.5 4.79086 10.7091 3 8.5 3C6.29086 3 4.5 4.79086 4.5 7C4.5 9.20914 6.29086 11 8.5 11Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-            <path d="M23 21V19C22.9993 18.1137 22.7044 17.2528 22.1614 16.5523C21.6184 15.8519 20.8581 15.3516 20 15.13" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-            <path d="M16 3.13C16.8604 3.35031 17.623 3.85071 18.1676 4.55232C18.7122 5.25392 19.0078 6.11683 19.0078 7.005C19.0078 7.89318 18.7122 8.75608 18.1676 9.45769C17.623 10.1593 16.8604 10.6597 16 10.88" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-          </svg>
-        </div>
-        <h3>Easy Integration</h3>
-          <p>
-              Works with any agent framework—Claude SDK, CrewAI, LangChain, AutoGen, or custom workflows.
-              Add control without rewriting your app.
-          </p>
-      </div>
-      <div class="feature-card">
-        <div class="feature-icon">
-          <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-            <path d="M3 3V21H21" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-            <path d="M7 16L12 11L16 15L21 10" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-            <circle cx="18" cy="6" r="2" fill="currentColor"/>
-          </svg>
-        </div>
-          <h3>Predictable AI Behavior</h3>
-          <p>
-              Define rules once—no banned APIs, required steps, test-first flows—and Spectyra ensures every agent follows them exactly.
-          </p>
-      </div>
-    </div>
-  </div>
-
-        <div class="how-it-works">
-            <h2>How Spectyra Works</h2>
-
-            <div class="steps">
-                <div class="step">
-                    <div class="step-number">1</div>
-                    <h3>Define Rules</h3>
-                    <p>No optional chaining, test-first, run linter before patch—your engineering policies as code.</p>
+            <div class="feature-card">
+                <div class="feature-icon">
+                    <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                        <path d="M3 3V21H21" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                        <path d="M7 16L12 11L16 15L21 10" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                    </svg>
                 </div>
-
-                <div class="step">
-                    <div class="step-number">2</div>
-                    <h3>Control the Agent</h3>
-                    <p>Spectyra guides every step: read file → run tool → patch → verify.</p>
+                <h3>Real-time savings</h3>
+                <p>
+                    The Local Companion serves a dashboard on <code class="inline-code">127.0.0.1:4111</code> so you can see
+                    token and cost savings as you use OpenClaw—no separate billing flow required for local use.
+                </p>
+            </div>
+            <div class="feature-card">
+                <div class="feature-icon">
+                    <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                        <rect x="3" y="11" width="18" height="11" rx="2" ry="2" stroke="currentColor" stroke-width="2"/>
+                        <path d="M7 11V7C7 4.79086 8.79086 3 11 3H13C15.2091 3 17 4.79086 17 7V11" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                    </svg>
                 </div>
-
-                <div class="step">
-                    <div class="step-number">3</div>
-                    <h3>Ship with Confidence</h3>
-                    <p>Fewer retries, predictable behavior, lower AI spend.</p>
-                </div>
+                <h3>Local-first</h3>
+                <p>
+                    Model traffic is optimized on your machine; your LLM provider credentials stay in your Local Companion
+                    configuration—not sent to Spectyra for inference.
+                </p>
             </div>
         </div>
-
-
-        <div class="cta-section">
-            <h2>Stop Fighting Your AI Agents</h2>
-            <p>
-                Make them follow your process instead of guessing.
-                Works with any model, any framework, any codebase.
-            </p>
-
-            <a routerLink="/register" class="btn btn-primary btn-large">
-                Start Free Trial
-            </a>
-        </div>
-
     </div>
+
+    <div class="how-it-works">
+        <h2>How it works with OpenClaw</h2>
+        <div class="steps">
+            <div class="step">
+                <div class="step-number">1</div>
+                <h3>Install the skill</h3>
+                <p>On ClawHub, open the Spectyra skill and follow <code class="inline-code">openclaw skills install spectyra</code> (or your OpenClaw UI) so config points at the companion.</p>
+            </div>
+            <div class="step">
+                <div class="step-number">2</div>
+                <h3>Run the companion</h3>
+                <p>
+                    <code class="inline-code">npm install -g @spectyra/local-companion@latest &amp;&amp; spectyra-companion start --open</code>
+                </p>
+            </div>
+            <div class="step">
+                <div class="step-number">3</div>
+                <h3>Open the dashboard</h3>
+                <p>
+                    Use <a href="http://127.0.0.1:4111/dashboard" target="_blank" rel="noopener noreferrer" class="text-link">http://127.0.0.1:4111/dashboard</a>
+                    for live savings while you chat with OpenClaw.
+                </p>
+            </div>
+        </div>
+    </div>
+
+    <div class="cta-section">
+        <h2>Ready on your machine</h2>
+        <p>
+            Install the Local Companion, start it with <code class="inline-code">--open</code>, then use the dashboard at
+            <code class="inline-code">http://127.0.0.1:4111/dashboard</code>. Skill listing:
+            <a href="https://clawhub.ai/immrlucky/spectyra" target="_blank" rel="noopener noreferrer" class="text-link">clawhub.ai/immrlucky/spectyra</a>.
+        </p>
+        <div class="cta-buttons">
+            <a href="https://clawhub.ai/immrlucky/spectyra" target="_blank" rel="noopener noreferrer" class="btn btn-primary btn-large">Open ClawHub</a>
+            <a routerLink="/login" class="btn btn-secondary btn-large">Sign In</a>
+        </div>
+    </div>
+</div>
