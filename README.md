@@ -1,216 +1,149 @@
-# Spectyra — Local-First LLM Cost Optimization
+# Spectyra — OpenClaw LLM Optimization, Token Reduction & Agent Workflow Efficiency
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](./LICENSE)
 
-Spectyra reduces LLM token usage and cost **without proxying your data**.
-Optimization runs locally — your prompts, responses, and provider keys never
-leave your environment unless you explicitly opt in.
+**Spectyra is a local-first LLM optimization layer for OpenClaw and agent workflows.**
 
-**Open source** under the **MIT License**. See [`LICENSE`](./LICENSE).
+It reduces:
+- token usage  
+- LLM API cost  
+- redundant agent steps  
 
----
-
-## Install (end users — no clone, no build)
-
-| What you want | What to do |
-|---------------|------------|
-| **Desktop app** (GUI, keys, analytics — **no SDK in your code**) | Download the **installer** from the **[production site](https://spectyra.ai/)**. See [docs/INSTALL_AND_SETUP.md](docs/INSTALL_AND_SETUP.md#desktop-app-download). |
-| **OpenClaw / agents / “custom API URL”** | One command: `npx @spectyra/local-companion` then set `OPENAI_BASE_URL=http://127.0.0.1:4111/v1` — [full guide](docs/INSTALL_AND_SETUP.md#local-companion-one-command). |
-| **npm SDK** in your app | `npm install @spectyra/sdk` — [SDK README](packages/sdk/README.md). |
-
-**Detailed setup (OpenClaw, companion, troubleshooting):** [docs/INSTALL_AND_SETUP.md](docs/INSTALL_AND_SETUP.md)
+Without:
+- proxying your data  
+- changing your models  
+- requiring new infrastructure  
 
 ---
 
-## How It Works
+## 🚨 Current Focus
 
-1. **Your app calls the LLM provider directly** — Spectyra never sits in the
-   inference path by default.
-2. **Before the call**, the SDK (or Local Companion) applies lightweight,
-   local optimizations to your messages (whitespace normalization, deduplication,
-   context window trimming).
-3. **After the call**, a local `SavingsReport` tells you exactly what was saved.
-4. **Optionally**, redacted analytics can be synced to the Spectyra cloud
-   dashboard (off by default).
+Spectyra is currently optimized for:
 
-```
-┌─────────────┐    direct    ┌─────────────────┐
-│  Your Code  │ ──────────── │  LLM Provider   │
-│  + Spectyra │              │  (OpenAI, etc.)  │
-│    SDK      │              └─────────────────┘
-└─────┬───────┘
-      │ local analytics
-      ▼
-┌─────────────┐   opt-in    ┌─────────────────┐
-│  Local      │ ──────────► │  Spectyra Cloud  │
-│  Storage    │  (redacted)  │  Dashboard       │
-└─────────────┘              └─────────────────┘
-```
+👉 **OpenClaw (ClawHub skill)**  
+👉 **Agentic LLM workflows (Claude, OpenAI, etc.)**  
+👉 **Local Companion analytics + optimization**
+
+⚠️ The SDK for direct app integration is **actively being developed**
 
 ---
 
-## Quick Start (developing Spectyra itself)
+## Related to Spectyra
+
+LLM optimization • OpenClaw • token reduction • prompt optimization • agent workflows • AI cost savings • Claude optimization • OpenAI cost reduction • local-first AI • agent efficiency
+
+---
+
+## ⚡ 1-Minute Setup (OpenClaw)
+
+### Install Spectyra skill
+
+👉 https://clawhub.ai/immrlucky/spectyra
+
+or via CLI:
 
 ```bash
-pnpm install
-pnpm dev        # starts API + Angular UI in parallel
-```
+openclaw skills install immrlucky/spectyra
 
-Open http://localhost:4200.
+## Install & Start Local Companion (run once)
+npm install -g @spectyra/local-companion@latest && spectyra-companion start --open
 
----
+## Run savings app anytime after installing
+spectyra-companion start --open
 
-## Integration Options
+The local companion will launch in a browser window and show you savings in real-time. You’ll see:
 
-| Path | Code Changes? | Prompts Leave Your Machine? | Best For |
-|------|---------------|-----------------------------|----------|
-| **Desktop App / Local Companion** | None | No | Non-developers, OpenClaw |
-| **SDK Wrapper** | Minimal | No | Developers building LLM apps |
-| **Observe / Preview** | None | No | Evaluating savings (dry-run) |
+* real-time token savings
+* cost reduction
+* before vs after comparisons
+* per-agent flow efficiency
 
-### SDK (recommended for developers)
+## How Spectyra Works
+           ┌──────────────────────┐
+           │     OpenClaw /       │
+           │   Agent Workflow     │
+           └─────────┬────────────┘
+                     │
+                     ▼
+        ┌────────────────────────────┐
+        │  Spectyra Local Companion  │
+        │                            │
+        │  • Context Optimization    │
+        │  • RefPack                 │
+        │  • PhraseBook Encoding     │
+        │  • CodeMap Compression     │
+        │  • Flow Optimization       │
+        │  • Graph / Structural      │
+        │    Analysis                │
+        └─────────┬──────────────────┘
+                  │
+                  ▼
+        ┌────────────────────────────┐
+        │   LLM Provider (Direct)    │
+        │  OpenAI / Claude / etc     │
+        └─────────┬──────────────────┘
+                  │
+                  ▼
+        ┌────────────────────────────┐
+        │   Results + Savings Data   │
+        │                            │
+        │  • Tokens Saved            │
+        │  • Cost Reduced            │
+        │  • Flow Efficiency         │
+        └────────────────────────────┘
 
-```bash
+## What Spectyra Optimizes
+Most tools focus on prompt compression.
+
+Spectyra focuses on total work reduction across the entire LLM execution path:
+
+1. Context Optimization
+
+* Removes redundant history
+* Reuses stable context
+* Avoids re-sending the same information
+
+2. Transform Pipeline
+
+* RefPack → replaces repeated context with references ([[R1]])
+* PhraseBook Encoding → compresses recurring phrases
+* CodeMap → converts code into structured representations
+
+3. Flow Optimization (biggest impact)
+
+* Eliminates retries
+* Reduces agent loops
+* Cuts unnecessary steps
+
+4. Structural / Graph-Based Analysis
+
+* Models relationships between context
+* Detects stable vs redundant information
+* Drives optimization decisions
+
+⸻
+
+⚡ Why This Matters
+
+In OpenClaw and agent workflows:
+
+* Context grows quickly
+* Steps multiply
+* Costs compound
+
+Spectyra reduces:
+
+* tokens per request
+* number of requests
+* total workflow cost
+
+## SDK (In Progress) - coming soon
 npm install @spectyra/sdk
-```
 
-```ts
-import { createSpectyra } from "@spectyra/sdk";
-import { createOpenAIAdapter } from "@spectyra/sdk/adapters/openai";
-import OpenAI from "openai";
+## Security
 
-const spectyra = createSpectyra({ runMode: "on" });
-const openai = new OpenAI();
-
-const result = await spectyra.complete(
-  {
-    client: openai,
-    model: "gpt-4o-mini",
-    messages: [{ role: "user", content: "Hello" }],
-  },
-  createOpenAIAdapter(openai)
-);
-
-console.log(result.savingsReport);
-```
-
-### Local Companion (no code changes)
-
-```bash
-npx @spectyra/local-companion
-# Starts on http://127.0.0.1:4111
-```
-
-Any app that lets you set a custom API base URL can use the Companion.
-In your LLM app's settings, change the API endpoint to:
-
-```
-http://127.0.0.1:4111/v1
-```
-
-For example, if you use OpenAI's library or a tool like OpenClaw, set the
-environment variable:
-
-```bash
-export OPENAI_BASE_URL=http://127.0.0.1:4111/v1
-```
-
-The Companion intercepts the request, optimizes it locally, then forwards it
-directly to your provider using your API key.
-
-### Desktop App
-
-The Desktop App wraps the Local Companion in an Electron GUI with built-in
-provider key management, license activation, and a local analytics dashboard.
-**End users** install from your **product download page** (e.g. [spectyra.ai](https://spectyra.ai/)) — no SDK or repo required.
-
-**Build from source** (release engineering / contributors):
-
-```bash
-pnpm install
-pnpm desktop:dev   # dev: Electron + Angular (see apps/desktop/README.md)
-pnpm desktop:dist  # installers → apps/desktop/release/ (DMG/zip, NSIS exe/zip)
-```
-
-The packaged app bundles the **Local Companion** as a child process (no separate install). See [docs/INSTALL_AND_SETUP.md](docs/INSTALL_AND_SETUP.md).
-
----
-
-## Universal Mode Model
-
-Every Spectyra surface (SDK, Companion, Desktop App, Web) uses the same
-three-state mode:
-
-| Mode | What Happens | Provider Call | Cost |
-|------|-------------|---------------|------|
-| `off` | Pass-through, minimal analytics | Direct | Full provider price |
-| `observe` | Local dry-run, projected savings | **None** | Free |
-| `on` | Optimization applied, then direct call | Direct | Reduced provider price |
-
-Default for new integrations: **`on`** where optimization is licensed; use **`observe`** for dry-run/projected savings without changing provider payloads.
-
----
-
-## Architecture
-
-```
-packages/
-  core-types/    — Shared types: modes, reports, security labels, entitlements
-  sdk/           — @spectyra/sdk — SDK for in-code integration
-  spectyra-agents/ — @spectyra/agents — Agent framework wrappers
-  shared/        — Legacy shared types (being migrated to core-types)
-
-apps/
-  api/           — Express backend (dashboard APIs, billing, audit)
-  web/           — Angular frontend (Studio, Observe, Integrations, Usage)
-  desktop/       — Electron desktop app (bundles Local Companion)
-
-tools/
-  local-companion/ — Standalone OpenAI/Anthropic-compatible local server
-  proxy/           — Local proxy for IDE tools (Cursor, Claude Code)
-  cli/             — CLI wrapper
-```
-
----
-
-## Security Posture
-
-| Concern | Default |
-|---------|---------|
-| Inference path | **Direct to provider** (never proxied through Spectyra) |
-| Provider keys | **Customer-owned** (BYOK) |
-| Prompt storage | **Local only** |
-| Telemetry | **Local** (cloud sync is opt-in, redacted) |
-| Billing for LLM usage | **Customer's provider account** |
-
-See [SECURITY.md](SECURITY.md) and [docs/ENTERPRISE_SECURITY.md](docs/ENTERPRISE_SECURITY.md).
-
----
-
-## Features
-
-- **Multi-provider**: OpenAI, Anthropic, Groq (more coming)
-- **Spectyra Studio**: Scenario-based comparison (dry-run + live BYOK)
-- **Observe Mode**: Dry-run optimization with before/after prompt views
-- **SavingsReport**: Structured JSON showing before/after tokens, cost, techniques applied
-- **Entitlement model**: Free tier with generous limits, observe always free
-- **License keys**: Offline-capable validation for Desktop App / Companion
-- **Audit logging**: Complete trail for all security events
-- **Enterprise controls**: RBAC, domain allowlists, SSO enforcement, data retention
-
----
-
-## Quick Links
-
-- **[Install & setup (download, npx, OpenClaw)](docs/INSTALL_AND_SETUP.md)**
-- [SDK Documentation](packages/sdk/README.md)
-- [Local Companion (OpenAI-compatible server)](tools/local-companion/README.md)
-- [User Guide](docs/USER_GUIDE.md)
-- [Integrations Page](apps/web/src/app/features/integrations/)
-- [Security](SECURITY.md)
-
----
-
-## License
-
-MIT
+* No proxying
+* BYOK (bring your own keys)
+* Local-first processing
+* No prompt storage
+* Run locally on your machine
