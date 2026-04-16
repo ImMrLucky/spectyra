@@ -147,7 +147,7 @@ npm install @spectyra/sdk
 * No prompt storage
 * Run locally on your machine
 
-  ## 📄 License
+## 📄 License
 
 This project is licensed under the **MIT License**.
 
@@ -158,3 +158,5 @@ You are free to:
 - integrate it into your own projects  
 
 As long as you include the original license.
+
+See the full license here: [LICENSE](./LICENSE)
