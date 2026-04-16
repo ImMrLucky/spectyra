@@ -32,7 +32,6 @@ Spectyra is currently optimized for:
 
 LLM optimization • OpenClaw • token reduction • prompt optimization • agent workflows • AI cost savings • Claude optimization • OpenAI cost reduction • local-first AI • agent efficiency
 
----
 
 ## ⚡ 1-Minute Setup (OpenClaw)
 
