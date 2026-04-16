@@ -41,7 +41,7 @@ LLM optimization • OpenClaw • token reduction • prompt optimization • ag
 
 or via CLI:
 
-run in mac terminal or cmd prompt:
+## Run in mac terminal or cmd prompt:
 openclaw skills install spectyra
 
 ## Install & Start Local Companion (run once)
