@@ -10,7 +10,6 @@ import { MeService } from '../../core/services/me.service';
 import { SnackbarService } from '../../core/services/snackbar.service';
 import { savePendingBootstrap } from '../../core/auth/pending-bootstrap.storage';
 import { firstValueFrom } from 'rxjs';
-import { SPECTYRA_MONTHLY_PRICE_LABEL, SPECTYRA_TRIAL_DAYS } from '../../core/product.constants';
 
 @Component({
   selector: 'app-register',
@@ -20,8 +19,6 @@ import { SPECTYRA_MONTHLY_PRICE_LABEL, SPECTYRA_TRIAL_DAYS } from '../../core/pr
   styleUrls: ['./register.page.scss'],
 })
 export class RegisterPage {
-  readonly trialDays = SPECTYRA_TRIAL_DAYS;
-  readonly monthlyPriceLabel = SPECTYRA_MONTHLY_PRICE_LABEL;
   email = '';
   password = '';
   orgName = '';
@@ -32,7 +29,6 @@ export class RegisterPage {
   /** Shown after sign-up when email confirmation is required (green banner, not an error). */
   successMessage: string | null = null;
   apiKey: string | null = null;
-  trialEndsAt: string | null = null;
 
   constructor(
     private supabase: SupabaseService,
@@ -136,7 +132,6 @@ export class RegisterPage {
 
       this.success = true;
       this.apiKey = response.api_key;
-      this.trialEndsAt = response.org?.trial_ends_at || null;
 
       this.meService.clearCache();
 

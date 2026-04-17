@@ -1,7 +1,10 @@
 <div class="container">
   <div class="card">
     <h1>Create Account</h1>
-    <p class="subtitle">Sign up for Spectyra and start saving on LLM costs — {{ trialDays }}-day trial, then {{ monthlyPriceLabel }}</p>
+    <p class="subtitle">
+      Sign up for a Spectyra account. Our <strong>SDK for apps</strong> — so you can embed token and cost optimization and save on LLM API usage — is coming soon.
+      Create an account now and we’ll notify you when it’s ready. (Using <strong>OpenClaw</strong>? Install the <a href="https://clawhub.ai/immrlucky/spectyra" target="_blank" rel="noopener noreferrer">local companion skill</a> — no account required for local savings.)
+    </p>
     
     <form (ngSubmit)="register()" *ngIf="!success">
       <div class="form-group">
@@ -67,9 +70,11 @@
         <button class="btn btn-secondary" (click)="copyApiKey()">Copy</button>
       </div>
       
-      <div class="trial-info">
-        <p>✅ <strong>{{ trialDays }}-day free trial</strong> — then {{ monthlyPriceLabel }}. Start optimizing immediately!</p>
-        <p>Trial ends: {{ trialEndsAt | date:'medium' }}</p>
+      <div class="sdk-notice">
+        <p>
+          You’re set up for Spectyra Cloud. We’ll use this email to <strong>notify you</strong> about the SDK and product updates.
+          Your API key below is for upcoming cloud features and integrations.
+        </p>
       </div>
       
       <button class="btn btn-primary" (click)="goToApp()">Continue to App</button>

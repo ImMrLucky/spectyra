@@ -21,6 +21,13 @@ h1 {
 .subtitle {
   color: var(--text-secondary);
   margin-bottom: 24px;
+  line-height: 1.55;
+  font-size: 15px;
+
+  a {
+    color: var(--spectyra-blue);
+    font-weight: 500;
+  }
 }
 
 .form-group {
@@ -118,7 +125,7 @@ label {
   }
 }
 
-.trial-info {
+.sdk-notice {
   background: var(--spectyra-teal-pale);
   border: 1px solid var(--spectyra-teal-border);
   border-radius: var(--radius-chip);
@@ -127,8 +134,9 @@ label {
   text-align: left;
 
   p {
-    margin: 8px 0;
+    margin: 0;
     color: var(--spectyra-teal);
+    line-height: 1.5;
   }
 }
 
