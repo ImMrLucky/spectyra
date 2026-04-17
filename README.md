@@ -1,4 +1,4 @@
-# Spectyra — OpenClaw LLM Optimization, Token Reduction & Agent Workflow Efficiency
+# Spectyra — Save on OpenClaw & LLM Costs. AI Optimization app, Token Reduction & Agent Workflow Efficiency
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](./LICENSE)
 
