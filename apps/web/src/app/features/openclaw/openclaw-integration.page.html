@@ -19,7 +19,7 @@
       <ul class="bullet-list">
         <li>You already use <strong>OpenClaw</strong> (or plan to) as your AI assistant / agent runtime.</li>
         <li>You want <strong>spectyra/*</strong> models to route through Spectyra on <code>http://127.0.0.1:4111/v1</code> with optimization turned on.</li>
-        <li>You are okay installing the <strong>Spectyra Local Companion</strong> via npm and running <code>spectyra-companion setup</code> once.</li>
+        <li>You can install the <strong>Spectyra Local Companion</strong> via npm and start it — <strong>no Spectyra account</strong> is required for local optimization and the dashboard.</li>
       </ul>
     </div>
 
@@ -52,15 +52,14 @@
     <div class="section">
       <h2>3. Install &amp; run the Local Companion</h2>
       <p class="fine-print">
-        The skill expects the <code>spectyra-companion</code> binary (npm package <code>&#64;spectyra/local-companion</code>). Install globally, run setup to link your Spectyra account and API key, then start the companion:
+        Once you have the Spectyra OpenClaw skill, install the local companion to see the savings in real time dashboard in your browser.
+        <strong>No Spectyra account</strong> is required for this path. If you want a guided flow to store your <strong>LLM provider</strong> keys on disk (OpenAI / Anthropic / Groq), run <code>spectyra-companion setup</code> optionally — it does not gate the free local dashboard.
       </p>
       <div class="code-block">
-        <pre><code>npm install -g &#64;spectyra/local-companion&#64;latest
-spectyra-companion setup
-spectyra-companion start</code></pre>
+        <pre><code>npm install -g &#64;spectyra/local-companion&#64;latest &amp;&amp; spectyra-companion start --open</code></pre>
       </div>
       <p class="fine-print">
-        Open the <strong>local dashboard</strong> at <code>http://127.0.0.1:4111/dashboard</code> for savings and metrics.
+        Dashboard: <code>http://127.0.0.1:4111/dashboard</code> — token and cost savings update as you use OpenClaw with <code>spectyra/*</code> models.
       </p>
     </div>
 
