@@ -21,13 +21,18 @@ import { safeLog } from "../utils/redaction.js";
 import type { SupabaseAdminUser } from "../types/supabase.js";
 import { applySubscriptionPayloadToKnownOrg } from "./billing.js";
 import { cancelStripeSubscriptionsForOwnerOrgsOnAccountClosure } from "../billing/stripeSubscriptionCancelOnAccountDelete.js";
-import {
-  accountDeleteRateLimitOptions,
-  accountMutationRateLimitOptions,
-  accountReadRateLimitOptions,
-} from "../middleware/codeqlRouteRateLimits.js";
 
 export const accountRouter = Router();
+
+accountRouter.use(
+  rateLimit({
+    windowMs: 60_000,
+    max: 60,
+    standardHeaders: true,
+    legacyHeaders: false,
+    message: { error: "Too many account requests; try again shortly." },
+  }),
+);
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY || "", {
   apiVersion: "2024-11-20.acacia" as Stripe.LatestApiVersion,
@@ -78,7 +83,7 @@ async function listOwnedStripeSubscriptions(userId: string): Promise<OwnedSubRow
   return r.rows;
 }
 
-accountRouter.get("/summary", requireUserSession, rateLimit(accountReadRateLimitOptions), async (req: AuthenticatedRequest, res) => {
+accountRouter.get("/summary", requireUserSession, async (req: AuthenticatedRequest, res) => {
   try {
     const userId = req.auth?.userId;
     if (!userId) {
@@ -123,7 +128,6 @@ accountRouter.get("/summary", requireUserSession, rateLimit(accountReadRateLimit
 accountRouter.post(
   "/subscription/cancel-at-period-end",
   requireUserSession,
-  rateLimit(accountMutationRateLimitOptions),
   async (req: AuthenticatedRequest, res) => {
     try {
       if (!process.env.STRIPE_SECRET_KEY?.trim()) {
@@ -186,7 +190,6 @@ accountRouter.post(
 accountRouter.post(
   "/subscription/keep",
   requireUserSession,
-  rateLimit(accountMutationRateLimitOptions),
   async (req: AuthenticatedRequest, res) => {
   try {
     if (!process.env.STRIPE_SECRET_KEY?.trim()) {
@@ -241,7 +244,6 @@ accountRouter.post(
 accountRouter.post(
   "/pause-service",
   requireUserSession,
-  rateLimit(accountMutationRateLimitOptions),
   async (req: AuthenticatedRequest, res) => {
   try {
     const userId = req.auth?.userId;
@@ -271,7 +273,6 @@ accountRouter.post(
 accountRouter.post(
   "/resume-service",
   requireUserSession,
-  rateLimit(accountMutationRateLimitOptions),
   async (req: AuthenticatedRequest, res) => {
   try {
     const userId = req.auth?.userId;
@@ -309,7 +310,17 @@ accountRouter.post(
  * POST /v1/account/delete — remove app data and Supabase Auth user (irreversible).
  * Body: { "confirm": "DELETE_MY_ACCOUNT" }
  */
-accountRouter.post("/delete", requireUserSession, rateLimit(accountDeleteRateLimitOptions), async (req: AuthenticatedRequest, res) => {
+accountRouter.post(
+  "/delete",
+  requireUserSession,
+  rateLimit({
+    windowMs: 60_000,
+    max: 5,
+    standardHeaders: true,
+    legacyHeaders: false,
+    message: { error: "Too many account deletion requests; try again shortly." },
+  }),
+  async (req: AuthenticatedRequest, res) => {
   try {
     const userId = req.auth?.userId;
     const email = req.auth?.email?.trim() || null;

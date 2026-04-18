@@ -18,12 +18,19 @@ import {
 } from "../services/storage/platformRolesRepo.js";
 import { setOrgPlatformExempt, setOrgObserveOnlyOverride } from "../services/storage/orgsRepo.js";
 import { safeLog } from "../utils/redaction.js";
-import {
-  superuserMutationRateLimitOptions,
-  superuserReadRateLimitOptions,
-} from "../middleware/codeqlRouteRateLimits.js";
 
 export const superuserRouter = Router();
+
+/** Inline config so static analysis (CodeQL) ties `express-rate-limit` to this router. */
+superuserRouter.use(
+  rateLimit({
+    windowMs: 60_000,
+    max: 120,
+    standardHeaders: true,
+    legacyHeaders: false,
+    message: { error: "Too many superuser requests; try again shortly." },
+  }),
+);
 
 function requireSuperuser(
   req: AuthenticatedRequest,
@@ -37,7 +44,7 @@ function requireSuperuser(
   next();
 }
 
-superuserRouter.get("/me", requireUserSession, rateLimit(superuserReadRateLimitOptions), (req: AuthenticatedRequest, res) => {
+superuserRouter.get("/me", requireUserSession, (req: AuthenticatedRequest, res) => {
   res.json({
     email: req.auth?.email ?? null,
     platform_role: req.auth?.platformRole ?? null,
@@ -49,7 +56,6 @@ superuserRouter.get(
   "/platform-users",
   requireUserSession,
   requireSuperuser,
-  rateLimit(superuserReadRateLimitOptions),
   async (_req, res) => {
     try {
       const users = await listPlatformRoles();
@@ -65,7 +71,6 @@ superuserRouter.post(
   "/platform-users",
   requireUserSession,
   requireSuperuser,
-  rateLimit(superuserMutationRateLimitOptions),
   async (req: AuthenticatedRequest, res) => {
     try {
       const body = req.body as { email?: string; role?: PlatformRoleName };
@@ -97,7 +102,6 @@ superuserRouter.delete(
   "/platform-users/:email",
   requireUserSession,
   requireSuperuser,
-  rateLimit(superuserMutationRateLimitOptions),
   async (req: AuthenticatedRequest, res) => {
     try {
       const target = decodeURIComponent(req.params.email || "").trim().toLowerCase();
@@ -124,7 +128,6 @@ superuserRouter.patch(
   "/orgs/:orgId/savings-observe-mode",
   requireUserSession,
   requireSuperuser,
-  rateLimit(superuserMutationRateLimitOptions),
   async (req, res) => {
     try {
       const orgId = req.params.orgId;
@@ -154,7 +157,6 @@ superuserRouter.patch(
   "/orgs/:orgId/platform-exempt",
   requireUserSession,
   requireSuperuser,
-  rateLimit(superuserMutationRateLimitOptions),
   async (req, res) => {
     try {
       const orgId = req.params.orgId;

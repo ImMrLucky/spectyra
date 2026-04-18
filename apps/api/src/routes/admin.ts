@@ -32,13 +32,18 @@ import {
   listPlatformRoles,
 } from "../services/storage/platformRolesRepo.js";
 import { cancelStripeSubscriptionsForOwnerOrgsOnAccountClosure } from "../billing/stripeSubscriptionCancelOnAccountDelete.js";
-import {
-  adminDeleteUserRateLimitOptions,
-  adminListUsersRateLimitOptions,
-  adminPatchUserRateLimitOptions,
-} from "../middleware/codeqlRouteRateLimits.js";
 
 export const adminRouter = Router();
+
+adminRouter.use(
+  rateLimit({
+    windowMs: 60_000,
+    max: 40,
+    standardHeaders: true,
+    legacyHeaders: false,
+    message: { error: "Too many admin requests; try again shortly." },
+  }),
+);
 
 function canManagePrivilegedUserActions(req: AuthenticatedRequest): boolean {
   const isSuperuser = req.auth?.platformRole === "superuser";
@@ -405,7 +410,7 @@ adminRouter.patch("/orgs/:id/sdk-access", requireUserSession, requireOwner, asyn
  * 
  * List all users with their org memberships (owner only)
  */
-adminRouter.get("/users", requireUserSession, requireOwner, rateLimit(adminListUsersRateLimitOptions), async (req, res) => {
+adminRouter.get("/users", requireUserSession, requireOwner, async (req, res) => {
   try {
     // Get all users from org_memberships with their email from Supabase
     // Note: This requires Supabase service role access
@@ -607,7 +612,13 @@ adminRouter.patch(
   "/users/:userId/access",
   requireUserSession,
   requireOwner,
-  rateLimit(adminPatchUserRateLimitOptions),
+  rateLimit({
+    windowMs: 60_000,
+    max: 30,
+    standardHeaders: true,
+    legacyHeaders: false,
+    message: { error: "Too many admin user update requests; try again shortly." },
+  }),
   async (req: AuthenticatedRequest, res) => {
     try {
       const userId = parseSupabaseAuthUserId(req.params.userId);
@@ -661,7 +672,13 @@ adminRouter.patch(
   "/users/:userId/owner-org-billing",
   requireUserSession,
   requireOwner,
-  rateLimit(adminPatchUserRateLimitOptions),
+  rateLimit({
+    windowMs: 60_000,
+    max: 30,
+    standardHeaders: true,
+    legacyHeaders: false,
+    message: { error: "Too many admin user update requests; try again shortly." },
+  }),
   async (req: AuthenticatedRequest, res) => {
     try {
       if (!canManagePrivilegedUserActions(req)) {
@@ -718,7 +735,13 @@ adminRouter.patch(
   "/users/:userId/role",
   requireUserSession,
   requireOwner,
-  rateLimit(adminPatchUserRateLimitOptions),
+  rateLimit({
+    windowMs: 60_000,
+    max: 30,
+    standardHeaders: true,
+    legacyHeaders: false,
+    message: { error: "Too many admin user update requests; try again shortly." },
+  }),
   async (req: AuthenticatedRequest, res) => {
     try {
       const userId = parseSupabaseAuthUserId(req.params.userId);
@@ -786,7 +809,13 @@ adminRouter.delete(
   "/users/:userId",
   requireUserSession,
   requireOwner,
-  rateLimit(adminDeleteUserRateLimitOptions),
+  rateLimit({
+    windowMs: 60_000,
+    max: 5,
+    standardHeaders: true,
+    legacyHeaders: false,
+    message: { error: "Too many user delete requests; try again shortly." },
+  }),
   async (req: AuthenticatedRequest, res) => {
   try {
     const userId = parseSupabaseAuthUserId(req.params.userId);

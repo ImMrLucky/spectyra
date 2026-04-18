@@ -3,11 +3,21 @@
  */
 
 import { Router } from "express";
+import rateLimit from "express-rate-limit";
 import { requireUserSession, type AuthenticatedRequest } from "../middleware/auth.js";
 import { query, queryOne } from "../services/storage/db.js";
 import { safeLog } from "../utils/redaction.js";
 
 export const analyticsSyncRouter = Router();
+analyticsSyncRouter.use(
+  rateLimit({
+    windowMs: 60_000,
+    max: 120,
+    standardHeaders: true,
+    legacyHeaders: false,
+    message: { error: "Too many analytics sync requests; try again shortly." },
+  }),
+);
 analyticsSyncRouter.use(requireUserSession);
 
 async function requireOrgId(userId: string): Promise<string | null> {
