@@ -41,8 +41,14 @@ import {
   provisionSpectyraAccountIfNeeded,
   defaultOrgNameFromEmail,
 } from "../services/accountProvisioning.js";
+import {
+  RL_AUTH_ACCOUNT_MUTATION,
+  RL_AUTH_AUTO_CONFIRM,
+  RL_STANDARD,
+} from "../middleware/expressRateLimitPresets.js";
 
 export const authRouter = Router();
+authRouter.use(rateLimit(RL_STANDARD));
 
 /** Desktop installer URLs for the web app Download page (set on API host, e.g. Railway). */
 function desktopDownloadsPayload(): {
@@ -88,13 +94,7 @@ function openclawDesktopDownloadsPayload(): {
 authRouter.post(
   "/bootstrap",
   requireUserSession,
-  rateLimit({
-    windowMs: 60_000,
-    max: 30,
-    standardHeaders: true,
-    legacyHeaders: false,
-    message: { error: "Too many account requests; try again shortly." },
-  }),
+  rateLimit(RL_AUTH_ACCOUNT_MUTATION),
   async (req: AuthenticatedRequest, res) => {
   try {
     if (!req.auth?.userId) {
@@ -221,13 +221,7 @@ authRouter.post(
 authRouter.post(
   "/ensure-account",
   requireUserSession,
-  rateLimit({
-    windowMs: 60_000,
-    max: 30,
-    standardHeaders: true,
-    legacyHeaders: false,
-    message: { error: "Too many account requests; try again shortly." },
-  }),
+  rateLimit(RL_AUTH_ACCOUNT_MUTATION),
   async (req: AuthenticatedRequest, res) => {
   try {
     if (!req.auth?.userId) {
@@ -295,13 +289,7 @@ authRouter.post(
 authRouter.post(
   "/sync-billing-exempt",
   requireUserSession,
-  rateLimit({
-    windowMs: 60_000,
-    max: 30,
-    standardHeaders: true,
-    legacyHeaders: false,
-    message: { error: "Too many account requests; try again shortly." },
-  }),
+  rateLimit(RL_AUTH_ACCOUNT_MUTATION),
   async (req: AuthenticatedRequest, res) => {
   try {
     if (!req.auth?.userId) {
@@ -369,13 +357,7 @@ async function findAuthAdminUserByEmail(
 
 authRouter.post(
   "/auto-confirm",
-  rateLimit({
-    windowMs: 60_000,
-    max: 15,
-    standardHeaders: true,
-    legacyHeaders: false,
-    message: { error: "Too many auto-confirm requests; try again shortly." },
-  }),
+  rateLimit(RL_AUTH_AUTO_CONFIRM),
   async (req, res) => {
   try {
     const { email } = req.body as { email?: string };

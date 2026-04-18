@@ -23,6 +23,7 @@ import {
   getPricingConfig,
 } from "../services/proof/tokenEstimator.js";
 import { confidenceToBand } from "../services/savings/confidence.js";
+import { RL_STANDARD } from "../middleware/expressRateLimitPresets.js";
 
 export const chatRouter = Router();
 
@@ -30,15 +31,7 @@ export const chatRouter = Router();
 chatRouter.use(requireSpectyraApiKey);
 chatRouter.use(optionalProviderKey);
 chatRouter.use(attachSavingsObserveContext);
-chatRouter.use(
-  rateLimit({
-    windowMs: 60_000,
-    max: 120,
-    standardHeaders: true,
-    legacyHeaders: false,
-    message: { error: "Too many chat requests; try again shortly." },
-  }),
-);
+chatRouter.use(rateLimit(RL_STANDARD));
 
 chatRouter.post("/", async (req: AuthenticatedRequest, res) => {
   try {

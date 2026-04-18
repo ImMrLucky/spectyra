@@ -5,6 +5,8 @@
  */
 
 import { Router } from "express";
+import rateLimit from "express-rate-limit";
+import { RL_STANDARD } from "../middleware/expressRateLimitPresets.js";
 import { requireUserSession, requireOrgMembership, type AuthenticatedRequest } from "../middleware/auth.js";
 import { requireOrgRole } from "../middleware/requireRole.js";
 import { getOrgSettings, updateOrgSettings, getProjectSettings, updateProjectSettings } from "../services/storage/settingsRepo.js";
@@ -13,6 +15,7 @@ import { safeLog } from "../utils/redaction.js";
 import type { OrgSettingsDTO, ProjectSettingsDTO } from "@spectyra/shared";
 
 export const settingsRouter = Router();
+settingsRouter.use(rateLimit(RL_STANDARD));
 
 // All routes require authentication and org membership
 settingsRouter.use(requireUserSession);

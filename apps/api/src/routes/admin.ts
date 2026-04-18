@@ -32,18 +32,11 @@ import {
   listPlatformRoles,
 } from "../services/storage/platformRolesRepo.js";
 import { cancelStripeSubscriptionsForOwnerOrgsOnAccountClosure } from "../billing/stripeSubscriptionCancelOnAccountDelete.js";
+import { RL_ADMIN, RL_ADMIN_USER_DELETE, RL_ADMIN_USER_PATCH } from "../middleware/expressRateLimitPresets.js";
 
 export const adminRouter = Router();
 
-adminRouter.use(
-  rateLimit({
-    windowMs: 60_000,
-    max: 40,
-    standardHeaders: true,
-    legacyHeaders: false,
-    message: { error: "Too many admin requests; try again shortly." },
-  }),
-);
+adminRouter.use(rateLimit(RL_ADMIN));
 
 function canManagePrivilegedUserActions(req: AuthenticatedRequest): boolean {
   const isSuperuser = req.auth?.platformRole === "superuser";
@@ -612,13 +605,7 @@ adminRouter.patch(
   "/users/:userId/access",
   requireUserSession,
   requireOwner,
-  rateLimit({
-    windowMs: 60_000,
-    max: 30,
-    standardHeaders: true,
-    legacyHeaders: false,
-    message: { error: "Too many admin user update requests; try again shortly." },
-  }),
+  rateLimit(RL_ADMIN_USER_PATCH),
   async (req: AuthenticatedRequest, res) => {
     try {
       const userId = parseSupabaseAuthUserId(req.params.userId);
@@ -672,13 +659,7 @@ adminRouter.patch(
   "/users/:userId/owner-org-billing",
   requireUserSession,
   requireOwner,
-  rateLimit({
-    windowMs: 60_000,
-    max: 30,
-    standardHeaders: true,
-    legacyHeaders: false,
-    message: { error: "Too many admin user update requests; try again shortly." },
-  }),
+  rateLimit(RL_ADMIN_USER_PATCH),
   async (req: AuthenticatedRequest, res) => {
     try {
       if (!canManagePrivilegedUserActions(req)) {
@@ -735,13 +716,7 @@ adminRouter.patch(
   "/users/:userId/role",
   requireUserSession,
   requireOwner,
-  rateLimit({
-    windowMs: 60_000,
-    max: 30,
-    standardHeaders: true,
-    legacyHeaders: false,
-    message: { error: "Too many admin user update requests; try again shortly." },
-  }),
+  rateLimit(RL_ADMIN_USER_PATCH),
   async (req: AuthenticatedRequest, res) => {
     try {
       const userId = parseSupabaseAuthUserId(req.params.userId);
@@ -809,13 +784,7 @@ adminRouter.delete(
   "/users/:userId",
   requireUserSession,
   requireOwner,
-  rateLimit({
-    windowMs: 60_000,
-    max: 5,
-    standardHeaders: true,
-    legacyHeaders: false,
-    message: { error: "Too many user delete requests; try again shortly." },
-  }),
+  rateLimit(RL_ADMIN_USER_DELETE),
   async (req: AuthenticatedRequest, res) => {
   try {
     const userId = parseSupabaseAuthUserId(req.params.userId);

@@ -5,12 +5,15 @@
  */
 
 import { Router } from "express";
+import rateLimit from "express-rate-limit";
+import { RL_STANDARD } from "../middleware/expressRateLimitPresets.js";
 import { requireUserSession, type AuthenticatedRequest } from "../middleware/auth.js";
 import { safeLog } from "../utils/redaction.js";
 import { query, queryOne } from "../services/storage/db.js";
 import { getSavingsSummary, getSavingsTimeseries } from "../services/storage/savingsRepo.js";
 
 export const usageRouter = Router();
+usageRouter.use(rateLimit(RL_STANDARD));
 
 // Apply authentication middleware
 usageRouter.use(requireUserSession);

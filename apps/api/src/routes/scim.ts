@@ -7,10 +7,13 @@
  */
 
 import { Router } from "express";
+import rateLimit from "express-rate-limit";
+import { RL_STANDARD } from "../middleware/expressRateLimitPresets.js";
 import { requireUserSession, type AuthenticatedRequest } from "../middleware/auth.js";
 import { requireOrgRole } from "../middleware/requireRole.js";
 
 export const scimRouter = Router();
+scimRouter.use(rateLimit(RL_STANDARD));
 
 // SCIM routes require authentication and admin access
 scimRouter.use(requireUserSession);

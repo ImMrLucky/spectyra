@@ -4,10 +4,13 @@
  */
 
 import { Router } from "express";
+import rateLimit from "express-rate-limit";
+import { RL_ANONYMOUS } from "../middleware/expressRateLimitPresets.js";
 import { query } from "../services/storage/db.js";
 import { safeLog } from "../utils/redaction.js";
 
 export const anonymousUsageRouter = Router();
+anonymousUsageRouter.use(rateLimit(RL_ANONYMOUS));
 
 const MAX_ID_LEN = 128;
 const MAX_EVENT_LEN = 80;

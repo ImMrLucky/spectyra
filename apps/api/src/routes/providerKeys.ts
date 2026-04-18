@@ -5,6 +5,8 @@
  */
 
 import { Router } from "express";
+import rateLimit from "express-rate-limit";
+import { RL_STANDARD } from "../middleware/expressRateLimitPresets.js";
 import { requireUserSession, requireOrgMembership, type AuthenticatedRequest } from "../middleware/auth.js";
 import { requireOrgRole } from "../middleware/requireRole.js";
 import {
@@ -18,6 +20,7 @@ import { audit } from "../services/audit/audit.js";
 import { safeLog } from "../utils/redaction.js";
 
 export const providerKeysRouter = Router();
+providerKeysRouter.use(rateLimit(RL_STANDARD));
 
 // All routes require authentication and org membership
 providerKeysRouter.use(requireUserSession);

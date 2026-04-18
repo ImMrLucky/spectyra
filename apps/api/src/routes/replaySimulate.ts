@@ -1,4 +1,6 @@
 import { Router } from "express";
+import rateLimit from "express-rate-limit";
+import { RL_STANDARD } from "../middleware/expressRateLimitPresets.js";
 import { requireSpectyraApiKey, optionalProviderKey, type AuthenticatedRequest } from "../middleware/auth.js";
 import { readFileSync } from "fs";
 import { join, dirname } from "path";
@@ -25,6 +27,7 @@ const __dirname = dirname(__filename);
 const scenariosDir = join(__dirname, "../../scenarios");
 
 export const replaySimulateRouter = Router();
+replaySimulateRouter.use(rateLimit(RL_STANDARD));
 
 // Apply authentication middleware
 replaySimulateRouter.use(requireSpectyraApiKey);

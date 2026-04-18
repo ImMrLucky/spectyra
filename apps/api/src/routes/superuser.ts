@@ -18,19 +18,11 @@ import {
 } from "../services/storage/platformRolesRepo.js";
 import { setOrgPlatformExempt, setOrgObserveOnlyOverride } from "../services/storage/orgsRepo.js";
 import { safeLog } from "../utils/redaction.js";
+import { RL_STANDARD } from "../middleware/expressRateLimitPresets.js";
 
 export const superuserRouter = Router();
 
-/** Inline config so static analysis (CodeQL) ties `express-rate-limit` to this router. */
-superuserRouter.use(
-  rateLimit({
-    windowMs: 60_000,
-    max: 120,
-    standardHeaders: true,
-    legacyHeaders: false,
-    message: { error: "Too many superuser requests; try again shortly." },
-  }),
-);
+superuserRouter.use(rateLimit(RL_STANDARD));
 
 function requireSuperuser(
   req: AuthenticatedRequest,

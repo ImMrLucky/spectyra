@@ -21,6 +21,7 @@ import { computeWorkloadKey, computePromptHash } from "../services/savings/workl
 import { writeVerifiedSavings } from "../services/savings/ledgerWriter.js";
 import { redactReplayResult } from "../middleware/redact.js";
 import { safeLog } from "../utils/redaction.js";
+import { RL_STANDARD } from "../middleware/expressRateLimitPresets.js";
 import { 
   estimateBaselineTokens, 
   estimateOptimizedTokens, 
@@ -37,15 +38,7 @@ export const replayRouter = Router();
 replayRouter.use(requireSpectyraApiKey);
 replayRouter.use(optionalProviderKey);
 replayRouter.use(attachSavingsObserveContext);
-replayRouter.use(
-  rateLimit({
-    windowMs: 60_000,
-    max: 120,
-    standardHeaders: true,
-    legacyHeaders: false,
-    message: { error: "Too many replay requests; try again shortly." },
-  }),
-);
+replayRouter.use(rateLimit(RL_STANDARD));
 
 replayRouter.post("/", async (req: AuthenticatedRequest, res) => {
   const isEstimatorMode = req.body.proof_mode === "estimator";

@@ -7,12 +7,15 @@
  */
 
 import { Router } from "express";
+import rateLimit from "express-rate-limit";
+import { RL_STANDARD } from "../middleware/expressRateLimitPresets.js";
 import { query } from "../services/storage/db.js";
 import { getOrgSettings } from "../services/storage/settingsRepo.js";
 import { systemAudit } from "../services/audit/audit.js";
 import { safeLog } from "../utils/redaction.js";
 
 export const retentionRouter = Router();
+retentionRouter.use(rateLimit(RL_STANDARD));
 
 /**
  * Internal secret for retention worker (cron job)

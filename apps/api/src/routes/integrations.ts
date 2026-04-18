@@ -5,12 +5,15 @@
  */
 
 import { Router } from "express";
+import rateLimit from "express-rate-limit";
+import { RL_STANDARD } from "../middleware/expressRateLimitPresets.js";
 import { requireUserSession, type AuthenticatedRequest } from "../middleware/auth.js";
 import { safeLog } from "../utils/redaction.js";
 import { query, queryOne } from "../services/storage/db.js";
 import { getIntegrationsPayload } from "@spectyra/integration-metadata";
 
 export const integrationsRouter = Router();
+integrationsRouter.use(rateLimit(RL_STANDARD));
 
 /**
  * GET /v1/integrations

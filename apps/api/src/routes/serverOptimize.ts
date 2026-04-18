@@ -14,6 +14,8 @@
  */
 
 import { Router } from "express";
+import rateLimit from "express-rate-limit";
+import { RL_STANDARD } from "../middleware/expressRateLimitPresets.js";
 import { requireSpectyraApiKey, type AuthenticatedRequest } from "../middleware/auth.js";
 import type {
   CanonicalRequest,
@@ -26,6 +28,7 @@ import { optimize } from "@spectyra/optimization-engine";
 import { safeLog } from "../utils/redaction.js";
 
 export const serverOptimizeRouter = Router();
+serverOptimizeRouter.use(rateLimit(RL_STANDARD));
 
 interface ServerOptimizeRequestBody {
   messages: Array<{ role: string; content: string }>;

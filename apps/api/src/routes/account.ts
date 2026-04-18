@@ -21,18 +21,11 @@ import { safeLog } from "../utils/redaction.js";
 import type { SupabaseAdminUser } from "../types/supabase.js";
 import { applySubscriptionPayloadToKnownOrg } from "./billing.js";
 import { cancelStripeSubscriptionsForOwnerOrgsOnAccountClosure } from "../billing/stripeSubscriptionCancelOnAccountDelete.js";
+import { RL_ACCOUNT, RL_ACCOUNT_DELETE } from "../middleware/expressRateLimitPresets.js";
 
 export const accountRouter = Router();
 
-accountRouter.use(
-  rateLimit({
-    windowMs: 60_000,
-    max: 60,
-    standardHeaders: true,
-    legacyHeaders: false,
-    message: { error: "Too many account requests; try again shortly." },
-  }),
-);
+accountRouter.use(rateLimit(RL_ACCOUNT));
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY || "", {
   apiVersion: "2024-11-20.acacia" as Stripe.LatestApiVersion,
@@ -313,13 +306,7 @@ accountRouter.post(
 accountRouter.post(
   "/delete",
   requireUserSession,
-  rateLimit({
-    windowMs: 60_000,
-    max: 5,
-    standardHeaders: true,
-    legacyHeaders: false,
-    message: { error: "Too many account deletion requests; try again shortly." },
-  }),
+  rateLimit(RL_ACCOUNT_DELETE),
   async (req: AuthenticatedRequest, res) => {
   try {
     const userId = req.auth?.userId;

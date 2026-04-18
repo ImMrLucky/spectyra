@@ -5,6 +5,7 @@
  */
 
 import { Router, type Response } from "express";
+import rateLimit from "express-rate-limit";
 import Stripe from "stripe";
 import {
   getOrgById,
@@ -29,8 +30,10 @@ import {
   provisionSpectyraAccountIfNeeded,
   defaultOrgNameFromEmail,
 } from "../services/accountProvisioning.js";
+import { RL_BILLING } from "../middleware/expressRateLimitPresets.js";
 
 export const billingRouter = Router();
+billingRouter.use(rateLimit(RL_BILLING));
 
 /**
  * Companion / CLI users may have a valid Supabase JWT before any `org_memberships` row exists.

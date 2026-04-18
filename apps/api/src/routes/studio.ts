@@ -12,21 +12,14 @@ import rateLimit from "express-rate-limit";
 import { requireUserSession, optionalProviderKey, type AuthenticatedRequest } from "../middleware/auth.js";
 import type { StudioRunRequest } from "../types/studio.js";
 import { runStudioScenario } from "../services/optimizer/studioRunner.js";
+import { RL_STANDARD } from "../middleware/expressRateLimitPresets.js";
 
 export const studioRouter = Router();
 
 // Any authenticated user can run Studio.
 // Live mode BYOK/vault enforcement happens inside provider resolution.
 studioRouter.use(requireUserSession, optionalProviderKey);
-studioRouter.use(
-  rateLimit({
-    windowMs: 60_000,
-    max: 120,
-    standardHeaders: true,
-    legacyHeaders: false,
-    message: { error: "Too many Studio requests; try again shortly." },
-  }),
-);
+studioRouter.use(rateLimit(RL_STANDARD));
 
 studioRouter.post("/run", async (req: AuthenticatedRequest, res) => {
   try {

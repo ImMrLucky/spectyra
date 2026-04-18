@@ -1,4 +1,6 @@
 import { Router } from "express";
+import rateLimit from "express-rate-limit";
+import { RL_STANDARD } from "../middleware/expressRateLimitPresets.js";
 import { readFileSync, readdirSync } from "fs";
 import { join } from "path";
 import { fileURLToPath } from "url";
@@ -11,6 +13,7 @@ const __dirname = dirname(__filename);
 const scenariosDir = join(__dirname, "../../scenarios");
 
 export const scenariosRouter = Router();
+scenariosRouter.use(rateLimit(RL_STANDARD));
 
 scenariosRouter.get("/", (req, res) => {
   try {

@@ -5,6 +5,8 @@
  */
 
 import { Router } from "express";
+import rateLimitExpress from "express-rate-limit";
+import { RL_STANDARD } from "../middleware/expressRateLimitPresets.js";
 import { requireSpectyraApiKey, requireSdkAccess, type AuthenticatedRequest } from "../middleware/auth.js";
 import { rateLimit } from "../middleware/rateLimit.js";
 import { decideAgentOptions } from "../services/agent/policy.js";
@@ -13,6 +15,8 @@ import { safeLog } from "../utils/redaction.js";
 import { randomUUID } from "node:crypto";
 
 export const agentRouter = Router();
+
+agentRouter.use(rateLimitExpress(RL_STANDARD));
 
 // Apply authentication middleware (machine auth via API key)
 agentRouter.use(requireSpectyraApiKey);

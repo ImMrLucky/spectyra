@@ -14,6 +14,8 @@
  */
 
 import { Router } from "express";
+import rateLimit from "express-rate-limit";
+import { RL_STANDARD } from "../middleware/expressRateLimitPresets.js";
 import { requireUserSession, type AuthenticatedRequest } from "../middleware/auth.js";
 import { runOptimizedOrBaseline } from "../services/optimizer/optimizer.js";
 import { getEmbedder } from "../services/embeddings/embedderRegistry.js";
@@ -41,12 +43,14 @@ import {
 
 /** Health check (authenticated) */
 export const optimizerLabHealthRouter = Router();
+optimizerLabHealthRouter.use(rateLimit(RL_STANDARD));
 optimizerLabHealthRouter.use(requireUserSession);
 optimizerLabHealthRouter.get("/optimize/health", (_req, res) => {
   res.json({ status: "ok", timestamp: new Date().toISOString() });
 });
 
 export const optimizerLabRouter = Router();
+optimizerLabRouter.use(rateLimit(RL_STANDARD));
 
 // Any authenticated user can run Optimizer Lab (no provider calls; safe for testing)
 optimizerLabRouter.use(requireUserSession);

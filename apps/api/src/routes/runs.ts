@@ -1,10 +1,13 @@
 import { Router } from "express";
+import rateLimit from "express-rate-limit";
+import { RL_STANDARD } from "../middleware/expressRateLimitPresets.js";
 import { getRuns, getRun } from "../services/storage/runsRepo.js";
 import { requireUserSession, requireOrgMembership, type AuthenticatedRequest } from "../middleware/auth.js";
 import { safeLog } from "../utils/redaction.js";
 import { query, queryOne } from "../services/storage/db.js";
 
 export const runsRouter = Router();
+runsRouter.use(rateLimit(RL_STANDARD));
 
 // Apply authentication middleware (Supabase JWT for dashboard)
 runsRouter.use(requireUserSession);

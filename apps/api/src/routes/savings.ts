@@ -1,4 +1,6 @@
 import { Router } from "express";
+import rateLimit from "express-rate-limit";
+import { RL_STANDARD } from "../middleware/expressRateLimitPresets.js";
 import { requireUserSession, requireSpectyraApiKey, optionalProviderKey, type AuthenticatedRequest } from "../middleware/auth.js";
 import {
   getSavingsSummary,
@@ -55,6 +57,7 @@ function buildWhereClause(filters: SavingsFilters, tablePrefix: string = "l"): {
 }
 
 export const savingsRouter = Router();
+savingsRouter.use(rateLimit(RL_STANDARD));
 
 // Apply authentication middleware (Supabase JWT for dashboard)
 savingsRouter.use(requireUserSession);

@@ -12,6 +12,8 @@
  */
 
 import { Router } from "express";
+import rateLimit from "express-rate-limit";
+import { RL_STANDARD } from "../middleware/expressRateLimitPresets.js";
 import crypto from "node:crypto";
 import { hashApiKey, verifyApiKey } from "../services/storage/orgsRepo.js";
 import { query, queryOne } from "../services/storage/db.js";
@@ -22,6 +24,7 @@ import { audit } from "../services/audit/audit.js";
 import { safeLog } from "../utils/redaction.js";
 
 export const licenseRouter = Router();
+licenseRouter.use(rateLimit(RL_STANDARD));
 
 function generateLicenseKey(): string {
   const random = crypto.randomBytes(24).toString("hex");

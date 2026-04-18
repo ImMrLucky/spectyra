@@ -1,4 +1,6 @@
 import { Router } from "express";
+import rateLimit from "express-rate-limit";
+import { RL_STANDARD } from "../middleware/expressRateLimitPresets.js";
 import { requireSpectyraApiKey, optionalProviderKey, type AuthenticatedRequest } from "../middleware/auth.js";
 import { resolveOptimizerProvider } from "../services/llm/providerResolver.js";
 import { createOptimizerProvider } from "../services/optimizer/providerAdapter.js";
@@ -16,6 +18,7 @@ import {
 import { safeLog } from "../utils/redaction.js";
 
 export const proofRouter = Router();
+proofRouter.use(rateLimit(RL_STANDARD));
 
 // Apply authentication middleware
 proofRouter.use(requireSpectyraApiKey);
