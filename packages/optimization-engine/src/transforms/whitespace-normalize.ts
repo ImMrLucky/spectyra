@@ -25,10 +25,32 @@ function normalizeWhitespaceRaw(text: string): string {
  * Split text into alternating prose / code-fence segments, normalize only the
  * prose segments, and reassemble. Code fences (``` blocks) are preserved as-is.
  */
+/** Split on ```…``` fences — same segments as `split(/(```[\s\S]*?```)/g)` without ReDoS-prone regex. */
+function splitPreservingMarkdownFences(text: string): string[] {
+  const parts: string[] = [];
+  let i = 0;
+  while (i < text.length) {
+    const fenceAt = text.indexOf("```", i);
+    if (fenceAt < 0) {
+      parts.push(text.slice(i));
+      break;
+    }
+    parts.push(text.slice(i, fenceAt));
+    const close = text.indexOf("```", fenceAt + 3);
+    if (close < 0) {
+      parts.push(text.slice(fenceAt));
+      break;
+    }
+    parts.push(text.slice(fenceAt, close + 3));
+    i = close + 3;
+  }
+  return parts;
+}
+
 function normalizeWhitespace(text: string): string {
-  const parts = text.split(/(```[\s\S]*?```)/g);
+  const parts = splitPreservingMarkdownFences(text);
   return parts
-    .map((segment, i) => (i % 2 === 1 ? segment : normalizeWhitespaceRaw(segment)))
+    .map((segment, idx) => (idx % 2 === 0 ? normalizeWhitespaceRaw(segment) : segment))
     .join("");
 }
 

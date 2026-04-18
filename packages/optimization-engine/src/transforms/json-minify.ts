@@ -6,8 +6,6 @@ import type {
   FeatureDetectionResult,
 } from "@spectyra/canonical-model";
 
-const JSON_BLOCK_RE = /```(?:json)?\s*\n([\s\S]*?)\n\s*```/g;
-
 function tryMinifyJson(text: string): { minified: string; saved: number } | null {
   try {
     const parsed = JSON.parse(text);
@@ -19,28 +17,122 @@ function tryMinifyJson(text: string): { minified: string; saved: number } | null
   }
 }
 
-function minifyJsonInMessage(text: string): { result: string; totalSaved: number } {
+/** Find matching `}` or `]` for a JSON fragment starting at `start` (handles strings). */
+function findMatchingJsonBrace(text: string, start: number): number {
+  const open = text[start];
+  if (open !== "{" && open !== "[") return -1;
+  const closeCh = open === "{" ? "}" : "]";
+  let depth = 0;
+  let inString = false;
+  let escape = false;
+  for (let i = start; i < text.length; i++) {
+    const c = text[i];
+    if (inString) {
+      if (escape) {
+        escape = false;
+        continue;
+      }
+      if (c === "\\") {
+        escape = true;
+        continue;
+      }
+      if (c === '"') inString = false;
+      continue;
+    }
+    if (c === '"') {
+      inString = true;
+      continue;
+    }
+    if (c === open) depth++;
+    else if (c === closeCh) {
+      depth--;
+      if (depth === 0) return i;
+    }
+  }
+  return -1;
+}
+
+/** Replace ```json … ``` blocks without global `/[\s\S]*?/` (ReDoS). */
+function minifyJsonFencedBlocks(text: string): { result: string; saved: number } {
   let totalSaved = 0;
-  const result = text.replace(JSON_BLOCK_RE, (full, jsonContent: string) => {
-    const m = tryMinifyJson(jsonContent.trim());
+  let out = "";
+  let i = 0;
+  while (i < text.length) {
+    if (!text.startsWith("```", i)) {
+      const next = text.indexOf("```", i);
+      const end = next === -1 ? text.length : next;
+      out += text.slice(i, end);
+      i = end;
+      continue;
+    }
+    let p = i + 3;
+    if (text.slice(p, p + 4).toLowerCase() === "json") p += 4;
+    while (p < text.length && /\s/.test(text[p]) && text[p] !== "\n") p++;
+    if (p >= text.length || text[p] !== "\n") {
+      out += text.slice(i, i + 3);
+      i += 3;
+      continue;
+    }
+    p++;
+    const innerStart = p;
+    const closeFence = text.indexOf("\n```", innerStart);
+    if (closeFence < 0) {
+      out += text.slice(i);
+      break;
+    }
+    const inner = text.slice(innerStart, closeFence);
+    const fenceEnd = closeFence + 4;
+    const m = tryMinifyJson(inner.trim());
     if (m) {
       totalSaved += m.saved;
-      return "```json\n" + m.minified + "\n```";
+      out += "```json\n" + m.minified + "\n```";
+    } else {
+      out += text.slice(i, fenceEnd);
     }
-    return full;
-  });
+    i = fenceEnd;
+  }
+  return { result: out, saved: totalSaved };
+}
 
-  const bareJsonRe = /(?:^|\n)(\{[\s\S]{500,}?\}|\[[\s\S]{500,}?\])(?:\n|$)/g;
-  const result2 = result.replace(bareJsonRe, (full, candidate: string) => {
+/** Minify large bare JSON objects/arrays at line starts using bracket matching (no `[\s\S]{500,}?`). */
+function minifyBareJsonBlocks(text: string): { result: string; saved: number } {
+  let totalSaved = 0;
+  const lineStarts: number[] = [];
+  if (text.length > 0 && (text[0] === "{" || text[0] === "[")) lineStarts.push(0);
+  for (let k = 0; k < text.length - 1; k++) {
+    if (text[k] === "\n" && (text[k + 1] === "{" || text[k + 1] === "[")) lineStarts.push(k + 1);
+  }
+
+  const replacements: Array<{ start: number; end: number; replacement: string; saved: number }> = [];
+  for (const start of lineStarts) {
+    const endIdx = findMatchingJsonBrace(text, start);
+    if (endIdx < 0 || endIdx - start < 500) continue;
+    const candidate = text.slice(start, endIdx + 1);
     const m = tryMinifyJson(candidate.trim());
-    if (m) {
-      totalSaved += m.saved;
-      return "\n" + m.minified + "\n";
-    }
-    return full;
-  });
+    if (m && m.saved > 0) replacements.push({ start, end: endIdx + 1, replacement: m.minified, saved: m.saved });
+  }
 
-  return { result: result2, totalSaved };
+  if (replacements.length === 0) return { result: text, saved: 0 };
+
+  replacements.sort((a, b) => b.saved - a.saved);
+  const picked: typeof replacements = [];
+  for (const r of replacements) {
+    if (picked.some((p) => !(r.end <= p.start || r.start >= p.end))) continue;
+    picked.push(r);
+  }
+  picked.sort((a, b) => b.start - a.start);
+  let result = text;
+  for (const r of picked) {
+    totalSaved += r.saved;
+    result = result.slice(0, r.start) + r.replacement + result.slice(r.end);
+  }
+  return { result, saved: totalSaved };
+}
+
+function minifyJsonInMessage(text: string): { result: string; totalSaved: number } {
+  const step1 = minifyJsonFencedBlocks(text);
+  const step2 = minifyBareJsonBlocks(step1.result);
+  return { result: step2.result, totalSaved: step1.saved + step2.saved };
 }
 
 export const jsonMinify: OptimizationTransform = {

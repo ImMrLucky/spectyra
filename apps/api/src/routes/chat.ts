@@ -22,6 +22,7 @@ import {
   getPricingConfig,
 } from "../services/proof/tokenEstimator.js";
 import { confidenceToBand } from "../services/savings/confidence.js";
+import { inferenceRouteLimiter } from "../middleware/codeqlRouteRateLimits.js";
 
 export const chatRouter = Router();
 
@@ -29,6 +30,7 @@ export const chatRouter = Router();
 chatRouter.use(requireSpectyraApiKey);
 chatRouter.use(optionalProviderKey);
 chatRouter.use(attachSavingsObserveContext);
+chatRouter.use(inferenceRouteLimiter);
 
 chatRouter.post("/", async (req: AuthenticatedRequest, res) => {
   try {

@@ -28,8 +28,11 @@ function extractSignatures(code: string): Set<string> {
   for (const match of code.matchAll(/class\s+([a-zA-Z_]\w*)/g)) {
     signatures.add(match[1].toLowerCase());
   }
-  for (const match of code.matchAll(/(?:async\s+)?([a-zA-Z_]\w*)\s*\([^)]*\)\s*{/g)) {
-    signatures.add(match[1].toLowerCase());
+  // Line-based `name(` declarations — avoids `\([^)]*\)` on long inputs (ReDoS).
+  for (const line of code.split("\n")) {
+    const trimmed = line.trim();
+    const m = /^(?:export\s+)?(?:async\s+)?([a-zA-Z_]\w*)\s*\(/.exec(trimmed);
+    if (m) signatures.add(m[1].toLowerCase());
   }
   return signatures;
 }

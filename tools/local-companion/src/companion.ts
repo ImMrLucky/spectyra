@@ -14,6 +14,7 @@
  */
 
 import express, { type Request, type Response } from "express";
+import rateLimit from "express-rate-limit";
 import cors from "cors";
 import crypto from "crypto";
 import { Readable } from "node:stream";
@@ -180,6 +181,14 @@ const app = express();
 
 app.use(cors());
 app.use(express.json({ limit: "10mb" }));
+
+/** Throttle Spectyra Cloud proxy routes (CodeQL: missing rate limiting). */
+const spectyraCloudProxyLimiter = rateLimit({
+  windowMs: 60_000,
+  max: 60,
+  standardHeaders: true,
+  legacyHeaders: false,
+});
 
 // ── Local savings dashboard (OpenClaw / skill users — no Desktop required) ───
 
@@ -427,7 +436,7 @@ app.get("/diagnostics/integrations/openclaw", (_req, res) => {
  * Proxy Spectyra Cloud billing using the org API key from ~/.spectyra/desktop/config.json.
  * Lets the local dashboard and tools subscribe without opening the Spectyra web app.
  */
-app.get("/v1/billing/status", async (_req, res) => {
+app.get("/v1/billing/status", spectyraCloudProxyLimiter, async (_req, res) => {
   const auth = await spectyraCloudAuthHeaders("billing");
   if (!auth.ok) {
     res.status(auth.status).json({ error: auth.message });
@@ -454,7 +463,7 @@ function redirectCheckoutGetToDashboard(_req: Request, res: Response): void {
 }
 app.get(["/v1/billing/checkout", "/v1/billing/checkout/"], redirectCheckoutGetToDashboard);
 
-app.post(["/v1/billing/checkout", "/v1/billing/checkout/"], async (req, res) => {
+app.post(["/v1/billing/checkout", "/v1/billing/checkout/"], spectyraCloudProxyLimiter, async (req, res) => {
   const auth = await spectyraCloudAuthHeaders("billing");
   if (!auth.ok) {
     res.status(auth.status).json({ error: auth.message });
@@ -496,7 +505,7 @@ app.post(["/v1/billing/checkout", "/v1/billing/checkout/"], async (req, res) => 
 });
 
 /** Proxy JWT-only account routes (cancel / pause / delete) for the local dashboard. */
-app.get("/v1/account/summary", async (_req, res) => {
+app.get("/v1/account/summary", spectyraCloudProxyLimiter, async (_req, res) => {
   const auth = await spectyraCloudAuthHeaders("sessionOnly");
   if (!auth.ok) {
     res.status(auth.status).json({ error: auth.message });

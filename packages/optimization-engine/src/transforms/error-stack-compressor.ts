@@ -6,7 +6,11 @@ import type {
   FeatureDetectionResult,
 } from "@spectyra/canonical-model";
 
-const STACK_FRAME_RE = /^(\s+at .+)$/;
+function isStackFrameLine(line: string): boolean {
+  let j = 0;
+  while (j < line.length && (line[j] === " " || line[j] === "\t")) j++;
+  return j + 3 < line.length && line.startsWith("at ", j);
+}
 
 function compressStackTrace(text: string): { result: string; saved: number } {
   const lines = text.split("\n");
@@ -15,9 +19,9 @@ function compressStackTrace(text: string): { result: string; saved: number } {
   let totalSaved = 0;
 
   while (i < lines.length) {
-    if (STACK_FRAME_RE.test(lines[i])) {
+    if (isStackFrameLine(lines[i])) {
       const frames: string[] = [];
-      while (i < lines.length && STACK_FRAME_RE.test(lines[i])) {
+      while (i < lines.length && isStackFrameLine(lines[i])) {
         frames.push(lines[i]);
         i++;
       }
@@ -45,12 +49,17 @@ export const errorStackCompressor: OptimizationTransform = {
   id: "error_stack_compressor",
 
   applies(_features: FeatureDetectionResult[], request: CanonicalRequest): boolean {
-    return request.messages.some(m =>
-      (m.role === "tool" || m.role === "assistant") &&
-      m.text != null &&
-      m.text.length > 500 &&
-      /\s+at\s+/.test(m.text)
-    );
+    return request.messages.some((m) => {
+      if ((m.role !== "tool" && m.role !== "assistant") || m.text == null || m.text.length <= 500) {
+        return false;
+      }
+      for (const line of m.text.split("\n")) {
+        let j = 0;
+        while (j < line.length && (line[j] === " " || line[j] === "\t")) j++;
+        if (j < line.length && line.startsWith("at ", j)) return true;
+      }
+      return false;
+    });
   },
 
   run(request: CanonicalRequest, _ctx: TransformContext): TransformResult {

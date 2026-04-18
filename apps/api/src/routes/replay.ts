@@ -20,6 +20,7 @@ import { computeWorkloadKey, computePromptHash } from "../services/savings/workl
 import { writeVerifiedSavings } from "../services/savings/ledgerWriter.js";
 import { redactReplayResult } from "../middleware/redact.js";
 import { safeLog } from "../utils/redaction.js";
+import { inferenceRouteLimiter } from "../middleware/codeqlRouteRateLimits.js";
 import { 
   estimateBaselineTokens, 
   estimateOptimizedTokens, 
@@ -36,6 +37,7 @@ export const replayRouter = Router();
 replayRouter.use(requireSpectyraApiKey);
 replayRouter.use(optionalProviderKey);
 replayRouter.use(attachSavingsObserveContext);
+replayRouter.use(inferenceRouteLimiter);
 
 replayRouter.post("/", async (req: AuthenticatedRequest, res) => {
   const isEstimatorMode = req.body.proof_mode === "estimator";

@@ -31,6 +31,11 @@ import {
   listPlatformRoles,
 } from "../services/storage/platformRolesRepo.js";
 import { cancelStripeSubscriptionsForOwnerOrgsOnAccountClosure } from "../billing/stripeSubscriptionCancelOnAccountDelete.js";
+import {
+  adminDeleteUserLimiter,
+  adminListUsersLimiter,
+  adminPatchUserLimiter,
+} from "../middleware/codeqlRouteRateLimits.js";
 
 export const adminRouter = Router();
 
@@ -399,7 +404,7 @@ adminRouter.patch("/orgs/:id/sdk-access", requireUserSession, requireOwner, asyn
  * 
  * List all users with their org memberships (owner only)
  */
-adminRouter.get("/users", requireUserSession, requireOwner, async (req, res) => {
+adminRouter.get("/users", requireUserSession, requireOwner, adminListUsersLimiter, async (req, res) => {
   try {
     // Get all users from org_memberships with their email from Supabase
     // Note: This requires Supabase service role access
@@ -601,6 +606,7 @@ adminRouter.patch(
   "/users/:userId/access",
   requireUserSession,
   requireOwner,
+  adminPatchUserLimiter,
   async (req: AuthenticatedRequest, res) => {
     try {
       const userId = parseSupabaseAuthUserId(req.params.userId);
@@ -654,6 +660,7 @@ adminRouter.patch(
   "/users/:userId/owner-org-billing",
   requireUserSession,
   requireOwner,
+  adminPatchUserLimiter,
   async (req: AuthenticatedRequest, res) => {
     try {
       if (!canManagePrivilegedUserActions(req)) {
@@ -710,6 +717,7 @@ adminRouter.patch(
   "/users/:userId/role",
   requireUserSession,
   requireOwner,
+  adminPatchUserLimiter,
   async (req: AuthenticatedRequest, res) => {
     try {
       const userId = parseSupabaseAuthUserId(req.params.userId);
@@ -773,7 +781,12 @@ adminRouter.patch(
  * Removes Spectyra DB rows (memberships; sole-owner orgs deleted entirely), platform_roles, flags,
  * then deletes the Supabase Auth user. Does not remove auth-only users with no app rows except auth delete.
  */
-adminRouter.delete("/users/:userId", requireUserSession, requireOwner, async (req: AuthenticatedRequest, res) => {
+adminRouter.delete(
+  "/users/:userId",
+  requireUserSession,
+  requireOwner,
+  adminDeleteUserLimiter,
+  async (req: AuthenticatedRequest, res) => {
   try {
     const userId = parseSupabaseAuthUserId(req.params.userId);
     if (!userId) {

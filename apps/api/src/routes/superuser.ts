@@ -17,6 +17,7 @@ import {
 } from "../services/storage/platformRolesRepo.js";
 import { setOrgPlatformExempt, setOrgObserveOnlyOverride } from "../services/storage/orgsRepo.js";
 import { safeLog } from "../utils/redaction.js";
+import { superuserMutationLimiter } from "../middleware/codeqlRouteRateLimits.js";
 
 export const superuserRouter = Router();
 
@@ -90,6 +91,7 @@ superuserRouter.delete(
   "/platform-users/:email",
   requireUserSession,
   requireSuperuser,
+  superuserMutationLimiter,
   async (req: AuthenticatedRequest, res) => {
     try {
       const target = decodeURIComponent(req.params.email || "").trim().toLowerCase();
@@ -116,6 +118,7 @@ superuserRouter.patch(
   "/orgs/:orgId/savings-observe-mode",
   requireUserSession,
   requireSuperuser,
+  superuserMutationLimiter,
   async (req, res) => {
     try {
       const orgId = req.params.orgId;
@@ -145,6 +148,7 @@ superuserRouter.patch(
   "/orgs/:orgId/platform-exempt",
   requireUserSession,
   requireSuperuser,
+  superuserMutationLimiter,
   async (req, res) => {
     try {
       const orgId = req.params.orgId;

@@ -12,15 +12,95 @@ export interface PostProcessInput {
   preserveCodeBlocks?: boolean;
 }
 
+const LEADING_OPENERS = [
+  "sure",
+  "absolutely",
+  "of course",
+  "certainly",
+  "definitely",
+  "happy to help",
+] as const;
+
+const TRAILING_PHRASES = [
+  "let me know",
+  "if you have any questions",
+  "hope this helps",
+  "feel free to ask",
+  "don't hesitate",
+] as const;
+
+/** Strip leading opener word + following punctuation/spaces (linear; no ReDoS). */
+function stripLeadingOpener(t: string): string {
+  const lower = t.toLowerCase();
+  for (const word of LEADING_OPENERS) {
+    if (!lower.startsWith(word)) continue;
+    let i = word.length;
+    if (i >= t.length) return "";
+    if (!/[\s,.-]/.test(t[i])) continue;
+    while (i < t.length && /[\s,.-]/.test(t[i])) i++;
+    return t.slice(i).trimStart();
+  }
+  return t;
+}
+
+/** Remove first trailing-disclaimer block (leftmost phrase match, like the former regex). */
+function stripTrailingDisclaimer(t: string): string {
+  const lower = t.toLowerCase();
+  let earliest = t.length;
+  for (const phrase of TRAILING_PHRASES) {
+    const idx = lower.indexOf(phrase);
+    if (idx < 0) continue;
+    let start = idx;
+    while (start > 0 && (t[start - 1] === " " || t[start - 1] === "\t")) start--;
+    if (start > 0 && t[start - 1] === "\n") {
+      let s2 = start - 1;
+      while (s2 > 0 && (t[s2 - 1] === " " || t[s2 - 1] === "\t")) s2--;
+      start = s2;
+    }
+    earliest = Math.min(earliest, start);
+  }
+  if (earliest >= t.length) return t;
+  return t.slice(0, earliest).trimEnd();
+}
+
+function stripHeresPrefix(t: string): string {
+  const lower = t.toLowerCase();
+  if (!lower.startsWith("here")) return t;
+  let i = 4;
+  if (i < lower.length && lower[i] === "'") i++;
+  if (i < lower.length && lower[i] === "s") i++;
+  while (i < t.length && /\s/.test(t[i])) i++;
+  const rest = t.slice(i).toLowerCase();
+  for (const w of ["the ", "your ", "a "] as const) {
+    if (rest.startsWith(w)) return t.slice(i + w.length);
+  }
+  return t;
+}
+
+function stripICreatedPrefix(t: string): string {
+  const lower = t.toLowerCase();
+  const prefixes: Array<{ p: string; verbs: string[] }> = [
+    { p: "i've ", verbs: ["created ", "made ", "written ", "prepared"] },
+    { p: "i'll ", verbs: ["created ", "made ", "written ", "prepared"] },
+    { p: "i'd ", verbs: ["created ", "made ", "written ", "prepared"] },
+    { p: "i ", verbs: ["created ", "made ", "written ", "prepared"] },
+  ];
+  for (const { p, verbs } of prefixes) {
+    if (!lower.startsWith(p)) continue;
+    const after = lower.slice(p.length);
+    for (const verb of verbs) {
+      if (after.startsWith(verb)) return t.slice(p.length + verb.length);
+    }
+  }
+  return t;
+}
+
 function stripCommonBoilerplate(s: string): string {
   let t = s;
-  const boilerplatePatterns = [
-    /^(Sure|Absolutely|Of course|Certainly|Definitely|Happy to help)[\s,.-]+/i,
-    /\n?\s*(Let me know|If you have any questions|Hope this helps|Feel free to ask|Don't hesitate).*$/is,
-    /^Here'?s?\s+(the|your|a)\s+/i,
-    /^I'?(?:ve|ll|d)\s+(created|made|written|prepared)/i,
-  ];
-  for (const pattern of boilerplatePatterns) t = t.replace(pattern, "");
+  t = stripLeadingOpener(t);
+  t = stripTrailingDisclaimer(t);
+  t = stripHeresPrefix(t);
+  t = stripICreatedPrefix(t);
   return t.trim();
 }
 
@@ -70,6 +150,38 @@ function compressLongScaffold(s: string, aggressive: boolean, preserveCode: bool
   return processed.trim();
 }
 
+/**
+ * Same segments as `text.split(/[.!?]+\s+/)` without a regex on uncontrolled input (ReDoS).
+ * Linear time; treats a run of .!? followed by at least one whitespace as a boundary.
+ */
+function splitOnSentenceDelimiters(text: string): string[] {
+  const parts: string[] = [];
+  let segmentStart = 0;
+  let i = 0;
+  while (i < text.length) {
+    const ch = text[i];
+    if (ch === "." || ch === "!" || ch === "?") {
+      let punctEnd = i;
+      while (punctEnd + 1 < text.length) {
+        const n = text[punctEnd + 1];
+        if (n === "." || n === "!" || n === "?") punctEnd++;
+        else break;
+      }
+      let wsEnd = punctEnd + 1;
+      while (wsEnd < text.length && /\s/.test(text[wsEnd])) wsEnd++;
+      if (wsEnd > punctEnd + 1) {
+        parts.push(text.slice(segmentStart, i));
+        segmentStart = wsEnd;
+        i = wsEnd;
+        continue;
+      }
+    }
+    i++;
+  }
+  parts.push(text.slice(segmentStart));
+  return parts;
+}
+
 function enforcePatchFormatIfPresent(text: string, aggressive: boolean): string {
   const diffMatch = text.match(/```diff[\s\S]*?```/i);
   if (!diffMatch) return text;
@@ -100,7 +212,7 @@ export function postProcessOutput(input: PostProcessInput): string {
   } else {
     t = compressLongScaffold(t, aggressive, false);
     if (aggressive && t.length > 900) {
-      const sentences = t.split(/[.!?]+\s+/);
+      const sentences = splitOnSentenceDelimiters(t);
       let kept = "";
       for (const sentence of sentences) {
         if ((kept + sentence).length > 900) break;
