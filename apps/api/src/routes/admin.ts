@@ -1,4 +1,5 @@
 import { Router } from "express";
+import { validate as isUuid } from "uuid";
 import { query, queryOne } from "../services/storage/db.js";
 import {requireAdminToken, requireOwner, requireUserSession, type AuthenticatedRequest} from "../middleware/auth.js";
 import { safeLog, redactSecrets } from "../utils/redaction.js";
@@ -65,6 +66,30 @@ function supabaseAdminHeaders(): { base: string; headers: Record<string, string>
       apikey: key,
     },
   };
+}
+
+/**
+ * Build Supabase Auth Admin URLs without interpolating untrusted path segments into a string URL (SSRF/CodeQL).
+ * Path segments are encoded; user id must be a UUID.
+ */
+function supabaseAuthAdminUsersListUrl(base: string): string {
+  const origin = base.replace(/\/$/, "");
+  return new URL("auth/v1/admin/users?per_page=200&page=1", `${origin}/`).href;
+}
+
+function supabaseAuthAdminUserUrl(base: string, userId: string): string {
+  if (!isUuid(userId)) {
+    throw new Error("Supabase auth user id must be a UUID");
+  }
+  const origin = base.replace(/\/$/, "");
+  return new URL(`auth/v1/admin/users/${encodeURIComponent(userId)}`, `${origin}/`).href;
+}
+
+/** Supabase Auth user IDs are UUIDs. Require strict format before embedding in outbound URLs (SSRF/path injection). */
+function parseSupabaseAuthUserId(raw: string | undefined): string | null {
+  const id = typeof raw === "string" ? raw.trim() : "";
+  if (!id || !isUuid(id)) return null;
+  return id;
 }
 
 /**
@@ -435,7 +460,7 @@ adminRouter.get("/users", requireUserSession, requireOwner, async (req, res) => 
     if (supabaseUrl && supabaseServiceKey) {
       try {
         const listRes = await fetch(
-          `${supabaseUrl.replace(/\/$/, "")}/auth/v1/admin/users?per_page=200&page=1`,
+          supabaseAuthAdminUsersListUrl(supabaseUrl),
           {
             headers: {
               Authorization: `Bearer ${supabaseServiceKey}`,
@@ -526,9 +551,10 @@ adminRouter.get("/users", requireUserSession, requireOwner, async (req, res) => 
     if (supabaseUrl && supabaseServiceKey) {
       for (const user of users) {
         if (user.email) continue;
+        if (!isUuid(user.user_id)) continue;
         try {
           const response = await fetch(
-            `${supabaseUrl.replace(/\/$/, "")}/auth/v1/admin/users/${user.user_id}`,
+            supabaseAuthAdminUserUrl(supabaseUrl, user.user_id),
             {
               headers: {
                 Authorization: `Bearer ${supabaseServiceKey}`,
@@ -577,10 +603,10 @@ adminRouter.patch(
   requireOwner,
   async (req: AuthenticatedRequest, res) => {
     try {
-      const userId = req.params.userId?.trim();
+      const userId = parseSupabaseAuthUserId(req.params.userId);
       const { access_state } = req.body as { access_state?: AccountAccessState };
       if (!userId) {
-        return res.status(400).json({ error: "user id required" });
+        return res.status(400).json({ error: "user id must be a UUID" });
       }
       if (access_state !== "active" && access_state !== "paused" && access_state !== "inactive") {
         return res.status(400).json({ error: "access_state must be active, paused, or inactive" });
@@ -593,7 +619,7 @@ adminRouter.patch(
       if (!cfg) {
         return res.status(503).json({ error: "Supabase admin not configured" });
       }
-      const uRes = await fetch(`${cfg.base}/auth/v1/admin/users/${userId}`, { headers: cfg.headers });
+      const uRes = await fetch(supabaseAuthAdminUserUrl(cfg.base, userId), { headers: cfg.headers });
       if (!uRes.ok) {
         return res.status(uRes.status === 404 ? 404 : 502).json({ error: "User not found in auth provider" });
       }
@@ -635,10 +661,10 @@ adminRouter.patch(
           error: "Only superusers or the platform owner can change owner-org billing exempt",
         });
       }
-      const userId = req.params.userId?.trim();
+      const userId = parseSupabaseAuthUserId(req.params.userId);
       const { platform_exempt } = req.body as { platform_exempt?: boolean };
       if (!userId) {
-        return res.status(400).json({ error: "user id required" });
+        return res.status(400).json({ error: "user id must be a UUID" });
       }
       if (typeof platform_exempt !== "boolean") {
         return res.status(400).json({ error: "platform_exempt boolean required" });
@@ -648,7 +674,7 @@ adminRouter.patch(
       if (!cfg) {
         return res.status(503).json({ error: "Supabase admin not configured" });
       }
-      const uRes = await fetch(`${cfg.base}/auth/v1/admin/users/${userId}`, { headers: cfg.headers });
+      const uRes = await fetch(supabaseAuthAdminUserUrl(cfg.base, userId), { headers: cfg.headers });
       if (!uRes.ok) {
         return res.status(uRes.status === 404 ? 404 : 502).json({ error: "User not found in auth provider" });
       }
@@ -686,10 +712,10 @@ adminRouter.patch(
   requireOwner,
   async (req: AuthenticatedRequest, res) => {
     try {
-      const userId = req.params.userId?.trim();
+      const userId = parseSupabaseAuthUserId(req.params.userId);
       const { role } = req.body as { role?: string | null };
       if (!userId) {
-        return res.status(400).json({ error: "user id required" });
+        return res.status(400).json({ error: "user id must be a UUID" });
       }
 
       if (!canManagePrivilegedUserActions(req)) {
@@ -701,7 +727,7 @@ adminRouter.patch(
         return res.status(503).json({ error: "Supabase admin not configured" });
       }
 
-      const uRes = await fetch(`${cfg.base}/auth/v1/admin/users/${userId}`, { headers: cfg.headers });
+      const uRes = await fetch(supabaseAuthAdminUserUrl(cfg.base, userId), { headers: cfg.headers });
       if (!uRes.ok) {
         return res.status(uRes.status === 404 ? 404 : 502).json({ error: "User not found in auth provider" });
       }
@@ -749,9 +775,9 @@ adminRouter.patch(
  */
 adminRouter.delete("/users/:userId", requireUserSession, requireOwner, async (req: AuthenticatedRequest, res) => {
   try {
-    const userId = req.params.userId?.trim();
+    const userId = parseSupabaseAuthUserId(req.params.userId);
     if (!userId) {
-      return res.status(400).json({ error: "user id required" });
+      return res.status(400).json({ error: "user id must be a UUID" });
     }
     if (req.auth?.userId === userId) {
       return res.status(400).json({ error: "Use another admin account to delete your own user" });
@@ -762,7 +788,7 @@ adminRouter.delete("/users/:userId", requireUserSession, requireOwner, async (re
       return res.status(503).json({ error: "Supabase admin not configured" });
     }
 
-    const uRes = await fetch(`${cfg.base}/auth/v1/admin/users/${userId}`, { headers: cfg.headers });
+    const uRes = await fetch(supabaseAuthAdminUserUrl(cfg.base, userId), { headers: cfg.headers });
     if (!uRes.ok) {
       return res.status(uRes.status === 404 ? 404 : 502).json({ error: "User not found in auth provider" });
     }
@@ -777,7 +803,7 @@ adminRouter.delete("/users/:userId", requireUserSession, requireOwner, async (re
     const stripeClosure = await cancelStripeSubscriptionsForOwnerOrgsOnAccountClosure(userId, "immediately");
     const summary = await deleteUserDataAndMemberships({ userId, email });
 
-    const delRes = await fetch(`${cfg.base}/auth/v1/admin/users/${userId}`, {
+    const delRes = await fetch(supabaseAuthAdminUserUrl(cfg.base, userId), {
       method: "DELETE",
       headers: cfg.headers,
     });
