@@ -4,6 +4,7 @@
  */
 
 import { Router } from "express";
+import rateLimit from "express-rate-limit";
 import {
   requireUserSession,
   type AuthenticatedRequest,
@@ -17,7 +18,10 @@ import {
 } from "../services/storage/platformRolesRepo.js";
 import { setOrgPlatformExempt, setOrgObserveOnlyOverride } from "../services/storage/orgsRepo.js";
 import { safeLog } from "../utils/redaction.js";
-import { superuserMutationLimiter } from "../middleware/codeqlRouteRateLimits.js";
+import {
+  superuserMutationRateLimitOptions,
+  superuserReadRateLimitOptions,
+} from "../middleware/codeqlRouteRateLimits.js";
 
 export const superuserRouter = Router();
 
@@ -33,7 +37,7 @@ function requireSuperuser(
   next();
 }
 
-superuserRouter.get("/me", requireUserSession, (req: AuthenticatedRequest, res) => {
+superuserRouter.get("/me", requireUserSession, rateLimit(superuserReadRateLimitOptions), (req: AuthenticatedRequest, res) => {
   res.json({
     email: req.auth?.email ?? null,
     platform_role: req.auth?.platformRole ?? null,
@@ -45,6 +49,7 @@ superuserRouter.get(
   "/platform-users",
   requireUserSession,
   requireSuperuser,
+  rateLimit(superuserReadRateLimitOptions),
   async (_req, res) => {
     try {
       const users = await listPlatformRoles();
@@ -60,6 +65,7 @@ superuserRouter.post(
   "/platform-users",
   requireUserSession,
   requireSuperuser,
+  rateLimit(superuserMutationRateLimitOptions),
   async (req: AuthenticatedRequest, res) => {
     try {
       const body = req.body as { email?: string; role?: PlatformRoleName };
@@ -91,7 +97,7 @@ superuserRouter.delete(
   "/platform-users/:email",
   requireUserSession,
   requireSuperuser,
-  superuserMutationLimiter,
+  rateLimit(superuserMutationRateLimitOptions),
   async (req: AuthenticatedRequest, res) => {
     try {
       const target = decodeURIComponent(req.params.email || "").trim().toLowerCase();
@@ -118,7 +124,7 @@ superuserRouter.patch(
   "/orgs/:orgId/savings-observe-mode",
   requireUserSession,
   requireSuperuser,
-  superuserMutationLimiter,
+  rateLimit(superuserMutationRateLimitOptions),
   async (req, res) => {
     try {
       const orgId = req.params.orgId;
@@ -148,7 +154,7 @@ superuserRouter.patch(
   "/orgs/:orgId/platform-exempt",
   requireUserSession,
   requireSuperuser,
-  superuserMutationLimiter,
+  rateLimit(superuserMutationRateLimitOptions),
   async (req, res) => {
     try {
       const orgId = req.params.orgId;

@@ -3,6 +3,7 @@
  */
 
 import { Router } from "express";
+import rateLimit from "express-rate-limit";
 import Stripe from "stripe";
 import {
   requireUserSession,
@@ -20,6 +21,11 @@ import { safeLog } from "../utils/redaction.js";
 import type { SupabaseAdminUser } from "../types/supabase.js";
 import { applySubscriptionPayloadToKnownOrg } from "./billing.js";
 import { cancelStripeSubscriptionsForOwnerOrgsOnAccountClosure } from "../billing/stripeSubscriptionCancelOnAccountDelete.js";
+import {
+  accountDeleteRateLimitOptions,
+  accountMutationRateLimitOptions,
+  accountReadRateLimitOptions,
+} from "../middleware/codeqlRouteRateLimits.js";
 
 export const accountRouter = Router();
 
@@ -72,7 +78,7 @@ async function listOwnedStripeSubscriptions(userId: string): Promise<OwnedSubRow
   return r.rows;
 }
 
-accountRouter.get("/summary", requireUserSession, async (req: AuthenticatedRequest, res) => {
+accountRouter.get("/summary", requireUserSession, rateLimit(accountReadRateLimitOptions), async (req: AuthenticatedRequest, res) => {
   try {
     const userId = req.auth?.userId;
     if (!userId) {
@@ -117,6 +123,7 @@ accountRouter.get("/summary", requireUserSession, async (req: AuthenticatedReque
 accountRouter.post(
   "/subscription/cancel-at-period-end",
   requireUserSession,
+  rateLimit(accountMutationRateLimitOptions),
   async (req: AuthenticatedRequest, res) => {
     try {
       if (!process.env.STRIPE_SECRET_KEY?.trim()) {
@@ -176,7 +183,11 @@ accountRouter.post(
 );
 
 /** Undo scheduled cancellation (if still before period end). */
-accountRouter.post("/subscription/keep", requireUserSession, async (req: AuthenticatedRequest, res) => {
+accountRouter.post(
+  "/subscription/keep",
+  requireUserSession,
+  rateLimit(accountMutationRateLimitOptions),
+  async (req: AuthenticatedRequest, res) => {
   try {
     if (!process.env.STRIPE_SECRET_KEY?.trim()) {
       return res.status(503).json({ error: "Billing is not configured" });
@@ -227,7 +238,11 @@ accountRouter.post("/subscription/keep", requireUserSession, async (req: Authent
 });
 
 /** Pause cloud account (Stripe pause_collection + grace — same as admin Pause). */
-accountRouter.post("/pause-service", requireUserSession, async (req: AuthenticatedRequest, res) => {
+accountRouter.post(
+  "/pause-service",
+  requireUserSession,
+  rateLimit(accountMutationRateLimitOptions),
+  async (req: AuthenticatedRequest, res) => {
   try {
     const userId = req.auth?.userId;
     if (!userId) {
@@ -253,7 +268,11 @@ accountRouter.post("/pause-service", requireUserSession, async (req: Authenticat
 });
 
 /** Resume from admin/self pause (active). */
-accountRouter.post("/resume-service", requireUserSession, async (req: AuthenticatedRequest, res) => {
+accountRouter.post(
+  "/resume-service",
+  requireUserSession,
+  rateLimit(accountMutationRateLimitOptions),
+  async (req: AuthenticatedRequest, res) => {
   try {
     const userId = req.auth?.userId;
     if (!userId) {
@@ -290,7 +309,7 @@ accountRouter.post("/resume-service", requireUserSession, async (req: Authentica
  * POST /v1/account/delete — remove app data and Supabase Auth user (irreversible).
  * Body: { "confirm": "DELETE_MY_ACCOUNT" }
  */
-accountRouter.post("/delete", requireUserSession, async (req: AuthenticatedRequest, res) => {
+accountRouter.post("/delete", requireUserSession, rateLimit(accountDeleteRateLimitOptions), async (req: AuthenticatedRequest, res) => {
   try {
     const userId = req.auth?.userId;
     const email = req.auth?.email?.trim() || null;

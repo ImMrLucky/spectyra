@@ -8,19 +8,19 @@
  */
 
 import { Router } from "express";
+import rateLimit from "express-rate-limit";
 import { requireUserSession, optionalProviderKey, type AuthenticatedRequest } from "../middleware/auth.js";
 import type { StudioRunRequest } from "../types/studio.js";
 import { runStudioScenario } from "../services/optimizer/studioRunner.js";
-import { inferenceRouteLimiter } from "../middleware/codeqlRouteRateLimits.js";
+import { inferenceRouteRateLimitOptions } from "../middleware/codeqlRouteRateLimits.js";
 
 export const studioRouter = Router();
 
 // Any authenticated user can run Studio.
 // Live mode BYOK/vault enforcement happens inside provider resolution.
 studioRouter.use(requireUserSession, optionalProviderKey);
-studioRouter.use(inferenceRouteLimiter);
 
-studioRouter.post("/run", async (req: AuthenticatedRequest, res) => {
+studioRouter.post("/run", rateLimit(inferenceRouteRateLimitOptions), async (req: AuthenticatedRequest, res) => {
   try {
     const body = req.body as StudioRunRequest;
     if (!body || !body.scenarioId) {

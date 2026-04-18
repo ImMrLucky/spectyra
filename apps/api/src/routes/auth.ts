@@ -5,6 +5,7 @@
  */
 
 import { Router } from "express";
+import rateLimit from "express-rate-limit";
 import {
   createOrg,
   getOrgById,
@@ -41,8 +42,8 @@ import {
   defaultOrgNameFromEmail,
 } from "../services/accountProvisioning.js";
 import {
-  authAccountMutationLimiter,
-  authAutoConfirmLimiter,
+  authAccountMutationRateLimitOptions,
+  authAutoConfirmRateLimitOptions,
 } from "../middleware/codeqlRouteRateLimits.js";
 
 export const authRouter = Router();
@@ -88,7 +89,7 @@ function openclawDesktopDownloadsPayload(): {
  * Requires Supabase JWT authentication
  * Creates org, default project, and first API key
  */
-authRouter.post("/bootstrap", requireUserSession, authAccountMutationLimiter, async (req: AuthenticatedRequest, res) => {
+authRouter.post("/bootstrap", requireUserSession, rateLimit(authAccountMutationRateLimitOptions), async (req: AuthenticatedRequest, res) => {
   try {
     if (!req.auth?.userId) {
       return res.status(401).json({ error: "Not authenticated" });
@@ -211,7 +212,7 @@ authRouter.post("/bootstrap", requireUserSession, authAccountMutationLimiter, as
  * Body (optional): `{ org_name?, project_name? }` — if `org_name` is omitted, a name is
  * derived from the JWT email (same rules as `defaultOrgNameFromEmail`).
  */
-authRouter.post("/ensure-account", requireUserSession, authAccountMutationLimiter, async (req: AuthenticatedRequest, res) => {
+authRouter.post("/ensure-account", requireUserSession, rateLimit(authAccountMutationRateLimitOptions), async (req: AuthenticatedRequest, res) => {
   try {
     if (!req.auth?.userId) {
       return res.status(401).json({ error: "Not authenticated" });
@@ -275,7 +276,7 @@ authRouter.post("/ensure-account", requireUserSession, authAccountMutationLimite
  * If BILLING_EXEMPT_EMAILS includes the signed-in user's email, sets org.platform_exempt.
  * Idempotent; use after deploy so existing accounts get comp access without DB edits.
  */
-authRouter.post("/sync-billing-exempt", requireUserSession, authAccountMutationLimiter, async (req: AuthenticatedRequest, res) => {
+authRouter.post("/sync-billing-exempt", requireUserSession, rateLimit(authAccountMutationRateLimitOptions), async (req: AuthenticatedRequest, res) => {
   try {
     if (!req.auth?.userId) {
       return res.status(401).json({ error: "Not authenticated" });
@@ -340,7 +341,7 @@ async function findAuthAdminUserByEmail(
   return null;
 }
 
-authRouter.post("/auto-confirm", authAutoConfirmLimiter, async (req, res) => {
+authRouter.post("/auto-confirm", rateLimit(authAutoConfirmRateLimitOptions), async (req, res) => {
   try {
     const { email } = req.body as { email?: string };
     if (!email || !email.trim()) {

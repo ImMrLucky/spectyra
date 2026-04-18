@@ -1,4 +1,5 @@
 import { Router } from "express";
+import rateLimit from "express-rate-limit";
 import { v4 as uuidv4 } from "uuid";
 import { requireSpectyraApiKey, optionalProviderKey, type AuthenticatedRequest } from "../middleware/auth.js";
 import { attachSavingsObserveContext } from "../middleware/trialGate.js";
@@ -22,7 +23,7 @@ import {
   getPricingConfig,
 } from "../services/proof/tokenEstimator.js";
 import { confidenceToBand } from "../services/savings/confidence.js";
-import { inferenceRouteLimiter } from "../middleware/codeqlRouteRateLimits.js";
+import { inferenceRouteRateLimitOptions } from "../middleware/codeqlRouteRateLimits.js";
 
 export const chatRouter = Router();
 
@@ -30,9 +31,8 @@ export const chatRouter = Router();
 chatRouter.use(requireSpectyraApiKey);
 chatRouter.use(optionalProviderKey);
 chatRouter.use(attachSavingsObserveContext);
-chatRouter.use(inferenceRouteLimiter);
 
-chatRouter.post("/", async (req: AuthenticatedRequest, res) => {
+chatRouter.post("/", rateLimit(inferenceRouteRateLimitOptions), async (req: AuthenticatedRequest, res) => {
   try {
     const { path, conversation_id, provider, model, messages, mode, optimization_level, dry_run } = req.body as {
       path: Path;

@@ -1,68 +1,98 @@
 /**
- * express-rate-limit presets for CodeQL "missing rate limiting" on expensive routes.
- * Applied after auth middleware so limits are per IP (configure trust proxy when behind a load balancer).
+ * Options objects for `rateLimit()` from `express-rate-limit`.
+ *
+ * Each route module should do `import rateLimit from "express-rate-limit"` and pass
+ * `rateLimit(…Options)` next to the route handler so CodeQL can tie limiting to the route.
  */
-
-import rateLimit from "express-rate-limit";
 
 const json429 = (msg: string) => ({ error: msg });
 
-export const adminListUsersLimiter = rateLimit({
+/** @see https://express-rate-limit.mintlify.app/reference/configuration */
+export const adminListUsersRateLimitOptions = {
   windowMs: 60_000,
   max: 40,
   standardHeaders: true,
   legacyHeaders: false,
   message: json429("Too many admin user list requests; try again shortly."),
-});
+} as const;
 
-export const adminPatchUserLimiter = rateLimit({
+export const adminPatchUserRateLimitOptions = {
   windowMs: 60_000,
   max: 30,
   standardHeaders: true,
   legacyHeaders: false,
   message: json429("Too many admin user update requests; try again shortly."),
-});
+} as const;
 
-export const adminDeleteUserLimiter = rateLimit({
+export const adminDeleteUserRateLimitOptions = {
   windowMs: 60_000,
   max: 5,
   standardHeaders: true,
   legacyHeaders: false,
   message: json429("Too many user delete requests; try again shortly."),
-});
+} as const;
 
-/** LLM / replay / studio inference (provider calls). */
-export const inferenceRouteLimiter = rateLimit({
+export const inferenceRouteRateLimitOptions = {
   windowMs: 60_000,
   max: 120,
   standardHeaders: true,
   legacyHeaders: false,
   message: json429("Too many inference requests; try again shortly."),
-});
+} as const;
 
-/** Authenticated account provisioning / sync. */
-export const authAccountMutationLimiter = rateLimit({
+export const authAccountMutationRateLimitOptions = {
   windowMs: 60_000,
   max: 30,
   standardHeaders: true,
   legacyHeaders: false,
   message: json429("Too many account requests; try again shortly."),
-});
+} as const;
 
-/** Supabase admin auto-confirm — stricter. */
-export const authAutoConfirmLimiter = rateLimit({
+export const authAutoConfirmRateLimitOptions = {
   windowMs: 60_000,
   max: 15,
   standardHeaders: true,
   legacyHeaders: false,
   message: json429("Too many auto-confirm requests; try again shortly."),
-});
+} as const;
 
-/** Superuser console mutations. */
-export const superuserMutationLimiter = rateLimit({
+export const superuserMutationRateLimitOptions = {
   windowMs: 60_000,
   max: 60,
   standardHeaders: true,
   legacyHeaders: false,
   message: json429("Too many superuser requests; try again shortly."),
-});
+} as const;
+
+export const superuserReadRateLimitOptions = {
+  windowMs: 60_000,
+  max: 120,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: json429("Too many superuser requests; try again shortly."),
+} as const;
+
+/** JWT account summary + self-service Stripe / Supabase work. */
+export const accountReadRateLimitOptions = {
+  windowMs: 60_000,
+  max: 60,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: json429("Too many account requests; try again shortly."),
+} as const;
+
+export const accountMutationRateLimitOptions = {
+  windowMs: 60_000,
+  max: 30,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: json429("Too many account requests; try again shortly."),
+} as const;
+
+export const accountDeleteRateLimitOptions = {
+  windowMs: 60_000,
+  max: 5,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: json429("Too many account deletion requests; try again shortly."),
+} as const;

@@ -13,12 +13,43 @@ import type {
   FeatureDetectionResult,
 } from "@spectyra/canonical-model";
 
+/** Collapse horizontal whitespace and excessive newlines (linear; no regex on library text). */
 function normalizeWhitespaceRaw(text: string): string {
-  return text
-    .replace(/[ \t]+/g, " ")
-    .replace(/\n{3,}/g, "\n\n")
-    .replace(/[ \t]+\n/g, "\n")
-    .trim();
+  let t = "";
+  let inHSpaces = false;
+  for (let i = 0; i < text.length; i++) {
+    const c = text[i];
+    if (c === " " || c === "\t") {
+      if (!inHSpaces) {
+        t += " ";
+        inHSpaces = true;
+      }
+    } else if (c === "\n") {
+      inHSpaces = false;
+      if (t.length > 0 && t[t.length - 1] === " ") t = t.slice(0, -1);
+      t += "\n";
+    } else {
+      inHSpaces = false;
+      t += c;
+    }
+  }
+
+  let u = "";
+  let nlRun = 0;
+  for (let i = 0; i < t.length; i++) {
+    if (t[i] === "\n") {
+      nlRun++;
+    } else {
+      if (nlRun > 0) {
+        const outCount = nlRun >= 3 ? 2 : nlRun;
+        u += "\n".repeat(outCount);
+        nlRun = 0;
+      }
+      u += t[i];
+    }
+  }
+  if (nlRun > 0) u += "\n".repeat(nlRun >= 3 ? 2 : nlRun);
+  return u.trim();
 }
 
 /**
