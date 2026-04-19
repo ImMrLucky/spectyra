@@ -1,6 +1,6 @@
 ---
 name: spectyra
-version: 1.0.12
+version: 1.0.13
 description: "OpenClaw + local companion. Dashboard http://127.0.0.1:4111/dashboard — install @spectyra/local-companion, spectyra-companion start --open, spectyra/* models."
 homepage: https://spectyra.ai
 metadata:
@@ -46,7 +46,3 @@ Use **`spectyra/smart`**, **`spectyra/fast`**, or **`spectyra/quality`** while t
 ## How optimization works (overview)
 
 Before each vendor model call, the companion applies Spectyra’s **layered pipeline** to the outgoing request: structural normalization, handling of repeated context, flow-aware trimming, and other **size-safe** transforms. The goal is to drop wasted input while keeping the answer aligned with your intent. Each pass records **measurements** so the dashboard shows real deltas instead of hand-wavy estimates. Heuristic ordering and transform details live inside the companion binary; you still choose **`spectyra/*`** lanes and upstream models the same way as without Spectyra.
-
-## Registry packaging
-
-The bundled merge JSON only carries routing metadata: URL, surface kind, and the model table.
