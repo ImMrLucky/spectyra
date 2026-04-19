@@ -123,8 +123,6 @@ initDb();
 app.use("/health", healthRouter);
 app.use("/v1/providers", providersRouter);
 app.use("/v1/scenarios", scenariosRouter);
-app.use("/v1", telemetryRouter);
-app.use("/v1", projectAnalyticsRouter);
 app.use("/v1/chat", chatRouter);
 app.use("/v1/replay", replayRouter);
 app.use("/v1/runs", runsRouter);
@@ -153,6 +151,9 @@ app.use("/v1/analytics", analyticsSyncRouter);
 app.use("/v1/anonymous", anonymousUsageRouter);
 app.use("/v1/orgs", providerKeysRouter); // Provider keys management
 app.use("/v1/orgs", settingsRouter); // Settings management
+/** SDK telemetry + project dashboards — narrow mounts (never mount a router at `/v1` alone; it steals all /v1 traffic). */
+app.use("/v1/telemetry", telemetryRouter);
+app.use("/v1/projects", projectAnalyticsRouter);
 app.use("/v1/projects", settingsRouter); // Project settings
 app.use("/scim", scimRouter); // SCIM endpoints (501 for now)
 app.use("/internal/retention", retentionRouter); // Retention worker (internal)

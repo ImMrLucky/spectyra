@@ -1,6 +1,6 @@
 /**
  * SDK run telemetry ingestion (machine auth).
- * POST /v1/telemetry/run
+ * POST /v1/telemetry/run  (this router is mounted at /v1/telemetry)
  */
 
 import { Router } from "express";
@@ -14,7 +14,6 @@ import { safeLog } from "../utils/redaction.js";
 
 export const telemetryRouter = Router();
 telemetryRouter.use(rateLimit(RL_STANDARD));
-telemetryRouter.use(requireSpectyraApiKey);
 
 function num(v: unknown, fallback = 0): number {
   if (typeof v === "number" && Number.isFinite(v)) return v;
@@ -22,7 +21,7 @@ function num(v: unknown, fallback = 0): number {
   return fallback;
 }
 
-telemetryRouter.post("/telemetry/run", async (req: AuthenticatedRequest, res) => {
+telemetryRouter.post("/run", requireSpectyraApiKey, async (req: AuthenticatedRequest, res) => {
   try {
     const org = req.context?.org;
     if (!org?.id) {

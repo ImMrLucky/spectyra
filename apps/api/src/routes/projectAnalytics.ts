@@ -1,5 +1,6 @@
 /**
  * Project-level analytics for company SDK telemetry (JWT dashboard).
+ * Mounted at /v1/projects — routes are /:projectId/... (not /projects/:id/...).
  */
 
 import { Router } from "express";
@@ -35,7 +36,7 @@ async function assertProjectInOrg(
 }
 
 /** GET /v1/projects/:projectId/summary */
-projectAnalyticsRouter.get("/projects/:projectId/summary", async (req: AuthenticatedRequest, res) => {
+projectAnalyticsRouter.get("/:projectId/summary", async (req: AuthenticatedRequest, res) => {
   try {
     if (!req.auth?.userId) return res.status(401).json({ error: "Not authenticated" });
     const orgId = await resolveOrgId(req);
@@ -175,7 +176,7 @@ projectAnalyticsRouter.get("/projects/:projectId/timeseries", async (req: Authen
 });
 
 /** GET /v1/projects/:projectId/environments/:env */
-projectAnalyticsRouter.get("/projects/:projectId/environments/:env", async (req: AuthenticatedRequest, res) => {
+projectAnalyticsRouter.get("/:projectId/environments/:env", async (req: AuthenticatedRequest, res) => {
   try {
     if (!req.auth?.userId) return res.status(401).json({ error: "Not authenticated" });
     const orgId = await resolveOrgId(req);
