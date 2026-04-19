@@ -84,10 +84,10 @@ Spectyra implements enterprise-grade security controls:
 - **Security Headers**: Hardened CORS, CSP, and security headers
 - **CI Security Gates**: Automated dependency scanning, CodeQL, secret scanning, SBOM generation
 
-For more details, see:
-- [docs/ENTERPRISE_SECURITY.md](docs/ENTERPRISE_SECURITY.md) - Complete enterprise security guide
-- [docs/DATA_HANDLING.md](docs/DATA_HANDLING.md) - Data handling and storage policies
-- [docs/RETENTION.md](docs/RETENTION.md) - Data retention policies
+For architecture (API surface, auth, data handling overview), see:
+- [docs/SPECTYRA_ARCHITECTURE.md](../docs/SPECTYRA_ARCHITECTURE.md)
+
+Retention, encryption, and audit behavior are implemented in `apps/api` (e.g. `routes/retention.ts`, `routes/providerKeys.ts`, `routes/audit.ts`) and org/project settings in Postgres.
 
 ## Security Updates
 

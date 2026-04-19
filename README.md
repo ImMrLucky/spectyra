@@ -139,6 +139,10 @@ Spectyra reduces:
 ## SDK (In Progress) - coming soon
 npm install @spectyra/sdk
 
+## Architecture (for contributors & AI sessions)
+
+**[docs/SPECTYRA_ARCHITECTURE.md](./docs/SPECTYRA_ARCHITECTURE.md)** — one document for repo layout, OpenClaw vs `@spectyra/sdk`, auth/billing, and the full `/v1` API map.
+
 ## Security
 
 * No proxying

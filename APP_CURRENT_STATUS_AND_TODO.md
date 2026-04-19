@@ -20,7 +20,7 @@ Spectyra is **local-first LLM token/cost optimization**: it optimizes prompts an
 | Desktop shell | `apps/desktop` | Electron main/preload; bundles Angular `desktop` build; spawns Local Companion |
 | Local Companion | `tools/local-companion` | OpenAI/Anthropic-compatible localhost server; optimization + analytics SSE/JSONL |
 | Shared libs | `packages/*` | Types, SDK, event-core, analytics-core, execution-graph, workflow-policy, `@spectyra/agents`, etc. |
-| Docs | `docs/` | Install, agentic integration, security, event model |
+| Docs | `docs/SPECTYRA_ARCHITECTURE.md` | Single architecture + API map for new sessions |
 | Optional | `extensions/browser-extension`, `tools/proxy`, `tools/cli` | Browser intercept, enterprise proxy, CLI |
 
 **Brand / UI:** `spectyra-brand.md` — Source Sans Pro (display), DM Sans (body), DM Mono (code).  
@@ -128,7 +128,7 @@ Legacy: `/desktop/live-legacy` — older live view; `/desktop/live-savings` redi
 
 Desktop sets env (run mode, telemetry, provider aliases, license) and starts this process when the app runs.
 
-**Integration tiers** (see `docs/AGENTIC_AND_SERVER_INTEGRATION.md`): SDK in-process → Companion HTTP → JSONL/log tail → generic ingest.
+**Integration tiers** (see `docs/SPECTYRA_ARCHITECTURE.md`): SDK in-process → Companion HTTP → JSONL/log tail → generic ingest.
 
 ---
 
@@ -200,7 +200,7 @@ Use this checklist when revisiting (product + eng):
 | Do we need it for **core** product, or only **enterprise / self-hosted** deployments? | Often **optional** unless we standardize on their proxy. | Often **optional** unless we want a full **trace/eval** product surface. |
 | Does it **duplicate** what we already ship? | Partially (multi-provider gateway vs our API + adapters). | Partially (traces vs our event spine + analytics). |
 | **Operational cost** (hosting, upgrades, security review)? | Medium — Python proxy, DB/config as per their docs. | Medium–high — full stack (see their Docker/K8s docs). |
-| **Data residency / BYOK story** — does it fit “customer keys, minimal raw prompt retention”? | Configurable; review what passes through proxy. | Self-host possible; align retention with `docs/DATA_HANDLING.md`. |
+| **Data residency / BYOK story** — does it fit “customer keys, minimal raw prompt retention”? | Configurable; review what passes through proxy. | Self-host possible; align retention with `docs/SPECTYRA_ARCHITECTURE.md`. |
 | **License** — OK for our usage? | Review [LiteLLM license](https://github.com/BerriAI/litellm/blob/main/LICENSE) + enterprise features if needed. | OSS + `ee` folder — see [Langfuse LICENSE](https://github.com/langfuse/langfuse/blob/main/LICENSE). |
 
 **Default stance until decided:** **Do not** block shipping on either; treat as **integrations or optional sidecars**, not core dependencies.
@@ -222,7 +222,7 @@ Use this checklist when revisiting (product + eng):
 ### Next steps (when someone picks this up)
 
 - [ ] Read upstream README + license for each: [LiteLLM](https://github.com/BerriAI/litellm), [Langfuse](https://github.com/langfuse/langfuse).
-- [ ] Map 1:1 against `docs/EVENT_INGESTION_ARCHITECTURE.md`, `docs/LOCAL_ANALYTICS_AND_SYNC.md`, and `apps/api` chat/agent routes.
+- [ ] Map 1:1 against `docs/SPECTYRA_ARCHITECTURE.md`, and `apps/api` chat/agent routes.
 - [ ] Prototype smallest integration: **docs** or **single optional env flag** path before any hard dependency.
 - [ ] Record the **decision** (in this section or ADR): adopt / defer / reject, with date.
 
@@ -257,7 +257,7 @@ These items capture known gaps and polish areas from product specs and repo evol
 
 ### High value / product completeness
 
-1. **OpenClaw wizard** — Deeper flows (new vs existing user paths, copy config, open folders, troubleshooting) aligned with `docs/INSTALL_AND_SETUP.md` and `AGENTIC_AND_SERVER_INTEGRATION.md`.
+1. **OpenClaw wizard** — Deeper flows (new vs existing user paths, copy config, open folders, troubleshooting) aligned with `docs/SPECTYRA_ARCHITECTURE.md`.
 2. **Agent Companion** — Parity for **Gemini** and other runtimes where copy is still generic; guided **JSONL path picker** + validation that ingest is receiving events.
 3. **Generic runtimes** — First-class UX for attaching logs/JSONL (sidecar script template, folder watch) beyond static instructions.
 4. **Trial / license UX** — End-to-end: trial badge, post-trial observe/projected savings, clear “actual vs projected” labels, optimization toggle behavior without breaking workflows.
@@ -286,7 +286,7 @@ These items capture known gaps and polish areas from product specs and repo evol
 
 **Context:** Continue investing in the **desktop app** and **Local Companion** as the hub for setup and monitoring. The **OpenClaw** and **agentic AI coding** wizards should grow toward end-to-end setup for **Claude, OpenAI, Gemini**, and similar providers, with users able to launch different **assistants** or **coding team members**. Today, Spectyra focuses on **optimization + local analytics** (sessions, events, summaries) and **setup wizards**; it does **not** yet deliver a unified **control plane** for creating many named agents, assigning/removing tasks, or an **architect** role over an entire repo with a single task board.
 
-Use this list when starting a new chat; implementation should **reuse** ingest + event adapters, Live/session models, Agent Companion state, and `docs/AGENTIC_AND_SERVER_INTEGRATION.md`; add **local persistence** (e.g. under `~/.spectyra/desktop/`) for agent/task registry if not cloud-backed.
+Use this list when starting a new chat; implementation should **reuse** ingest + event adapters, Live/session models, Agent Companion state, and `docs/SPECTYRA_ARCHITECTURE.md`; add **local persistence** (e.g. under `~/.spectyra/desktop/`) for agent/task registry if not cloud-backed.
 
 ### Priority themes
 

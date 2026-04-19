@@ -69,6 +69,6 @@ If the **Mac or Windows** app errors when talking to your API (e.g. org load / b
 
 That is usually **not** the SQL migration (that affects the **API**, not local Electron startup). Try:
 
-1. **Right‑click the app → Open** once if Gatekeeper still blocks unsigned builds (see [docs/INSTALL_AND_SETUP.md](../../docs/INSTALL_AND_SETUP.md)).
+1. **Right‑click the app → Open** once if Gatekeeper still blocks unsigned builds (see repo [README](../../README.md) for distribution notes).
 2. **Rebuild and reinstall** a fresh `.dmg` from `pnpm desktop:dist` — recent builds show a **dialog** if the UI bundle is missing or `loadFile` fails, instead of quitting silently.
 3. Open **Console.app** and filter for **Spectyra** to see crash logs if the process exits immediately.

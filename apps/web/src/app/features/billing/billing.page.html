@@ -29,14 +29,22 @@
       'active': entitlement.licenseStatus === 'valid',
       'expired': entitlement.licenseStatus === 'expired'
     }">
-      <h2>{{ entitlement.plan | titlecase }} Plan</h2>
+      <h2>{{ workspacePlanHeadline }}</h2>
 
-      <div *ngIf="entitlement.licenseStatus === 'valid' && paidSubscriptionActive" class="success-message">
-        Active paid subscription — full cloud features for your tier.
+      <div *ngIf="entitlement.licenseStatus === 'valid' && billingExemptWorkspace" class="success-message">
+        This workspace is exempt from billing: all Spectyra features stay available without checkout.
       </div>
 
-      <div *ngIf="entitlement.licenseStatus === 'valid' && !paidSubscriptionActive" class="success-message">
-        Included usage tier — Observe mode and pass-through stay free. Upgrade when you need more optimized tokens or team features.
+      <div *ngIf="entitlement.licenseStatus === 'valid' && paidSubscriptionActive && !billingExemptWorkspace" class="success-message">
+        Paid subscription is active — you have full cloud features for the tier you subscribed to.
+      </div>
+
+      <div *ngIf="entitlement.licenseStatus === 'valid' && !paidSubscriptionActive && !billingExemptWorkspace && entitlement.plan === 'enterprise'" class="success-message">
+        Enterprise is arranged with Spectyra sales (custom limits, security review, invoicing). Self-serve checkout below does not apply to this tier.
+      </div>
+
+      <div *ngIf="entitlement.licenseStatus === 'valid' && !paidSubscriptionActive && !billingExemptWorkspace && entitlement.plan !== 'enterprise'" class="success-message">
+        You are on included optimized-token usage. Observe mode and pass-through stay free; open checkout when you need a paid Developer or Team tier.
       </div>
 
       <div *ngIf="entitlement.licenseStatus === 'expired' || entitlement.licenseStatus === 'missing'" class="error-message">

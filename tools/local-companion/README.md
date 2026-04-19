@@ -130,7 +130,7 @@ This sends a chat completion with repetitive context and prints local before/aft
 | POST | `/v1/analytics/sync` | Sync intent ack (cloud upload via Spectyra app) |
 | POST | `/v1/analytics/ingest` | Push adapter-shaped JSON (JSONL tailers, daemons, sidecars) |
 
-See [AGENTIC_AND_SERVER_INTEGRATION.md](../../docs/AGENTIC_AND_SERVER_INTEGRATION.md) for OpenClaw, Claude harnesses, and server-side daemon patterns.
+See [docs/SPECTYRA_ARCHITECTURE.md](../../docs/SPECTYRA_ARCHITECTURE.md) for OpenClaw vs SDK flows, API routes, and tenancy.
 
 ### Stable model aliases (`spectyra/smart`, `spectyra/fast`)
 
@@ -166,7 +166,7 @@ Back up or delete:
 | `~/.spectyra/desktop/provider-keys.json` | OpenAI / Anthropic / Groq keys for the companion |
 | `~/.spectyra/companion/` | `runs.jsonl`, `sessions.jsonl`, events, learning profile |
 
-Then run `spectyra-companion setup` again. To get a **new** org trial in production you need a **new** Supabase user (or use the same account if you only cleared local files — the existing org and trial dates stay on the server).
+Then run `spectyra-companion setup` again. To get a **new** org on the server you typically need a **new** Supabase user (or delete/recreate the org via product flows).
 
 ## Modes
 
@@ -196,5 +196,5 @@ Companion persists **`~/.spectyra/companion/learning-profile.json`** after each 
 
 ## Docs
 
-- [Install & setup (all surfaces)](../../docs/INSTALL_AND_SETUP.md)  
+- [Architecture & API map](../../docs/SPECTYRA_ARCHITECTURE.md)  
 - [Main README](../../README.md)  

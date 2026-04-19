@@ -70,7 +70,7 @@ Unsigned `.dmg` / `.app` builds trigger **“Apple could not verify…”** on e
 | `APPLE_APP_SPECIFIC_PASSWORD` | App-specific password (Apple ID → Security) |
 | `APPLE_TEAM_ID` | 10-character Team ID |
 
-If these are **not** set, `pnpm desktop:dist` still produces a working `.dmg`, but users must bypass Gatekeeper once (documented in **[docs/INSTALL_AND_SETUP.md](../../docs/INSTALL_AND_SETUP.md)**).
+If these are **not** set, `pnpm desktop:dist` still produces a working `.dmg`, but users may need to bypass Gatekeeper once (see repo README).
 
 `electron-builder.yml` sets `mac.gatekeeperAssess: false` so the **build machine** does not fail the pre-staple assessment; end-user Gatekeeper is satisfied by **signing + notarization**, not by this flag alone.
 

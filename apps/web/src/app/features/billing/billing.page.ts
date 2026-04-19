@@ -107,6 +107,25 @@ export class BillingPage implements OnInit {
     return this.billingStatus?.subscription_active === true;
   }
 
+  /** Superuser / org exempt — full access without Stripe; not the same as “Enterprise” SaaS tier. */
+  get billingExemptWorkspace(): boolean {
+    const b = this.billingStatus as Record<string, unknown> | null;
+    if (!b) return false;
+    return !!(b['org_platform_exempt'] || b['platform_billing_exempt']);
+  }
+
+  /** Card title: avoid implying a paid Enterprise contract when this is platform-exempt internal access. */
+  get workspacePlanHeadline(): string {
+    if (this.billingExemptWorkspace) return 'Full platform access';
+    if (this.paidSubscriptionActive) {
+      const raw = String(this.entitlement?.plan ?? 'plan');
+      return raw.charAt(0).toUpperCase() + raw.slice(1) + ' plan';
+    }
+    const p = String(this.entitlement?.plan ?? 'free');
+    if (p === 'enterprise') return 'Enterprise (contract)';
+    return p.charAt(0).toUpperCase() + p.slice(1) + ' workspace';
+  }
+
   /** Self-serve Stripe checkout for Developer / Team list price (configure STRIPE_PRICE_ID on API). */
   get showPaidCheckoutCta(): boolean {
     if (this.paidSubscriptionActive) return false;
