@@ -24,7 +24,6 @@ export const OPENCLAW_CONFIG_JSON = `{
     "providers": {
       "spectyra": {
         "baseUrl": "http://127.0.0.1:4111/v1",
-        "apiKey": "SPECTYRA_LOCAL",
         "api": "openai-completions",
         "models": [
           {

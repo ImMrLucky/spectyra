@@ -1,7 +1,7 @@
 ---
 name: spectyra
-version: 1.0.11
-description: "OpenClaw + local companion. Dashboard: http://127.0.0.1:4111/dashboard — install @spectyra/local-companion, run spectyra-companion start --open, use spectyra/* models."
+version: 1.0.12
+description: "OpenClaw + local companion. Dashboard http://127.0.0.1:4111/dashboard — install @spectyra/local-companion, spectyra-companion start --open, spectyra/* models."
 homepage: https://spectyra.ai
 metadata:
   openclaw:
@@ -18,6 +18,8 @@ metadata:
 
 # Spectyra
 
+Save up to 60% - 70% (savings observed during testing) on LLM API calls while using OpenClaw.
+
 ## Run
 
 ```bash
@@ -32,12 +34,19 @@ spectyra-companion start --open
 
 ## Dashboard
 
-OpenClaw local companion dashboard (same as `start --open`):
+OpenClaw local companion dashboard opens to show local savings here:
 
 **http://127.0.0.1:4111/dashboard**
 
-If you set `SPECTYRA_PORT`, use that port instead of `4111`.
 
 ## Models
 
-Use **`spectyra/smart`**, **`spectyra/fast`**, or **`spectyra/quality`** while the companion is running. Upstream keys: `spectyra-companion setup` if you need a guided step.
+Use **`spectyra/smart`**, **`spectyra/fast`**, or **`spectyra/quality`** while the companion is running.
+
+## How optimization works (overview)
+
+Before each vendor model call, the companion applies Spectyra’s **layered pipeline** to the outgoing request: structural normalization, handling of repeated context, flow-aware trimming, and other **size-safe** transforms. The goal is to drop wasted input while keeping the answer aligned with your intent. Each pass records **measurements** so the dashboard shows real deltas instead of hand-wavy estimates. Heuristic ordering and transform details live inside the companion binary; you still choose **`spectyra/*`** lanes and upstream models the same way as without Spectyra.
+
+## Registry packaging
+
+The bundled merge JSON only carries routing metadata: URL, surface kind, and the model table.

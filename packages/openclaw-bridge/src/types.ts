@@ -27,8 +27,6 @@ export interface OpenClawGeneratedConfig {
     providers: {
       spectyra: {
         baseUrl: string;
-        /** Placeholder — real auth is your provider key inside Local Companion / Desktop. */
-        apiKey: string;
         api: string;
         models: Array<{
           id: string;

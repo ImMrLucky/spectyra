@@ -12,7 +12,7 @@ function assertConfigShape(x: unknown): asserts x is OpenClawGeneratedConfig {
 
 /**
  * Build a validated OpenClaw provider config object pointing at Spectyra Local Companion.
- * Does not perform network I/O. Does not store or transmit API keys to Spectyra cloud.
+ * Does not perform network I/O. No vendor access material is embedded in this JSON.
  */
 export function buildOpenClawConfigObject(options: OpenClawBridgeOptions = {}): OpenClawGeneratedConfig {
   const baseUrl = (options.baseUrl ?? DEFAULT_LOCAL_COMPANION_V1_BASE).trim().replace(/\/$/, "");
