@@ -2,7 +2,7 @@
  * Production Spectyra Cloud endpoints baked into the published companion.
  * End users need no .env for account, billing, or analytics — optional overrides only.
  *
- * Keep in sync: packages/openclaw-skill/setup.sh (SPECTYRA_API default).
+ * Optional env override: `SPECTYRA_API_URL` (used by companion when cloud calls are enabled).
  *
  * The **canonical** product API base is `https://spectyra.ai/v1`. Some deployments route that
  * hostname only to static or partial stacks; **POST** may not reach the API. Outbound calls use

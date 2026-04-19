@@ -1,200 +1,105 @@
-# Spectyra Local Companion
+# @spectyra/local-companion
 
-**OpenAI-compatible HTTP server** on your machine. Optimizes prompts **before** they go to OpenAI, Anthropic-compatible clients, OpenClaw, Claude Code, or anything that lets you set a **custom API base URL**.
+**OpenClaw / local-first companion** — runs on your machine and exposes a small HTTP API so OpenClaw can use Spectyra-style tools (browser, canvas, skills, etc.) without sending your traffic through Spectyra’s cloud.
 
-No changes to your application code — only configuration (OpenClaw + companion). **You do not need a `.env` or `SPECTYRA_API_URL` for the normal flow:** the published companion uses Spectyra’s hosted API and Supabase by default (optional env overrides for staging or advanced setups).
+**Anonymous and free for OpenClaw.** No Spectyra account is required. Optional Spectyra account features are separate from this package.
 
----
-
-## Who this is for
-
-- **OpenClaw** and similar agents that support a custom OpenAI endpoint  
-- **Claude Code** / tools that proxy through an OpenAI-compatible URL  
-- Developers who prefer a **terminal + localhost** over the [Desktop app](../../apps/desktop) GUI  
-
----
+- **npm:** [https://www.npmjs.com/package/@spectyra/local-companion](https://www.npmjs.com/package/@spectyra/local-companion)
 
 ## Requirements
 
-- **Node.js 18+**
+- **Node.js 20+**
+- **pnpm** (recommended) or npm
 
----
-
-## Install & run
-
-### From npm (when published)
-
-```bash
-npx @spectyra/local-companion
-```
-
-Or install globally:
+## Install
 
 ```bash
 npm install -g @spectyra/local-companion
-spectyra-companion
+# or
+pnpm add -g @spectyra/local-companion
 ```
 
-### From this monorepo (developers)
+Or run without a global install:
 
 ```bash
-# From repository root
-pnpm install
-pnpm --filter @spectyra/local-companion start
+npx @spectyra/local-companion start
 ```
 
-Or:
+## Run
+
+Start the companion (default host `127.0.0.1`, port `18789`):
+
+```bash
+spectyra-companion start
+```
+
+Useful flags:
+
+```bash
+spectyra-companion start --host 127.0.0.1 --port 18789
+spectyra-companion start --dashboard-host 127.0.0.1 --dashboard-port 18790
+```
+
+Stop:
+
+```bash
+spectyra-companion stop
+```
+
+Status:
+
+```bash
+spectyra-companion status
+```
+
+From a clone of this repo:
 
 ```bash
 cd tools/local-companion
 pnpm install
-pnpm start
+pnpm run build
+pnpm exec spectyra-companion start
 ```
 
----
+## OpenClaw
 
-## Configure your client
+Point OpenClaw at the local companion base URL (default `http://127.0.0.1:18789`). The companion speaks the same local HTTP surface OpenClaw expects for tool routing and optional dashboard.
 
-1. **Start the companion** — default listen address: `http://127.0.0.1:4111`
+**Environment (optional)**
 
-2. **Point your tool at the companion** (OpenAI-compatible):
+| Variable | Purpose |
+|----------|---------|
+| `SPECTYRA_OPENCLAW_FREE` | When `true` / unset / empty, OpenClaw free mode (default). Set to `false` or `0` only if you intentionally want non–OpenClaw-free behavior. |
+| `SPECTYRA_COMPANION_API_KEY` | Optional API key the server requires on requests. |
+| `SPECTYRA_COMPANION_LOG_LEVEL` | `debug` \| `info` \| `warn` \| `error` (default `info`). |
 
-   ```bash
-   export OPENAI_BASE_URL=http://127.0.0.1:4111/v1
-   ```
+## What runs locally
 
-   Many tools also have a **Settings → API URL** or **Custom endpoint** field — use:
+Typical local HTTP surface (paths may vary slightly by version; see `/health` after start):
 
-   `http://127.0.0.1:4111/v1`
+| Path | Role |
+|------|------|
+| `GET /health` | Liveness |
+| `GET /dashboard` | Small local dashboard (if enabled) |
+| `POST /v1/chat/completions` | Chat completions proxy surface used by the agent stack |
 
-3. **Keep your provider API key** in the client (OpenAI, Groq, etc.). The companion uses it to forward requests **directly** to the provider after optimization.
+Everything above is **on your machine** unless you configure upstream models yourself.
 
----
+## Optional Spectyra cloud
 
-## See savings in the browser
+If you use a Spectyra account elsewhere, that is **optional** and not required to install or run this package. This README does not document cloud billing or subscription APIs; those are unrelated to anonymous OpenClaw usage.
 
-No Desktop app required. With the companion running:
+## Anonymous usage telemetry
 
-- **URL:** [http://127.0.0.1:4111/dashboard](http://127.0.0.1:4111/dashboard) (or open the root URL — it redirects there)
-- **CLI:** `spectyra-companion dashboard` opens the same page
-- **First run:** `spectyra-companion start --open` starts the server and opens the dashboard
+When OpenClaw free mode is on (default), the companion may send **minimal** anonymous telemetry (e.g. install ping, coarse usage events) to Spectyra so we can see aggregate adoption. **No API keys, prompts, or tool payloads** are included. Disable by setting `SPECTYRA_OPENCLAW_FREE=false` or `0` (not recommended unless you know you need it).
 
-The page polls local APIs (`/v1/savings/summary`, `/v1/analytics/sessions`) so OpenClaw traffic through `spectyra/smart` shows up automatically.
+State file (installation id, etc.): `~/.spectyra/companion/state.json`.
 
-After you run **`spectyra-companion setup`** (Supabase session + Spectyra org API key in `~/.spectyra/desktop/config.json`), the dashboard shows **plan status**, **Subscribe**, and (when the session is valid) **Cancel renewal / Keep subscription / Pause / Resume / Delete account**. The companion **refreshes the Supabase access token** on startup, every ~14 minutes, and on **`/health`** / **`/config`** when the file on disk has a `refresh_token` — so you should **not** need to re-run setup just because the short-lived access token expired (unless the refresh token was revoked or never saved). Proxies prefer **Bearer JWT** when refreshed, and fall back to **`X-SPECTYRA-API-KEY`** for billing when needed. The dashboard URL is **`http://127.0.0.1:<port>/dashboard`** (HTTP on localhost is normal; Stripe success/cancel still return there). Stripe Checkout opens in a browser tab for payment. CLI **`spectyra-companion upgrade`** uses the same return URLs unless you set `SPECTYRA_CHECKOUT_RETURN_WEB=1` to use the hosted site instead.
+## Security notes
 
-### Measure savings on one request (sanity check)
+- Bind to `127.0.0.1` unless you understand the exposure of opening the port on your LAN.
+- Prefer `SPECTYRA_COMPANION_API_KEY` if anything other than localhost can reach the process.
 
-With the companion running and a provider key configured:
+## License
 
-```bash
-pnpm benchmark
-# or: node scripts/benchmark-savings.mjs
-```
-
-This sends a chat completion with repetitive context and prints local before/after token estimates from the `spectyra` block in the response. **One run is not a guaranteed “average savings %”** for production — use it to verify the pipeline and your setup. Watch cumulative totals on `/dashboard` while you use OpenClaw.
-
----
-
-## Endpoints
-
-| Method | Path | Purpose |
-|--------|------|---------|
-| GET | `/` | Redirects to `/dashboard` |
-| GET | `/dashboard` | Local savings UI (HTML) |
-| GET | `/v1/billing/status` | Proxies to Spectyra Cloud (JWT preferred, else org API key) |
-| POST | `/v1/billing/checkout` | Proxies Stripe Checkout session creation (same) |
-| GET | `/v1/account/summary` | Proxies account summary (JWT only) |
-| POST | `/v1/account/subscription/cancel-at-period-end` | Cancel renewal (JWT) |
-| POST | `/v1/account/subscription/keep` | Undo cancel-at-period-end (JWT) |
-| POST | `/v1/account/pause-service` | Pause service (JWT) |
-| POST | `/v1/account/resume-service` | Resume service (JWT) |
-| POST | `/v1/account/delete` | Delete account — body `{ "confirm": "DELETE_MY_ACCOUNT" }` (JWT) |
-| GET | `/health` | Status, mode, inference path |
-| GET | `/config` | Companion configuration (includes `provider`, alias models) |
-| GET | `/v1/models` | OpenAI-style model list (`spectyra/smart`, `spectyra/fast`, `spectyra/quality`) |
-| GET | `/v1/diagnostics/integration` | Safe setup metadata for wizards (no secrets) |
-| POST | `/v1/chat/completions` | OpenAI-compatible chat |
-| POST | `/v1/messages` | Anthropic-compatible messages |
-| GET | `/v1/analytics/live-events` | SSE stream of normalized `SpectyraEvent` (local) |
-| GET | `/v1/analytics/live-state` | JSON snapshot for dashboards |
-| GET | `/v1/analytics/events/recent` | Tail of `events.jsonl` (telemetry not off) |
-| GET | `/v1/analytics/execution-graph/summary` | Phase 3 — graph + step scores from in-memory events |
-| GET | `/v1/analytics/state-delta/summary` | Phase 4 — state/delta stats from in-memory events |
-| GET | `/v1/analytics/workflow-policy/summary` | Phase 6 — workflow policy (same mode as pre-provider gate; default enforce) |
-| GET | `/v1/analytics/current-session` | Current workflow session |
-| GET | `/v1/analytics/sessions` | Recent sessions |
-| GET | `/v1/analytics/session/:sessionId` | Session detail |
-| GET | `/v1/analytics/prompt-comparison/:runId` | Prompt comparison metadata |
-| POST | `/v1/analytics/session/complete` | Finalize active session |
-| POST | `/v1/analytics/sync` | Sync intent ack (cloud upload via Spectyra app) |
-| POST | `/v1/analytics/ingest` | Push adapter-shaped JSON (JSONL tailers, daemons, sidecars) |
-
-See [docs/SPECTYRA_ARCHITECTURE.md](../../docs/SPECTYRA_ARCHITECTURE.md) for OpenClaw vs SDK flows, API routes, and tenancy.
-
-### Stable model aliases (`spectyra/smart`, `spectyra/fast`)
-
-Configure the upstream provider with **`SPECTYRA_PROVIDER`** (`openai` | `anthropic` | `groq`). Optional overrides:
-
-- **`SPECTYRA_ALIAS_SMART_MODEL`** — real model id for `spectyra/smart`
-- **`SPECTYRA_ALIAS_FAST_MODEL`** — real model id for `spectyra/fast`
-
-If unset, defaults match the chosen provider (see `@spectyra/shared` `defaultAliasModels`). OpenClaw and other clients can keep a fixed config pointing at `http://127.0.0.1:4111/v1` while you change routing in Spectyra Desktop or env vars.
-
----
-
-## Account, API key, and savings
-
-Real **input optimization** (what you configure as `on`) only applies when **both** are present in `~/.spectyra/desktop/config.json`:
-
-1. A valid **Supabase session** (from `spectyra-companion setup` sign-in / sign-up)  
-2. Your **Spectyra org API key** (returned the first time `POST /v1/auth/ensure-account` creates an org)
-
-If either is missing, the companion keeps **observe-style** behavior for optimization (preview savings), even if `SPECTYRA_RUN_MODE=on`. **`GET /health`** exposes `spectyraAccountLinked`, `optimizationRunMode`, `accountEmail`, and `savingsEnabled`.
-
-Set **`SPECTYRA_BYPASS_ACCOUNT_CHECK=true`** only for local development (skips the gate).
-
-**Setup** writes `accountEmail` and calls the API so your **org** (with a **14-day trial** by default on the server) and keys are created. **Billing** after the trial is via **Stripe** on that org (`spectyra-companion upgrade` opens checkout). The monthly price is whatever **Price** you attach in the Stripe Dashboard to **`STRIPE_PRICE_ID`** on the API (product copy uses **$4.99/mo (early adopters)** — create a matching price in Stripe, then set the env var to that price’s ID).
-
-## Reset local data (test from scratch)
-
-Back up or delete:
-
-| Path | What it is |
-|------|------------|
-| `~/.spectyra/desktop/config.json` | Spectyra session, API key, `accountEmail`, run mode, etc. |
-| `~/.spectyra/desktop/provider-keys.json` | OpenAI / Anthropic / Groq keys for the companion |
-| `~/.spectyra/companion/` | `runs.jsonl`, `sessions.jsonl`, events, learning profile |
-
-Then run `spectyra-companion setup` again. To get a **new** org on the server you typically need a **new** Supabase user (or delete/recreate the org via product flows).
-
-## Modes
-
-Spectyra uses a universal **off / observe / on** model:
-
-- **off** — pass-through  
-- **observe** — measure savings without changing what the model receives (good for trials)  
-- **on** — apply optimizations when the **account gate** above is satisfied (and license/trial rules apply)  
-
-Configure via companion API or match the [Desktop app](../../apps/desktop) behavior — see project docs.
-
-**Environment (common):**
-
-| Variable | Effect |
-|----------|--------|
-| `SPECTYRA_RUN_MODE` | `off` \| `observe` \| `on` — default **`on`** when unset |
-| `SPECTYRA_WORKFLOW_POLICY` | `observe` = evaluate only; unset or any other value = **`enforce`** (may return **422** before the provider when rules trip) |
-| `SPECTYRA_BYPASS_ACCOUNT_CHECK` | If `true`, skip account+API-key gate (dev only) |
-
-`/health` and `/config` include `workflowPolicyMode`, `spectyraAccountLinked`, and `optimizationRunMode`.
-
----
-
-## Local learning (Phase 5)
-
-Companion persists **`~/.spectyra/companion/learning-profile.json`** after each optimization. Heavy transforms (`refpack`, `phrasebook`, `spectral_scc`, etc.) are skipped automatically if local stats show repeated failure. Feature detection uses the same profile for historical signals and optional detector threshold overrides.
-
-## Docs
-
-- [Architecture & API map](../../docs/SPECTYRA_ARCHITECTURE.md)  
-- [Main README](../../README.md)  
+MIT — see the Spectyra repository [LICENSE](https://github.com/ImMrLucky/spectyra/blob/main/LICENSE).

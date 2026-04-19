@@ -1,93 +1,85 @@
 {
   "name": "spectyra",
-  "version": "1.0.9",
-  "displayName": "Spectyra Optimization",
-  "description": "Spectyra runs alongside OpenClaw to reduce token usage and cost on every LLM call in real time—without changing results. See live savings and optimization insights in the local dashboard at http://127.0.0.1:4111/dashboard. No Spectyra account required.",
+  "version": "1.0.11",
+  "displayName": "Spectyra",
+  "description": "Local companion for OpenClaw. Install @spectyra/local-companion, run spectyra-companion start, use spectyra/* models. Dashboard: http://127.0.0.1:4111/dashboard",
   "author": "Spectyra",
   "homepage": "https://spectyra.ai",
   "repository": {
     "type": "git",
-    "url": "https://github.com/spectyra/spectyra.git",
+    "url": "https://github.com/ImMrLucky/spectyra.git",
     "directory": "packages/openclaw-skill"
   },
   "license": "MIT-0",
-  "keywords": [
-    "optimization",
-    "cost-savings",
-    "token-optimization",
-    "analytics",
-    "spectyra",
-    "local-companion"
-  ],
-  "categories": ["optimization", "analytics", "integration"],
+  "keywords": ["spectyra", "openclaw", "local-companion", "optimization"],
+  "categories": ["integration"],
   "openclaw": {
     "minVersion": "0.1.0"
   },
   "setup": {
     "type": "config-merge",
-    "configFragment": "config-fragment.json",
-    "postInstall": "setup.sh"
+    "configFragment": "config-fragment.json"
   },
   "models": [
     {
       "id": "spectyra/smart",
       "name": "Spectyra Smart",
-      "description": "Best balance of quality and cost — routes to your configured provider with live optimization"
+      "description": "Default tier"
     },
     {
       "id": "spectyra/fast",
       "name": "Spectyra Fast",
-      "description": "Lowest latency and cost — aggressive optimization for routine tasks"
+      "description": "Fast tier"
     },
     {
       "id": "spectyra/quality",
       "name": "Spectyra Quality",
-      "description": "Highest quality — minimal optimization, premium model routing"
+      "description": "Quality tier"
     },
     {
       "id": "spectyra/openai/smart",
       "name": "Spectyra · OpenAI · smart",
-      "description": "Routes through Spectyra to OpenAI — pick for GPT workflows while keeping optimization"
+      "description": "OpenAI · smart"
     },
     {
       "id": "spectyra/openai/fast",
       "name": "Spectyra · OpenAI · fast",
-      "description": "OpenAI fast lane through Spectyra (lower cost / latency)"
+      "description": "OpenAI · fast"
     },
     {
       "id": "spectyra/openai/quality",
       "name": "Spectyra · OpenAI · quality",
-      "description": "OpenAI quality lane through Spectyra"
+      "description": "OpenAI · quality"
     },
     {
       "id": "spectyra/anthropic/smart",
       "name": "Spectyra · Anthropic · smart",
-      "description": "Routes through Spectyra to Anthropic — coding and Claude-heavy tasks"
+      "description": "Anthropic · smart"
     },
     {
       "id": "spectyra/anthropic/fast",
       "name": "Spectyra · Anthropic · fast",
-      "description": "Anthropic fast lane through Spectyra"
+      "description": "Anthropic · fast"
     },
     {
       "id": "spectyra/anthropic/quality",
       "name": "Spectyra · Anthropic · quality",
-      "description": "Anthropic quality lane — reviews, Opus-class models when configured"
+      "description": "Anthropic · quality"
     },
     {
       "id": "spectyra/groq/smart",
       "name": "Spectyra · Groq · smart",
-      "description": "Routes through Spectyra to Groq"
+      "description": "Groq · smart"
     },
     {
       "id": "spectyra/groq/fast",
       "name": "Spectyra · Groq · fast",
-      "description": "Groq fast lane through Spectyra"
+      "description": "Groq · fast"
     },
     {
       "id": "spectyra/groq/quality",
       "name": "Spectyra · Groq · quality",
-      "description": "Groq quality lane through Spectyra"
+      "description": "Groq · quality"
     }
   ],
   "provider": {

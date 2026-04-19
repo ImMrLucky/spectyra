@@ -2,7 +2,11 @@ import { existsSync, mkdirSync, writeFileSync } from "node:fs";
 import { homedir } from "node:os";
 import { join } from "node:path";
 import { companionPackageVersion } from "./packageVersion.js";
-import { readCompanionInstallState, type CompanionInstallState } from "./companionState.js";
+import {
+  ensureCompanionInstallState,
+  readCompanionInstallState,
+  type CompanionInstallState,
+} from "./companionState.js";
 import { fetchSpectyraV1 } from "./spectyraCloudFetch.js";
 
 const FIRST_OPT_FLAG = join(homedir(), ".spectyra", "companion", "first_optimization_emitted");
@@ -39,8 +43,7 @@ export function sendAnonymousEvent(eventName: string, properties?: Record<string
 
 async function sendAnonymousEventAsync(eventName: string, properties?: Record<string, unknown>): Promise<void> {
   try {
-    const st = readCompanionInstallState();
-    if (!st) return;
+    const st = readCompanionInstallState() ?? ensureCompanionInstallState();
     await fetchSpectyraV1("anonymous/event", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
