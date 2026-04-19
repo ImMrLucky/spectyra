@@ -116,7 +116,7 @@ projectAnalyticsRouter.get("/:projectId/summary", async (req: AuthenticatedReque
 });
 
 /** GET /v1/projects/:projectId/timeseries?range=30d */
-projectAnalyticsRouter.get("/projects/:projectId/timeseries", async (req: AuthenticatedRequest, res) => {
+projectAnalyticsRouter.get("/:projectId/timeseries", async (req: AuthenticatedRequest, res) => {
   try {
     if (!req.auth?.userId) return res.status(401).json({ error: "Not authenticated" });
     const orgId = await resolveOrgId(req);
