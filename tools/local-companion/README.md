@@ -68,6 +68,10 @@ When OpenClaw free mode is on (default), the companion may send **minimal** anon
 
 State file (installation id, etc.): `~/.spectyra/companion/state.json`.
 
+## Antivirus / VirusTotal
+
+Published npm artifacts are **Node bundles** (`dist/*.cjs`) plus `package.json`, `README.md`, and a tiny **`postinstall.cjs`** script. There is **no Python** in the package. Sandboxes sometimes flag **minified JS**, **postinstall**, or **network-capable** tools as generic “suspicious” behavior ([VirusTotal](https://www.virustotal.com/) and similar engines are heuristic). Inspect the tarball with `npm pack --dry-run` and compare hashes to this repo if you need to verify what you uploaded.
+
 ## License
 
 MIT — see the Spectyra repository [LICENSE](https://github.com/ImMrLucky/spectyra/blob/main/LICENSE).
