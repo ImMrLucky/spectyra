@@ -12,6 +12,14 @@
     </p>
   </div>
 
+  <div class="callout usage-hint" *ngIf="!loading">
+    <p>
+      <strong>Company usage:</strong> Per-project / per-environment SDK telemetry and savings rollups live on
+      <a routerLink="/projects">Projects</a> → open a project. Plan limits and upgrade paths are on
+      <a routerLink="/billing">Billing</a>.
+    </p>
+  </div>
+
   <div *ngIf="loading" class="muted">Loading…</div>
   <div *ngIf="cloudNotice" class="callout notice">{{ cloudNotice }}</div>
 

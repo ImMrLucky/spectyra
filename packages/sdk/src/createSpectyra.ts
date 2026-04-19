@@ -23,6 +23,7 @@ import { decideAgent } from "./local/decideAgent.js";
 import { toClaudeAgentOptions } from "./adapters/claudeAgent.js";
 import { fetchAgentOptions, sendAgentEvent } from "./remote/agentRemote.js";
 import { localComplete } from "./local/localWrapper.js";
+import { maybePostSdkRunTelemetry } from "./cloud/postRunTelemetry.js";
 
 export interface SpectyraInstance {
   /**
@@ -110,10 +111,12 @@ export function createSpectyra(config: SpectyraConfig = {}): SpectyraInstance {
 
   if (telemetryMode === "cloud_redacted") {
     const hasSpectyraCredential =
-      Boolean(config.licenseKey?.trim()) || Boolean(config.apiKey?.trim());
+      Boolean(config.licenseKey?.trim()) ||
+      Boolean(config.apiKey?.trim()) ||
+      Boolean(config.spectyraCloudApiKey?.trim());
     if (!hasSpectyraCredential) {
       throw new Error(
-        'Spectyra: telemetry.mode "cloud_redacted" requires licenseKey or apiKey (Spectyra credentials, not a provider key).',
+        'Spectyra: telemetry.mode "cloud_redacted" requires licenseKey, apiKey, or spectyraCloudApiKey (Spectyra credentials, not a provider key).',
       );
     }
   }
@@ -123,7 +126,9 @@ export function createSpectyra(config: SpectyraConfig = {}): SpectyraInstance {
       input: SpectyraCompleteInput<TClient>,
       adapter: ProviderAdapter<TClient, TResult>,
     ): Promise<SpectyraCompleteResult<TResult>> {
-      return localComplete(config, input, adapter);
+      const out = await localComplete(config, input, adapter);
+      void maybePostSdkRunTelemetry(config, input, out).catch(() => {});
+      return out;
     },
 
     agentOptions(ctx: SpectyraCtx, prompt: string | PromptMeta): ClaudeAgentOptions {

@@ -319,3 +319,60 @@
     cursor: not-allowed;
   }
 }
+
+.saas-plans {
+  margin: 28px 0 32px;
+  padding: 24px;
+  border-radius: var(--radius-card);
+  border: 1px solid var(--border);
+  background: var(--bg-elevated);
+
+  &__title {
+    margin: 0 0 8px;
+    font-family: var(--font-display);
+    font-size: 22px;
+  }
+
+  &__lead {
+    margin: 0 0 20px;
+    color: var(--text-secondary);
+    max-width: 720px;
+    line-height: 1.5;
+  }
+
+  &__grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    gap: 16px;
+  }
+}
+
+.saas-card {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-input);
+  padding: 18px;
+
+  h3 {
+    margin: 0 0 8px;
+    font-size: 18px;
+  }
+
+  &__price {
+    font-weight: 700;
+    margin: 0 0 12px;
+    color: var(--spectyra-blue);
+  }
+
+  ul {
+    margin: 0;
+    padding-left: 1.1rem;
+    color: var(--text-secondary);
+    font-size: 14px;
+    line-height: 1.45;
+
+    li {
+      margin-bottom: 6px;
+    }
+  }
+}

@@ -4,6 +4,8 @@ import { RegisterPage } from './features/auth/register.page';
 import { LoginPage } from './features/auth/login.page';
 import { OpenClawIntegrationPage } from './features/openclaw/openclaw-integration.page';
 import { ProjectsPage } from './features/projects/projects.page';
+import { ProjectDetailPage } from './features/projects/project-detail.page';
+import { ProjectEnvironmentPage } from './features/projects/project-environment.page';
 import { AdminPage } from './features/admin/admin.page';
 import { OptimizerLabPage } from './features/optimizer-lab/optimizer-lab.page';
 import { HomePage } from './features/home/home.page';
@@ -44,6 +46,12 @@ export const webRoutes: Routes = [
 
   { path: 'billing', component: BillingPage, canActivate: [authGuard] },
   { path: 'policies', redirectTo: '/overview', pathMatch: 'full' },
+  {
+    path: 'projects/:projectId/environments/:environmentName',
+    component: ProjectEnvironmentPage,
+    canActivate: [authGuard],
+  },
+  { path: 'projects/:projectId', component: ProjectDetailPage, canActivate: [authGuard] },
   { path: 'projects', component: ProjectsPage, canActivate: [authGuard] },
   { path: 'audit', redirectTo: '/overview', pathMatch: 'full' },
   { path: 'settings', component: SettingsPage, canActivate: [authGuard] },

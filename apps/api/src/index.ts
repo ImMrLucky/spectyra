@@ -29,11 +29,14 @@ import { providerKeysRouter } from "./routes/providerKeys.js";
 import { retentionRouter } from "./routes/retention.js";
 import { superuserRouter } from "./routes/superuser.js";
 import { settingsRouter } from "./routes/settings.js";
+import { telemetryRouter } from "./routes/telemetry.js";
+import { projectAnalyticsRouter } from "./routes/projectAnalytics.js";
 import { scimRouter } from "./routes/scim.js";
 import { serverOptimizeRouter } from "./routes/serverOptimize.js";
 import { rateLimit } from "./middleware/rateLimit.js";
 import { initDb } from "./services/storage/db.js";
 import { ensurePlatformRolesSchema } from "./services/storage/ensurePlatformRolesSchema.js";
+import { ensureSdkTelemetrySchema } from "./services/storage/ensureSdkTelemetrySchema.js";
 import { ensureUserAccountFlagsSchema } from "./services/storage/userAccountRepo.js";
 
 const app = express();
@@ -120,6 +123,8 @@ initDb();
 app.use("/health", healthRouter);
 app.use("/v1/providers", providersRouter);
 app.use("/v1/scenarios", scenariosRouter);
+app.use("/v1", telemetryRouter);
+app.use("/v1", projectAnalyticsRouter);
 app.use("/v1/chat", chatRouter);
 app.use("/v1/replay", replayRouter);
 app.use("/v1/runs", runsRouter);
@@ -155,6 +160,7 @@ app.use("/v1", serverOptimizeRouter); // POST /v1/optimize — full pipeline (SD
 
 async function startServer(): Promise<void> {
   await ensurePlatformRolesSchema();
+  await ensureSdkTelemetrySchema();
   await ensureUserAccountFlagsSchema();
   app.listen(config.port, "0.0.0.0", () => {
     console.log(`Spectyra API listening on port ${config.port}`);

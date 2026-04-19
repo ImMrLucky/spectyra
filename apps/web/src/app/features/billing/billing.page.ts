@@ -2,7 +2,7 @@ import { Component, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { ApiClientService } from '../../core/api/api-client.service';
-import { SPECTYRA_MONTHLY_PRICE_LABEL, SPECTYRA_TRIAL_DAYS } from '../../core/product.constants';
+import { SPECTYRA_MONTHLY_PRICE_LABEL, SPECTYRA_TRIAL_DAYS, SAAS_PLAN_CARDS } from '../../core/product.constants';
 import { trialBannerState, type TrialBannerState } from '@spectyra/shared';
 
 interface LicenseKey {
@@ -24,6 +24,7 @@ interface LicenseKey {
 export class BillingPage implements OnInit {
   readonly monthlyPriceLabel = SPECTYRA_MONTHLY_PRICE_LABEL;
   readonly trialDays = SPECTYRA_TRIAL_DAYS;
+  readonly saasPlans = SAAS_PLAN_CARDS;
   entitlement: any = null;
   billingStatus: any = null;
   licenseKeys: LicenseKey[] = [];

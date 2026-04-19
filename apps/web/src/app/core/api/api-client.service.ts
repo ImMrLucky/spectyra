@@ -318,4 +318,53 @@ export class ApiClientService {
       confirm: 'DELETE_MY_ACCOUNT',
     });
   }
+
+  /** SDK telemetry aggregates (JWT). */
+  getProjectSdkSummary(projectId: string): Observable<{
+    total_calls: number;
+    total_savings_usd: number;
+    avg_savings_percent: number;
+    environment_breakdown: Array<{ environment: string; calls: number; savings_usd: number }>;
+    recent_runs: Array<{
+      id: string;
+      environment: string;
+      model: string;
+      input_tokens: number;
+      output_tokens: number;
+      optimized_input_tokens: number;
+      estimated_savings_usd: string;
+      created_at: string;
+    }>;
+  }> {
+    return this.dashboardCall('GET', `${this.baseUrl}/projects/${projectId}/summary`);
+  }
+
+  getProjectSdkTimeseries(
+    projectId: string,
+    range: '7d' | '30d' | '90d' = '30d',
+  ): Observable<
+    Array<{
+      date: string;
+      total_calls: number;
+      total_input_tokens: number;
+      total_output_tokens: number;
+      total_optimized_input_tokens: number;
+      total_cost_usd: number;
+      total_optimized_cost_usd: number;
+      total_savings_usd: number;
+    }>
+  > {
+    return this.dashboardCall('GET', `${this.baseUrl}/projects/${projectId}/timeseries?range=${range}`);
+  }
+
+  getProjectEnvironmentSdkDetail(projectId: string, environment: string): Observable<{
+    environment: string;
+    total_calls: number;
+    total_savings_usd: number;
+    model_usage: Array<{ model: string; calls: number; savings_usd: number }>;
+    daily: Array<{ usage_date: string; total_calls: number; total_savings_usd: string }>;
+  }> {
+    const enc = encodeURIComponent(environment);
+    return this.dashboardCall('GET', `${this.baseUrl}/projects/${projectId}/environments/${enc}`);
+  }
 }

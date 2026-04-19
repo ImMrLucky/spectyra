@@ -66,6 +66,19 @@ export interface SpectyraConfig {
   licenseKey?: string;
 
   /**
+   * Spectyra **dashboard** API key (same as `X-SPECTYRA-API-KEY` in the HTTP API).
+   * When set (and `telemetry.mode` is not `off`), each `complete()` POSTs usage to
+   * `POST {spectyraApiBaseUrl}/telemetry/run` for org/project dashboards.
+   */
+  spectyraCloudApiKey?: string;
+
+  /**
+   * API base URL **including** `/v1`, e.g. `https://your-api.example.com/v1`.
+   * Defaults to `process.env.SPECTYRA_API_BASE_URL` when `spectyraCloudApiKey` is set.
+   */
+  spectyraApiBaseUrl?: string;
+
+  /**
    * Phase 5 — optional local learning profile (mutated in place when present).
    * Use `createEmptyProfile` from `@spectyra/learning` and reuse across `complete()` calls.
    */
@@ -142,6 +155,10 @@ export interface SpectyraCompleteInput<TClient = unknown> {
     appType?: string;
     appName?: string;
     workflowType?: string;
+    /** Project name or UUID for cloud telemetry (required when the API key is org-wide). */
+    project?: string;
+    /** Deployment environment (e.g. `production`, `staging`). Defaults to `process.env.NODE_ENV`. */
+    environment?: string;
     /**
      * When `false`, `complete()` does not emit normalized SDK events (used by `startSpectyraSession`,
      * which emits session/step events itself). Default: emit for standalone `complete()` calls.

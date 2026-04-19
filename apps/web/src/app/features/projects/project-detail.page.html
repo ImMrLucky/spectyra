@@ -1,0 +1,82 @@
+<div class="container">
+  <nav class="crumb"><a routerLink="/projects">Projects</a> / <span>SDK usage</span></nav>
+
+  <div *ngIf="loading" class="loading"><p>Loading…</p></div>
+  <div *ngIf="error" class="error-box"><p>{{ error }}</p></div>
+
+  <ng-container *ngIf="!loading && !error && summary">
+    <h1>Project <code class="mono">{{ projectId }}</code></h1>
+    <p class="subtitle">In-app SDK telemetry — savings and volume by environment.</p>
+
+    <div class="kpi-grid">
+      <div class="kpi">
+        <div class="kpi-label">Total SDK calls</div>
+        <div class="kpi-value">{{ summary.total_calls }}</div>
+      </div>
+      <div class="kpi">
+        <div class="kpi-label">Total savings (est. USD)</div>
+        <div class="kpi-value">{{ summary.total_savings_usd | number:'1.0-4' }}</div>
+      </div>
+      <div class="kpi">
+        <div class="kpi-label">Avg input reduction</div>
+        <div class="kpi-value">{{ summary.avg_savings_percent | number:'1.0-1' }}%</div>
+      </div>
+    </div>
+
+    <section class="card">
+      <h2>By environment</h2>
+      <table class="data-table" *ngIf="summary.environment_breakdown.length">
+        <thead>
+          <tr><th>Environment</th><th>Calls</th><th>Savings (USD)</th><th></th></tr>
+        </thead>
+        <tbody>
+          <tr *ngFor="let row of summary.environment_breakdown">
+            <td>{{ row.environment }}</td>
+            <td>{{ row.calls }}</td>
+            <td>{{ row.savings_usd | number:'1.0-4' }}</td>
+            <td><a [routerLink]="['/projects', projectId, 'environments', row.environment]">Details</a></td>
+          </tr>
+        </tbody>
+      </table>
+      <p *ngIf="!summary.environment_breakdown.length" class="muted">No telemetry yet. Wire the SDK with <code>spectyraCloudApiKey</code> and <code>runContext.project</code> / <code>environment</code>.</p>
+    </section>
+
+    <section class="card">
+      <h2>Daily rollups (30d)</h2>
+      <table class="data-table" *ngIf="timeseries.length">
+        <thead>
+          <tr><th>Date</th><th>Calls</th><th>Savings (USD)</th><th>In tokens</th><th>Out tokens</th></tr>
+        </thead>
+        <tbody>
+          <tr *ngFor="let row of timeseries">
+            <td>{{ row.date }}</td>
+            <td>{{ row.total_calls }}</td>
+            <td>{{ row.total_savings_usd | number:'1.0-4' }}</td>
+            <td>{{ row.total_input_tokens }}</td>
+            <td>{{ row.total_output_tokens }}</td>
+          </tr>
+        </tbody>
+      </table>
+      <p *ngIf="!timeseries.length" class="muted">No daily aggregates yet.</p>
+    </section>
+
+    <section class="card">
+      <h2>Recent runs</h2>
+      <table class="data-table" *ngIf="summary.recent_runs.length">
+        <thead>
+          <tr><th>When</th><th>Env</th><th>Model</th><th>In</th><th>Opt in</th><th>Savings</th></tr>
+        </thead>
+        <tbody>
+          <tr *ngFor="let r of summary.recent_runs">
+            <td>{{ r.created_at | date:'short' }}</td>
+            <td>{{ r.environment }}</td>
+            <td><code>{{ r.model }}</code></td>
+            <td>{{ r.input_tokens }}</td>
+            <td>{{ r.optimized_input_tokens }}</td>
+            <td>{{ r.estimated_savings_usd }}</td>
+          </tr>
+        </tbody>
+      </table>
+    </section>
+  </ng-container>
+</div>

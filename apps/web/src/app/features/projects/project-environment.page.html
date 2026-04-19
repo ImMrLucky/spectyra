@@ -1,0 +1,57 @@
+<div class="container">
+  <nav class="crumb">
+    <a routerLink="/projects">Projects</a> /
+    <a [routerLink]="['/projects', projectId]">SDK usage</a> /
+    <span>{{ environment }}</span>
+  </nav>
+
+  <div *ngIf="loading" class="loading"><p>Loading…</p></div>
+  <div *ngIf="error" class="error-box"><p>{{ error }}</p></div>
+
+  <ng-container *ngIf="!loading && !error && detail">
+    <h1>Environment: {{ detail.environment }}</h1>
+    <div class="kpi-grid">
+      <div class="kpi">
+        <div class="kpi-label">Calls</div>
+        <div class="kpi-value">{{ detail.total_calls }}</div>
+      </div>
+      <div class="kpi">
+        <div class="kpi-label">Savings (USD)</div>
+        <div class="kpi-value">{{ detail.total_savings_usd | number:'1.0-4' }}</div>
+      </div>
+    </div>
+
+    <section class="card">
+      <h2>Model usage</h2>
+      <table class="data-table" *ngIf="detail.model_usage.length">
+        <thead>
+          <tr><th>Model</th><th>Calls</th><th>Savings (USD)</th></tr>
+        </thead>
+        <tbody>
+          <tr *ngFor="let m of detail.model_usage">
+            <td><code>{{ m.model }}</code></td>
+            <td>{{ m.calls }}</td>
+            <td>{{ m.savings_usd | number:'1.0-4' }}</td>
+          </tr>
+        </tbody>
+      </table>
+      <p *ngIf="!detail.model_usage.length" class="muted">No model breakdown yet.</p>
+    </section>
+
+    <section class="card">
+      <h2>Daily trend</h2>
+      <table class="data-table" *ngIf="detail.daily.length">
+        <thead>
+          <tr><th>Date</th><th>Calls</th><th>Savings (USD)</th></tr>
+        </thead>
+        <tbody>
+          <tr *ngFor="let d of detail.daily">
+            <td>{{ d.usage_date }}</td>
+            <td>{{ d.total_calls }}</td>
+            <td>{{ d.total_savings_usd }}</td>
+          </tr>
+        </tbody>
+      </table>
+    </section>
+  </ng-container>
+</div>

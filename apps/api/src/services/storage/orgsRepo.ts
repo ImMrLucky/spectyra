@@ -212,6 +212,29 @@ export async function getOrgProjects(orgId: string): Promise<Project[]> {
 }
 
 /**
+ * Resolve a project by UUID or by name (case-insensitive) within an org.
+ */
+export async function getProjectByOrgAndIdentifier(
+  orgId: string,
+  projectIdOrName: string,
+): Promise<Project | null> {
+  const raw = projectIdOrName.trim();
+  if (!raw) return null;
+  const byId = await getProjectById(raw);
+  if (byId && byId.org_id === orgId) return byId;
+  const result = await queryOne<Project>(
+    `
+    SELECT id, org_id, name, created_at
+    FROM projects
+    WHERE org_id = $1 AND LOWER(name) = LOWER($2)
+    LIMIT 1
+    `,
+    [orgId, raw],
+  );
+  return result;
+}
+
+/**
  * Hash an API key using argon2id
  */
 export async function hashApiKey(key: string): Promise<string> {
