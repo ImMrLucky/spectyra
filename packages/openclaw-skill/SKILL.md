@@ -1,6 +1,6 @@
 ---
 name: spectyra
-version: 1.0.13
+version: 1.0.15
 description: "OpenClaw + local companion. Dashboard http://127.0.0.1:4111/dashboard — install @spectyra/local-companion, spectyra-companion start --open, spectyra/* models."
 homepage: https://spectyra.ai
 metadata:
