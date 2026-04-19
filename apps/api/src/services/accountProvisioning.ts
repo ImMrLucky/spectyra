@@ -13,7 +13,6 @@ import {
   getOrgById,
   getOrgProjects,
   hashApiKey,
-  DEFAULT_ORG_TRIAL_DAYS,
 } from "./storage/orgsRepo.js";
 import { audit } from "./audit/audit.js";
 import { applyPlatformExemptIfBillingListed } from "../billing/applyPlatformExemptForNewUser.js";
@@ -80,17 +79,14 @@ export async function provisionSpectyraAccountIfNeeded(
       return { kind: "existing" as const, orgId: existing.rows[0].org_id };
     }
 
-    const trialEndsAt = new Date();
-    trialEndsAt.setDate(trialEndsAt.getDate() + DEFAULT_ORG_TRIAL_DAYS);
-
     const seats = getDefaultOrgSeatLimit();
     const orgRes = await client.query<Org>(
       `
       INSERT INTO orgs (name, trial_ends_at, subscription_status, sdk_access_enabled, seat_limit)
-      VALUES ($1, $2, 'trial', true, $3)
+      VALUES ($1, NULL, 'active', true, $2)
       RETURNING id, name, created_at, trial_ends_at, stripe_customer_id, subscription_status, sdk_access_enabled, platform_exempt, seat_limit, observe_only_override
     `,
-      [trimmedOrg, trialEndsAt.toISOString(), seats],
+      [trimmedOrg, seats],
     );
     const orgRow = orgRes.rows[0];
 

@@ -13,10 +13,12 @@
   </div>
 
   <div *ngIf="!loading && !error">
-    <div *ngIf="trialBanner && trialBanner.severity !== 'none'" [class]="trialBannerClass()" role="status">
-      <div class="trial-banner__title">{{ trialBanner.title }}</div>
-      <p class="trial-banner__detail">{{ trialBanner.detail }}</p>
-      <a *ngIf="trialBanner.showUpgradeCta" routerLink="/billing" class="btn btn-sm btn-primary trial-banner__cta">Upgrade</a>
+    <div *ngIf="showUsagePlanHint" class="usage-plan-hint" role="status">
+      <p>
+        Included optimized tokens are used first; after that, pick
+        <strong>Developer Pro</strong>, <strong>Team Pro</strong>, or <strong>Enterprise</strong> on
+        <a routerLink="/billing">Billing</a>.
+      </p>
     </div>
 
     <!-- Savings at a glance -->
@@ -61,10 +63,6 @@
           <span class="billing-value" [class.active]="isSubscriptionActive">
             {{ subscriptionStatusText }}
           </span>
-        </div>
-        <div class="billing-item" *ngIf="showTrialEndsAt">
-          <span class="billing-label">Trial Ends</span>
-          <span class="billing-value">{{ formattedTrialEndsAt }}</span>
         </div>
         <div class="billing-item" *ngIf="showHasAccess">
           <span class="billing-label">Access</span>

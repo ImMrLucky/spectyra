@@ -2,8 +2,7 @@ import { Component, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { ApiClientService } from '../../core/api/api-client.service';
-import { SPECTYRA_MONTHLY_PRICE_LABEL, SPECTYRA_TRIAL_DAYS, SAAS_PLAN_CARDS } from '../../core/product.constants';
-import { trialBannerState, type TrialBannerState } from '@spectyra/shared';
+import { SAAS_PLAN_CARDS } from '../../core/product.constants';
 
 interface LicenseKey {
   id: string;
@@ -22,8 +21,6 @@ interface LicenseKey {
   styleUrls: ['./billing.page.scss'],
 })
 export class BillingPage implements OnInit {
-  readonly monthlyPriceLabel = SPECTYRA_MONTHLY_PRICE_LABEL;
-  readonly trialDays = SPECTYRA_TRIAL_DAYS;
   readonly saasPlans = SAAS_PLAN_CARDS;
   entitlement: any = null;
   billingStatus: any = null;
@@ -106,11 +103,16 @@ export class BillingPage implements OnInit {
     });
   }
 
-  get daysRemaining(): number {
-    if (!this.entitlement?.trialEndsAt) return 0;
-    const end = new Date(this.entitlement.trialEndsAt);
-    const diff = end.getTime() - Date.now();
-    return Math.max(0, Math.ceil(diff / (1000 * 60 * 60 * 24)));
+  get paidSubscriptionActive(): boolean {
+    return this.billingStatus?.subscription_active === true;
+  }
+
+  /** Self-serve Stripe checkout for Developer / Team list price (configure STRIPE_PRICE_ID on API). */
+  get showPaidCheckoutCta(): boolean {
+    if (this.paidSubscriptionActive) return false;
+    const p = this.entitlement?.plan;
+    if (p === 'enterprise') return false;
+    return p === 'free' || p === 'starter' || p === 'pro';
   }
 
   get runUsagePercent(): number {
@@ -123,25 +125,7 @@ export class BillingPage implements OnInit {
   }
 
   get revokedKeys(): LicenseKey[] {
-    return this.licenseKeys.filter(k => k.revoked_at);
-  }
-
-  get trialBanner(): TrialBannerState | null {
-    const b = this.billingStatus as Record<string, unknown> | null;
-    if (!b) return null;
-    return trialBannerState({
-      trialEndsAtIso: b['trial_ends_at'] as string | null | undefined,
-      subscriptionStatus: b['subscription_status'] as string | null | undefined,
-      subscriptionActive: b['subscription_active'] as boolean | null | undefined,
-      platformExempt: !!(b['org_platform_exempt'] || b['platform_billing_exempt']),
-      observeOnlySavings: b['observe_only_savings'] === true,
-    });
-  }
-
-  trialBannerClass(): string {
-    const s = this.trialBanner?.severity;
-    if (!s || s === 'none') return '';
-    return `trial-banner trial-banner--${s}`;
+    return this.licenseKeys.filter(k => !!k.revoked_at);
   }
 
   formatDate(dateString: string | null): string {
@@ -153,8 +137,8 @@ export class BillingPage implements OnInit {
 
   upgrade() {
     this.upgrading = true;
-    const successUrl = `${window.location.origin}/usage?upgraded=true`;
-    const cancelUrl = `${window.location.origin}/usage`;
+    const successUrl = `${window.location.origin}/billing?upgraded=true`;
+    const cancelUrl = `${window.location.origin}/billing`;
     this.api.createCheckout(successUrl, cancelUrl).subscribe({
       next: (data) => {
         if (data.checkout_url) window.location.href = data.checkout_url;

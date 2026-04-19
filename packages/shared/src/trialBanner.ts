@@ -1,20 +1,20 @@
 /**
- * Shared trial / upgrade messaging for web, desktop, and CLI.
- * Drive only from server fields (`trial_ends_at`, `subscription_status`) + optional `has_access`.
+ * Shared billing / upgrade messaging for web, desktop, and CLI.
+ * Driven from server fields (`trial_ends_at`, `subscription_status`) + optional `has_access`.
  */
 
 export type TrialBannerSeverity = "none" | "info" | "reminder" | "urgent" | "expired";
 
 export interface TrialBannerState {
   severity: TrialBannerSeverity;
-  /** Whole days left before trial end (ceil); null if unknown */
+  /** Whole days left before access window end (ceil); null if unknown */
   daysRemaining: number | null;
   trialEndsAt: Date | null;
   /** Short line for banners / CLI */
   title: string;
   /** Longer line for tooltips / companion */
   detail: string;
-  /** Whether to show a primary “Upgrade” / “Subscribe” action */
+  /** Whether to show a primary “Upgrade” / “Billing” action */
   showUpgradeCta: boolean;
 }
 
@@ -25,7 +25,7 @@ export interface TrialBannerStateInput {
   subscriptionActive?: boolean | null;
   /** Superuser / comp org — no upgrade messaging. */
   platformExempt?: boolean | null;
-  /** From API: trial ended / unpaid — real savings off; Observe-only until subscribe. */
+  /** From API: savings in Observe-only until paid tier. */
   observeOnlySavings?: boolean | null;
   now?: Date;
   /** Default 7: above this is informational only */
@@ -43,7 +43,8 @@ function safeDate(iso: string | null | undefined): Date | null {
 }
 
 /**
- * Compute consistent trial banner state from org billing fields.
+ * Compute consistent upgrade banner state from org billing fields.
+ * Legacy orgs may still have `subscription_status === "trial"` and `trial_ends_at`.
  */
 export function trialBannerState(input: TrialBannerStateInput): TrialBannerState {
   const now = input.now ?? new Date();
@@ -51,12 +52,24 @@ export function trialBannerState(input: TrialBannerStateInput): TrialBannerState
   const reminderDays = input.reminderDays ?? 7;
   const urgentDays = input.urgentDays ?? 3;
 
-  const paid =
-    input.subscriptionStatus === "active" ||
-    input.subscriptionActive === true ||
-    input.platformExempt === true;
+  const paidStripe = input.subscriptionActive === true;
+  if (paidStripe || input.platformExempt === true) {
+    return {
+      severity: "none",
+      daysRemaining: null,
+      trialEndsAt: null,
+      title: "",
+      detail: "",
+      showUpgradeCta: false,
+    };
+  }
 
-  if (paid) {
+  /** DB `active` without a Stripe sub = included usage tier — no upgrade banner. */
+  if (
+    input.subscriptionStatus === "active" &&
+    input.subscriptionActive !== true &&
+    input.observeOnlySavings !== true
+  ) {
     return {
       severity: "none",
       daysRemaining: null,
@@ -74,7 +87,7 @@ export function trialBannerState(input: TrialBannerStateInput): TrialBannerState
       daysRemaining: 0,
       trialEndsAt: end,
       title: "Observe only",
-      detail: `Your plan is in Observe mode: you can keep using ${product}, but savings stay projected until you subscribe.`,
+      detail: `Your plan is in Observe mode: you can keep using ${product}, but savings stay projected until you add a paid tier.`,
       showUpgradeCta: true,
     };
   }
@@ -85,8 +98,8 @@ export function trialBannerState(input: TrialBannerStateInput): TrialBannerState
       severity: "info",
       daysRemaining: null,
       trialEndsAt: null,
-      title: `${product} trial`,
-      detail: `Start using ${product}; subscribe when you are ready.`,
+      title: `${product} workspace`,
+      detail: `Use included optimized tokens, then pick Developer Pro, Team Pro, or Enterprise when you need more.`,
       showUpgradeCta: true,
     };
   }
@@ -99,8 +112,8 @@ export function trialBannerState(input: TrialBannerStateInput): TrialBannerState
       severity: "expired",
       daysRemaining: 0,
       trialEndsAt: end,
-      title: "Trial ended",
-      detail: `Your ${product} trial has ended. Subscribe to keep full access.`,
+      title: "Upgrade required",
+      detail: `Included access for this ${product} workspace has ended. Open Billing to choose a paid tier.`,
       showUpgradeCta: true,
     };
   }
@@ -112,8 +125,8 @@ export function trialBannerState(input: TrialBannerStateInput): TrialBannerState
       severity: "info",
       daysRemaining,
       trialEndsAt: end,
-      title: "Trial active",
-      detail: `${daysRemaining} days left in your trial (ends ${end.toLocaleDateString()}).`,
+      title: "Included access active",
+      detail: `${daysRemaining} days left on your current access window (ends ${end.toLocaleDateString()}).`,
       showUpgradeCta,
     };
   }
@@ -123,8 +136,8 @@ export function trialBannerState(input: TrialBannerStateInput): TrialBannerState
       severity: "reminder",
       daysRemaining,
       trialEndsAt: end,
-      title: "Trial ending soon",
-      detail: `${daysRemaining} days left — subscribe before ${end.toLocaleDateString()} to avoid interruption.`,
+      title: "Access window ending soon",
+      detail: `${daysRemaining} days left — open Billing before ${end.toLocaleDateString()} to avoid interruption.`,
       showUpgradeCta: true,
     };
   }
@@ -133,11 +146,11 @@ export function trialBannerState(input: TrialBannerStateInput): TrialBannerState
     severity: "urgent",
     daysRemaining,
     trialEndsAt: end,
-    title: daysRemaining <= 1 ? "Trial ends soon" : "Last days of trial",
+    title: daysRemaining <= 1 ? "Access ends soon" : "Last days of included access",
     detail:
       daysRemaining <= 1
-        ? `Your trial ends ${end.toLocaleDateString()}. Subscribe now.`
-        : `${daysRemaining} days left in your trial. Subscribe to continue.`,
+        ? `Your included access ends ${end.toLocaleDateString()}. Choose a plan on Billing.`
+        : `${daysRemaining} days left before your access window ends. Open Billing to continue.`,
     showUpgradeCta: true,
   };
 }

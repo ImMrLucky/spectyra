@@ -706,7 +706,7 @@ export async function requireOrgMembership(
         created_at: new Date().toISOString(),
         trial_ends_at: null,
         stripe_customer_id: null,
-        subscription_status: "trial",
+        subscription_status: "active",
         sdk_access_enabled: false,
         seat_limit: getDefaultOrgSeatLimit(),
         observe_only_override: null,

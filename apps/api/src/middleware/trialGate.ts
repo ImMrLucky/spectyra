@@ -8,7 +8,7 @@
  */
 
 import { Response, NextFunction } from "express";
-import { hasActiveAccess } from "../services/storage/orgsRepo.js";
+import { hasActiveAccess, orgHasPaidStripeSubscription } from "../services/storage/orgsRepo.js";
 import { getEntitlement, canRunOptimized } from "../services/entitlement.js";
 import { billingAccessOpts, type AuthenticatedRequest } from "./auth.js";
 import {
@@ -35,8 +35,8 @@ export function attachSavingsObserveContext(
 }
 
 /**
- * Require active access (trial or subscription) for live provider calls.
- * Blocks /v1/chat if trial expired and no subscription.
+ * Require active access (free tier, time-limited legacy trial, or paid subscription) for live provider calls.
+ * Blocks /v1/chat when the org has no access under billing rules.
  */
 export function requireActiveAccess(
   req: AuthenticatedRequest,
@@ -60,9 +60,10 @@ export function requireActiveAccess(
 
     res.status(402).json({
       error: "Payment Required",
-      message: "Your trial has expired. Please subscribe to continue using Spectyra.",
+      message:
+        "This workspace does not have active Spectyra access. Upgrade on Billing or add a paid plan to continue.",
       trial_ended: trialEnded,
-      subscription_active: org.subscription_status === "active",
+      subscription_active: orgHasPaidStripeSubscription(org),
       billing_url: "/billing",
     });
     return;
@@ -87,7 +88,7 @@ export function allowEstimatorMode(
  * Entitlement-aware gate for optimized runs (mode=on).
  *
  * - observe / off: always allowed (no provider cost to Spectyra)
- * - on: requires valid license (trial or subscription), not run-count quotas
+ * - on: requires valid license (usage tier / legacy trial / paid subscription), not run-count quotas
  *
  * Returns entitlement info in 402 response so client can show upgrade CTA.
  */
@@ -128,7 +129,7 @@ export async function requireOptimizedRunQuota(
     res.status(402).json({
       error: "Payment Required",
       message:
-        "Your trial has ended or you do not have an active subscription. Subscribe to continue using Spectyra optimization.",
+        "Optimized runs (mode = on) require an active plan. Choose Developer Pro, Team Pro, or Enterprise on Billing after you have used your included tokens.",
       entitlement,
       upgrade_url: "/usage",
     });

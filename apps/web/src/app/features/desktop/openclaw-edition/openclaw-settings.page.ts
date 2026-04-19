@@ -128,11 +128,8 @@ import { environment } from '../../../../environments/environment';
       <!-- ── License ── -->
       <section class="card" *ngIf="topline">
         <h2 class="card-title">License</h2>
-        <p class="card-desc mono">{{ topline.trialBadge || 'No trial' }}</p>
-        <p class="card-desc" *ngIf="topline.trialDaysLeft !== null">
-          {{ topline.trialDaysLeft }} day{{ topline.trialDaysLeft !== 1 ? 's' : '' }} remaining
-        </p>
         <p class="card-desc">{{ topline.optimizationHeadline }}</p>
+        <p class="card-desc subtle">{{ topline.trustLine }}</p>
       </section>
     </div>
   `,
@@ -193,6 +190,10 @@ import { environment } from '../../../../environments/environment';
     .card-desc.mono {
       font-family: 'DM Mono', monospace;
       color: var(--spectyra-blue-light, #85B7EB);
+    }
+    .card-desc.subtle {
+      opacity: 0.92;
+      margin-bottom: 0;
     }
     .card-warn { color: #ef4444; font-size: 12px; margin: 8px 0 0; }
     .card-hint { font-size: 11px; color: var(--text-muted, #3d5a78); margin: 12px 0 0; }

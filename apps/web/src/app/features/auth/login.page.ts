@@ -32,8 +32,6 @@ export class LoginPage implements OnInit, OnDestroy {
   success = false;
   error: string | null = null;
   userEmail: string | null = null;
-  trialActive = false;
-  trialEndsAt: string | null = null;
   hasAccess = false;
   
   // Bootstrap state
@@ -139,8 +137,6 @@ export class LoginPage implements OnInit, OnDestroy {
           this.success = true;
           this.userEmail = me.org.name;
           this.hasAccess = me.has_access;
-          this.trialActive = me.trial_active;
-          this.trialEndsAt = me.org.trial_ends_at;
           this.needsBootstrap = false;
           this.autoRedirectIfReturnUrl();
         }
@@ -186,7 +182,6 @@ export class LoginPage implements OnInit, OnDestroy {
       this.bootstrapSuccess = true;
       this.bootstrapApiKey = response.api_key;
       this.userEmail = response.org.name;
-      this.trialEndsAt = response.org.trial_ends_at;
 
       // Drop any cached /auth/me result from before org existed (e.g. 404 needs_bootstrap).
       this.meService.clearCache();
@@ -222,8 +217,6 @@ export class LoginPage implements OnInit, OnDestroy {
         
         this.authService.getMe().subscribe({
           next: (me) => {
-            this.trialActive = me.trial_active;
-            this.trialEndsAt = me.org?.trial_ends_at || null;
             this.userEmail = me.org?.name || this.userEmail;
           },
           error: () => {},
@@ -233,7 +226,7 @@ export class LoginPage implements OnInit, OnDestroy {
         if (err.status === 401) {
           this.error = 'Invalid API key';
         } else if (err.status === 402) {
-          this.error = 'Your trial has expired. Please subscribe to continue.';
+          this.error = 'No active Spectyra access for this key. Open Billing to choose a plan.';
         } else {
           this.error = err.error?.error || 'Failed to login';
         }

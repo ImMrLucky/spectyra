@@ -10,6 +10,7 @@ import {
   createOrg,
   getOrgById,
   hasActiveAccess,
+  orgHasPaidStripeSubscription,
   setOrgPlatformExempt,
   createProject,
   createApiKey,
@@ -192,6 +193,7 @@ authRouter.post(
         name: outcome.org.name,
         trial_ends_at: outcome.org.trial_ends_at,
         subscription_status: outcome.org.subscription_status,
+        subscription_active: orgHasPaidStripeSubscription(outcome.org),
       },
       project: {
         id: outcome.project.id,
@@ -248,6 +250,7 @@ authRouter.post(
           name: outcome.org.name,
           trial_ends_at: outcome.org.trial_ends_at,
           subscription_status: outcome.org.subscription_status,
+          subscription_active: orgHasPaidStripeSubscription(outcome.org),
         },
         projects: outcome.projects.map((p) => ({
           id: p.id,
@@ -264,6 +267,7 @@ authRouter.post(
         name: outcome.org.name,
         trial_ends_at: outcome.org.trial_ends_at,
         subscription_status: outcome.org.subscription_status,
+        subscription_active: orgHasPaidStripeSubscription(outcome.org),
       },
       project: {
         id: outcome.project.id,
@@ -418,7 +422,6 @@ authRouter.post("/register", async (req, res) => {
       return res.status(400).json({ error: "Organization name is required" });
     }
     
-    // Create org with default trial (see DEFAULT_ORG_TRIAL_DAYS in orgsRepo)
     const org = await createOrg(org_name.trim());
     
     // Create default project
@@ -426,14 +429,18 @@ authRouter.post("/register", async (req, res) => {
     
     // Create first API key (org-level, not project-scoped)
     const { key, apiKey } = await createApiKey(org.id, null, "Default Key");
-    
+
+    const hasAccess = hasActiveAccess(org);
+
     res.status(201).json({
       org: {
         id: org.id,
         name: org.name,
         trial_ends_at: org.trial_ends_at,
         subscription_status: org.subscription_status,
+        subscription_active: orgHasPaidStripeSubscription(org),
       },
+      has_access: hasAccess,
       project: {
         id: project.id,
         name: project.name,
@@ -482,6 +489,7 @@ authRouter.post("/login", requireSpectyraApiKey, optionalProviderKey, async (req
         name: org.name,
         trial_ends_at: org.trial_ends_at,
         subscription_status: org.subscription_status,
+        subscription_active: orgHasPaidStripeSubscription(org),
       },
       project: req.context.project,
       has_access: hasAccess,
@@ -564,7 +572,11 @@ authRouter.get("/me", async (req: AuthenticatedRequest, res) => {
             const hasAccess = hasActiveAccess(org, billingAccessOpts(req));
             const observeOnly = isSavingsObserveOnly(org, billingAccessOpts(req));
             const trialEnd = org.trial_ends_at ? new Date(org.trial_ends_at) : null;
-            const isTrialActive = trialEnd ? trialEnd > new Date() : false;
+            const isTrialActive =
+              org.subscription_status === "trial" &&
+              !!trialEnd &&
+              !Number.isNaN(trialEnd.getTime()) &&
+              trialEnd > new Date();
 
             res.json({
               org: {
@@ -572,6 +584,7 @@ authRouter.get("/me", async (req: AuthenticatedRequest, res) => {
                 name: org.name,
                 trial_ends_at: org.trial_ends_at,
                 subscription_status: org.subscription_status,
+                subscription_active: orgHasPaidStripeSubscription(org),
               },
               projects: projects,
               has_access: hasAccess,
@@ -624,14 +637,19 @@ authRouter.get("/me", async (req: AuthenticatedRequest, res) => {
           const hasAccess = hasActiveAccess(org);
           const observeOnly = isSavingsObserveOnly(org);
           const trialEnd = org.trial_ends_at ? new Date(org.trial_ends_at) : null;
-          const isTrialActive = trialEnd ? trialEnd > new Date() : false;
-          
+          const isTrialActive =
+            org.subscription_status === "trial" &&
+            !!trialEnd &&
+            !Number.isNaN(trialEnd.getTime()) &&
+            trialEnd > new Date();
+
           res.json({
             org: {
               id: org.id,
               name: org.name,
               trial_ends_at: org.trial_ends_at,
               subscription_status: org.subscription_status,
+              subscription_active: orgHasPaidStripeSubscription(org),
             },
             project: req.context.project,
             has_access: hasAccess,

@@ -1,6 +1,9 @@
 <div class="container">
   <h1>Plan &amp; Licensing</h1>
-  <p class="subtitle">Manage your plan, trial status, and Desktop / Companion license keys. New accounts: {{ trialDays }}-day trial, then {{ monthlyPriceLabel }}.</p>
+  <p class="subtitle">
+    Included optimized-token allowance, then pick Developer Pro, Team Pro, or Enterprise.
+    Manage Desktop / Companion license keys below.
+  </p>
 
   <section class="saas-plans" aria-label="SDK and telemetry plans">
     <h2 class="saas-plans__title">AI cost optimization + observability</h2>
@@ -16,41 +19,28 @@
     </div>
   </section>
 
-  <div *ngIf="trialBanner && trialBanner.severity !== 'none'" [class]="trialBannerClass()" role="status">
-    <div class="trial-banner__title">{{ trialBanner.title }}</div>
-    <p class="trial-banner__detail">{{ trialBanner.detail }}</p>
-    <button type="button" *ngIf="trialBanner.showUpgradeCta" class="btn-primary trial-banner__cta" (click)="upgrade()" [disabled]="upgrading">
-      {{ upgrading ? 'Opening…' : 'Subscribe' }}
-    </button>
-  </div>
-
   <div *ngIf="loading" class="loading">
     <p>Loading...</p>
   </div>
 
   <div *ngIf="!loading && entitlement" class="billing-content">
 
-    <!-- Plan & Trial -->
     <div class="card" [ngClass]="{
       'active': entitlement.licenseStatus === 'valid',
       'expired': entitlement.licenseStatus === 'expired'
     }">
       <h2>{{ entitlement.plan | titlecase }} Plan</h2>
 
-      <div *ngIf="entitlement.trialState === 'active'" class="trial-info">
-        <p>
-          Trial active — <span class="days-badge">{{ daysRemaining }}</span>
-          day{{ daysRemaining !== 1 ? 's' : '' }} remaining
-          (ends {{ formatDate(entitlement.trialEndsAt) }})
-        </p>
+      <div *ngIf="entitlement.licenseStatus === 'valid' && paidSubscriptionActive" class="success-message">
+        Active paid subscription — full cloud features for your tier.
       </div>
 
-      <div *ngIf="entitlement.trialState === 'expired' && entitlement.plan === 'free'" class="error-message">
-        Your trial has ended. Subscribe ({{ monthlyPriceLabel }}) to unlock unlimited optimized runs.
+      <div *ngIf="entitlement.licenseStatus === 'valid' && !paidSubscriptionActive" class="success-message">
+        Included usage tier — Observe mode and pass-through stay free. Upgrade when you need more optimized tokens or team features.
       </div>
 
-      <div *ngIf="entitlement.licenseStatus === 'valid' && entitlement.trialState !== 'active'" class="success-message">
-        Active subscription — all features enabled.
+      <div *ngIf="entitlement.licenseStatus === 'expired' || entitlement.licenseStatus === 'missing'" class="error-message">
+        Optimized runs and full cloud savings require an active paid tier. See Developer Pro, Team Pro, and Enterprise above, then continue to checkout.
       </div>
 
       <!-- Optimized Run Usage -->
@@ -78,10 +68,10 @@
       </div>
 
       <button class="btn-primary"
-              *ngIf="entitlement.plan === 'free'"
+              *ngIf="showPaidCheckoutCta"
               (click)="upgrade()"
               [disabled]="upgrading">
-        {{ upgrading ? 'Processing...' : 'Subscribe — ' + monthlyPriceLabel }}
+        {{ upgrading ? 'Processing...' : 'Continue to secure checkout' }}
       </button>
     </div>
 

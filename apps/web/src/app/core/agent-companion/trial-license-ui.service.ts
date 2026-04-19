@@ -1,8 +1,4 @@
 import { Injectable } from '@angular/core';
-import { SPECTYRA_TRIAL_DAYS } from '../product.constants';
-
-const TRIAL_ENDS_LS = 'spectyra.local_trial_ends_at';
-const TRIAL_STARTED_LS = 'spectyra.local_trial_started';
 
 export type MetricsPresentation = 'actual' | 'projected';
 
@@ -12,94 +8,44 @@ export interface LiveProductTopline {
   licenseAllowsFullOptimization: boolean;
   metricsPresentation: MetricsPresentation;
   optimizationHeadline: string;
-  trialBadge: 'Trial Active' | 'Trial Ended' | null;
+  trialBadge: null;
   trustLine: string;
-  trialDaysLeft: number | null;
+  trialDaysLeft: null;
   trialActive: boolean;
 }
 
 @Injectable({ providedIn: 'root' })
 export class TrialLicenseUiService {
-
-  setLocalTrialEndsAt(iso: string | null): void {
-    if (typeof localStorage === 'undefined') return;
-    if (iso) localStorage.setItem(TRIAL_ENDS_LS, iso);
-    else localStorage.removeItem(TRIAL_ENDS_LS);
-  }
-
-  getLocalTrialEndsAt(): string | null {
-    if (typeof localStorage === 'undefined') return null;
-    return localStorage.getItem(TRIAL_ENDS_LS);
-  }
-
-  ensureTrialStarted(): void {
-    if (typeof localStorage === 'undefined') return;
-    if (localStorage.getItem(TRIAL_STARTED_LS)) return;
-    const end = new Date(Date.now() + SPECTYRA_TRIAL_DAYS * 86400000).toISOString();
-    this.setLocalTrialEndsAt(end);
-    localStorage.setItem(TRIAL_STARTED_LS, new Date().toISOString());
-  }
-
-  trialDaysRemaining(): number | null {
-    const end = this.getLocalTrialEndsAt();
-    if (!end) return null;
-    const ms = Date.parse(end) - Date.now();
-    if (Number.isNaN(ms)) return null;
-    return Math.max(0, Math.ceil(ms / 86400000));
-  }
-
-  isTrialActive(): boolean {
-    const days = this.trialDaysRemaining();
-    return days !== null && days > 0;
-  }
-
   computeTopline(health: Record<string, unknown> | null): LiveProductTopline {
-    this.ensureTrialStarted();
-
     const runMode = String(health?.['runMode'] ?? 'on');
     const lic = health?.['licenseAllowsFullOptimization'] === true;
     const monitoring =
       health?.['monitoringEnabled'] !== false && health?.['telemetryMode'] !== 'off';
 
-    const trialActive = this.isTrialActive();
-    const trialDaysLeft = this.trialDaysRemaining();
-    const effectiveLic = lic || trialActive;
-    const realized = runMode === 'on' && effectiveLic;
+    const realized = runMode === 'on' && lic;
     const metricsPresentation: MetricsPresentation = realized ? 'actual' : 'projected';
 
     let optimizationHeadline = 'Optimization ON';
     if (runMode === 'off') optimizationHeadline = 'Optimization off';
-    else if (!effectiveLic || runMode === 'observe') optimizationHeadline = 'Observe only';
-
-    const trialEnd = this.getLocalTrialEndsAt();
-    let trialBadge: LiveProductTopline['trialBadge'] = null;
-    if (trialEnd) {
-      const end = Date.parse(trialEnd);
-      if (!Number.isNaN(end)) {
-        trialBadge = Date.now() < end ? 'Trial Active' : 'Trial Ended';
-      }
-    }
+    else if (!lic || runMode === 'observe') optimizationHeadline = 'Observe only';
 
     let trustLine =
       'Your agent keeps working — Spectyra never blocks the underlying provider call when optimization is off.';
     if (!realized && runMode !== 'off') {
       trustLine =
-        'Spectyra is monitoring and showing projected savings. Upgrade or add a valid license to realize savings.';
-    }
-    if (trialActive && !lic) {
-      trustLine = `Trial active — ${trialDaysLeft} day${trialDaysLeft !== 1 ? 's' : ''} remaining. Full optimization enabled.`;
+        'Spectyra is monitoring and showing projected savings. Add a valid license or upgrade your org to realize savings.';
     }
 
     return {
       spectyraMonitoring: !!health && monitoring,
       runMode,
-      licenseAllowsFullOptimization: effectiveLic,
+      licenseAllowsFullOptimization: lic,
       metricsPresentation,
       optimizationHeadline,
-      trialBadge,
+      trialBadge: null,
       trustLine,
-      trialDaysLeft,
-      trialActive,
+      trialDaysLeft: null,
+      trialActive: false,
     };
   }
 }

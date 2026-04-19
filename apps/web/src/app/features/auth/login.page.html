@@ -125,12 +125,8 @@
     <div *ngIf="success && !needsBootstrap" class="success-box">
       <h2>✅ Logged In</h2>
       <p>Welcome back, {{ userEmail }}!</p>
-      <div class="trial-info" *ngIf="trialActive">
-        <p>✅ <strong>Free trial active</strong></p>
-        <p>Trial ends: {{ trialEndsAt | date:'medium' }}</p>
-      </div>
       <div class="warning-box" *ngIf="!hasAccess">
-        <p>⚠️ Your trial has expired. Please subscribe to continue.</p>
+        <p>⚠️ This workspace does not have active Spectyra access. Open Billing to choose a plan.</p>
       </div>
       <button class="btn btn-primary" (click)="goToApp()">Continue to App</button>
     </div>

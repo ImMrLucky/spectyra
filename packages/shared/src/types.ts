@@ -97,7 +97,11 @@ export interface User {
   id: string;
   email: string;
   trial_ends_at: string | null;
+  /** True when the org has an active Stripe subscription (paid tier). */
   subscription_active: boolean;
+  /** From GET /me — whether the org currently has cloud product access (included usage or paid). */
+  has_access?: boolean;
+  subscription_status?: string | null;
 }
 
 /**

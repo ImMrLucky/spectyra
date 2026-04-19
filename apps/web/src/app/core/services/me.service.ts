@@ -12,6 +12,7 @@ export interface EnsureAccountResponse {
     name: string;
     trial_ends_at: string | null;
     subscription_status: string;
+    subscription_active?: boolean;
   };
   api_key?: string;
   license_key?: string | null;
@@ -26,6 +27,7 @@ export interface MeResponse {
     name: string;
     trial_ends_at: string | null;
     subscription_status: string;
+    subscription_active?: boolean;
   } | null;
   projects?: Array<{
     id: string;

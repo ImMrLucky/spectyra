@@ -96,8 +96,8 @@
     <div class="org-info">
       <p><strong>Name:</strong> {{ org.name }}</p>
       <p><strong>Status:</strong> {{ org.subscription_status }}</p>
-      <p *ngIf="org.trial_ends_at">
-        <strong>Trial ends:</strong> {{ org.trial_ends_at | date:'medium' }}
+      <p *ngIf="org.subscription_status === 'trial' && org.trial_ends_at">
+        <strong>Access window ends:</strong> {{ org.trial_ends_at | date:'medium' }}
       </p>
     </div>
   </div>

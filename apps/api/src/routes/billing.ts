@@ -10,6 +10,7 @@ import Stripe from "stripe";
 import {
   getOrgById,
   getOrgByStripeCustomerId,
+  orgHasPaidStripeSubscription,
   syncOrgSeatLimitToMemberFloor,
   updateOrgSubscription,
   updateOrgStripeCustomerId,
@@ -352,8 +353,7 @@ billingRouter.post("/checkout", async (req: AuthenticatedRequest, res) => {
         },
       ],
       subscription_data: {
-        // App-side trial is stored on the org (DEFAULT_ORG_TRIAL_DAYS). Default 0 = no extra Stripe trial at checkout.
-        // Set STRIPE_TRIAL_DAYS only if you want Stripe to add subscription trial days on top of app logic.
+        // Set STRIPE_TRIAL_DAYS if you want Stripe to add subscription trial days at checkout (optional).
         ...((): { trial_period_days?: number } => {
           const rawStr = process.env.STRIPE_TRIAL_DAYS?.trim();
           const raw = parseInt(rawStr && rawStr.length > 0 ? rawStr : "0", 10);
@@ -618,7 +618,7 @@ billingRouter.get("/status", async (req: AuthenticatedRequest, res) => {
       !!trialEnd &&
       !Number.isNaN(trialEnd.getTime()) &&
       trialEnd > new Date();
-    
+
     res.json({
       org: {
         id: org.id,
@@ -630,7 +630,7 @@ billingRouter.get("/status", async (req: AuthenticatedRequest, res) => {
       trial_ends_at: org.trial_ends_at,
       trial_active: isTrialActive,
       subscription_status: org.subscription_status,
-      subscription_active: org.subscription_status === "active",
+      subscription_active: orgHasPaidStripeSubscription(org),
       cancel_at_period_end: !!org.cancel_at_period_end,
       platform_role: req.auth?.platformRole ?? null,
       platform_billing_exempt: !!req.auth?.platformRole,

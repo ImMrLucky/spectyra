@@ -1344,7 +1344,7 @@ export function dashboardPageHtml(): string {
           line.textContent = 'Could not load plan status (unexpected response).';
           return;
         }
-        var paid = st.subscription_status === 'active' || st.subscription_active === true;
+        var paid = st.subscription_active === true;
         var hasAccess = st.has_access === true;
         var exempt = !!(st.org_platform_exempt || st.platform_billing_exempt);
         var trialActive = st.trial_active === true;
@@ -1353,14 +1353,20 @@ export function dashboardPageHtml(): string {
           line.textContent = 'Billing exempt — full access for ' + orgName + '.';
           btn.style.display = 'none';
         } else if (paid && hasAccess) {
-          line.textContent = 'Active subscription — ' + orgName + '.';
+          line.textContent = 'Active paid plan — ' + orgName + '.';
           btn.style.display = 'none';
         } else if (trialActive && hasAccess) {
           var te = st.trial_ends_at ? new Date(st.trial_ends_at) : null;
-          line.textContent = 'Trial active' + (te && !isNaN(te.getTime()) ? ' (ends ' + te.toLocaleString() + ')' : '') + '.';
+          line.textContent =
+            'Included access window' +
+            (te && !isNaN(te.getTime()) ? ' (ends ' + te.toLocaleString() + ')' : '') +
+            '.';
           btn.style.display = 'none';
+        } else if (hasAccess && !paid) {
+          line.textContent = 'Included optimized tokens — upgrade on spectyra.ai/billing when you need more.';
+          btn.style.display = 'inline-block';
         } else {
-          line.textContent = 'Trial ended or no active paid plan. Activate your account to restore full access to savings.';
+          line.textContent = 'No active access. Open Billing to choose Developer Pro, Team Pro, or Enterprise.';
           btn.style.display = 'inline-block';
         }
         if (!btn.dataset.boundPlan) {

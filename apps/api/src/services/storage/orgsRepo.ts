@@ -21,15 +21,22 @@ export type { Org, Project, ApiKey };
 /**
  * Create a new organization
  */
-/** Default trial length for new orgs (bootstrap, register, etc.). */
-export const DEFAULT_ORG_TRIAL_DAYS = 14;
-
 /** Default max org members when env unset or invalid (new orgs and provisioning). */
 export function getDefaultOrgSeatLimit(): number {
   const raw = process.env.DEFAULT_ORG_SEAT_LIMIT?.trim();
   if (!raw) return 5;
   const n = parseInt(raw, 10);
   return Number.isFinite(n) && n >= 1 ? n : 5;
+}
+
+/** True when the org has a Stripe subscription record in a billable state. */
+export function orgHasPaidStripeSubscription(
+  org: Pick<Org, "stripe_subscription_id" | "subscription_status">,
+): boolean {
+  const sid = org.stripe_subscription_id?.trim();
+  if (!sid) return false;
+  const s = org.subscription_status;
+  return s === "active" || s === "past_due" || s === "paused";
 }
 
 export async function countOrgMembers(orgId: string): Promise<number> {
@@ -58,20 +65,15 @@ export async function syncOrgSeatLimitToMemberFloor(orgId: string): Promise<void
   );
 }
 
-export async function createOrg(
-  name: string,
-  trialDays: number = DEFAULT_ORG_TRIAL_DAYS,
-): Promise<Org> {
-  const trialEndsAt = new Date();
-  trialEndsAt.setDate(trialEndsAt.getDate() + trialDays);
+export async function createOrg(name: string): Promise<Org> {
   const seats = getDefaultOrgSeatLimit();
-  
+
   const result = await query<Org>(`
     INSERT INTO orgs (name, trial_ends_at, subscription_status, sdk_access_enabled, seat_limit)
-    VALUES ($1, $2, 'trial', $3, $4)
+    VALUES ($1, NULL, 'active', true, $2)
     RETURNING id, name, created_at, trial_ends_at, stripe_customer_id, subscription_status, sdk_access_enabled, platform_exempt, seat_limit, observe_only_override, billing_admin_observe_lock_user_id
-  `, [name, trialEndsAt.toISOString(), true, seats]);
-  
+  `, [name, seats]);
+
   return result.rows[0];
 }
 

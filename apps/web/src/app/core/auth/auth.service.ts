@@ -88,7 +88,9 @@ export class AuthService {
           id: response.org.id,
           email: `${response.org.name}@spectyra.local`, // Use org name as email placeholder
           trial_ends_at: response.org.trial_ends_at,
-          subscription_active: response.org.subscription_status === 'active',
+          subscription_active: response.org.subscription_active === true,
+          subscription_status: response.org.subscription_status,
+          has_access: (response as { has_access?: boolean }).has_access,
         };
         this.setUser(user);
         this.checkAccess();
@@ -162,7 +164,9 @@ export class AuthService {
           id: response.org.id,
           email: `${response.org.name}@spectyra.local`, // Use org name as email placeholder
           trial_ends_at: response.org.trial_ends_at,
-          subscription_active: response.org.subscription_status === 'active',
+          subscription_active: response.org.subscription_active === true,
+          subscription_status: response.org.subscription_status,
+          has_access: response.has_access,
         };
         this.setUser(user);
         this.updateAuthState({
@@ -275,9 +279,17 @@ export class AuthService {
     const user = this.currentUser;
     if (!user) return;
 
+    const status = user.subscription_status;
     const trialEnd = user.trial_ends_at ? new Date(user.trial_ends_at) : null;
-    const trialActive = trialEnd ? trialEnd > new Date() : false;
-    const hasAccess = user.subscription_active || trialActive;
+    const calTrial =
+      status === 'trial' &&
+      trialEnd !== null &&
+      !Number.isNaN(trialEnd.getTime()) &&
+      trialEnd > new Date();
+    const trialActive = !!calTrial;
+    const hasAccess =
+      user.has_access ??
+      (user.subscription_active === true || trialActive);
 
     this.updateAuthState({
       hasAccess,
