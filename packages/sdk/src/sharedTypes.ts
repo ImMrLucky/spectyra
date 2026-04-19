@@ -9,12 +9,15 @@ export type Path = "talk" | "code";
 export type Mode = "baseline" | "optimized";
 
 /**
- * Canonical ChatMessage type
- * Supports tool role for agent workflows
+ * OpenAI-shaped chat message (tool calling preserved through optimization),
+ * aligned with Local Companion.
  */
 export interface ChatMessage {
   role: "system" | "user" | "assistant" | "tool";
-  content: string;
+  content: string | null;
+  tool_calls?: unknown;
+  tool_call_id?: string;
+  name?: string;
 }
 
 export interface Usage {

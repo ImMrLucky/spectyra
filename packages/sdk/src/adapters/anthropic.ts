@@ -37,8 +37,8 @@ export function createAnthropicAdapter(): ProviderAdapter<AnthropicLike> {
       const result = await client.messages.create({
         model,
         max_tokens: maxTokens ?? 4096,
-        system: systemMsg?.content,
-        messages: nonSystem.map((m) => ({ role: m.role, content: m.content })),
+        system: systemMsg?.content ?? undefined,
+        messages: nonSystem.map((m) => ({ role: m.role, content: m.content ?? "" })),
         temperature,
       });
 

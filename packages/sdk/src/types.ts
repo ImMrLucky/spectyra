@@ -18,6 +18,7 @@ import type {
 } from "@spectyra/core-types";
 import type { WorkflowPolicyMode } from "@spectyra/workflow-policy";
 import type { GlobalLearningSnapshot, LearningProfile } from "@spectyra/canonical-model";
+import type { ResolveSpectyraModelInput } from "@spectyra/shared";
 
 // Re-export core-types so downstream consumers only need @spectyra/sdk
 export type {
@@ -80,6 +81,15 @@ export interface SpectyraConfig {
    * Omit to disable (no policy checks).
    */
   workflowPolicy?: { mode: WorkflowPolicyMode };
+
+  /**
+   * Optional tier overrides for `spectyra/*` model ids (same resolution as Local Companion).
+   * When the request `model` is a Spectyra alias, missing fields default from
+   * `defaultAliasModels(provider)` for `complete()`'s `provider` string.
+   */
+  spectyraModelAliasOverrides?: Partial<
+    Pick<ResolveSpectyraModelInput, "aliasSmartModel" | "aliasFastModel" | "aliasQualityModel" | "providerTierModels">
+  >;
 
   // --- Legacy fields (deprecated, kept for backward compat) ---
 

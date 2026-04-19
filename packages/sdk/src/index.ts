@@ -75,6 +75,7 @@ export {
   defaultAliasModels,
   spectyraOpenClawModelDefinitions,
 } from "@spectyra/shared";
+export type { ResolveSpectyraModelInput } from "@spectyra/shared";
 
 // Provider adapters (direct-provider, no Spectyra cloud)
 export { createOpenAIAdapter } from "./adapters/openai.js";

@@ -13,7 +13,8 @@
     "build": "tsc",
     "dev": "tsc --watch",
     "prepublishOnly": "npm run build",
-    "test:sdk-moat-summaries": "tsx src/__tests__/sdkMoatSummaries.test.ts"
+    "test:sdk-moat-summaries": "tsx src/__tests__/sdkMoatSummaries.test.ts",
+    "test:optimization-engine-parity": "tsx src/__tests__/optimizationEngineParity.test.ts"
   },
   "keywords": [
     "llm",

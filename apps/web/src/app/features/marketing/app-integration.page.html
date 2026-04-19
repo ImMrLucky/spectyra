@@ -1,0 +1,68 @@
+<div class="marketing-page">
+    <nav class="marketing-nav" aria-label="Product">
+        <a routerLink="/" class="marketing-nav-link">Spectyra home</a>
+        <span class="marketing-nav-sep" aria-hidden="true">·</span>
+        <a routerLink="/openclaw" class="marketing-nav-link">OpenClaw &amp; Local Companion</a>
+        <span class="marketing-nav-sep" aria-hidden="true">·</span>
+        <span class="marketing-nav-current">In-app integration</span>
+    </nav>
+
+    <div class="dev-hero">
+        <h1>In-app integration</h1>
+        <p class="dev-lead">
+            Add <code class="mono">&#64;spectyra/sdk</code> to your backend or service. Spectyra runs the same local optimization
+            stack as the OpenClaw Local Companion: your OpenAI-compatible messages are analyzed and trimmed in-process,
+            then your existing SDK client calls the provider with your API key. Nothing is proxied through Spectyra for inference.
+        </p>
+    </div>
+
+    <section class="dev-panel">
+        <h2>Install</h2>
+        <pre class="dev-code">{{ installCommand }}</pre>
+        <p class="dev-note">Requires Node.js 18+ and ESM. Provider SDKs (e.g. <code class="mono">openai</code>) stay peer dependencies—you pass your own client instance.</p>
+    </section>
+
+    <section class="dev-panel">
+        <h2>Add to your code (three steps)</h2>
+        <ol class="dev-steps">
+            <li><strong>Create</strong> one <code class="mono">createSpectyra(&#123; … &#125;)</code> instance (reuse it; optional <code class="mono">licenseKey</code>, <code class="mono">runMode</code>, learning profile, workflow policy).</li>
+            <li><strong>Wrap</strong> each LLM call with <code class="mono">spectyra.complete(&#123; provider, client, model, messages &#125;, adapter)</code> using the adapter for your vendor.</li>
+            <li><strong>Read</strong> <code class="mono">providerResult</code> for the normal model response and <code class="mono">report</code> / <code class="mono">promptComparison</code> for savings and optional before/after snapshots.</li>
+        </ol>
+        <pre class="dev-code">{{ quickStartCode }}</pre>
+    </section>
+
+    <section class="dev-panel">
+        <h2>What it does</h2>
+        <ul class="dev-list">
+            <li><strong>Before the provider call:</strong> feature detection + the full optimization pipeline (whitespace, dedup, context shaping, tool-safe merges, etc.)—aligned with Local Companion behavior, including OpenAI tool threads (optimized text merged per row while preserving <code class="mono">tool_calls</code>).</li>
+            <li><strong>Run modes:</strong> <code class="mono">on</code> applies changes when licensed; <code class="mono">observe</code> keeps the provider on full prompts but fills the report with <strong>projected</strong> savings; <code class="mono">off</code> skips optimization for licensed debugging.</li>
+            <li><strong>License:</strong> without a valid key, the pipeline still runs in preview mode so you can show “what you’d save” (<code class="mono">report.projectedSavingsIfActivated</code> / limited transforms in analytics) while the provider receives the original messages.</li>
+        </ul>
+    </section>
+
+    <section class="dev-panel">
+        <h2>How to see savings</h2>
+        <ul class="dev-list">
+            <li><strong>Per request:</strong> inspect <code class="mono">report.inputTokensBefore</code>, <code class="mono">report.inputTokensAfter</code>, <code class="mono">report.estimatedSavings</code> / <code class="mono">estimatedSavingsPct</code>, and <code class="mono">report.transformsApplied</code>.</li>
+            <li><strong>Explainability:</strong> <code class="mono">report.notes</code> (e.g. observe mode, tool-thread merge), <code class="mono">report.duplicateReductionPct</code>, flow hints, and repeated-context estimates mirror the companion-style report.</li>
+            <li><strong>Prompt snapshots:</strong> when <code class="mono">promptSnapshots</code> is not <code class="mono">none</code>, use <code class="mono">promptComparison.diffSummary</code> for tokens saved and transform ids.</li>
+            <li><strong>Aggregate / dashboards:</strong> emit normalized events (same event model as companion) and use helpers such as <code class="mono">moatPhase34SummariesFromSdkBuffer()</code> for execution-graph / state-delta style summaries—see the SDK README.</li>
+        </ul>
+    </section>
+
+    <section class="dev-panel">
+        <h2>Optional: <code class="mono">spectyra/*</code> model aliases</h2>
+        <p class="dev-note">If you want the same <code class="mono">spectyra/smart</code> (etc.) names as OpenClaw, pass tier overrides; missing tiers default from your <code class="mono">provider</code> string.</p>
+        <pre class="dev-code">{{ aliasSnippet }}</pre>
+    </section>
+
+    <section class="dev-cta">
+        <p>Create an account for billing, license keys, and optional cloud analytics sync.</p>
+        <div class="dev-cta-row">
+            <a routerLink="/register" class="btn-primary">Create account</a>
+            <a routerLink="/login" class="btn-secondary">Sign in</a>
+            <a routerLink="/contact" class="btn-ghost">Contact</a>
+        </div>
+    </section>
+</div>

@@ -12,7 +12,7 @@ const CHARS_PER_TOKEN = 4;
 export function estimateTokens(messages: ChatMessage[]): number {
   let totalChars = 0;
   for (const m of messages) {
-    totalChars += m.role.length + m.content.length + 4; // role + content + framing
+    totalChars += m.role.length + (m.content?.length ?? 0) + 4; // role + content + framing
   }
   return Math.ceil(totalChars / CHARS_PER_TOKEN);
 }

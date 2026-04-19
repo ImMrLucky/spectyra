@@ -15,12 +15,22 @@ import type { ChatMessage } from "../sharedTypes.js";
  * Minimal shape we expect from the OpenAI SDK client.
  * We avoid importing the openai package directly.
  */
+function wireOpenAiMessages(messages: ChatMessage[]): unknown[] {
+  return messages.map((m) => {
+    const row: Record<string, unknown> = { role: m.role, content: m.content };
+    if (m.tool_calls != null) row.tool_calls = m.tool_calls;
+    if (m.tool_call_id != null) row.tool_call_id = m.tool_call_id;
+    if (m.name != null) row.name = m.name;
+    return row;
+  });
+}
+
 interface OpenAILike {
   chat: {
     completions: {
       create(args: {
         model: string;
-        messages: Array<{ role: string; content: string }>;
+        messages: unknown[];
         max_tokens?: number;
         temperature?: number;
       }): Promise<{
@@ -38,7 +48,7 @@ export function createOpenAIAdapter(): ProviderAdapter<OpenAILike> {
     async call({ client, model, messages, maxTokens, temperature }) {
       const result = await client.chat.completions.create({
         model,
-        messages: messages.map((m) => ({ role: m.role, content: m.content })),
+        messages: wireOpenAiMessages(messages),
         max_tokens: maxTokens,
         temperature,
       });

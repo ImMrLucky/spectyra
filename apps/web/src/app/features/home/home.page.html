@@ -1,116 +1,27 @@
-<div class="home-container">
-    <div class="hero-section">
-        <h1>Spectyra for OpenClaw</h1>
-        <p class="tagline">Local companion, live token savings, <code class="inline-code">spectyra/*</code> models</p>
-
-        <p class="description">
-            Run Spectyra next to OpenClaw: optimize LLM traffic through a small process on your machine,
-            then watch estimated savings in real time on the local dashboard. Install the skill from
-            <a href="https://clawhub.ai/immrlucky/spectyra" target="_blank" rel="noopener noreferrer" class="hero-link">ClawHub</a>,
-            then install and start the Local Companion.
+<div class="home-container home-chooser">
+    <section class="path-chooser-hero" aria-labelledby="path-chooser-title">
+        <h1 id="path-chooser-title">Spectyra</h1>
+        <p class="path-lead">
+            Choose how you run Spectyra: next to <strong>OpenClaw</strong> with the Local Companion, or inside <strong>your own product</strong> with the npm SDK.
         </p>
 
-        <div class="install-block">
-            <p class="install-label">Install and start the Local Companion</p>
-            <pre class="install-command">npm install -g &#64;spectyra/local-companion&#64;latest &amp;&amp; spectyra-companion start --open</pre>
-            <p class="dashboard-hint">
-                After it starts, open the <strong>real-time savings</strong> dashboard:
-                <a href="http://127.0.0.1:4111/dashboard" target="_blank" rel="noopener noreferrer" class="hero-link">http://127.0.0.1:4111/dashboard</a>
-            </p>
+        <div class="path-cards" role="navigation" aria-label="Product paths">
+            <a routerLink="/openclaw" class="path-card path-card-openclaw">
+                <h2>OpenClaw &amp; Local Companion</h2>
+                <p>ClawHub skill, <code class="path-inline-code">spectyra/*</code> model aliases, and the real-time savings dashboard on your machine.</p>
+                <span class="path-card-cta">OpenClaw setup →</span>
+            </a>
+            <a routerLink="/in-app" class="path-card path-card-sdk">
+                <h2>In-app integration</h2>
+                <p>Install <code class="path-inline-code">&#64;spectyra/sdk</code> and wrap your provider calls—built for application backends and services.</p>
+                <span class="path-card-cta">Developer docs →</span>
+            </a>
         </div>
+    </section>
 
-        <div class="cta-buttons">
-            <a href="https://clawhub.ai/immrlucky/spectyra" target="_blank" rel="noopener noreferrer" class="btn btn-primary">View skill on ClawHub</a>
-            <a routerLink="/contact" class="btn btn-tertiary">Contact</a>
-        </div>
-    </div>
-
-    <div class="features-section">
-        <h2>Built for OpenClaw right now</h2>
-        <div class="features-grid">
-            <div class="feature-card">
-                <div class="feature-icon">
-                    <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
-                        <path d="M12 2L2 7L12 12L22 7L12 2Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-                        <path d="M2 17L12 22L22 17" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-                        <path d="M2 12L12 17L22 12" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-                    </svg>
-                </div>
-                <h3>ClawHub skill</h3>
-                <p>
-                    Install the published skill from ClawHub so OpenClaw picks up <code class="inline-code">spectyra/smart</code>
-                    and the companion install path documented in <code class="inline-code">SKILL.md</code>.
-                </p>
-            </div>
-            <div class="feature-card">
-                <div class="feature-icon">
-                    <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
-                        <path d="M3 3V21H21" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-                        <path d="M7 16L12 11L16 15L21 10" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-                    </svg>
-                </div>
-                <h3>Real-time savings</h3>
-                <p>
-                    The Local Companion serves a dashboard on <code class="inline-code">127.0.0.1:4111</code> so you can see
-                    token and cost savings as you use OpenClaw—no separate billing flow required for local use.
-                </p>
-            </div>
-            <div class="feature-card">
-                <div class="feature-icon">
-                    <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
-                        <rect x="3" y="11" width="18" height="11" rx="2" ry="2" stroke="currentColor" stroke-width="2"/>
-                        <path d="M7 11V7C7 4.79086 8.79086 3 11 3H13C15.2091 3 17 4.79086 17 7V11" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
-                    </svg>
-                </div>
-                <h3>Local-first</h3>
-                <p>
-                    Model traffic is optimized on your machine; your LLM provider credentials stay in your Local Companion
-                    configuration—not sent to Spectyra for inference.
-                </p>
-            </div>
-        </div>
-    </div>
-
-    <div class="how-it-works">
-        <h2>How it works with OpenClaw</h2>
-        <div class="steps">
-            <div class="step">
-                <div class="step-number">1</div>
-                <h3>Install the skill</h3>
-                <p>On ClawHub, open the Spectyra skill and follow <code class="inline-code">openclaw skills install spectyra</code> (or your OpenClaw UI) so config points at the companion.</p>
-            </div>
-            <div class="step">
-                <div class="step-number">2</div>
-                <h3>Run the companion</h3>
-                <p>
-                    <code class="inline-code">npm install -g &#64;spectyra/local-companion&#64;latest &amp;&amp; spectyra-companion start --open</code>
-                </p>
-            </div>
-            <div class="step">
-                <div class="step-number">3</div>
-                <h3>Open the dashboard</h3>
-                <p>
-                    Use <a href="http://127.0.0.1:4111/dashboard" target="_blank" rel="noopener noreferrer" class="text-link">http://127.0.0.1:4111/dashboard</a>
-                    for live savings while you chat with OpenClaw.
-                </p>
-            </div>
-        </div>
-    </div>
-
-    <div class="cta-section">
-        <h2>Coming Soon: Spectyra SDK</h2>
-        <p>
-            Spectyra is expanding beyond OpenClaw with a developer SDK that integrates directly into your application’s LLM layer.<br/>
-
-            The SDK applies multiple optimization strategies across prompts, context, and request flow to reduce unnecessary token usage and improve efficiency—without altering expected outputs.
-<br/>
-            Integration takes only a few lines of code, with early benchmarks showing 40–60% reduction in AI cost.
-
-        </p>
-        <div><strong>Join the waitlist to get early access.</strong></div>
-        <div class="cta-buttons">
-            <a routerLink="/register" class="btn btn-primary btn-large">Get Early Access</a>
-            <span class="subtitle-small">No spam. We’ll notify you when the SDK is ready.</span>
-        </div>
-    </div>
+    <footer class="path-footer">
+        <a routerLink="/contact">Contact</a>
+        <span class="path-footer-sep" aria-hidden="true">·</span>
+        <a routerLink="/login">Sign in</a>
+    </footer>
 </div>

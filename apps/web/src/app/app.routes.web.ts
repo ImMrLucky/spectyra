@@ -7,6 +7,8 @@ import { ProjectsPage } from './features/projects/projects.page';
 import { AdminPage } from './features/admin/admin.page';
 import { OptimizerLabPage } from './features/optimizer-lab/optimizer-lab.page';
 import { HomePage } from './features/home/home.page';
+import { OpenClawLandingPage } from './features/marketing/openclaw-landing.page';
+import { AppIntegrationPage } from './features/marketing/app-integration.page';
 import { ContactPage } from './features/contact/contact.page';
 import { OverviewPage } from './features/overview/overview.page';
 import { SavingsAnalyticsPage } from './features/analytics/savings-analytics.page';
@@ -20,6 +22,9 @@ import { superuserGuard } from './core/guards/superuser.guard';
 
 export const webRoutes: Routes = [
   { path: '', component: HomePage },
+  { path: 'openclaw', component: OpenClawLandingPage },
+  { path: 'in-app', component: AppIntegrationPage },
+  { path: 'developers', redirectTo: '/in-app', pathMatch: 'full' },
   { path: 'contact', component: ContactPage },
   { path: 'register', component: RegisterPage },
   { path: 'login', component: LoginPage },
@@ -30,7 +35,7 @@ export const webRoutes: Routes = [
   { path: 'integrations/openclaw', component: OpenClawIntegrationPage, canActivate: [authGuard] },
   { path: 'integrations/:slug', redirectTo: '/integrations/openclaw', pathMatch: 'full' },
   { path: 'integrations', redirectTo: '/integrations/openclaw', pathMatch: 'full' },
-  { path: 'download', redirectTo: '/integrations/openclaw', pathMatch: 'full' },
+  { path: 'download', redirectTo: '/openclaw', pathMatch: 'full' },
 
   { path: 'overview', component: OverviewPage, canActivate: [authGuard] },
   { path: 'runs', redirectTo: '/overview', pathMatch: 'prefix' },
