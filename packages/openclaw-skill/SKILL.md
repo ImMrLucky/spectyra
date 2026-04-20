@@ -1,10 +1,11 @@
 ---
 name: spectyra
-version: 1.0.22
+version: 1.0.23
 description: "Optimize OpenClaw workflows and reduce LLM API costs. Runs locally to reduce repeated context, unnecessary steps, and token waste with no workflow changes required."
 homepage: https://spectyra.ai
 metadata:
   openclaw:
+    version: 1.0.23
     emoji: "◈"
     requires:
       bins:
@@ -16,7 +17,7 @@ metadata:
           - spectyra-companion
 ---
 
-# Spectyra - Optimize OpenClaw workflows
+# Spectyra - Optimize OpenClaw Workflows and Reduce LLM API Costs
 
 Spectyra optimizes the OpenClaw workflow and runs locally to reduce repeated context, unnecessary steps, and token waste across agent workflows. Savings of up to 60% - 70% have been observed in real usage.
 
