@@ -1,8 +1,8 @@
 {
   "name": "spectyra",
-  "version": "1.0.17",
+  "version": "1.0.21",
   "displayName": "Spectyra",
-  "description": "Local companion for OpenClaw. Install @spectyra/local-companion, run spectyra-companion start, use spectyra/* models. Dashboard: see SKILL.md (## Dashboard).",
+  "description": "Official Spectyra skill: @spectyra/local-companion (scoped npm, same org). Loopback gateway; SKILL.md states limits of documentation + links to public source for audit. Dashboard: SKILL.md ## Dashboard.",
   "author": "Spectyra",
   "homepage": "https://spectyra.ai",
   "repository": {
@@ -15,7 +15,7 @@
   "categories": ["integration"],
   "openclaw": {
     "minVersion": "0.1.0",
-    "version": "1.0.17"
+    "version": "1.0.21"
   },
   "setup": {
     "type": "config-merge",
