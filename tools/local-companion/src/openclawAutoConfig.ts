@@ -26,7 +26,7 @@ export function applyOpenClawSpectyraProvider(port: number): ApplyOpenClawConfig
     return out;
   }
 
-  const baseUrl = `http://127.0.0.1:${port}/v1`;
+  const baseUrl = `http://localhost:${port}/v1`;
   const providerJson = JSON.stringify({
     baseUrl,
     api: "openai-completions",

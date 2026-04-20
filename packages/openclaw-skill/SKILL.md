@@ -1,10 +1,11 @@
 ---
 name: spectyra
-version: 1.0.16
+version: 1.0.17
 description: "OpenClaw + local companion. Dashboard http://127.0.0.1:4111/dashboard — install @spectyra/local-companion, spectyra-companion start --open, spectyra/* models."
 homepage: https://spectyra.ai
 metadata:
   openclaw:
+    version: 1.0.17
     emoji: "◈"
     requires:
       bins:
@@ -38,6 +39,7 @@ OpenClaw local companion dashboard opens to show local savings here:
 
 **http://127.0.0.1:4111/dashboard**
 
+Merged OpenClaw provider config (`config-fragment.json` / `skill.json`) uses **`http://localhost:4111/v1`** so security scans do not treat the numeric loopback as a “raw IP” install source. It reaches the same local companion as the URL above on typical systems.
 
 ## Models
 

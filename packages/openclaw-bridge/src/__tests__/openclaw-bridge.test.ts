@@ -14,7 +14,7 @@ function run() {
   assert.ok(cfg.models.providers.spectyra.models.some((m) => m.id === "spectyra/quality"));
 
   const noQuality = buildOpenClawConfigObject({ includeQualityAlias: false });
-  assert.equal(noQuality.models.providers.spectyra.baseUrl, "http://127.0.0.1:4111/v1");
+  assert.equal(noQuality.models.providers.spectyra.baseUrl, "http://localhost:4111/v1");
   assert.ok(!noQuality.models.providers.spectyra.models.some((m) => m.id === "spectyra/quality"));
 
   let threw = false;
@@ -27,7 +27,7 @@ function run() {
 
   const str = generateOpenClawConfigString();
   assert.ok(str.includes("spectyra"));
-  assert.ok(str.includes("127.0.0.1:4111"));
+  assert.ok(str.includes("localhost:4111"));
 
   const headers = buildSessionMetadataHeaders({ sessionId: "abc", runContext: "test", integration: "openclaw" });
   assert.equal(headers["X-Spectyra-Integration"], "openclaw");

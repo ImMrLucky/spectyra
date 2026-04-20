@@ -6,7 +6,7 @@ import type { OpenClawWizardStatus } from "./types.js";
 /**
  * Runs health + models probes against Local Companion. No prompt payload.
  *
- * @param companionOrigin e.g. `http://127.0.0.1:4111` (no trailing path)
+ * @param companionOrigin e.g. `http://localhost:4111` (no trailing path)
  */
 export async function runLocalCompanionDiagnostics(
   companionOrigin: string,

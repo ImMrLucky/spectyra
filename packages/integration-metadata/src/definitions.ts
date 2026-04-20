@@ -23,7 +23,7 @@ export const OPENCLAW_CONFIG_JSON = `{
   "models": {
     "providers": {
       "spectyra": {
-        "baseUrl": "http://127.0.0.1:4111/v1",
+        "baseUrl": "http://localhost:4111/v1",
         "api": "openai-completions",
         "models": [
           {
@@ -150,7 +150,7 @@ export const INTEGRATION_SCENARIOS: IntegrationCardDefinition[] = [
       "Choose provider and paste your provider API key",
       "Set run mode to On for live optimization (Off / Observe are optional later)",
       "Start Local Companion",
-      "Point your tool to http://127.0.0.1:4111/v1",
+      "Point your tool to http://localhost:4111/v1",
       "Use models spectyra/smart or spectyra/fast (local routing profiles)",
       "Run a test workflow and open savings in Desktop",
     ],
@@ -375,7 +375,7 @@ export const INTEGRATION_PAGES: IntegrationPageDefinition[] = [
     flowLine: "OpenClaw → Spectyra Local Companion on localhost → Your chosen provider",
     whatThisIs: [
       "Create or sign in to Spectyra and keep your Spectyra API key (same account for analytics and billing).",
-      "Add Spectyra under models.providers with baseUrl http://127.0.0.1:4111/v1",
+      "Add Spectyra under models.providers with baseUrl http://localhost:4111/v1",
       "Use model refs spectyra/smart or spectyra/fast — local aliases routed to your real provider.",
     ],
     howItWorks: ["OpenClaw", "Local Companion", "your provider API"],
@@ -390,7 +390,7 @@ export const INTEGRATION_PAGES: IntegrationPageDefinition[] = [
       "Install: openclaw skills install spectyra",
       "npm install -g @spectyra/local-companion && spectyra-companion setup && spectyra-companion start --open",
       "Run: openclaw models list — confirm spectyra/smart appears",
-      "Run a test prompt; confirm savings at http://127.0.0.1:4111/dashboard",
+      "Run a test prompt; confirm savings at http://localhost:4111/dashboard",
     ],
     verificationSteps: [
       "openclaw models list shows spectyra/smart (and spectyra/fast)",

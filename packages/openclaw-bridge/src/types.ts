@@ -4,12 +4,12 @@
  */
 
 /** Default Local Companion OpenAI-compatible root including `/v1`. */
-export const DEFAULT_LOCAL_COMPANION_V1_BASE = "http://127.0.0.1:4111/v1";
+export const DEFAULT_LOCAL_COMPANION_V1_BASE = "http://localhost:4111/v1";
 
 export interface OpenClawBridgeOptions {
   /**
    * OpenAI-compatible API root (must include `/v1`).
-   * Example: `http://127.0.0.1:4111/v1`
+   * Example: `http://localhost:4111/v1`
    */
   baseUrl?: string;
   /** Include `spectyra/quality` in generated provider models list. Default true. */

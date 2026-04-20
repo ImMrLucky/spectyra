@@ -1,6 +1,6 @@
 {
   "name": "@spectyra/local-companion",
-  "version": "1.0.54",
+  "version": "1.0.55",
   "type": "module",
   "description": "Spectyra Local Companion — local-first LLM optimization runtime for OpenClaw and other tools",
   "keywords": [
