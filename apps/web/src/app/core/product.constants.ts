@@ -10,6 +10,12 @@ export const SAAS_PLAN_CARDS: Array<{
   bullets: string[];
 }> = [
   {
+    id: "free_tier",
+    name: "Free Tier",
+    price: "$0",
+    bullets: ["Observe mode and pass-through", "SDK + local workflows", "Upgrade when you need included optimized tokens + cloud savings sync"],
+  },
+  {
     id: "developer_pro",
     name: "Developer Pro",
     price: "$29/month",

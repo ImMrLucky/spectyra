@@ -7,7 +7,9 @@
 
   <section class="saas-plans" aria-label="SDK and telemetry plans">
     <h2 class="saas-plans__title">AI cost optimization + observability</h2>
-    <p class="saas-plans__lead">Developer and team tiers for in-app SDK telemetry, per-project dashboards, and usage-based limits. Enterprise is sales-led.</p>
+    <p class="saas-plans__lead">
+      Free Tier for core workflows; Developer Pro, Team Pro, and Enterprise add included optimized tokens, savings sync, and team features. Enterprise is sales-led.
+    </p>
     <div class="saas-plans__grid">
       <div class="saas-card" *ngFor="let p of saasPlans">
         <h3>{{ p.name }}</h3>
@@ -43,8 +45,13 @@
         Enterprise is arranged with Spectyra sales (custom limits, security review, invoicing). Self-serve checkout below does not apply to this tier.
       </div>
 
-      <div *ngIf="entitlement.licenseStatus === 'valid' && !paidSubscriptionActive && !billingExemptWorkspace && entitlement.plan !== 'enterprise'" class="success-message">
-        You are on included optimized-token usage. Observe mode and pass-through stay free; open checkout when you need a paid Developer or Team tier.
+      <div *ngIf="entitlement.licenseStatus === 'valid' && !paidSubscriptionActive && !billingExemptWorkspace && entitlement.plan !== 'enterprise' && entitlement.plan === 'free'" class="success-message">
+        You are on the Free Tier. Observe mode and pass-through stay free; use checkout below when you need Developer Pro or Team Pro.
+      </div>
+
+      <div *ngIf="entitlement.licenseStatus === 'valid' && !paidSubscriptionActive && !billingExemptWorkspace && entitlement.plan !== 'enterprise' && entitlement.plan !== 'free'" class="success-message">
+        This workspace shows <strong>{{ assignedPlanMarketing }}</strong> without an active paid subscription. If that is unexpected, open
+        <a routerLink="/usage">Usage</a> or contact support.
       </div>
 
       <div *ngIf="entitlement.licenseStatus === 'expired' || entitlement.licenseStatus === 'missing'" class="error-message">

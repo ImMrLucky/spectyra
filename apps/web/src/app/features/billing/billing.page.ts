@@ -1,8 +1,11 @@
 import { Component, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
+import { RouterModule } from '@angular/router';
 import { ApiClientService } from '../../core/api/api-client.service';
 import { SAAS_PLAN_CARDS } from '../../core/product.constants';
+import { planMarketingName, workspacePlanCardHeadline } from '../../core/plan-labels';
+import { WorkspacePlanContextService } from '../../core/services/workspace-plan-context.service';
 
 interface LicenseKey {
   id: string;
@@ -16,7 +19,7 @@ interface LicenseKey {
 @Component({
   selector: 'app-billing',
   standalone: true,
-  imports: [CommonModule, FormsModule],
+  imports: [CommonModule, FormsModule, RouterModule],
   templateUrl: './billing.page.html',
   styleUrls: ['./billing.page.scss'],
 })
@@ -47,7 +50,10 @@ export class BillingPage implements OnInit {
   accountActionBusy = false;
   deleteConfirmText = '';
 
-  constructor(private api: ApiClientService) {}
+  constructor(
+    private api: ApiClientService,
+    private workspacePlan: WorkspacePlanContextService,
+  ) {}
 
   ngOnInit() {
     this.loadAll();
@@ -65,6 +71,7 @@ export class BillingPage implements OnInit {
     this.api.getEntitlement().subscribe({
       next: (data) => {
         this.entitlement = data;
+        this.workspacePlan.patchFromDashboard(data as Record<string, unknown>, undefined);
         done();
       },
       error: (err) => {
@@ -76,6 +83,7 @@ export class BillingPage implements OnInit {
     this.api.getBillingStatus().subscribe({
       next: (data) => {
         this.billingStatus = data;
+        this.workspacePlan.patchFromDashboard(undefined, data as Record<string, unknown>);
         done();
       },
       error: () => done(),
@@ -116,22 +124,23 @@ export class BillingPage implements OnInit {
 
   /** Card title: avoid implying a paid Enterprise contract when this is platform-exempt internal access. */
   get workspacePlanHeadline(): string {
-    if (this.billingExemptWorkspace) return 'Full platform access';
-    if (this.paidSubscriptionActive) {
-      const raw = String(this.entitlement?.plan ?? 'plan');
-      return raw.charAt(0).toUpperCase() + raw.slice(1) + ' plan';
-    }
-    const p = String(this.entitlement?.plan ?? 'free');
-    if (p === 'enterprise') return 'Enterprise (contract)';
-    return p.charAt(0).toUpperCase() + p.slice(1) + ' workspace';
+    return workspacePlanCardHeadline({
+      plan: this.entitlement?.plan,
+      paidSubscriptionActive: this.paidSubscriptionActive,
+      billingExemptWorkspace: this.billingExemptWorkspace,
+    });
   }
 
-  /** Self-serve Stripe checkout for Developer / Team list price (configure STRIPE_PRICE_ID on API). */
+  /** Self-serve Stripe checkout when on Free Tier (configure STRIPE_PRICE_ID on API). */
   get showPaidCheckoutCta(): boolean {
     if (this.paidSubscriptionActive) return false;
     const p = this.entitlement?.plan;
     if (p === 'enterprise') return false;
-    return p === 'free' || p === 'starter' || p === 'pro';
+    return p === 'free';
+  }
+
+  get assignedPlanMarketing(): string {
+    return planMarketingName(this.entitlement?.plan);
   }
 
   get runUsagePercent(): number {

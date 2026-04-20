@@ -1,180 +1,75 @@
-<div class="container">
-  <div class="page-header">
-    <h1>Usage & Billing</h1>
-    <p class="subtitle">Track usage, budgets, and manage subscription</p>
+<div class="container" *ngIf="state$ | async as s">
+  <h1>Usage</h1>
+  <p class="subtitle">
+    Current workspace usage for optimized runs and feature access. For license keys, invoices, and cancellation, use
+    <a routerLink="/billing">Plan &amp; Billing</a>.
+  </p>
+
+  <div *ngIf="s.loading && !s.entitlement" class="loading">
+    <p>Loading usage…</p>
   </div>
 
-  <div *ngIf="loading" class="loading">
-    <p>Loading usage data...</p>
+  <div *ngIf="!s.loading && !s.entitlement" class="error-box">
+    <p>Could not load usage for this workspace.</p>
   </div>
 
-  <div *ngIf="error" class="error-box">
-    <p>{{ error }}</p>
-  </div>
-
-  <div *ngIf="!loading && !error">
-    <div *ngIf="showUsagePlanHint" class="usage-plan-hint" role="status">
-      <p>
-        Included optimized tokens are used first; after that, pick
-        <strong>Developer Pro</strong>, <strong>Team Pro</strong>, or <strong>Enterprise</strong> on
-        <a routerLink="/billing">Billing</a>.
+  <div class="usage-grid" *ngIf="s.entitlement">
+    <section class="card">
+      <h2>Plan</h2>
+      <p class="plan-line">
+        <span class="plan-name">{{ planLabel(s) }}</span>
+        <span class="hint" *ngIf="s.billingStatus?.['subscription_active']"> — subscription active</span>
       </p>
-    </div>
-
-    <!-- Savings at a glance -->
-    <div class="card savings-hero" *ngIf="usageData.length > 0">
-      <h2>Your Savings</h2>
-      <div class="savings-hero-grid">
-        <div class="savings-hero-item">
-          <span class="savings-hero-label">Before Cost</span>
-          <span class="savings-hero-value">{{ formattedTotalCost }}</span>
-        </div>
-        <div class="savings-hero-item">
-          <span class="savings-hero-label">After Cost</span>
-          <span class="savings-hero-value highlight">{{ formattedTotalCost }}</span>
-        </div>
-        <div class="savings-hero-item">
-          <span class="savings-hero-label">You Saved</span>
-          <span class="savings-hero-value green">$0.00</span>
-        </div>
-        <div class="savings-hero-item">
-          <span class="savings-hero-label">Token Reduction</span>
-          <span class="savings-hero-value green">0%</span>
-        </div>
-      </div>
-      <div class="savings-hero-meta">
-        <span class="security-badge-sm">Inference: Direct to provider</span>
-        <span class="security-badge-sm">Telemetry: Local</span>
-      </div>
-      <p class="savings-hero-note" *ngIf="false">
-        This workspace is using local-only analytics. Savings data is available in the local companion / host app.
+      <p class="hint" *ngIf="s.billingStatus && (s.billingStatus['org_platform_exempt'] || s.billingStatus['platform_billing_exempt'])">
+        This workspace has full platform access (billing exempt).
       </p>
-    </div>
+    </section>
 
-    <!-- Billing Status -->
-    <div class="card" *ngIf="billingStatus">
-      <div class="card-header">
-        <h2>Subscription Status</h2>
-        <a routerLink="/billing" class="btn btn-sm btn-primary" *ngIf="showUpgradeButton">Upgrade</a>
-      </div>
-      <div class="billing-info" *ngIf="billingStatus">
-        <div class="billing-item">
-          <span class="billing-label">Status</span>
-          <span class="billing-value" [class.active]="isSubscriptionActive">
-            {{ subscriptionStatusText }}
-          </span>
+    <section class="card" *ngIf="s.entitlement['optimizedRunsLimit'] !== null">
+      <h2>Optimized runs (mode = on)</h2>
+      <div class="usage-bar-wrapper">
+        <div class="usage-bar">
+          <div
+            class="usage-bar-fill"
+            [style.width.%]="runUsagePercent(s)"
+            [class.warn]="runUsagePercent(s) > 80"
+            [class.critical]="runUsagePercent(s) >= 100"
+          ></div>
         </div>
-        <div class="billing-item" *ngIf="showHasAccess">
-          <span class="billing-label">Access</span>
-          <span class="billing-value active">Active</span>
-        </div>
+        <span class="usage-text">
+          {{ s.entitlement['optimizedRunsUsed'] }} / {{ s.entitlement['optimizedRunsLimit'] }}
+        </span>
       </div>
-    </div>
+      <p class="usage-note">Observe mode and pass-through do not count toward this limit.</p>
+    </section>
 
-    <!-- Usage Filters -->
-    <div class="card">
-      <div class="card-header">
-        <h2>Usage Overview</h2>
-        <div class="filters">
-          <select [(ngModel)]="selectedRange" (change)="onRangeChange()" class="form-select">
-            <option value="24h">Last 24 Hours</option>
-            <option value="7d">Last 7 Days</option>
-            <option value="30d">Last 30 Days</option>
-            <option value="90d">Last 90 Days</option>
-          </select>
-          <button class="btn btn-sm btn-secondary" (click)="exportCSV()">Export CSV</button>
-        </div>
-      </div>
+    <section class="card" *ngIf="s.entitlement['optimizedRunsLimit'] === null">
+      <h2>Optimized runs</h2>
+      <p class="unlimited">No fixed run cap on this workspace.</p>
+    </section>
 
-      <div *ngIf="usageData.length === 0" class="empty-state">
-        <p>No usage data available for this period</p>
-      </div>
+    <section class="card">
+      <h2>Feature access</h2>
+      <ul class="feature-list">
+        <li [class.on]="s.entitlement['sdkEnabled']">SDK integration</li>
+        <li [class.on]="s.entitlement['desktopAppEnabled']">Desktop / companion</li>
+        <li [class.on]="s.entitlement['cloudAnalyticsEnabled']">Cloud analytics sync</li>
+      </ul>
+    </section>
 
-      <div *ngIf="usageData.length > 0" class="usage-summary">
-        <div class="summary-item">
-          <span class="summary-label">Total Calls</span>
-          <span class="summary-value">{{ formattedTotalCalls }}</span>
-        </div>
-        <div class="summary-item">
-          <span class="summary-label">Total Tokens</span>
-          <span class="summary-value">{{ formattedTotalTokens }}</span>
-        </div>
-        <div class="summary-item">
-          <span class="summary-label">Cost Estimate</span>
-          <span class="summary-value">{{ formattedTotalCost }}</span>
-        </div>
+    <section class="card upgrade-card" *ngIf="showFreeTierUpgrade(s)">
+      <h2>Upgrade from Free Tier</h2>
+      <p class="upgrade-lede">
+        Move to Developer Pro or Team Pro for included optimized tokens, savings sync, and team dashboards — checkout is
+        card-only and managed on the billing page.
+      </p>
+      <div class="upgrade-actions">
+        <button type="button" class="btn-primary" (click)="upgrade()" [disabled]="upgrading">
+          {{ upgrading ? 'Redirecting…' : 'Continue to secure checkout' }}
+        </button>
+        <a routerLink="/billing" class="btn-secondary">Compare plans on Plan &amp; Billing</a>
       </div>
-    </div>
-
-    <!-- Budget Progress -->
-    <div class="card" *ngIf="budgetProgress.length > 0">
-      <div class="card-header">
-        <h2>Budget Progress</h2>
-        <a routerLink="/policies" class="btn btn-sm btn-secondary">Manage Budgets</a>
-      </div>
-      <div class="budgets-list">
-        <div *ngFor="let budget of budgetProgress" class="budget-item">
-          <div class="budget-header">
-            <span class="budget-name">{{ budget.budget_type }}</span>
-            <span class="budget-period">{{ budget.period }}</span>
-          </div>
-          <div class="budget-bar">
-            <div class="budget-bar-fill" [style.width.%]="getBudgetPercentage(budget)"></div>
-          </div>
-          <div class="budget-meta">
-            <span>{{ getFormattedBudgetUsed(budget) }} / {{ getFormattedBudgetLimit(budget) }}</span>
-            <span>{{ getFormattedBudgetRemaining(budget) }} remaining</span>
-          </div>
-        </div>
-      </div>
-    </div>
-
-    <!-- Core Moat v1: Savings by Optimization Type -->
-    <div class="card" *ngIf="optimizationSavings.length > 0">
-      <div class="card-header">
-        <h2>Savings by Optimization Type</h2>
-        <p class="subtitle-small">Core Moat v1 token savings breakdown</p>
-      </div>
-      <div class="optimization-savings">
-        <div *ngFor="let opt of optimizationSavings" class="optimization-savings-item">
-          <div class="savings-header">
-            <h3>{{ opt.name }}</h3>
-            <span class="runs-count">{{ getFormattedRunsCount(opt.runs_count) }} runs</span>
-          </div>
-          <div class="savings-value-large">
-            <span class="savings-label">Tokens Saved</span>
-            <span class="savings-amount">{{ getFormattedTokensSaved(opt.tokens_saved) }}</span>
-          </div>
-        </div>
-      </div>
-    </div>
-
-    <!-- Usage by Project -->
-    <div class="card" *ngIf="hasProjectUsage">
-      <div class="card-header">
-        <h2>Usage by Project</h2>
-      </div>
-      <div class="project-usage">
-        <div *ngFor="let project of projectList" class="project-item">
-          <div class="project-header">
-            <span class="project-name">{{ getProjectName(project) }}</span>
-          </div>
-          <div class="project-stats">
-            <div class="stat">
-              <span class="stat-label">Calls</span>
-              <span class="stat-value">{{ getFormattedProjectCalls(project) }}</span>
-            </div>
-            <div class="stat">
-              <span class="stat-label">Tokens</span>
-              <span class="stat-value">{{ getFormattedProjectTokens(project) }}</span>
-            </div>
-            <div class="stat">
-              <span class="stat-label">Cost</span>
-              <span class="stat-value">{{ getFormattedProjectCost(project) }}</span>
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>
+      <p class="error" *ngIf="error">{{ error }}</p>
+    </section>
   </div>
 </div>

@@ -1,252 +1,74 @@
 import { Component, OnInit } from '@angular/core';
-import { firstValueFrom } from 'rxjs';
 import { CommonModule } from '@angular/common';
-import { FormsModule } from '@angular/forms';
 import { RouterModule } from '@angular/router';
-import { HttpClient } from '@angular/common/http';
-import { environment } from '../../../environments/environment';
-import { SnackbarService } from '../../core/services/snackbar.service';
-
-interface UsageData {
-  period: string;
-  calls: number;
-  tokens: number;
-  cost_estimate_usd: number;
-  by_project?: { [projectId: string]: { calls: number; tokens: number; cost: number } };
-}
-
-interface BudgetProgress {
-  budget_type: string;
-  limit: number;
-  used: number;
-  remaining: number;
-  period: string;
-}
-
-import type { OptimizationSavings, BillingStatusPartial } from '@spectyra/shared';
-
-// Use partial billing status for usage page (different from full BillingStatus)
-type BillingStatusDisplay = BillingStatusPartial;
-
-interface ProjectUsage {
-  id: string;
-  name: string;
-  calls: number;
-  tokens: number;
-  cost: number;
-}
+import { ApiClientService } from '../../core/api/api-client.service';
+import { WorkspacePlanContextService, type WorkspacePlanSnapshot } from '../../core/services/workspace-plan-context.service';
+import { planMarketingName } from '../../core/plan-labels';
 
 @Component({
   selector: 'app-usage',
   standalone: true,
-  imports: [CommonModule, FormsModule, RouterModule],
+  imports: [CommonModule, RouterModule],
   templateUrl: './usage.page.html',
   styleUrls: ['./usage.page.scss'],
 })
 export class UsagePage implements OnInit {
-  loading = false;
+  upgrading = false;
   error: string | null = null;
-  
-  selectedRange: '24h' | '7d' | '30d' | '90d' = '30d';
-  usageData: UsageData[] = [];
-  budgetProgress: BudgetProgress[] = [];
-  billingStatus: BillingStatusDisplay | null = null;
-  optimizationSavings: OptimizationSavings[] = [];
-  projectList: ProjectUsage[] = [];
 
   constructor(
-    private http: HttpClient,
-    private snackbarService: SnackbarService
+    private workspacePlan: WorkspacePlanContextService,
+    private api: ApiClientService,
   ) {}
 
-  async ngOnInit() {
-    await this.loadData();
+  get state$() {
+    return this.workspacePlan.state$;
   }
 
-  async loadData() {
-    this.loading = true;
+  ngOnInit() {
+    this.workspacePlan.refresh();
+  }
+
+  planLabel(s: WorkspacePlanSnapshot): string {
+    const p = s.entitlement?.['plan'];
+    return planMarketingName(p != null ? String(p) : 'free');
+  }
+
+  runUsagePercent(s: WorkspacePlanSnapshot): number {
+    const ent = s.entitlement;
+    if (!ent?.['optimizedRunsLimit']) return 0;
+    const used = Number(ent['optimizedRunsUsed']) || 0;
+    const lim = Number(ent['optimizedRunsLimit']) || 1;
+    return Math.round((used / lim) * 100);
+  }
+
+  /** Self-serve checkout only when workspace is on Free Tier (no paid sub, not platform-exempt). */
+  showFreeTierUpgrade(s: WorkspacePlanSnapshot): boolean {
+    const ent = s.entitlement;
+    const bill = s.billingStatus;
+    if (!ent) return false;
+    if (bill && (bill['org_platform_exempt'] || bill['platform_billing_exempt'])) return false;
+    if (bill?.['subscription_active'] === true) return false;
+    return String(ent['plan'] ?? 'free') === 'free';
+  }
+
+  upgrade() {
+    this.upgrading = true;
     this.error = null;
-
-    try {
-      // Load usage data
-      try {
-        const usage = await firstValueFrom(this.http.get<UsageData[]>(`${environment.apiUrl}/usage?range=${this.selectedRange}`));
-        this.usageData = usage || [];
-      } catch (err: any) {
-        // Endpoint might not exist yet
-        this.usageData = [];
-      }
-
-      // Load budget progress
-      try {
-        const budgets = await firstValueFrom(this.http.get<BudgetProgress[]>(`${environment.apiUrl}/usage/budgets`));
-        this.budgetProgress = budgets || [];
-      } catch (err: any) {
-        this.budgetProgress = [];
-      }
-
-      // Load billing status
-      try {
-        const billing = await firstValueFrom(this.http.get<any>(`${environment.apiUrl}/billing/status`));
-        this.billingStatus = billing;
-      } catch (err: any) {
-        this.billingStatus = null;
-      }
-
-      // Load optimization savings (Core Moat v1)
-      try {
-        const optimizations = await firstValueFrom(this.http.get<OptimizationSavings[]>(`${environment.apiUrl}/usage/optimizations?range=${this.selectedRange}`));
-        this.optimizationSavings = optimizations || [];
-      } catch (err: any) {
-        this.optimizationSavings = [];
-      }
-
-      // Update computed properties
-      this.updateComputedProperties();
-    } catch (err: any) {
-      this.error = 'Failed to load usage data';
-    } finally {
-      this.loading = false;
-    }
-  }
-
-  private updateComputedProperties() {
-    this.projectList = this.computeProjectList();
-  }
-
-  onRangeChange() {
-    this.loadData();
-  }
-
-  formatCurrency(amount: number | null | undefined): string {
-    if (amount === null || amount === undefined) return '-';
-    return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(amount);
-  }
-
-  formatNumber(num: number | null | undefined): string {
-    if (num === null || num === undefined) return '-';
-    return new Intl.NumberFormat('en-US').format(num);
-  }
-
-  formatDate(dateStr: string | null | undefined): string {
-    if (!dateStr) return '-';
-    return new Date(dateStr).toLocaleString();
-  }
-
-  exportCSV() {
-    // TODO: Implement CSV export
-    this.snackbarService.showInfo('CSV export coming soon');
-  }
-
-  // Computed properties for usage summary
-  get totalCalls(): number {
-    return this.usageData.reduce((sum, d) => sum + (d.calls || 0), 0);
-  }
-
-  get totalTokens(): number {
-    return this.usageData.reduce((sum, d) => sum + (d.tokens || 0), 0);
-  }
-
-  get totalCost(): number {
-    return this.usageData.reduce((sum, d) => sum + (d.cost_estimate_usd || 0), 0);
-  }
-
-  get formattedTotalCalls(): string {
-    return this.formatNumber(this.totalCalls);
-  }
-
-  get formattedTotalTokens(): string {
-    return this.formatNumber(this.totalTokens);
-  }
-
-  get formattedTotalCost(): string {
-    return this.formatCurrency(this.totalCost);
-  }
-
-  // Computed properties for billing status
-  get showUpgradeButton(): boolean {
-    return this.billingStatus !== null && !this.billingStatus.subscription_active;
-  }
-
-  get showUsagePlanHint(): boolean {
-    return this.showUpgradeButton;
-  }
-
-  get subscriptionStatusText(): string {
-    return this.billingStatus?.subscription_status || 'active';
-  }
-
-  get isSubscriptionActive(): boolean {
-    return this.billingStatus?.subscription_active || false;
-  }
-
-  get hasAccess(): boolean {
-    return this.billingStatus?.has_access || false;
-  }
-
-  get showHasAccess(): boolean {
-    return this.billingStatus !== null && !!this.billingStatus.has_access;
-  }
-
-  // Computed property for project usage
-  get hasProjectUsage(): boolean {
-    return this.usageData.length > 0 && 
-           this.usageData[0] !== undefined && 
-           this.usageData[0].by_project !== undefined;
-  }
-
-  // Helper methods
-  getBudgetPercentage(budget: BudgetProgress): number {
-    if (budget.limit === 0) return 0;
-    return (budget.used / budget.limit) * 100;
-  }
-
-  getFormattedBudgetUsed(budget: BudgetProgress): string {
-    return this.formatCurrency(budget.used);
-  }
-
-  getFormattedBudgetLimit(budget: BudgetProgress): string {
-    return this.formatCurrency(budget.limit);
-  }
-
-  getFormattedBudgetRemaining(budget: BudgetProgress): string {
-    return this.formatCurrency(budget.remaining);
-  }
-
-  getProjectName(project: ProjectUsage): string {
-    return project.name || project.id;
-  }
-
-  getFormattedProjectCalls(project: ProjectUsage): string {
-    return this.formatNumber(project.calls);
-  }
-
-  getFormattedProjectTokens(project: ProjectUsage): string {
-    return this.formatNumber(project.tokens);
-  }
-
-  getFormattedProjectCost(project: ProjectUsage): string {
-    return this.formatCurrency(project.cost);
-  }
-
-  getFormattedRunsCount(count: number): string {
-    return this.formatNumber(count);
-  }
-
-  getFormattedTokensSaved(tokens: number): string {
-    return this.formatNumber(tokens);
-  }
-
-  private computeProjectList(): ProjectUsage[] {
-    if (!this.usageData.length || !this.usageData[0].by_project) {
-      return [];
-    }
-    return Object.entries(this.usageData[0].by_project!).map(([id, data]) => ({
-      id,
-      name: id, // TODO: Get project name from projects list
-      calls: data.calls || 0,
-      tokens: data.tokens || 0,
-      cost: data.cost || 0,
-    }));
+    const successUrl = `${window.location.origin}/billing?upgraded=true`;
+    const cancelUrl = `${window.location.origin}/usage`;
+    this.api.createCheckout(successUrl, cancelUrl).subscribe({
+      next: (data) => {
+        if (data.checkout_url) window.location.href = data.checkout_url;
+        else {
+          this.error = 'Failed to create checkout session';
+          this.upgrading = false;
+        }
+      },
+      error: (err) => {
+        this.error = err.error?.message || 'Checkout failed';
+        this.upgrading = false;
+      },
+    });
   }
 }

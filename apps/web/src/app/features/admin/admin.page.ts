@@ -6,6 +6,7 @@ import { AdminService, AdminOrg, AdminOrgDetail, AdminUser, AccountAccessState }
 import { SupabaseService } from '../../services/supabase.service';
 import { SnackbarService } from '../../core/services/snackbar.service';
 import { AuthService } from '../../core/auth/auth.service';
+import { WorkspacePlanContextService } from '../../core/services/workspace-plan-context.service';
 import {MatIcon} from "@angular/material/icon";
 import { Subscription } from 'rxjs';
 import { distinctUntilChanged } from 'rxjs/operators';
@@ -66,6 +67,7 @@ export class AdminPage implements OnInit, OnDestroy {
     private authService: AuthService,
     private router: Router,
     private cdr: ChangeDetectorRef,
+    private workspacePlan: WorkspacePlanContextService,
   ) {}
 
   ngOnInit() {
@@ -278,7 +280,8 @@ export class AdminPage implements OnInit, OnDestroy {
     // Logout from both Supabase and clear API key
     await this.supabase.signOut();
     this.authService.logout();
-    
+    this.workspacePlan.clear();
+
     // Clear all Supabase-related localStorage items
     const supabaseKeys = Object.keys(localStorage).filter(key => 
       key.startsWith('sb-') || key.includes('supabase')

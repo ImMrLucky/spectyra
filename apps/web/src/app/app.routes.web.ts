@@ -17,6 +17,7 @@ import { SavingsAnalyticsPage } from './features/analytics/savings-analytics.pag
 import { SecuritySettingsPage } from './features/settings/security.page';
 import { ProviderKeysPage } from './features/settings/provider-keys.page';
 import { BillingPage } from './features/billing/billing.page';
+import { UsagePage } from './features/usage/usage.page';
 import { OpenClawOnboardingPage } from './features/openclaw/openclaw-onboarding.page';
 import { SuperuserPage } from './features/superuser/superuser.page';
 import { authGuard } from './core/guards/auth.guard';
@@ -41,7 +42,7 @@ export const webRoutes: Routes = [
 
   { path: 'overview', component: OverviewPage, canActivate: [authGuard] },
   { path: 'runs', redirectTo: '/overview', pathMatch: 'prefix' },
-  { path: 'usage', redirectTo: '/analytics', pathMatch: 'full' },
+  { path: 'usage', component: UsagePage, canActivate: [authGuard] },
   { path: 'analytics', component: SavingsAnalyticsPage, canActivate: [authGuard] },
 
   { path: 'billing', component: BillingPage, canActivate: [authGuard] },

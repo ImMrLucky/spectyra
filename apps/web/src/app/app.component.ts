@@ -16,6 +16,7 @@ import { MatToolbarModule } from '@angular/material/toolbar';
 import { OwnerService } from './core/services/owner.service';
 import { SuperuserService } from './core/api/superuser.service';
 import { DesktopBridgeService } from './core/desktop/desktop-bridge.service';
+import { WorkspacePlanContextService } from './core/services/workspace-plan-context.service';
 
 interface NavItem {
   label: string;
@@ -75,6 +76,7 @@ export class AppComponent implements OnInit, OnDestroy, AfterViewInit {
       requiresAuth: true,
     },
     { label: 'Savings', route: '/analytics', icon: 'trending_down', requiresAuth: true },
+    { label: 'Usage', route: '/usage', icon: 'data_usage', requiresAuth: true },
     { label: 'Plan & Billing', route: '/billing', icon: 'credit_card', requiresAuth: true },
 
     { label: 'Projects', route: '/projects', icon: 'folder_open', section: 'Manage', requiresAuth: true },
@@ -94,7 +96,13 @@ export class AppComponent implements OnInit, OnDestroy, AfterViewInit {
     private ownerService: OwnerService,
     private superuserService: SuperuserService,
     private desktopBridge: DesktopBridgeService,
+    private workspacePlan: WorkspacePlanContextService,
   ) {}
+
+  /** Web shell: entitlement-derived plan label for the header */
+  get workspacePlanState$() {
+    return this.workspacePlan.state$;
+  }
 
   ngOnInit() {
     if (this.isDesktop) {
@@ -161,6 +169,7 @@ export class AppComponent implements OnInit, OnDestroy, AfterViewInit {
           this.isAuthenticated = false;
           this.userEmail = null;
           this.updateAdminVisibility(null);
+          this.workspacePlan.clear();
           this.cdr.markForCheck();
           return;
         }
@@ -172,6 +181,11 @@ export class AppComponent implements OnInit, OnDestroy, AfterViewInit {
         } else {
           this.userEmail = state.email;
           this.updateAdminVisibility(state.email);
+        }
+        if (state.kind === 'jwt') {
+          this.workspacePlan.refresh();
+        } else {
+          this.workspacePlan.clear();
         }
         this.cdr.markForCheck();
       }),
@@ -276,6 +290,7 @@ export class AppComponent implements OnInit, OnDestroy, AfterViewInit {
     // Logout from both Supabase and clear API key
     await this.supabase.signOut();
     this.authService.logout();
+    this.workspacePlan.clear();
     
     // Clear all Supabase-related localStorage items
     // Supabase stores tokens with keys like: sb-<project-ref>-auth-token

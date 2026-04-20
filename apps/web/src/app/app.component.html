@@ -77,6 +77,11 @@
       <div class="header-right">
         <ng-container *ngIf="isAuthenticated">
           <app-org-switcher></app-org-switcher>
+          <ng-container *ngIf="workspacePlanState$ | async as ws">
+            <span class="plan-badge" *ngIf="ws.headerPlanLabel" title="Current workspace plan">{{
+              ws.headerPlanLabel
+            }}</span>
+          </ng-container>
         </ng-container>
 
         <span *ngIf="!isAuthenticated" class="auth-links">
