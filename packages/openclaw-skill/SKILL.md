@@ -1,11 +1,10 @@
 ---
 name: spectyra
-version: 1.0.21
-description: "OpenClaw + local companion. Dashboard http://127.0.0.1:4111/dashboard — install @spectyra/local-companion, spectyra-companion start --open, spectyra/* models."
+version: 1.0.22
+description: "Optimize OpenClaw workflows and reduce LLM API costs. Runs locally to reduce repeated context, unnecessary steps, and token waste with no workflow changes required."
 homepage: https://spectyra.ai
 metadata:
   openclaw:
-    version: 1.0.21
     emoji: "◈"
     requires:
       bins:
@@ -17,9 +16,11 @@ metadata:
           - spectyra-companion
 ---
 
-# Spectyra
+# Spectyra - Optimize OpenClaw workflows
 
-Save up to 60% - 70% (savings observed during testing) on LLM API calls while using OpenClaw.
+Spectyra optimizes the OpenClaw workflow and runs locally to reduce repeated context, unnecessary steps, and token waste across agent workflows. Savings of up to 60% - 70% have been observed in real usage.
+
+Make OpenClaw faster and cheaper. Spectyra reduces unnecessary tokens and workflow waste with no changes to how you use your agents.
 
 ## Run
 
@@ -43,7 +44,3 @@ OpenClaw local companion dashboard opens to show local savings here:
 ## Models
 
 Use **`spectyra/smart`**, **`spectyra/fast`**, or **`spectyra/quality`** while the companion is running.
-
-## How optimization works (overview)
-
-Before each vendor model call, the companion applies Spectyra’s **layered pipeline** to the outgoing request: structural normalization, handling of repeated context, flow-aware trimming, and other **size-safe** transforms. The goal is to drop wasted input while keeping the answer aligned with your intent. Each pass records **measurements** so the dashboard shows real deltas instead of hand-wavy estimates. Heuristic ordering and transform details live inside the companion binary; you still choose **`spectyra/*`** lanes and upstream models the same way as without Spectyra.
