@@ -75,6 +75,12 @@ export class AppComponent implements OnInit, OnDestroy, AfterViewInit {
       icon: 'hub',
       requiresAuth: true,
     },
+    {
+      label: 'In-app SDK',
+      route: '/in-app',
+      icon: 'terminal',
+      requiresAuth: true,
+    },
     { label: 'Session analytics', route: '/analytics', icon: 'trending_down', requiresAuth: true },
     { label: 'Workspace usage', route: '/usage', icon: 'data_usage', requiresAuth: true },
     { label: 'Plan & Billing', route: '/billing', icon: 'credit_card', requiresAuth: true },
