@@ -4,86 +4,142 @@
         <span class="marketing-nav-sep" aria-hidden="true">·</span>
         <a routerLink="/openclaw" class="marketing-nav-link">OpenClaw &amp; Local Companion</a>
         <span class="marketing-nav-sep" aria-hidden="true">·</span>
-        <span class="marketing-nav-current">In-app integration</span>
+        <span class="marketing-nav-current">In-app SDK</span>
     </nav>
 
+    <!-- SECTION 1 — HERO -->
     <div class="dev-hero">
-        <h1>In-app integration</h1>
+        <h1>In-app SDK</h1>
+        <p class="dev-kicker">
+            For <strong>developers</strong>, <strong>backend services</strong>, <strong>internal apps</strong>, and <strong>teams</strong> calling LLM APIs from Node — add Spectyra in a few lines, wrap the calls you already make, and trim cost without changing the outcome you intend.
+        </p>
         <p class="dev-lead">
-            Add <code class="mono">&#64;spectyra/sdk</code> to your backend or service. Spectyra runs the same local optimization
-            stack as the OpenClaw Local Companion: your OpenAI-compatible messages are analyzed and trimmed in-process,
-            then your existing SDK client calls the provider with your API key. Nothing is proxied through Spectyra for inference.
+            Install <code class="mono">&#64;spectyra/sdk</code>, create one <code class="mono">createSpectyra()</code> instance, pass your existing OpenAI / Anthropic / Groq client into <code class="mono">complete()</code>. Optimization runs <strong>in your process</strong>; the provider SDK still calls the model with <strong>your</strong> API key. No Spectyra proxy for inference.
         </p>
     </div>
 
+    <!-- SECTION 2 — INSTALL + QUICK START -->
     <section class="dev-panel">
         <h2>Install</h2>
         <pre class="dev-code">{{ installCommand }}</pre>
-        <p class="dev-note">Requires Node.js 18+ and ESM. Provider SDKs (e.g. <code class="mono">openai</code>) stay peer dependencies—you pass your own client instance.</p>
-    </section>
+        <p class="dev-note">Node.js 18+, ESM. Provider packages (e.g. <code class="mono">openai</code>) are peers — you bring your own client.</p>
 
-    <section class="dev-panel">
-        <h2>Add to your code (three steps)</h2>
-        <ol class="dev-steps">
-            <li><strong>Create</strong> one <code class="mono">createSpectyra(&#123; … &#125;)</code> instance (reuse it; optional <code class="mono">licenseKey</code>, <code class="mono">runMode</code>, learning profile, workflow policy).</li>
-            <li><strong>Wrap</strong> each LLM call with <code class="mono">spectyra.complete(&#123; provider, client, model, messages &#125;, adapter)</code> using the adapter for your vendor.</li>
-            <li><strong>Read</strong> <code class="mono">providerResult</code> for the normal model response and <code class="mono">report</code> / <code class="mono">promptComparison</code> for savings and optional before/after snapshots.</li>
-        </ol>
+        <h3 class="dev-subhead">Quick start</h3>
+        <p class="dev-note">Initialize once, then wrap each LLM call. <code class="mono">runContext.project</code> and <code class="mono">runContext.environment</code> are optional but help aggregate usage in the Spectyra app when cloud telemetry is configured.</p>
         <pre class="dev-code">{{ quickStartCode }}</pre>
+
+        <h3 class="dev-subhead">Wrap your LLM calls</h3>
+        <p class="dev-note">Keep using your vendor SDK; the adapter tells Spectyra how to invoke it. Every <code class="mono">complete()</code> returns <code class="mono">providerResult</code> (what you would have gotten anyway) plus <code class="mono">report</code> with token and savings metadata.</p>
     </section>
 
-    <section class="dev-panel">
-        <h2>What it does</h2>
-        <ul class="dev-list">
-            <li><strong>Before the provider call:</strong> feature detection + the full optimization pipeline (whitespace, dedup, context shaping, tool-safe merges, etc.)—aligned with Local Companion behavior, including OpenAI tool threads (optimized text merged per row while preserving <code class="mono">tool_calls</code>).</li>
-            <li><strong>Run modes:</strong> <code class="mono">on</code> applies changes when licensed; <code class="mono">observe</code> keeps the provider on full prompts but fills the report with <strong>projected</strong> savings; <code class="mono">off</code> skips optimization for licensed debugging.</li>
-            <li><strong>License:</strong> without a valid key, the pipeline still runs in preview mode so you can show “what you’d save” (<code class="mono">report.projectedSavingsIfActivated</code> / limited transforms in analytics) while the provider receives the original messages.</li>
+    <hr class="dev-divider" aria-hidden="true" />
+
+    <!-- SECTION 3 — VIEW SAVINGS DURING DEVELOPMENT -->
+    <section class="dev-panel dev-panel--supporting">
+        <h2>View savings while you build</h2>
+        <p class="dev-note">
+            In development, the fastest loop is to log fields from the object returned by <code class="mono">complete()</code> (see <a href="#local-debug">Local debug &amp; analytics</a> below). No extra services required.
+        </p>
+        <p class="dev-note">
+            For a <strong>richer live view in the browser</strong>, you can optionally run Spectyra’s open-source <strong>local companion</strong> package (<code class="mono">&#64;spectyra/local-companion</code>) alongside your stack. That is <strong>not required</strong> for production apps that only embed the SDK — it is an optional aid when you want a localhost dashboard during development.
+        </p>
+    </section>
+
+    <hr class="dev-divider" aria-hidden="true" />
+
+    <!-- SECTION 4–6 — OPTIONAL LOCAL DASHBOARD -->
+    <section class="dev-panel dev-panel--supporting">
+        <h2>Optional: local browser dashboard</h2>
+        <p class="dev-note">
+            The <code class="mono">&#64;spectyra/local-companion</code> package powers the same style of <strong>local HTTP + browser UI</strong> used in OpenClaw flows, but you can run it on its own for local experimentation. Think of it as a <strong>separate optional surface</strong> for localhost visibility — not part of the minimal SDK install path.
+        </p>
+        <p class="dev-note">
+            <strong>Typical dev workflow:</strong> run your app locally → (optionally) start the local companion → open the dashboard URL it prints → watch runs that go <strong>through the companion’s HTTP surface</strong> during that session. Embedded <code class="mono">spectyra.complete()</code> traffic in your own Node process is still best inspected via logs or normalized events unless you wire a custom bridge.
+        </p>
+        <h3 class="dev-subhead">How the pieces relate</h3>
+        <ul class="dev-list dev-list--compact">
+            <li><strong>SDK</strong> wraps your LLM call and produces savings metadata (and optional normalized events) in-process.</li>
+            <li><strong>Optional local companion</strong> serves a small local dashboard for traffic that hits its routes during dev.</li>
+            <li><strong>Production</strong> does not depend on the browser dashboard — ship the SDK in your service as usual.</li>
         </ul>
+        <h3 class="dev-subhead">Commands</h3>
+        <pre class="dev-code">{{ localCompanionCommands }}</pre>
+        <p class="dev-note dev-note--small">Exact flags may vary by version; use <code class="mono">--help</code> on the CLI or the package README. This path is for <strong>local development visibility</strong>, not a production dependency.</p>
     </section>
 
-    <section class="dev-panel">
-        <h2>How to see savings</h2>
+    <hr class="dev-divider" aria-hidden="true" />
+
+    <!-- SECTION 7–9 — LOCAL DEBUG -->
+    <section class="dev-panel dev-panel--supporting" id="local-debug">
+        <h2>Local debug &amp; analytics</h2>
+        <p class="dev-note">Optional depth below the quick start — the main objects returned or emitted by the SDK:</p>
         <ul class="dev-list">
-            <li><strong>Per request:</strong> inspect <code class="mono">report.inputTokensBefore</code>, <code class="mono">report.inputTokensAfter</code>, <code class="mono">report.estimatedSavings</code> / <code class="mono">estimatedSavingsPct</code>, and <code class="mono">report.transformsApplied</code>.</li>
-            <li><strong>Explainability:</strong> <code class="mono">report.notes</code> (e.g. observe mode, tool-thread merge), <code class="mono">report.duplicateReductionPct</code>, flow hints, and repeated-context estimates mirror the companion-style report.</li>
-            <li><strong>Prompt snapshots:</strong> when <code class="mono">promptSnapshots</code> is not <code class="mono">none</code>, use <code class="mono">promptComparison.diffSummary</code> for tokens saved and transform ids.</li>
-            <li><strong>Aggregate / dashboards:</strong> emit normalized events (same event model as companion) and use helpers such as <code class="mono">moatPhase34SummariesFromSdkBuffer()</code> for execution-graph / state-delta style summaries—see the SDK README.</li>
+            <li><strong><code class="mono">providerResult</code></strong> — raw vendor response; use to verify behavior matches an unwrapped call.</li>
+            <li><strong><code class="mono">report</code></strong> — primary savings object: tokens in/out, estimated costs, savings %, transforms, hints, provider/model, timestamps (see next section).</li>
+            <li><strong><code class="mono">promptComparison</code></strong> — when prompt snapshots are enabled, includes <code class="mono">diffSummary</code> (tokens before/after, % saved, transforms) without sending raw prompt text to Spectyra by default.</li>
+            <li><strong><code class="mono">flowSignals</code></strong> — pipeline signals (e.g. stability / stuck-loop style hints) for agentic or chat-heavy flows.</li>
+            <li><strong><code class="mono">startSpectyraSession(...)</code></strong> — multi-step workflows: each <code class="mono">session.complete()</code> records a step; <code class="mono">session.finish()</code> returns aggregated session analytics.</li>
+            <li><strong><code class="mono">sdkEventEngine</code></strong> / <strong><code class="mono">moatPhase34SummariesFromSdkBuffer()</code></strong> — advanced: normalized events and local summaries for deeper tooling (see SDK README).</li>
         </ul>
+
+        <h3 class="dev-subhead">Example: what you can log</h3>
+        <pre class="dev-code">{{ devLoggingSnippet }}</pre>
+
+        <h3 class="dev-subhead">What <code class="mono">report</code> is good for</h3>
+        <ul class="dev-list dev-list--compact">
+            <li>Input / output token counts and estimated cost before vs after optimization</li>
+            <li>Estimated savings and savings percentage; transforms applied</li>
+            <li>Context, duplicate, and flow reduction percentages when present</li>
+            <li>Repeated-context / repeated tool-output hints; message turn counts</li>
+            <li>Provider, model, and timestamps — useful for correlating with your own logs</li>
+        </ul>
+        <p class="dev-note dev-note--small">
+            Default paths keep <strong>raw prompts and provider secrets</strong> in your environment. Cloud telemetry and session sync only send <strong>aggregated / redacted</strong> payloads you configure (e.g. API key + <code class="mono">POST /v1/telemetry/run</code>, or optional session sync) — not your OpenAI key and not full prompt bodies unless you explicitly opt into higher-risk modes documented in the SDK.
+        </p>
+
+        <h3 class="dev-subhead">Multi-step session</h3>
+        <pre class="dev-code">{{ sessionSnippet }}</pre>
     </section>
 
-    <section class="dev-panel">
+    <hr class="dev-divider" aria-hidden="true" />
+
+    <!-- SECTION 10 — PRODUCTION ANALYTICS -->
+    <section class="dev-panel dev-panel--supporting">
+        <h2>Production &amp; aggregate analytics</h2>
+        <p class="dev-note">
+            <strong>During development:</strong> use <code class="mono">console.log</code>, the objects above, or the optional local dashboard for detail.
+        </p>
+        <p class="dev-note">
+            <strong>In deployed workloads:</strong> Spectyra can surface <strong>aggregate</strong> savings and call volume in the web app by <strong>project</strong> and <strong>environment</strong> when you send metered telemetry with a Spectyra API key (<a routerLink="/projects">Projects</a>). Redacted <strong>session</strong> rollups from compatible clients appear under <a routerLink="/analytics">Session analytics</a>. Operational views are designed to avoid prompts and provider secrets.
+        </p>
+    </section>
+
+    <hr class="dev-divider" aria-hidden="true" />
+
+    <!-- Model aliases -->
+    <section class="dev-panel dev-panel--supporting">
         <h2>Optional: <code class="mono">spectyra/*</code> model aliases</h2>
-        <p class="dev-note">If you want the same <code class="mono">spectyra/smart</code> (etc.) names as OpenClaw, pass tier overrides; missing tiers default from your <code class="mono">provider</code> string.</p>
+        <p class="dev-note">Map friendly model ids to your real models (same helper family as OpenClaw-style configs).</p>
         <pre class="dev-code">{{ aliasSnippet }}</pre>
     </section>
 
-    <section class="dev-panel">
+    <!-- License keys -->
+    <section class="dev-panel dev-panel--supporting">
         <h2><code class="mono">SPECTYRA_LICENSE_KEY</code> — where it comes from</h2>
         <p class="dev-note">
-            The license key is a <strong>long-lived Spectyra credential</strong> (not your OpenAI key). It unlocks full optimization when your org is entitled, and is used by the SDK, Local Companion, and Desktop for offline-friendly checks.
+            A Spectyra <strong>license key</strong> (not your OpenAI key) unlocks full optimization when your org is entitled. Generate it in the web app: <strong>Plan &amp; Billing</strong> → Desktop / Companion license keys → <strong>Generate license key</strong> (copy once). Set <code class="mono">export SPECTYRA_LICENSE_KEY='…'</code> or use your secret manager.
         </p>
-        <ol class="dev-steps">
-            <li>
-                <strong>Sign in</strong> to the Spectyra web app with the account that owns your workspace.
-            </li>
-            <li>
-                Open <a routerLink="/billing">Plan &amp; Billing</a> → scroll to <strong>Desktop / Companion license keys</strong>.
-            </li>
-            <li>
-                Click <strong>Generate license key</strong>, give the device or service a label, and <strong>copy the key once</strong> — it is not shown again. Set it in your environment, e.g. <code class="mono">export SPECTYRA_LICENSE_KEY='spectyra_…'</code> (or your host’s secret manager).
-            </li>
-        </ol>
         <p class="dev-note">
-            <strong>Cloud dashboards only:</strong> for per-call usage in the web app without a license file, you can use a
-            <strong>Spectyra API key</strong> and <code class="mono">spectyraCloudApiKey</code> / <code class="mono">spectyraApiBaseUrl</code> instead — see the SDK README (“telemetry”). License keys and API keys are separate; you may use one or both depending on your deployment.
+            For <strong>cloud dashboards without</strong> a license file on disk, use a <strong>Spectyra API key</strong> plus <code class="mono">spectyraCloudApiKey</code> / <code class="mono">spectyraApiBaseUrl</code> per the SDK README — separate from license keys; use what fits your deployment.
         </p>
         <p class="dev-note" *ngIf="isAuthenticated">
             <a routerLink="/billing">Go to Plan &amp; Billing →</a>
         </p>
     </section>
 
+    <!-- CTA -->
     <section class="dev-cta" *ngIf="!isAuthenticated">
-        <p>Create an account for billing, license keys, and optional cloud analytics sync.</p>
+        <p>Create an account for billing, license keys, and optional cloud analytics.</p>
         <div class="dev-cta-row">
             <a routerLink="/register" class="btn-primary">Create account</a>
             <a routerLink="/login" class="btn-secondary">Sign in</a>
@@ -93,9 +149,9 @@
 
     <section class="dev-cta dev-cta--signed-in" *ngIf="isAuthenticated">
         <p>
-            You’re signed in. Generate or revoke license keys on
-            <a routerLink="/billing">Plan &amp; Billing</a>. Per-environment SDK telemetry and savings rollups are under
-            <a routerLink="/projects">Projects</a>.
+            You’re signed in. License keys: <a routerLink="/billing">Plan &amp; Billing</a>.
+            SDK telemetry &amp; rollups: <a routerLink="/projects">Projects</a>.
+            Cloud session summaries: <a routerLink="/analytics">Session analytics</a>.
         </p>
     </section>
 </div>

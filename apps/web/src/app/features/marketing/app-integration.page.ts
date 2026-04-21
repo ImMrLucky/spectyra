@@ -44,42 +44,65 @@ export class AppIntegrationPage implements OnInit, OnDestroy {
   /** Kept in TS so template parsing does not treat `@` / `{` as Angular syntax. */
   readonly installCommand = 'npm install @spectyra/sdk';
 
+  /** Minimal path: install → createSpectyra → complete() with runContext for cloud rollups. */
   readonly quickStartCode = `import { createSpectyra } from "@spectyra/sdk";
 import { createOpenAIAdapter } from "@spectyra/sdk/adapters/openai";
 import OpenAI from "openai";
 
-// 1) One Spectyra instance (reuse across requests)
 const spectyra = createSpectyra({
-  runMode: "on", // "observe" = preview savings; provider still gets full prompts
-  licenseKey: process.env.SPECTYRA_LICENSE_KEY, // optional — from web Plan & Billing → license keys (see below); omit = preview-only
+  runMode: "on",
+  licenseKey: process.env.SPECTYRA_LICENSE_KEY, // optional — Plan & Billing → license keys; omit = preview-only
 });
 
 const openai = new OpenAI();
 
-// 2) Wrap the call you already make — same client & model, plus the adapter
-const { providerResult, report, promptComparison } = await spectyra.complete(
+const { providerResult, report } = await spectyra.complete(
   {
     provider: "openai",
     client: openai,
     model: "gpt-4o-mini",
-    messages: [{ role: "user", content: "Summarize…" }],
+    messages: [{ role: "user", content: "Hello!" }],
+    runContext: {
+      project: "my-service",      // used for org dashboards / telemetry when configured
+      environment: "development", // defaults to NODE_ENV when omitted
+    },
   },
   createOpenAIAdapter(openai),
 );
 
-// 3) Use the response + savings metadata
-console.log(providerResult); // raw OpenAI response
-console.log(report.estimatedSavingsPct, report.inputTokensBefore, report.inputTokensAfter);
-console.log(report.transformsApplied, report.notes);
-if (promptComparison) console.log(promptComparison.diffSummary);`;
+console.log(report.estimatedSavingsPct, report.inputTokensBefore, report.inputTokensAfter);`;
 
-  readonly aliasSnippet = `// Optional: same spectyra/* model aliases as OpenClaw (maps to your real models)
+  readonly devLoggingSnippet = `const { providerResult, report, promptComparison, flowSignals } = await spectyra.complete(input, adapter);
+
+console.log(providerResult);
+console.log(report.estimatedSavingsPct, report.inputTokensBefore, report.inputTokensAfter);
+console.log(report.estimatedCostBefore, report.estimatedCostAfter, report.estimatedSavings);
+console.log(report.transformsApplied, report.notes);
+console.log(report.contextReductionPct, report.duplicateReductionPct, report.flowReductionPct);
+console.log(report.repeatedContextTokensAvoided, report.repeatedToolOutputTokensAvoided);
+console.log(report.messageTurnCount, report.compressibleUnitsHint);
+if (promptComparison) console.log(promptComparison.diffSummary);
+console.log(flowSignals);`;
+
+  readonly sessionSnippet = `import { createSpectyra, startSpectyraSession } from "@spectyra/sdk";
+// …same spectyra instance…
+
+const session = startSpectyraSession(spectyra, { runMode: "on" }, { appName: "my-workflow" });
+await session.complete({ /* provider, client, model, messages */ }, adapter);
+// more session.complete(...) calls as needed
+const aggregated = session.finish();
+console.log(aggregated.estimatedWorkflowSavings, aggregated.totalModelCalls);`;
+
+  readonly localCompanionCommands = `# Optional: local browser dashboard (development only)
+npx @spectyra/local-companion
+# or, if installed globally:
+spectyra-companion start --open`;
+
+  readonly aliasSnippet = `// Optional: spectyra/* model aliases (same mapping idea as OpenClaw)
 const spectyra = createSpectyra({
   runMode: "on",
   licenseKey: process.env.SPECTYRA_LICENSE_KEY,
-  spectyraModelAliasOverrides: {
-    aliasQualityModel: "gpt-4o",
-  },
+  spectyraModelAliasOverrides: { aliasQualityModel: "gpt-4o" },
 });
 
 await spectyra.complete(
