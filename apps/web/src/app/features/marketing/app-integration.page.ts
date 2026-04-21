@@ -1,6 +1,10 @@
-import { Component } from '@angular/core';
+import { Component, OnDestroy, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { RouterModule } from '@angular/router';
+import { Subscription, combineLatest } from 'rxjs';
+import { map } from 'rxjs/operators';
+import { AuthService } from '../../core/auth/auth.service';
+import { SupabaseService } from '../../services/supabase.service';
 
 @Component({
   selector: 'app-app-integration',
@@ -9,7 +13,34 @@ import { RouterModule } from '@angular/router';
   templateUrl: './app-integration.page.html',
   styleUrls: ['./app-integration.page.scss'],
 })
-export class AppIntegrationPage {
+export class AppIntegrationPage implements OnInit, OnDestroy {
+  /** JWT session or saved Spectyra API key counts as signed in for this page. */
+  isAuthenticated = false;
+  private authSub?: Subscription;
+
+  constructor(
+    private supabase: SupabaseService,
+    private authService: AuthService,
+  ) {}
+
+  ngOnInit() {
+    this.authSub = combineLatest([this.supabase.getSession(), this.authService.authState])
+      .pipe(
+        map(([session, auth]) => {
+          const jwt = !!session?.access_token;
+          const apiKey = !!(auth.apiKey && String(auth.apiKey).trim());
+          return jwt || apiKey;
+        }),
+      )
+      .subscribe((v) => {
+        this.isAuthenticated = v;
+      });
+  }
+
+  ngOnDestroy() {
+    this.authSub?.unsubscribe();
+  }
+
   /** Kept in TS so template parsing does not treat `@` / `{` as Angular syntax. */
   readonly installCommand = 'npm install @spectyra/sdk';
 
@@ -20,7 +51,7 @@ import OpenAI from "openai";
 // 1) One Spectyra instance (reuse across requests)
 const spectyra = createSpectyra({
   runMode: "on", // "observe" = preview savings; provider still gets full prompts
-  licenseKey: process.env.SPECTYRA_LICENSE_KEY, // trial/paid: apply trims; omit = preview-only
+  licenseKey: process.env.SPECTYRA_LICENSE_KEY, // optional — from web Plan & Billing → license keys (see below); omit = preview-only
 });
 
 const openai = new OpenAI();

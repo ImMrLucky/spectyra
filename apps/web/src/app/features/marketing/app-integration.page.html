@@ -57,12 +57,45 @@
         <pre class="dev-code">{{ aliasSnippet }}</pre>
     </section>
 
-    <section class="dev-cta">
+    <section class="dev-panel">
+        <h2><code class="mono">SPECTYRA_LICENSE_KEY</code> — where it comes from</h2>
+        <p class="dev-note">
+            The license key is a <strong>long-lived Spectyra credential</strong> (not your OpenAI key). It unlocks full optimization when your org is entitled, and is used by the SDK, Local Companion, and Desktop for offline-friendly checks.
+        </p>
+        <ol class="dev-steps">
+            <li>
+                <strong>Sign in</strong> to the Spectyra web app with the account that owns your workspace.
+            </li>
+            <li>
+                Open <a routerLink="/billing">Plan &amp; Billing</a> → scroll to <strong>Desktop / Companion license keys</strong>.
+            </li>
+            <li>
+                Click <strong>Generate license key</strong>, give the device or service a label, and <strong>copy the key once</strong> — it is not shown again. Set it in your environment, e.g. <code class="mono">export SPECTYRA_LICENSE_KEY='spectyra_…'</code> (or your host’s secret manager).
+            </li>
+        </ol>
+        <p class="dev-note">
+            <strong>Cloud dashboards only:</strong> for per-call usage in the web app without a license file, you can use a
+            <strong>Spectyra API key</strong> and <code class="mono">spectyraCloudApiKey</code> / <code class="mono">spectyraApiBaseUrl</code> instead — see the SDK README (“telemetry”). License keys and API keys are separate; you may use one or both depending on your deployment.
+        </p>
+        <p class="dev-note" *ngIf="isAuthenticated">
+            <a routerLink="/billing">Go to Plan &amp; Billing →</a>
+        </p>
+    </section>
+
+    <section class="dev-cta" *ngIf="!isAuthenticated">
         <p>Create an account for billing, license keys, and optional cloud analytics sync.</p>
         <div class="dev-cta-row">
             <a routerLink="/register" class="btn-primary">Create account</a>
             <a routerLink="/login" class="btn-secondary">Sign in</a>
             <a routerLink="/contact" class="btn-ghost">Contact</a>
         </div>
+    </section>
+
+    <section class="dev-cta dev-cta--signed-in" *ngIf="isAuthenticated">
+        <p>
+            You’re signed in. Generate or revoke license keys on
+            <a routerLink="/billing">Plan &amp; Billing</a>. Per-environment SDK telemetry and savings rollups are under
+            <a routerLink="/projects">Projects</a>.
+        </p>
     </section>
 </div>
