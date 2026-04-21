@@ -5,12 +5,24 @@ import { HttpClient } from '@angular/common/http';
 import { firstValueFrom } from 'rxjs';
 import { environment } from '../../../environments/environment';
 
+export interface AnalyticsSourceBreakdown {
+  integration_type: string;
+  product_label: string;
+  total_sessions: number;
+  lifetime_savings_usd: number;
+  total_input_tokens_before: number;
+  total_input_tokens_after: number;
+  avg_token_reduction_pct: number;
+}
+
 interface AnalyticsSummary {
   total_sessions: number;
   lifetime_savings_usd: number;
   total_input_tokens_before: number;
   total_input_tokens_after: number;
   avg_token_reduction_pct: number;
+  /** Split by `integrationType` from each synced session (companion vs SDK session sync, etc.). */
+  by_source: AnalyticsSourceBreakdown[];
 }
 
 const EMPTY_SUMMARY: AnalyticsSummary = {
@@ -19,6 +31,7 @@ const EMPTY_SUMMARY: AnalyticsSummary = {
   total_input_tokens_before: 0,
   total_input_tokens_after: 0,
   avg_token_reduction_pct: 0,
+  by_source: [],
 };
 
 @Component({
@@ -40,9 +53,10 @@ export class SavingsAnalyticsPage implements OnInit {
     this.loading = true;
     this.cloudNotice = null;
     try {
-      this.summary = await firstValueFrom(
+      const raw = await firstValueFrom(
         this.http.get<AnalyticsSummary>(`${environment.apiUrl}/analytics/summary`),
       );
+      this.summary = { ...raw, by_source: raw.by_source ?? [] };
     } catch (e: any) {
       const status = e?.status as number | undefined;
       this.summary = { ...EMPTY_SUMMARY };
@@ -51,8 +65,9 @@ export class SavingsAnalyticsPage implements OnInit {
           'Sign in to see cloud-synced savings. Local analytics on your device are unchanged.';
       } else {
         this.cloudNotice =
-          'Cloud summaries are not available yet, or nothing has been synced from the desktop app / SDK. ' +
-          'This is normal until you opt in to sync. Numbers below show zero until data arrives.';
+          'Cloud session summaries are not available yet, or nothing has been synced. ' +
+          'Sync only runs when a client turns it on (e.g. Local Companion “sync to cloud”, or the desktop app). ' +
+          'Per-call SDK metered usage is separate — see Projects → open a project.';
       }
     } finally {
       this.loading = false;

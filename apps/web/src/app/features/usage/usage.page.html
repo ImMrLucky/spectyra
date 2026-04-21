@@ -1,8 +1,13 @@
 <div class="container" *ngIf="state$ | async as s">
-  <h1>Usage</h1>
+  <h1>Workspace usage</h1>
   <p class="subtitle">
-    Current workspace usage for optimized runs and feature access. For license keys, invoices, and cancellation, use
-    <a routerLink="/billing">Plan &amp; Billing</a>.
+    Plan, optimized-run counters, and feature flags for <strong>this org</strong>. For per-environment token and savings
+    rollups from the <strong>in-app SDK</strong> (API key), open
+    <a routerLink="/projects">Projects</a> → a project. For <strong>cloud-synced session</strong> rollups (OpenClaw /
+    Local Companion, etc.), see <a routerLink="/analytics">Session analytics</a>.
+  </p>
+  <p class="subtitle subtle">
+    License keys, invoices, and checkout: <a routerLink="/billing">Plan &amp; Billing</a>.
   </p>
 
   <div *ngIf="s.loading && !s.entitlement" class="loading">

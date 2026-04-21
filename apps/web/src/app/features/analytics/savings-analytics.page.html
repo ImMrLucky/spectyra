@@ -1,44 +1,91 @@
 <div class="wrap">
-  <h1>Savings &amp; analytics</h1>
+  <h1>Session analytics</h1>
   <p class="lede">
-    When you <strong>sign in</strong> and <strong>enable sync</strong> from the Spectyra desktop app or SDK, aggregated session
-    summaries (tokens, costs, transforms — <em>not</em> raw prompts) can appear here. Local-only usage stays on your machine.
+    <strong>What this page is:</strong> rollups from <strong>redacted session summaries</strong> synced to Spectyra when a
+    client turns on cloud sync (tokens, estimated costs, transforms — <em>not</em> raw prompts). Data is grouped
+    <strong>by product lane</strong> so OpenClaw / Local Companion is not mixed with in-app SDK session sync.
   </p>
 
   <div class="callout" *ngIf="!loading">
     <p>
-      <strong>Local-first:</strong> SDK and Local Companion store full run analytics on disk by default.
-      This page shows <strong>cloud-synced summaries</strong> only after you opt in.
+      <strong>Not the same as “Usage” in the sidebar:</strong>
+      <a routerLink="/usage">Workspace usage</a> is your <strong>plan, limits, and billing</strong> snapshot.
+      <strong>Per-call SDK telemetry</strong> (API key, per environment) lives under
+      <a routerLink="/projects">Projects</a> → open a project — that path does <em>not</em> use this session sync table.
+    </p>
+  </div>
+
+  <div class="callout callout--muted" *ngIf="!loading">
+    <p>
+      <strong>When does sync happen?</strong> Only when you enable it in a client that supports it — for example Local
+      Companion’s sync-to-cloud setting, or the Spectyra desktop app posting session summaries while signed in. If you never
+      turned that on, zeros here are expected.
     </p>
   </div>
 
   <div class="callout usage-hint" *ngIf="!loading">
     <p>
-      <strong>Company usage:</strong> Per-project / per-environment SDK telemetry and savings rollups live on
-      <a routerLink="/projects">Projects</a> → open a project. Plan limits and upgrade paths are on
-      <a routerLink="/billing">Billing</a>.
+      <strong>In-app SDK without desktop:</strong> you do <strong>not</strong> need the desktop app. Use a Spectyra API key
+      with <code>POST /v1/telemetry/run</code> (or the SDK’s cloud telemetry options) and view rollups on
+      <a routerLink="/projects">Projects</a>. Session analytics here only appears if something also syncs session payloads.
     </p>
   </div>
 
   <div *ngIf="loading" class="muted">Loading…</div>
   <div *ngIf="cloudNotice" class="callout notice">{{ cloudNotice }}</div>
 
-  <section *ngIf="summary && !loading" class="grid">
-    <div class="card">
-      <h3>Sessions synced</h3>
-      <p class="big">{{ summary.total_sessions }}</p>
+  <section *ngIf="summary && !loading" class="section">
+    <h2 class="section__title">All synced products (combined)</h2>
+    <p class="section__subtitle">Total across every integration that has written to cloud session sync for this org.</p>
+    <div class="grid">
+      <div class="card">
+        <h3>Sessions synced</h3>
+        <p class="big">{{ summary.total_sessions }}</p>
+      </div>
+      <div class="card">
+        <h3>Estimated lifetime savings (USD)</h3>
+        <p class="big">{{ summary.lifetime_savings_usd | number : '1.2-4' }}</p>
+      </div>
+      <div class="card">
+        <h3>Avg. input token reduction</h3>
+        <p class="big">{{ summary.avg_token_reduction_pct | number : '1.1-1' }}%</p>
+      </div>
     </div>
-    <div class="card">
-      <h3>Estimated lifetime savings (USD)</h3>
-      <p class="big">{{ summary.lifetime_savings_usd | number : '1.2-4' }}</p>
-    </div>
-    <div class="card">
-      <h3>Avg. input token reduction</h3>
-      <p class="big">{{ summary.avg_token_reduction_pct | number : '1.1-1' }}%</p>
+  </section>
+
+  <section *ngIf="summary && summary.by_source?.length && !loading" class="section">
+    <h2 class="section__title">By product</h2>
+    <p class="section__subtitle">Each row is a distinct <code>integrationType</code> from synced payloads.</p>
+    <div class="source-grid">
+      <div class="card source-card" *ngFor="let row of summary.by_source">
+        <h3 class="source-card__title">{{ row.product_label }}</h3>
+        <p class="source-card__meta"><code>{{ row.integration_type }}</code></p>
+        <dl class="source-card__stats">
+          <div>
+            <dt>Sessions</dt>
+            <dd>{{ row.total_sessions }}</dd>
+          </div>
+          <div>
+            <dt>Est. savings (USD)</dt>
+            <dd>{{ row.lifetime_savings_usd | number : '1.2-4' }}</dd>
+          </div>
+          <div>
+            <dt>Input tokens (before → after)</dt>
+            <dd>
+              {{ row.total_input_tokens_before | number : '1.0-0' }} → {{ row.total_input_tokens_after | number : '1.0-0' }}
+            </dd>
+          </div>
+          <div>
+            <dt>Avg. input reduction</dt>
+            <dd>{{ row.avg_token_reduction_pct | number : '1.1-1' }}%</dd>
+          </div>
+        </dl>
+      </div>
     </div>
   </section>
 
   <p class="muted small" *ngIf="summary && summary.total_sessions === 0 && !loading">
-    No synced sessions yet. Use the desktop app or SDK with sync enabled, or continue with local-only analytics on your device.
+    No synced sessions yet. Enable sync in Local Companion or the desktop app, or use
+    <a routerLink="/projects">Projects</a> for API-key SDK telemetry.
   </p>
 </div>

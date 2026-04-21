@@ -85,7 +85,7 @@
     <div class="card" *ngIf="usage24h">
       <div class="card-header">
         <h2>Last 24 Hours</h2>
-        <a routerLink="/analytics" class="btn btn-sm btn-secondary">View Details</a>
+        <a routerLink="/analytics" class="btn btn-sm btn-secondary">Session analytics</a>
       </div>
       <div class="usage-grid">
         <div class="usage-item">
@@ -107,7 +107,7 @@
     <div class="card" *ngIf="optimizationSavings.length > 0">
       <div class="card-header">
         <h2>Optimization Savings (Last 24h)</h2>
-        <a routerLink="/analytics" class="btn btn-sm btn-secondary">View Details</a>
+        <a routerLink="/analytics" class="btn btn-sm btn-secondary">Session analytics</a>
       </div>
       <div class="optimization-savings-grid">
         <div *ngFor="let opt of optimizationSavings" class="optimization-savings-card">

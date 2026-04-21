@@ -93,6 +93,55 @@ analyticsSyncRouter.get("/sessions/:sessionId", async (req: AuthenticatedRequest
   }
 });
 
+/** Human-readable product lane for `SyncedAnalyticsPayload.integrationType`. */
+function productLabelForIntegrationType(integrationType: string): string {
+  switch (integrationType) {
+    case "local-companion":
+      return "OpenClaw · Local Companion";
+    case "sdk-wrapper":
+      return "In-app SDK (session sync)";
+    case "openclaw-jsonl":
+      return "OpenClaw (JSONL)";
+    case "observe-preview":
+      return "Observe preview";
+    case "claude-hooks":
+      return "Claude Code hooks";
+    case "claude-jsonl":
+      return "Claude (JSONL)";
+    case "openai-tracing":
+      return "OpenAI tracing";
+    case "generic-jsonl":
+      return "Generic JSONL";
+    case "unknown":
+      return "Unknown source (legacy sync)";
+    default:
+      return integrationType;
+  }
+}
+
+function summarizeBySourceRow(
+  integrationType: string,
+  n: number,
+  savingsRaw: string | null,
+  beforeRaw: string | null,
+  afterRaw: string | null,
+) {
+  const lifetimeSavingsUsd = parseFloat(savingsRaw || "0");
+  const totalInputBefore = parseFloat(beforeRaw || "0");
+  const totalInputAfter = parseFloat(afterRaw || "0");
+  const tokenReductionPct =
+    totalInputBefore > 0 ? ((totalInputBefore - totalInputAfter) / totalInputBefore) * 100 : 0;
+  return {
+    integration_type: integrationType,
+    product_label: productLabelForIntegrationType(integrationType),
+    total_sessions: n,
+    lifetime_savings_usd: lifetimeSavingsUsd,
+    total_input_tokens_before: totalInputBefore,
+    total_input_tokens_after: totalInputAfter,
+    avg_token_reduction_pct: tokenReductionPct,
+  };
+}
+
 function emptySummaryResponse() {
   return {
     total_sessions: 0,
@@ -100,6 +149,7 @@ function emptySummaryResponse() {
     total_input_tokens_before: 0,
     total_input_tokens_after: 0,
     avg_token_reduction_pct: 0,
+    by_source: [] as ReturnType<typeof summarizeBySourceRow>[],
   };
 }
 
@@ -109,28 +159,44 @@ analyticsSyncRouter.get("/summary", async (req: AuthenticatedRequest, res) => {
     const orgId = await requireOrgId(req.auth.userId);
     if (!orgId) return res.status(404).json({ error: "Organization not found" });
 
-    const result = await queryOne<{
-      n: number;
+    const grouped = await query<{
+      integration_type: string;
+      n: string;
       savings: string | null;
       tokens_before: string | null;
       tokens_after: string | null;
     }>(
       `
       SELECT
-        COUNT(*)::int AS n,
+        COALESCE(NULLIF(BTRIM(payload->>'integrationType'), ''), 'unknown') AS integration_type,
+        COUNT(*)::text AS n,
         COALESCE(SUM((payload->>'estimatedWorkflowSavings')::double precision), 0)::text AS savings,
         COALESCE(SUM((payload->>'totalInputTokensBefore')::double precision), 0)::text AS tokens_before,
         COALESCE(SUM((payload->>'totalInputTokensAfter')::double precision), 0)::text AS tokens_after
       FROM analytics_sessions_sync
       WHERE org_id = $1
+      GROUP BY 1
+      ORDER BY COUNT(*) DESC
       `,
       [orgId],
     );
 
-    const totalSessions = result?.n ?? 0;
-    const lifetimeSavingsUsd = parseFloat(result?.savings || "0");
-    const totalInputBefore = parseFloat(result?.tokens_before || "0");
-    const totalInputAfter = parseFloat(result?.tokens_after || "0");
+    let totalSessions = 0;
+    let lifetimeSavingsUsd = 0;
+    let totalInputBefore = 0;
+    let totalInputAfter = 0;
+    const bySource = grouped.rows.map((r) => {
+      const n = parseInt(r.n, 10) || 0;
+      const s = parseFloat(r.savings || "0");
+      const b = parseFloat(r.tokens_before || "0");
+      const a = parseFloat(r.tokens_after || "0");
+      totalSessions += n;
+      lifetimeSavingsUsd += s;
+      totalInputBefore += b;
+      totalInputAfter += a;
+      return summarizeBySourceRow(r.integration_type, n, r.savings, r.tokens_before, r.tokens_after);
+    });
+
     const tokenReductionPct =
       totalInputBefore > 0 ? ((totalInputBefore - totalInputAfter) / totalInputBefore) * 100 : 0;
 
@@ -140,6 +206,7 @@ analyticsSyncRouter.get("/summary", async (req: AuthenticatedRequest, res) => {
       total_input_tokens_before: totalInputBefore,
       total_input_tokens_after: totalInputAfter,
       avg_token_reduction_pct: tokenReductionPct,
+      by_source: bySource,
     });
   } catch (error: any) {
     const msg = error?.message || "";
