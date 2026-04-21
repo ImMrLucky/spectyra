@@ -233,10 +233,15 @@ export class ApiClientService {
   /**
    * Create Stripe checkout session (dashboard call - uses JWT)
    */
-  createCheckout(successUrl?: string, cancelUrl?: string): Observable<any> {
+  createCheckout(
+    successUrl?: string,
+    cancelUrl?: string,
+    opts?: { saas_plan?: string },
+  ): Observable<any> {
     return this.dashboardCall<any>('POST', `${this.baseUrl}/billing/checkout`, {
       success_url: successUrl,
       cancel_url: cancelUrl,
+      ...(opts?.saas_plan ? { saas_plan: opts.saas_plan } : {}),
     });
   }
 

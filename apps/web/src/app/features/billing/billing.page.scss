@@ -376,3 +376,81 @@
     }
   }
 }
+
+.checkout-plan-pick {
+  margin-top: 20px;
+  padding-top: 16px;
+  border-top: 1px solid var(--border);
+
+  &__title {
+    margin: 0 0 8px;
+    font-family: var(--font-display);
+    font-size: 18px;
+    color: var(--text-primary);
+  }
+
+  &__hint {
+    margin: 0 0 16px;
+    font-size: 13px;
+    color: var(--text-secondary);
+    line-height: 1.45;
+
+    code {
+      font-size: 12px;
+      background: var(--bg-elevated);
+      padding: 1px 6px;
+      border-radius: 4px;
+    }
+  }
+}
+
+.checkout-plan-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: 12px;
+}
+
+.checkout-plan-option {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 14px 16px;
+  border: 2px solid var(--border);
+  border-radius: var(--radius-input);
+  cursor: pointer;
+  background: var(--bg-elevated);
+  transition: border-color 0.15s ease, background 0.15s ease;
+
+  input {
+    margin-top: 4px;
+    flex-shrink: 0;
+  }
+
+  &--active {
+    border-color: var(--spectyra-blue);
+    background: rgba(59, 130, 246, 0.06);
+  }
+
+  &--disabled {
+    opacity: 0.45;
+    cursor: not-allowed;
+  }
+
+  &__body {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    min-width: 0;
+  }
+
+  &__name {
+    font-weight: 700;
+    color: var(--text-primary);
+  }
+
+  &__price {
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--spectyra-blue);
+  }
+}

@@ -50,6 +50,12 @@ export class BillingPage implements OnInit {
   accountActionBusy = false;
   deleteConfirmText = '';
 
+  /** Passed to POST /billing/checkout as `saas_plan`. */
+  selectedCheckoutPlan: 'developer_pro' | 'team_pro' = 'developer_pro';
+
+  /** Toggle Stripe self-serve checkout on Plan & Billing (Usage page can still offer checkout). */
+  readonly showStripeSelfServeCheckout = false;
+
   constructor(
     private api: ApiClientService,
     private workspacePlan: WorkspacePlanContextService,
@@ -139,6 +145,24 @@ export class BillingPage implements OnInit {
     return p === 'free';
   }
 
+  get selfServePlanCards(): (typeof SAAS_PLAN_CARDS)[number][] {
+    return this.saasPlans.filter((p) => p.id === 'developer_pro' || p.id === 'team_pro');
+  }
+
+  isCheckoutPlanSelectable(planId: string): boolean {
+    const allowed = this.billingStatus?.self_serve_plans as string[] | undefined;
+    if (!allowed?.length) return planId === 'developer_pro';
+    return allowed.includes(planId);
+  }
+
+  private syncCheckoutPlanSelection(): void {
+    const allowed = this.billingStatus?.self_serve_plans as string[] | undefined;
+    if (!allowed?.length) return;
+    if (!allowed.includes(this.selectedCheckoutPlan)) {
+      this.selectedCheckoutPlan = allowed.includes('developer_pro') ? 'developer_pro' : 'team_pro';
+    }
+  }
+
   get assignedPlanMarketing(): string {
     return planMarketingName(this.entitlement?.plan);
   }
@@ -167,7 +191,7 @@ export class BillingPage implements OnInit {
     this.upgrading = true;
     const successUrl = `${window.location.origin}/billing?upgraded=true`;
     const cancelUrl = `${window.location.origin}/billing`;
-    this.api.createCheckout(successUrl, cancelUrl).subscribe({
+    this.api.createCheckout(successUrl, cancelUrl, { saas_plan: this.selectedCheckoutPlan }).subscribe({
       next: (data) => {
         if (data.checkout_url) window.location.href = data.checkout_url;
         else { this.error = 'Failed to create checkout session'; this.upgrading = false; }

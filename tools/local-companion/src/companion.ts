@@ -494,6 +494,9 @@ app.post(["/v1/billing/checkout", "/v1/billing/checkout/"], spectyraCloudProxyLi
         cancel_url,
         // OpenClaw / local dashboard: single-seat subscription (org seat_limit may be higher for team web).
         checkout_quantity: 1,
+        ...(typeof rawBody.saas_plan === "string" && rawBody.saas_plan.trim()
+          ? { saas_plan: rawBody.saas_plan.trim().toLowerCase() }
+          : {}),
       }),
     });
     const body = (await r.json().catch(() => ({}))) as Record<string, unknown>;

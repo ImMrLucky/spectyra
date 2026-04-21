@@ -15,6 +15,7 @@ import {
   updateOrgSubscription,
   updateOrgStripeCustomerId,
   clearOrgStripeCustomerId,
+  updateOrgSpectyraPlan,
   type Org,
 } from "../services/storage/orgsRepo.js";
 import {
@@ -32,6 +33,11 @@ import {
   defaultOrgNameFromEmail,
 } from "../services/accountProvisioning.js";
 import { RL_BILLING } from "../middleware/expressRateLimitPresets.js";
+import {
+  inferOrgPlanFromStripeSubscription,
+  resolveStripePriceIdForSaasPlan,
+  selfServePlanSlugsFromEnv,
+} from "../billing/saasCheckoutPlans.js";
 
 export const billingRouter = Router();
 billingRouter.use(rateLimit(RL_BILLING));
@@ -161,6 +167,19 @@ export async function applySubscriptionPayloadToKnownOrg(
       seatLimit,
     },
   );
+
+  const terminalPlan =
+    subscription.status === "canceled" ||
+    subscription.status === "incomplete_expired";
+  if (terminalPlan) {
+    await updateOrgSpectyraPlan(orgId, "free");
+  } else if (isActive) {
+    const inferred = inferOrgPlanFromStripeSubscription(subscription);
+    if (inferred) {
+      await updateOrgSpectyraPlan(orgId, inferred);
+    }
+  }
+
   if (
     subscription.status === "canceled" ||
     subscription.status === "unpaid" ||
@@ -208,10 +227,11 @@ billingRouter.post("/checkout", async (req: AuthenticatedRequest, res) => {
         message: "STRIPE_SECRET_KEY is missing",
       });
     }
-    if (!process.env.STRIPE_PRICE_ID?.trim()) {
+    if (selfServePlanSlugsFromEnv().length === 0) {
       return res.status(503).json({
         error: "Billing is not configured",
-        message: "STRIPE_PRICE_ID is missing",
+        message:
+          "No Stripe Price ids for self-serve checkout. Set STRIPE_PRICE_DEVELOPER_PRO or legacy STRIPE_PRICE_ID; optionally STRIPE_PRICE_TEAM_PRO for Team Pro.",
       });
     }
 
@@ -293,12 +313,25 @@ billingRouter.post("/checkout", async (req: AuthenticatedRequest, res) => {
       return res.status(401).json({ error: "Not authenticated" });
     }
     
-    const { success_url, cancel_url, checkout_quantity } = req.body as {
+    const { success_url, cancel_url, checkout_quantity, saas_plan } = req.body as {
       success_url?: string;
       cancel_url?: string;
       /** When set, Stripe line-item qty (OpenClaw / companion typically sends 1). Capped at org seat_limit. */
       checkout_quantity?: unknown;
+      /** Self-serve tier: developer_pro | team_pro (each maps to its own Stripe Price id). */
+      saas_plan?: unknown;
     };
+
+    const saasPlanRaw =
+      typeof saas_plan === "string" && saas_plan.trim().length > 0
+        ? saas_plan.trim().toLowerCase()
+        : undefined;
+    const pricePick = resolveStripePriceIdForSaasPlan(saasPlanRaw);
+    if (!pricePick.ok) {
+      return res.status(400).json({ error: pricePick.error });
+    }
+    const stripePriceId = pricePick.priceId;
+    const saasPlanSlug = pricePick.saasPlan;
 
     const org = await getOrgById(orgId);
     if (!org) {
@@ -348,7 +381,7 @@ billingRouter.post("/checkout", async (req: AuthenticatedRequest, res) => {
       payment_method_types: ["card"],
       line_items: [
         {
-          price: process.env.STRIPE_PRICE_ID || "", // Set in env
+          price: stripePriceId,
           quantity,
         },
       ],
@@ -363,12 +396,14 @@ billingRouter.post("/checkout", async (req: AuthenticatedRequest, res) => {
         })(),
         metadata: {
           spectyra_org_id: org.id,
+          spectyra_saas_plan: saasPlanSlug,
         },
       },
       success_url: success_url || `${req.headers.origin || "https://spectyra.ai"}/billing/success?session_id={CHECKOUT_SESSION_ID}`,
       cancel_url: cancel_url || `${req.headers.origin || "https://spectyra.ai"}/billing/cancel`,
       metadata: {
         spectyra_org_id: org.id,
+        spectyra_saas_plan: saasPlanSlug,
       },
     };
 
@@ -624,6 +659,7 @@ billingRouter.get("/status", async (req: AuthenticatedRequest, res) => {
         id: org.id,
         name: org.name,
       },
+      self_serve_plans: selfServePlanSlugsFromEnv(),
       has_access: hasAccess,
       observe_only_savings: observeOnly,
       observe_only_override: org.observe_only_override,

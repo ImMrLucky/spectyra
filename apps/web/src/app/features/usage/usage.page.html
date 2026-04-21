@@ -59,12 +59,40 @@
 
     <section class="card upgrade-card" *ngIf="showFreeTierUpgrade(s)">
       <h2>Upgrade from Free Tier</h2>
-      <p class="upgrade-lede">
-        Move to Developer Pro or Team Pro for included optimized tokens, savings sync, and team dashboards — checkout is
-        card-only and managed on the billing page.
+      <p class="upgrade-lede" *ngIf="showStripeSelfServeCheckout">
+        Pick Developer Pro or Team Pro (each uses its own Stripe price on the server), then continue to checkout.
       </p>
+      <p class="upgrade-lede" *ngIf="!showStripeSelfServeCheckout">
+        Self-serve checkout is paused while we validate the in-app SDK. You can still review tiers on Plan &amp; Billing.
+      </p>
+      <div class="checkout-plan-grid" *ngIf="showStripeSelfServeCheckout" role="radiogroup" aria-label="Self-serve plan">
+        <label
+          *ngFor="let p of selfServePlanCards"
+          class="checkout-plan-option"
+          [class.checkout-plan-option--disabled]="!isCheckoutPlanSelectable(p.id, s)"
+          [class.checkout-plan-option--active]="selectedCheckoutPlan === p.id"
+        >
+          <input
+            type="radio"
+            name="usage_saas_checkout_plan"
+            [value]="p.id"
+            [(ngModel)]="selectedCheckoutPlan"
+            [disabled]="!isCheckoutPlanSelectable(p.id, s)"
+          />
+          <span class="checkout-plan-option__body">
+            <span class="checkout-plan-option__name">{{ p.name }}</span>
+            <span class="checkout-plan-option__price">{{ p.price }}</span>
+          </span>
+        </label>
+      </div>
       <div class="upgrade-actions">
-        <button type="button" class="btn-primary" (click)="upgrade()" [disabled]="upgrading">
+        <button
+          type="button"
+          class="btn-primary"
+          *ngIf="showStripeSelfServeCheckout"
+          (click)="upgrade()"
+          [disabled]="upgrading"
+        >
           {{ upgrading ? 'Redirecting…' : 'Continue to secure checkout' }}
         </button>
         <a routerLink="/billing" class="btn-secondary">Compare plans on Plan &amp; Billing</a>

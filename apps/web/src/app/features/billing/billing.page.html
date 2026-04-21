@@ -82,8 +82,36 @@
         Unlimited optimized runs
       </div>
 
+      <div class="checkout-plan-pick" *ngIf="showPaidCheckoutCta && showStripeSelfServeCheckout">
+        <h3 class="checkout-plan-pick__title">Choose a paid plan</h3>
+        <p class="checkout-plan-pick__hint">
+          Each option uses its own Stripe recurring price (set <code>STRIPE_PRICE_DEVELOPER_PRO</code> /
+          <code>STRIPE_PRICE_TEAM_PRO</code> on the API, or legacy <code>STRIPE_PRICE_ID</code> for Developer Pro only).
+        </p>
+        <div class="checkout-plan-grid" role="radiogroup" aria-label="Self-serve plan">
+          <label
+            *ngFor="let p of selfServePlanCards"
+            class="checkout-plan-option"
+            [class.checkout-plan-option--disabled]="!isCheckoutPlanSelectable(p.id)"
+            [class.checkout-plan-option--active]="selectedCheckoutPlan === p.id"
+          >
+            <input
+              type="radio"
+              name="saas_checkout_plan"
+              [value]="p.id"
+              [(ngModel)]="selectedCheckoutPlan"
+              [disabled]="!isCheckoutPlanSelectable(p.id)"
+            />
+            <span class="checkout-plan-option__body">
+              <span class="checkout-plan-option__name">{{ p.name }}</span>
+              <span class="checkout-plan-option__price">{{ p.price }}</span>
+            </span>
+          </label>
+        </div>
+      </div>
+
       <button class="btn-primary"
-              *ngIf="showPaidCheckoutCta"
+              *ngIf="showPaidCheckoutCta && showStripeSelfServeCheckout"
               (click)="upgrade()"
               [disabled]="upgrading">
         {{ upgrading ? 'Processing...' : 'Continue to secure checkout' }}

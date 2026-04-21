@@ -110,6 +110,14 @@ export async function getOrgById(id: string): Promise<Org | null> {
 /**
  * Update organization name
  */
+/** Persist product tier for entitlements (`free` | `starter` | `pro` | `enterprise`). */
+export async function updateOrgSpectyraPlan(
+  orgId: string,
+  plan: "free" | "starter" | "pro" | "enterprise",
+): Promise<void> {
+  await query(`UPDATE orgs SET plan = $2 WHERE id = $1`, [orgId, plan]);
+}
+
 export async function updateOrgName(orgId: string, newName: string): Promise<Org> {
   if (!newName || newName.trim().length === 0) {
     throw new Error("Organization name cannot be empty");
