@@ -63,33 +63,33 @@
       </p>
     </div>
 
-    <div class="section">
-      <h2>OpenClaw provider config (reference info)</h2>
-      <p class="fine-print">
-        OpenClaw should call Spectyra’s OpenAI-compatible endpoint. Your skill / docs may merge this for you; this JSON is the usual <code>models.providers.spectyra</code> shape:
-      </p>
-      <div class="section-header" style="margin-top: 8px">
-        <button type="button" class="btn btn-sm btn-secondary" (click)="copy(openclawConfigJson)">Copy JSON</button>
-      </div>
-      <div class="code-block">
-        <pre><code>{{ openclawConfigJson }}</code></pre>
-      </div>
-    </div>
+<!--    <div class="section">-->
+<!--      <h2>OpenClaw provider config (reference info)</h2>-->
+<!--      <p class="fine-print">-->
+<!--        OpenClaw should call Spectyra’s OpenAI-compatible endpoint. Your skill / docs may merge this for you; this JSON is the usual <code>models.providers.spectyra</code> shape:-->
+<!--      </p>-->
+<!--      <div class="section-header" style="margin-top: 8px">-->
+<!--        <button type="button" class="btn btn-sm btn-secondary" (click)="copy(openclawConfigJson)">Copy JSON</button>-->
+<!--      </div>-->
+<!--      <div class="code-block">-->
+<!--        <pre><code>{{ openclawConfigJson }}</code></pre>-->
+<!--      </div>-->
+<!--    </div>-->
+
+<!--    <div class="section">-->
+<!--      <h2>5. Guided setup &amp; diagnostics</h2>-->
+<!--      <p class="fine-print">-->
+<!--        For a step-by-step checklist (companion running, models visible in OpenClaw, optional sign-in), use the guided flow:-->
+<!--      </p>-->
+<!--      <p class="guide-links">-->
+<!--        <a routerLink="/integrations/openclaw/setup">OpenClaw setup wizard</a>-->
+<!--      </p>-->
+<!--    </div>-->
 
     <div class="section">
-      <h2>5. Guided setup &amp; diagnostics</h2>
+      <h2>Models Reference</h2>
       <p class="fine-print">
-        For a step-by-step checklist (companion running, models visible in OpenClaw, optional sign-in), use the guided flow:
-      </p>
-      <p class="guide-links">
-        <a routerLink="/integrations/openclaw/setup">OpenClaw setup wizard</a>
-      </p>
-    </div>
-
-    <div class="section">
-      <h2>Models</h2>
-      <p class="fine-print">
-        Use <code>spectyra/smart</code> (and other <code>spectyra/*</code> lanes your install exposes) in OpenClaw. Run <code>openclaw models list</code> to confirm they appear after the companion is running.
+        Use <code>spectyra/smart</code> (and other <code>spectyra/*</code> models) in OpenClaw.
       </p>
     </div>
   </div>
