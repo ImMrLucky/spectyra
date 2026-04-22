@@ -28,6 +28,7 @@ import {
   requireUserSession,
   requireOrgMembership,
   billingAccessOpts,
+  resolvePlatformOwnerAccess,
   type AuthenticatedRequest,
 } from "../middleware/auth.js";
 import { query, queryOne } from "../services/storage/db.js";
@@ -50,6 +51,21 @@ import {
 
 export const authRouter = Router();
 authRouter.use(rateLimit(RL_STANDARD));
+
+/**
+ * GET /v1/auth/is-platform-owner
+ * Web shell: show Admin nav without probing /v1/admin/orgs (JWT only).
+ */
+authRouter.get("/is-platform-owner", requireUserSession, async (req: AuthenticatedRequest, res) => {
+  try {
+    const access = await resolvePlatformOwnerAccess(req);
+    res.json({ is_platform_owner: access.kind === "allow" });
+  } catch (e: unknown) {
+    const msg = e instanceof Error ? e.message : String(e);
+    safeLog("error", "is-platform-owner error", { error: msg });
+    res.status(500).json({ error: "Internal server error" });
+  }
+});
 
 /** Desktop installer URLs for the web app Download page (set on API host, e.g. Railway). */
 function desktopDownloadsPayload(): {

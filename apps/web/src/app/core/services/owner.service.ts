@@ -2,7 +2,7 @@
  * Owner Service
  *
  * Checks if the current user is an owner by probing an owner-only endpoint.
- * Uses GET /account/is-platform-owner (no admin route hit) + 30 s TTL cache so
+ * Uses GET /auth/is-platform-owner (JWT; no /v1/admin/* probe) + 30 s TTL cache so
  * non-owner users do not trigger owner middleware or OWNER_EMAIL misconfig logs.
  */
 
@@ -53,7 +53,7 @@ export class OwnerService implements OnDestroy {
     }
     try {
       const row = await firstValueFrom(
-        this.http.get<{ is_platform_owner: boolean }>(`${environment.apiUrl}/account/is-platform-owner`),
+        this.http.get<{ is_platform_owner: boolean }>(`${environment.apiUrl}/auth/is-platform-owner`),
       );
       this.lastProbeAt = Date.now();
       return !!row?.is_platform_owner;

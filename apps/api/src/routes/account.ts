@@ -28,10 +28,7 @@ export const accountRouter = Router();
 
 accountRouter.use(rateLimit(RL_ACCOUNT));
 
-/**
- * GET /v1/account/is-platform-owner
- * Lightweight check for the web shell (replaces probing HEAD /v1/admin/orgs for every user).
- */
+/** Same handler as GET /v1/auth/is-platform-owner — kept for compatibility with older docs / bookmarks. */
 accountRouter.get("/is-platform-owner", requireUserSession, async (req: AuthenticatedRequest, res) => {
   try {
     const access = await resolvePlatformOwnerAccess(req);
