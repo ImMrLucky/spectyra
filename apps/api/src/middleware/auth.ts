@@ -732,7 +732,7 @@ export type PlatformOwnerAccess =
 
 /**
  * Resolve whether this JWT user is allowed platform-owner/admin UI (no side effects, no HTTP).
- * Used by GET /v1/auth/is-platform-owner so the web app does not probe /v1/admin/orgs for every user.
+ * Used by GET /v1/auth|account/is-platform-owner (see index.ts + isPlatformOwnerGet.ts).
  */
 export async function resolvePlatformOwnerAccess(req: AuthenticatedRequest): Promise<PlatformOwnerAccess> {
   if (!req.auth?.userId) return { kind: "deny" };

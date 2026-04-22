@@ -33,7 +33,8 @@ import { telemetryRouter } from "./routes/telemetry.js";
 import { projectAnalyticsRouter } from "./routes/projectAnalytics.js";
 import { scimRouter } from "./routes/scim.js";
 import { serverOptimizeRouter } from "./routes/serverOptimize.js";
-import { rateLimit } from "./middleware/rateLimit.js";
+import { isPlatformOwnerGet } from "./routes/isPlatformOwnerGet.js";
+import { requireUserSession } from "./middleware/auth.js";
 import { initDb } from "./services/storage/db.js";
 import { ensurePlatformRolesSchema } from "./services/storage/ensurePlatformRolesSchema.js";
 import { ensureSdkTelemetrySchema } from "./services/storage/ensureSdkTelemetrySchema.js";
@@ -132,6 +133,10 @@ app.use(express.json({ limit: "10mb" })); // Limit request size
 
 // Initialize database
 initDb();
+
+// Web shell: owner nav probe — registered on the app (not only nested routers) for reliable /v1 routing
+app.get("/v1/auth/is-platform-owner", requireUserSession, isPlatformOwnerGet);
+app.get("/v1/account/is-platform-owner", requireUserSession, isPlatformOwnerGet);
 
 // Routes
 app.use("/health", healthRouter);
