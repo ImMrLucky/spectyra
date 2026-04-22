@@ -34,6 +34,11 @@ export async function ensureSdkTelemetrySchema(): Promise<void> {
     `);
 
     await query(`
+      ALTER TABLE sdk_run_telemetry
+        ADD COLUMN IF NOT EXISTS diagnostics JSONB
+    `);
+
+    await query(`
       CREATE TABLE IF NOT EXISTS project_usage_daily (
         id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
         org_id UUID NOT NULL REFERENCES orgs(id) ON DELETE CASCADE,

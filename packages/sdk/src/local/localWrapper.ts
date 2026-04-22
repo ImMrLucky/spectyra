@@ -128,6 +128,7 @@ export async function localComplete<TClient, TResult>(
       flowSignals: null,
       licenseLimited: false,
       licenseStatus: "active",
+      sessionId: input.runContext?.sessionId,
     });
   }
 
@@ -225,6 +226,7 @@ export async function localComplete<TClient, TResult>(
     projectedSavingsIfActivated: pipeline.projectedSavingsIfActivated,
     features,
     optimizationSkippedReason,
+    sessionId: input.runContext?.sessionId,
   });
   emitSdkEventsForStandaloneComplete(telemetryMode, input, out);
   return out;
@@ -297,6 +299,7 @@ interface BuildResultInput<TResult> {
   projectedSavingsIfActivated?: number;
   features?: FeatureDetectionResult[];
   optimizationSkippedReason?: "tool_merge_failed";
+  sessionId?: string;
 }
 
 function buildResult<TResult>(input: BuildResultInput<TResult>): SpectyraCompleteResult<TResult> {
@@ -340,6 +343,7 @@ function buildResult<TResult>(input: BuildResultInput<TResult>): SpectyraComplet
     runId: input.runId,
     mode: input.runMode,
     integrationType: "sdk-wrapper",
+    sessionId: input.sessionId,
     provider: input.provider,
     model: input.model,
     inputTokensBefore: input.inputTokensBefore,

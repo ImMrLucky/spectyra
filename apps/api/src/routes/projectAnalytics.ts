@@ -85,10 +85,11 @@ projectAnalyticsRouter.get("/:projectId/summary", async (req: AuthenticatedReque
       optimized_input_tokens: number;
       estimated_savings_usd: string;
       created_at: string;
+      diagnostics: unknown | null;
     }>(
       `
       SELECT id::text, environment, model, input_tokens, output_tokens, optimized_input_tokens,
-        estimated_savings_usd::text, created_at::text
+        estimated_savings_usd::text, created_at::text, diagnostics
       FROM sdk_run_telemetry
       WHERE org_id = $1::uuid AND project_id = $2::uuid
       ORDER BY created_at DESC

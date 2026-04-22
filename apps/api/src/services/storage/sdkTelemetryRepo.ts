@@ -12,6 +12,8 @@ export interface SdkTelemetryRunInput {
   optimizedCostUsd: number;
   estimatedSavingsUsd: number;
   apiKeyId: string | null;
+  /** Aggregated SDK diagnostics (JSON). No prompts or provider secrets. */
+  diagnostics?: object | null;
 }
 
 export async function insertSdkTelemetryRun(input: SdkTelemetryRunInput): Promise<string> {
@@ -21,9 +23,9 @@ export async function insertSdkTelemetryRun(input: SdkTelemetryRunInput): Promis
       org_id, project_id, environment, model,
       input_tokens, output_tokens, optimized_input_tokens,
       estimated_cost_usd, optimized_cost_usd, estimated_savings_usd,
-      api_key_id
+      api_key_id, diagnostics
     )
-    VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
+    VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12::jsonb)
     RETURNING id::text AS id
     `,
     [
@@ -38,6 +40,7 @@ export async function insertSdkTelemetryRun(input: SdkTelemetryRunInput): Promis
       input.optimizedCostUsd,
       input.estimatedSavingsUsd,
       input.apiKeyId,
+      input.diagnostics != null ? JSON.stringify(input.diagnostics) : null,
     ],
   );
   if (!row?.id) throw new Error("insertSdkTelemetryRun: no id returned");

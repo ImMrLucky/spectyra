@@ -24,6 +24,7 @@ import { toClaudeAgentOptions } from "./adapters/claudeAgent.js";
 import { fetchAgentOptions, sendAgentEvent } from "./remote/agentRemote.js";
 import { localComplete } from "./local/localWrapper.js";
 import { maybePostSdkRunTelemetry } from "./cloud/postRunTelemetry.js";
+import { resolveSpectyraCloudApiKey } from "./cloud/resolveSpectyraCloudApiKey.js";
 
 export interface SpectyraInstance {
   /**
@@ -111,12 +112,10 @@ export function createSpectyra(config: SpectyraConfig = {}): SpectyraInstance {
 
   if (telemetryMode === "cloud_redacted") {
     const hasSpectyraCredential =
-      Boolean(config.licenseKey?.trim()) ||
-      Boolean(config.apiKey?.trim()) ||
-      Boolean(config.spectyraCloudApiKey?.trim());
+      Boolean(config.licenseKey?.trim()) || Boolean(resolveSpectyraCloudApiKey(config));
     if (!hasSpectyraCredential) {
       throw new Error(
-        'Spectyra: telemetry.mode "cloud_redacted" requires licenseKey, apiKey, or spectyraCloudApiKey (Spectyra credentials, not a provider key).',
+        'Spectyra: telemetry.mode "cloud_redacted" requires licenseKey and/or spectyraCloudApiKey (or SPECTYRA_CLOUD_API_KEY / SPECTYRA_API_KEY). These are Spectyra credentials, not provider API keys.',
       );
     }
   }

@@ -19,26 +19,57 @@ npm install @spectyra/sdk
 ## Quick Start
 
 ```ts
-import { createSpectyra } from "@spectyra/sdk";
-import { createOpenAIAdapter } from "@spectyra/sdk/adapters/openai";
+import { createSpectyra, createOpenAIAdapter } from "@spectyra/sdk";
 import OpenAI from "openai";
 
-const spectyra = createSpectyra({ runMode: "on" });
-const openai = new OpenAI(); // uses your OPENAI_API_KEY
+const spectyra = createSpectyra({
+  runMode: "on",
+  licenseKey: process.env.SPECTYRA_LICENSE_KEY, // optional; omit = observe-only optimization
+});
 
-const result = await spectyra.complete(
+const openai = new OpenAI(); // your OPENAI_API_KEY
+
+const { providerResult, report, promptComparison, flowSignals } = await spectyra.complete(
   {
+    provider: "openai",
     client: openai,
     model: "gpt-4o-mini",
     messages: [{ role: "user", content: "Summarize this document..." }],
+    runContext: {
+      project: "customer-support-ai",
+      environment: process.env.NODE_ENV ?? "development",
+      service: "api",
+      workflowType: "chat",
+    },
   },
-  createOpenAIAdapter(openai),
+  createOpenAIAdapter(),
 );
 
-console.log(result.response);          // provider response
-console.log(result.savingsReport);     // { beforeTokens, afterTokens, estimatedSavingsUsd, ... }
-console.log(result.promptComparison);  // before/after messages for debugging
+console.log(providerResult);
+console.log(report.estimatedSavings, report.inputTokensBefore, report.inputTokensAfter);
 ```
+
+Subpath imports are also supported: `@spectyra/sdk/adapters/openai`, `.../anthropic`, `.../groq`.
+
+---
+
+## Production analytics (optional)
+
+For **aggregate** savings in the Spectyra app (by project and environment), enable cloud telemetry — still **no prompt bodies** and no provider secrets:
+
+```ts
+const spectyra = createSpectyra({
+  runMode: "on",
+  licenseKey: process.env.SPECTYRA_LICENSE_KEY,
+  telemetry: { mode: "cloud_redacted" },
+  spectyraCloudApiKey: process.env.SPECTYRA_CLOUD_API_KEY, // or SPECTYRA_API_KEY
+  spectyraApiBaseUrl: process.env.SPECTYRA_API_BASE_URL, // must include `/v1`
+});
+```
+
+Each `complete()` sends token/cost aggregates plus a bounded **`diagnostics`** object (see `buildSpectyraProductionDiagnostics` / `SpectyraProductionDiagnostics` in this package). Use `runContext.project` (and a project-scoped API key when required) so rows land in the right project.
+
+Default `telemetry.mode` is **`local`**: nothing is POSTed to Spectyra regardless of API keys.
 
 ---
 
@@ -50,12 +81,12 @@ console.log(result.promptComparison);  // before/after messages for debugging
 3. **Spectyra optimizes messages locally** (whitespace normalization,
    deduplication, context trimming) — nothing leaves your machine.
 4. **The adapter calls the provider directly** with your API key.
-5. **You get back** the provider response plus a `SavingsReport`.
+5. **You get back** `providerResult`, a `SavingsReport` (`report`), and optional `promptComparison` / `flowSignals`.
 
 ```
 Your code → spectyra.complete() → local optimization → provider adapter → LLM provider
                                                                               ↓
-                                                        SavingsReport ← response
+                                                        report ← response
 ```
 
 ---
@@ -156,7 +187,7 @@ import { createOpenAIAdapter } from "@spectyra/sdk/adapters/openai";
 import OpenAI from "openai";
 
 const openai = new OpenAI();
-const adapter = createOpenAIAdapter(openai);
+const adapter = createOpenAIAdapter();
 ```
 
 ### Anthropic
@@ -189,9 +220,12 @@ Creates a Spectyra instance.
 
 ```ts
 const spectyra = createSpectyra({
-  runMode: "on",          // "off" | "observe" | "on" (default: "on")
-  telemetry: "local",     // "off" | "local" | "cloud_redacted"
+  runMode: "on", // "off" | "observe" | "on" (default: "on")
+  telemetry: { mode: "local" }, // "off" | "local" | "cloud_redacted"
   promptSnapshots: "local_only", // "none" | "local_only" | "cloud_opt_in"
+  licenseKey: process.env.SPECTYRA_LICENSE_KEY,
+  spectyraCloudApiKey: process.env.SPECTYRA_CLOUD_API_KEY,
+  spectyraApiBaseUrl: process.env.SPECTYRA_API_BASE_URL,
 });
 ```
 
@@ -200,16 +234,18 @@ const spectyra = createSpectyra({
 The primary API. Optimizes messages locally, then calls the provider.
 
 **Parameters:**
+- `input.provider` — Vendor string (e.g. `"openai"`)
 - `input.client` — Your provider SDK client instance
 - `input.model` — Model name (e.g. `"gpt-4o-mini"`)
 - `input.messages` — Array of `{ role, content }` messages
+- `input.runContext` — Optional `project`, `environment`, `service`, `workflowType`, `sessionId`, `traceId`
 - `adapter` — Provider adapter from `createOpenAIAdapter()` etc.
 
 **Returns:** `SpectyraCompleteResult`
-- `response` — The raw provider response (or `null` in observe mode)
-- `savingsReport` — `SavingsReport` with token/cost breakdown
-- `promptComparison` — Before/after messages for debugging
-- `mode` — The run mode that was used
+- `providerResult` — Raw provider response
+- `report` — `SavingsReport` (tokens, costs, transforms, hints)
+- `promptComparison` — Summaries for local debugging when prompt snapshots are enabled
+- `flowSignals` — Flow analysis signals when available
 
 ### `spectyra.agentOptions(ctx, prompt)` *(local mode)*
 
@@ -224,22 +260,13 @@ Fetches options from Spectyra API. Deprecated — prefer `complete()`.
 
 ## SavingsReport
 
-```ts
-interface SavingsReport {
-  runMode: SpectyraRunMode;
-  provider: string;
-  model: string;
-  beforeTokens: number;
-  afterTokens: number;
-  tokenReduction: number;       // 0–1 ratio
-  estimatedBeforeCostUsd: number;
-  estimatedAfterCostUsd: number;
-  estimatedSavingsUsd: number;
-  techniquesApplied: string[];  // e.g. ["whitespace_normalize", "dedup_consecutive"]
-  inferencePath: InferencePath;
-  timestamp: string;
-}
-```
+The authoritative shape is `SavingsReport` from `@spectyra/core-types` (re-exported from `@spectyra/sdk`). Highlights: `inputTokensBefore` / `inputTokensAfter`, `outputTokens`, `estimatedCostBefore` / `estimatedCostAfter`, `estimatedSavings`, `estimatedSavingsPct`, `transformsApplied`, optional `contextReductionPct`, `duplicateReductionPct`, `flowReductionPct`, `messageTurnCount`, `repeatedContextTokensAvoided`, `repeatedToolOutputTokensAvoided`, `runId`, `createdAt`.
+
+---
+
+## Release verification
+
+Before publishing, follow **`RELEASE.md`** in this package (build → `npm pack` → inspect tarball → smoke imports).
 
 ---
 
@@ -250,7 +277,7 @@ interface SavingsReport {
 | Inference path | Direct to provider |
 | Provider keys | Your key, never stored by Spectyra |
 | Prompt storage | Local only (never uploaded) |
-| Telemetry | Local (no cloud sync) |
+| Telemetry | Default `local` (no cloud POST). Use `cloud_redacted` + Spectyra API key for dashboards. |
 | Cloud relay | None |
 
 ---

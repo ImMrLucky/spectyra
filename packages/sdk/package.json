@@ -1,13 +1,32 @@
 {
   "name": "@spectyra/sdk",
-  "version": "0.1.3",
+  "version": "0.1.4",
   "description": "Spectyra SDK for real-time LLM optimization",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
   "type": "module",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    },
+    "./adapters/openai": {
+      "types": "./dist/adapters/openai.d.ts",
+      "default": "./dist/adapters/openai.js"
+    },
+    "./adapters/anthropic": {
+      "types": "./dist/adapters/anthropic.d.ts",
+      "default": "./dist/adapters/anthropic.js"
+    },
+    "./adapters/groq": {
+      "types": "./dist/adapters/groq.d.ts",
+      "default": "./dist/adapters/groq.js"
+    }
+  },
   "files": [
     "dist",
-    "README.md"
+    "README.md",
+    "RELEASE.md"
   ],
   "scripts": {
     "build": "tsc",

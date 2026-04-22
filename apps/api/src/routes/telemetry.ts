@@ -11,6 +11,7 @@ import { getProjectByOrgAndIdentifier } from "../services/storage/orgsRepo.js";
 import { insertSdkTelemetryRun, upsertProjectUsageDaily } from "../services/storage/sdkTelemetryRepo.js";
 import { recordOptimizedRun, getEntitlement } from "../services/entitlement.js";
 import { safeLog } from "../utils/redaction.js";
+import { sanitizeTelemetryDiagnostics } from "../utils/telemetryDiagnostics.js";
 
 export const telemetryRouter = Router();
 telemetryRouter.use(rateLimit(RL_STANDARD));
@@ -53,6 +54,7 @@ telemetryRouter.post("/run", requireSpectyraApiKey, async (req: AuthenticatedReq
     const estimatedCost = num(b.estimatedCost ?? b.estimated_cost);
     const optimizedCost = num(b.optimizedCost ?? b.optimized_cost);
     const savings = num(b.savings ?? b.estimated_savings ?? b.estimatedSavings);
+    const diagnostics = sanitizeTelemetryDiagnostics(b.diagnostics);
 
     let projectId: string | null = apiKeyProjectId;
     if (projectField) {
@@ -84,6 +86,7 @@ telemetryRouter.post("/run", requireSpectyraApiKey, async (req: AuthenticatedReq
       optimizedCostUsd: optimizedCost,
       estimatedSavingsUsd: savings,
       apiKeyId: req.context?.apiKeyId ?? null,
+      diagnostics,
     };
 
     const id = await insertSdkTelemetryRun(payload);

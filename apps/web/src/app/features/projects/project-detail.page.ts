@@ -18,6 +18,7 @@ export interface ProjectSdkSummaryResponse {
     optimized_input_tokens: number;
     estimated_savings_usd: string;
     created_at: string;
+    diagnostics?: unknown | null;
   }>;
 }
 
@@ -62,6 +63,22 @@ export class ProjectDetailPage implements OnInit {
       this.error = err?.error?.error || err?.message || 'Failed to load project analytics';
     } finally {
       this.loading = false;
+    }
+  }
+
+  diagnosticsSummary(d: unknown | null | undefined): string {
+    if (d == null || typeof d !== 'object' || Array.isArray(d)) return '—';
+    const o = d as Record<string, unknown>;
+    const bits = [o['workflowType'], o['service'], o['traceId']].filter((x) => typeof x === 'string' && x) as string[];
+    return bits.length ? bits.join(' · ') : '…';
+  }
+
+  diagnosticsTitle(d: unknown | null | undefined): string {
+    if (d == null) return '';
+    try {
+      return JSON.stringify(d).slice(0, 800);
+    } catch {
+      return '';
     }
   }
 }

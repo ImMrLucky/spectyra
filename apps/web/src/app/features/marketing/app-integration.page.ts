@@ -45,8 +45,7 @@ export class AppIntegrationPage implements OnInit, OnDestroy {
   readonly installCommand = 'npm install @spectyra/sdk';
 
   /** Minimal path: install → createSpectyra → complete() with runContext for cloud rollups. */
-  readonly quickStartCode = `import { createSpectyra } from "@spectyra/sdk";
-import { createOpenAIAdapter } from "@spectyra/sdk/adapters/openai";
+  readonly quickStartCode = `import { createSpectyra, createOpenAIAdapter } from "@spectyra/sdk";
 import OpenAI from "openai";
 
 const spectyra = createSpectyra({
@@ -63,14 +62,27 @@ const { providerResult, report } = await spectyra.complete(
     model: "gpt-4o-mini",
     messages: [{ role: "user", content: "Hello!" }],
     runContext: {
-      project: "my-service",      // used for org dashboards / telemetry when configured
+      project: "my-service",      // org dashboards / telemetry when cloud mode is on
       environment: "development", // defaults to NODE_ENV when omitted
+      service: "api",
+      workflowType: "chat",
     },
   },
-  createOpenAIAdapter(openai),
+  createOpenAIAdapter(),
 );
 
 console.log(report.estimatedSavingsPct, report.inputTokensBefore, report.inputTokensAfter);`;
+
+  /** Cloud rollups: aggregated costs + safe diagnostics only (see SDK README). */
+  readonly productionTelemetryCode = `const spectyra = createSpectyra({
+  runMode: "on",
+  licenseKey: process.env.SPECTYRA_LICENSE_KEY,
+  telemetry: { mode: "cloud_redacted" },
+  spectyraCloudApiKey: process.env.SPECTYRA_CLOUD_API_KEY, // or SPECTYRA_API_KEY
+  spectyraApiBaseUrl: process.env.SPECTYRA_API_BASE_URL, // e.g. https://api.example.com/v1
+});
+
+// same spectyra.complete(...) — runContext.project / environment tag rows in Projects`;
 
   readonly devLoggingSnippet = `const { providerResult, report, promptComparison, flowSignals } = await spectyra.complete(input, adapter);
 
@@ -107,6 +119,6 @@ const spectyra = createSpectyra({
 
 await spectyra.complete(
   { provider: "openai", client: openai, model: "spectyra/quality", messages },
-  createOpenAIAdapter(openai),
+  createOpenAIAdapter(),
 );`;
 }

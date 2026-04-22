@@ -27,6 +27,12 @@
 export { createSpectyra } from "./createSpectyra.js";
 export type { SpectyraInstance } from "./createSpectyra.js";
 
+// Production telemetry (safe diagnostics for cloud rollups)
+export {
+  buildSpectyraProductionDiagnostics,
+} from "./cloud/buildProductionDiagnostics.js";
+export type { SpectyraProductionDiagnostics } from "./cloud/buildProductionDiagnostics.js";
+
 // Workflow sessions (multi-step analytics)
 export { startSpectyraSession } from "./session/startSpectyraSession.js";
 export type { SpectyraSessionHandle, StartSpectyraSessionOptions } from "./session/startSpectyraSession.js";

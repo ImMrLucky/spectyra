@@ -110,8 +110,10 @@
             <strong>During development:</strong> use <code class="mono">console.log</code>, the objects above, or the optional local dashboard for detail.
         </p>
         <p class="dev-note">
-            <strong>In deployed workloads:</strong> Spectyra can surface <strong>aggregate</strong> savings and call volume in the web app by <strong>project</strong> and <strong>environment</strong> when you send metered telemetry with a Spectyra API key (<a routerLink="/projects">Projects</a>). Redacted <strong>session</strong> rollups from compatible clients appear under <a routerLink="/analytics">Session analytics</a>. Operational views are designed to avoid prompts and provider secrets.
+            <strong>In deployed workloads:</strong> Spectyra can surface <strong>aggregate</strong> savings and call volume in the web app by <strong>project</strong> and <strong>environment</strong> when you send metered telemetry with a Spectyra API key (<a routerLink="/projects">Projects</a>). Set <code class="mono">telemetry: &#123; mode: "cloud_redacted" &#125;</code> so each <code class="mono">complete()</code> POSTs aggregated usage plus a bounded <strong>diagnostics</strong> object (no prompt bodies). Redacted <strong>session</strong> rollups from compatible clients appear under <a routerLink="/analytics">Session analytics</a>.
         </p>
+        <h3 class="dev-subhead">Enable cloud telemetry</h3>
+        <pre class="dev-code">{{ productionTelemetryCode }}</pre>
     </section>
 
     <hr class="dev-divider" aria-hidden="true" />

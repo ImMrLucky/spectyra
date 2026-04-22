@@ -64,7 +64,7 @@
       <h2>Recent runs</h2>
       <table class="data-table" *ngIf="summary.recent_runs.length">
         <thead>
-          <tr><th>When</th><th>Env</th><th>Model</th><th>In</th><th>Opt in</th><th>Savings</th></tr>
+          <tr><th>When</th><th>Env</th><th>Model</th><th>In</th><th>Opt in</th><th>Savings</th><th>Signals</th></tr>
         </thead>
         <tbody>
           <tr *ngFor="let r of summary.recent_runs">
@@ -74,6 +74,7 @@
             <td>{{ r.input_tokens }}</td>
             <td>{{ r.optimized_input_tokens }}</td>
             <td>{{ r.estimated_savings_usd }}</td>
+            <td class="muted small" [attr.title]="diagnosticsTitle(r.diagnostics)">{{ diagnosticsSummary(r.diagnostics) }}</td>
           </tr>
         </tbody>
       </table>

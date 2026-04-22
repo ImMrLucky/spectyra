@@ -1,4 +1,6 @@
 import type { SpectyraConfig, SpectyraCompleteInput, SpectyraCompleteResult } from "../types.js";
+import { buildSpectyraProductionDiagnostics } from "./buildProductionDiagnostics.js";
+import { resolveSpectyraCloudApiKey } from "./resolveSpectyraCloudApiKey.js";
 
 function defaultBaseUrl(): string {
   if (typeof process !== "undefined" && process.env?.SPECTYRA_API_BASE_URL) {
@@ -9,6 +11,7 @@ function defaultBaseUrl(): string {
 
 /**
  * POST aggregated usage for one LLM call to Spectyra SaaS (POST /v1/telemetry/run).
+ * Only runs when `telemetry.mode` is `"cloud_redacted"` (aggregated metrics + safe diagnostics).
  * Fire-and-forget; failures are swallowed (log in dev only).
  */
 export async function maybePostSdkRunTelemetry<TResult>(
@@ -17,9 +20,9 @@ export async function maybePostSdkRunTelemetry<TResult>(
   result: SpectyraCompleteResult<TResult>,
 ): Promise<void> {
   const mode = config.telemetry?.mode ?? "local";
-  if (mode === "off") return;
+  if (mode !== "cloud_redacted") return;
 
-  const apiKey = config.spectyraCloudApiKey?.trim();
+  const apiKey = resolveSpectyraCloudApiKey(config);
   if (!apiKey) return;
 
   const base = (config.spectyraApiBaseUrl ?? defaultBaseUrl()).replace(/\/$/, "");
@@ -38,6 +41,12 @@ export async function maybePostSdkRunTelemetry<TResult>(
     estimatedCost: report.estimatedCostBefore,
     optimizedCost: report.estimatedCostAfter,
     savings: report.estimatedSavings,
+    diagnostics: buildSpectyraProductionDiagnostics(
+      report,
+      input.runContext,
+      input.provider,
+      result.flowSignals ?? null,
+    ),
   };
   if (project) body.project = project;
 

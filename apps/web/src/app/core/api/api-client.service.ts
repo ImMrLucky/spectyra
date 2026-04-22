@@ -339,6 +339,7 @@ export class ApiClientService {
       optimized_input_tokens: number;
       estimated_savings_usd: string;
       created_at: string;
+      diagnostics?: unknown | null;
     }>;
   }> {
     return this.dashboardCall('GET', `${this.baseUrl}/projects/${projectId}/summary`);
