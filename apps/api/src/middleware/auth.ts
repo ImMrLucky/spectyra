@@ -721,6 +721,73 @@ export async function requireOrgMembership(
   }
 }
 
+/** Result of matching the current JWT user to platform owner / staff rules. */
+export type PlatformOwnerAccess =
+  | { kind: "allow" }
+  | { kind: "deny" }
+  | {
+      kind: "not_configured";
+      reason: "missing_owner_email" | "missing_supabase_url" | "cannot_verify_email";
+    };
+
+/**
+ * Resolve whether this JWT user is allowed platform-owner/admin UI (no side effects, no HTTP).
+ * Used by GET /v1/account/is-platform-owner so the web app does not probe /v1/admin/orgs for every user.
+ */
+export async function resolvePlatformOwnerAccess(req: AuthenticatedRequest): Promise<PlatformOwnerAccess> {
+  if (!req.auth?.userId) return { kind: "deny" };
+  if (req.auth.platformRole === "superuser" || req.auth.platformRole === "admin") {
+    return { kind: "allow" };
+  }
+
+  const ownerEmail = process.env.OWNER_EMAIL?.trim();
+  if (!ownerEmail) {
+    return { kind: "not_configured", reason: "missing_owner_email" };
+  }
+
+  const sessionEmail = req.auth.email?.trim();
+  if (sessionEmail) {
+    return sessionEmail.toLowerCase() === ownerEmail.toLowerCase() ? { kind: "allow" } : { kind: "deny" };
+  }
+
+  const supabaseUrl = process.env.SUPABASE_URL;
+  if (!supabaseUrl) {
+    return { kind: "not_configured", reason: "missing_supabase_url" };
+  }
+
+  const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+  if (!supabaseServiceKey) {
+    const jwtEmail = readEmailFromBearerJwt(req);
+    if (jwtEmail) {
+      return jwtEmail.toLowerCase() === ownerEmail.toLowerCase() ? { kind: "allow" } : { kind: "deny" };
+    }
+    return { kind: "not_configured", reason: "cannot_verify_email" };
+  }
+
+  try {
+    const response = await fetch(
+      `${supabaseUrl.replace(/\/$/, "")}/auth/v1/admin/users/${req.auth.userId}`,
+      {
+        headers: {
+          Authorization: `Bearer ${supabaseServiceKey}`,
+          apikey: supabaseServiceKey,
+        },
+      },
+    );
+
+    if (!response.ok) {
+      return { kind: "deny" };
+    }
+
+    const user = (await response.json()) as SupabaseAdminUser;
+    const userEmail = user.email || user.user_metadata?.email;
+    if (!userEmail) return { kind: "deny" };
+    return userEmail.toLowerCase() === ownerEmail.toLowerCase() ? { kind: "allow" } : { kind: "deny" };
+  } catch {
+    return { kind: "deny" };
+  }
+}
+
 /** Decode email from Authorization Bearer JWT payload (for owner check when service role is unavailable). */
 function readEmailFromBearerJwt(req: Request): string | undefined {
   const authHeader = req.headers.authorization;
@@ -760,107 +827,49 @@ export async function requireOwner(
       return;
     }
 
-    if (req.auth?.platformRole === "superuser" || req.auth?.platformRole === "admin") {
-      safeLog("info", "Owner access granted (platform " + req.auth.platformRole + ")", { userId: req.auth.userId });
+    const access = await resolvePlatformOwnerAccess(req);
+
+    if (access.kind === "allow") {
+      if (req.auth.platformRole === "superuser" || req.auth.platformRole === "admin") {
+        safeLog("info", "Owner access granted (platform " + req.auth.platformRole + ")", {
+          userId: req.auth.userId,
+        });
+      } else if (req.auth.email?.trim()) {
+        safeLog("info", "Owner access granted (verified session email)", { email: req.auth.email });
+      } else {
+        safeLog("info", "Owner access granted", { userId: req.auth.userId });
+      }
       next();
       return;
     }
 
-    const ownerEmail = process.env.OWNER_EMAIL?.trim();
-    if (!ownerEmail) {
-      safeLog("warn", "OWNER_EMAIL not configured; owner endpoints disabled");
-      res.status(503).json({ error: "Owner verification not configured" });
-      return;
-    }
-
-    const sessionEmail = req.auth.email?.trim();
-    if (sessionEmail) {
-      if (sessionEmail.toLowerCase() === ownerEmail.toLowerCase()) {
-        safeLog("info", "Owner access granted (verified session email)", {
-          email: sessionEmail,
-        });
-        next();
-        return;
-      }
-      safeLog("warn", "Non-owner access attempt (session email)", {
-        email: sessionEmail,
+    if (access.kind === "deny") {
+      safeLog("warn", "Non-owner access attempt", {
         userId: req.auth.userId,
+        sessionEmail: req.auth.email ?? null,
       });
       res.status(403).json({ error: "Access denied: Owner only" });
       return;
     }
 
-    const supabaseUrl = process.env.SUPABASE_URL;
-    if (!supabaseUrl) {
-      safeLog("error", "SUPABASE_URL not configured");
-      res.status(503).json({ error: "Authentication not configured" });
-      return;
-    }
-
-    const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
-    if (!supabaseServiceKey) {
-      const jwtEmail = readEmailFromBearerJwt(req);
-      if (jwtEmail) {
-        if (jwtEmail.toLowerCase() === ownerEmail.toLowerCase()) {
-          safeLog("info", "Owner access granted (JWT decode)", { email: jwtEmail });
-          next();
-          return;
-        }
-        safeLog("warn", "Non-owner access attempt (JWT decode)", {
-          email: jwtEmail,
-          userId: req.auth.userId,
-        });
-        res.status(403).json({ error: "Access denied: Owner only" });
-        return;
-      }
-
+    if (access.reason === "missing_owner_email") {
       safeLog(
         "warn",
-        "SUPABASE_SERVICE_ROLE_KEY not configured and no email in JWT; cannot verify owner",
+        "OWNER_EMAIL is not set: /v1/admin/* owner routes return 503. Set OWNER_EMAIL on the API service to the operator email (or grant platform superuser/admin in platform_roles).",
       );
       res.status(503).json({ error: "Owner verification not configured" });
       return;
     }
-
-    // Use Supabase Admin API to get user email
-    try {
-      const response = await fetch(
-        `${supabaseUrl.replace(/\/$/, "")}/auth/v1/admin/users/${req.auth.userId}`,
-        {
-          headers: {
-            Authorization: `Bearer ${supabaseServiceKey}`,
-            apikey: supabaseServiceKey,
-          },
-        }
-      );
-
-      if (!response.ok) {
-        safeLog("warn", "Failed to fetch user from Supabase", {
-          status: response.status,
-          userId: req.auth.userId,
-        });
-        res.status(403).json({ error: "Access denied" });
-        return;
-      }
-
-      const user = await response.json() as SupabaseAdminUser;
-      const userEmail = user.email || user.user_metadata?.email;
-
-      if (!userEmail || userEmail.toLowerCase() !== ownerEmail.toLowerCase()) {
-        safeLog("warn", "Non-owner access attempt", { 
-          email: userEmail,
-          userId: req.auth.userId 
-        });
-        res.status(403).json({ error: "Access denied: Owner only" });
-        return;
-      }
-
-      safeLog("info", "Owner access granted", { email: userEmail });
-      next();
-    } catch (error: any) {
-      safeLog("error", "Owner check error", { error: error.message });
-      res.status(500).json({ error: "Internal server error" });
+    if (access.reason === "missing_supabase_url") {
+      safeLog("error", "SUPABASE_URL not configured");
+      res.status(503).json({ error: "Authentication not configured" });
+      return;
     }
+    safeLog(
+      "warn",
+      "SUPABASE_SERVICE_ROLE_KEY not configured and no email in JWT; cannot verify owner",
+    );
+    res.status(503).json({ error: "Owner verification not configured" });
   } catch (error: any) {
     safeLog("error", "Owner middleware error", { error: error.message });
     res.status(500).json({ error: "Internal server error" });

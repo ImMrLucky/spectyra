@@ -2,8 +2,8 @@
  * Owner Service
  *
  * Checks if the current user is an owner by probing an owner-only endpoint.
- * Uses HEAD (no response body) + 30 s TTL cache so the nav probe never
- * duplicates the full GET /admin/orgs that the Admin page loads for data.
+ * Uses GET /account/is-platform-owner (no admin route hit) + 30 s TTL cache so
+ * non-owner users do not trigger owner middleware or OWNER_EMAIL misconfig logs.
  */
 
 import { Injectable, OnDestroy } from '@angular/core';
@@ -52,13 +52,11 @@ export class OwnerService implements OnDestroy {
       return false;
     }
     try {
-      await firstValueFrom(
-        this.http.head(`${environment.apiUrl}/admin/orgs`, {
-          observe: 'response',
-        }),
+      const row = await firstValueFrom(
+        this.http.get<{ is_platform_owner: boolean }>(`${environment.apiUrl}/account/is-platform-owner`),
       );
       this.lastProbeAt = Date.now();
-      return true;
+      return !!row?.is_platform_owner;
     } catch {
       this.lastProbeAt = Date.now();
       return false;

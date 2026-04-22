@@ -7,6 +7,7 @@ import rateLimit from "express-rate-limit";
 import Stripe from "stripe";
 import {
   requireUserSession,
+  resolvePlatformOwnerAccess,
   type AuthenticatedRequest,
 } from "../middleware/auth.js";
 import { query, queryOne } from "../services/storage/db.js";
@@ -26,6 +27,21 @@ import { RL_ACCOUNT, RL_ACCOUNT_DELETE } from "../middleware/expressRateLimitPre
 export const accountRouter = Router();
 
 accountRouter.use(rateLimit(RL_ACCOUNT));
+
+/**
+ * GET /v1/account/is-platform-owner
+ * Lightweight check for the web shell (replaces probing HEAD /v1/admin/orgs for every user).
+ */
+accountRouter.get("/is-platform-owner", requireUserSession, async (req: AuthenticatedRequest, res) => {
+  try {
+    const access = await resolvePlatformOwnerAccess(req);
+    res.json({ is_platform_owner: access.kind === "allow" });
+  } catch (e: unknown) {
+    const msg = e instanceof Error ? e.message : String(e);
+    safeLog("error", "is-platform-owner error", { error: msg });
+    res.status(500).json({ error: "Internal server error" });
+  }
+});
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY || "", {
   apiVersion: "2024-11-20.acacia" as Stripe.LatestApiVersion,

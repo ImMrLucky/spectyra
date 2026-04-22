@@ -99,13 +99,17 @@ export function redactHeaders(headers: any): any {
  * Safe logger that automatically redacts secrets
  */
 export function safeLog(level: "info" | "warn" | "error", message: string, data?: any): void {
-  const redactedData = data ? redactSecrets(data) : undefined;
-  
+  const redactedData = data !== undefined && data !== null ? redactSecrets(data) : undefined;
+
   if (level === "error") {
-    console.error(message, redactedData);
+    if (redactedData !== undefined) console.error(message, redactedData);
+    else console.error(message);
   } else if (level === "warn") {
-    console.warn(message, redactedData);
-  } else {
+    if (redactedData !== undefined) console.warn(message, redactedData);
+    else console.warn(message);
+  } else if (redactedData !== undefined) {
     console.log(message, redactedData);
+  } else {
+    console.log(message);
   }
 }
