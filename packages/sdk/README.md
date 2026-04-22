@@ -91,6 +91,13 @@ Your code → spectyra.complete() → local optimization → provider adapter �
 
 ---
 
+## Local browser dashboard (product split)
+
+- **`@spectyra/local-companion`** is the **OpenClaw** local HTTP + browser UI (install/launch from the OpenClaw docs). It is **not** the recommended or documented path for **in-app `@spectyra/sdk`** embeds, so we do not point in-app SDK users at that package.
+- **In-app SDK** visibility today: inspect `complete()` return values, logs, `startSpectyraSession`, and optional **`sdkEventEngine`** / summary helpers below. A **separate** optional localhost dashboard for companies embedding the SDK is **planned** under a distinct package (working name: **`@spectyra/inapp-local-companion`**) with its own release cadence — not published yet.
+
+---
+
 ## Moat analytics (Phases 3–4)
 
 The SDK emits the same normalized **`SpectyraEvent`** stream as Local Companion (`sdkEventEngine`). You can build **execution-graph** and **state-delta** summaries in-process (equivalent to `GET /v1/analytics/execution-graph/summary` and `GET /v1/analytics/state-delta/summary` on the companion):

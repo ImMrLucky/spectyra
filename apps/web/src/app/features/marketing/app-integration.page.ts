@@ -105,11 +105,6 @@ await session.complete({ /* provider, client, model, messages */ }, adapter);
 const aggregated = session.finish();
 console.log(aggregated.estimatedWorkflowSavings, aggregated.totalModelCalls);`;
 
-  readonly localCompanionCommands = `# Optional: local browser dashboard (development only)
-npx @spectyra/local-companion
-# or, if installed globally:
-spectyra-companion start --open`;
-
   readonly aliasSnippet = `// Optional: spectyra/* model aliases (same mapping idea as OpenClaw)
 const spectyra = createSpectyra({
   runMode: "on",

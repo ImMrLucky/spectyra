@@ -41,30 +41,27 @@
             In development, the fastest loop is to log fields from the object returned by <code class="mono">complete()</code> (see <a href="#local-debug">Local debug &amp; analytics</a> below). No extra services required.
         </p>
         <p class="dev-note">
-            For a <strong>richer live view in the browser</strong>, you can optionally run Spectyra’s in-app <strong>local companion</strong> alongside your app. That is <strong>not required</strong> for production apps that only embed the SDK — it is an optional aid when you want a localhost dashboard during development.
+            A <strong>dedicated in-app local browser dashboard</strong> (richer than <code class="mono">console.log</code>, tuned for <code class="mono">complete()</code> / session analytics and company-oriented telemetry) is <strong>planned as its own package</strong> (working name: <code class="mono">&#64;spectyra/inapp-local-companion</code>) so it stays separate from OpenClaw’s stack. It is <strong>not published yet</strong> — this page does not install or launch it.
         </p>
     </section>
 
     <hr class="dev-divider" aria-hidden="true" />
 
-    <!-- SECTION 4–6 — OPTIONAL LOCAL DASHBOARD -->
+    <!-- SECTION 4–6 — IN-APP VS OPENCLAW LOCAL DASHBOARD -->
     <section class="dev-panel dev-panel--supporting">
-        <h2>Optional: local browser dashboard</h2>
+        <h2>In-app SDK vs OpenClaw local companion</h2>
         <p class="dev-note">
-            The <code class="mono">&#64;spectyra/local-companion</code> package powers the same style of <strong>local HTTP + browser UI</strong> used in OpenClaw flows, but you can run it on its own for local experimentation. Think of it as a <strong>separate optional surface</strong> for localhost visibility — not part of the minimal SDK install path.
+            <strong>OpenClaw</strong> uses the production <code class="mono">&#64;spectyra/local-companion</code> flow for real-time savings while using that product. Install and launch instructions live on the <a routerLink="/openclaw">OpenClaw &amp; Local Companion</a> page — <strong>not here</strong>.
         </p>
         <p class="dev-note">
-            <strong>Typical dev workflow:</strong> run your app locally → (optionally) start the local companion → open the dashboard URL it prints → watch runs that go <strong>through the companion’s HTTP surface</strong> during that session. Embedded <code class="mono">spectyra.complete()</code> traffic in your own Node process is still best inspected via logs or normalized events unless you wire a custom bridge.
+            <strong>In-app SDK</strong> embeds in <em>your</em> Node process. Until <code class="mono">&#64;spectyra/inapp-local-companion</code> ships, use return values, logging, and (if you need a stream) the SDK’s normalized event helpers described in the <code class="mono">&#64;spectyra/sdk</code> README — or your own small dev UI wired to those objects.
         </p>
         <h3 class="dev-subhead">How the pieces relate</h3>
         <ul class="dev-list dev-list--compact">
-            <li><strong>SDK</strong> wraps your LLM call and produces savings metadata (and optional normalized events) in-process.</li>
-            <li><strong>Optional local companion</strong> serves a small local dashboard for traffic that hits its routes during dev.</li>
-            <li><strong>Production</strong> does not depend on the browser dashboard — ship the SDK in your service as usual.</li>
+            <li><strong><code class="mono">&#64;spectyra/sdk</code></strong> — wrap calls in-process; production path is your app + optional cloud telemetry.</li>
+            <li><strong><code class="mono">&#64;spectyra/local-companion</code></strong> — OpenClaw-oriented local HTTP + browser UI; keep it on the OpenClaw product path.</li>
+            <li><strong><code class="mono">&#64;spectyra/inapp-local-companion</code></strong> (planned) — optional localhost dashboard for in-app SDK developers; separate package and release cadence.</li>
         </ul>
-        <h3 class="dev-subhead">Commands</h3>
-        <pre class="dev-code">{{ localCompanionCommands }}</pre>
-        <p class="dev-note dev-note--small">Exact flags may vary by version; use <code class="mono">--help</code> on the CLI or the package README. This path is for <strong>local development visibility</strong>, not a production dependency.</p>
     </section>
 
     <hr class="dev-divider" aria-hidden="true" />
@@ -107,7 +104,7 @@
     <section class="dev-panel dev-panel--supporting">
         <h2>Production &amp; aggregate analytics</h2>
         <p class="dev-note">
-            <strong>During development:</strong> use <code class="mono">console.log</code>, the objects above, or the optional local dashboard for detail.
+            <strong>During development:</strong> use <code class="mono">console.log</code> and the objects above (and SDK event APIs if you need a stream). A dedicated in-app browser dashboard is planned separately from OpenClaw’s companion.
         </p>
         <p class="dev-note">
             <strong>In deployed workloads:</strong> Spectyra can surface <strong>aggregate</strong> savings and call volume in the web app by <strong>project</strong> and <strong>environment</strong> when you send metered telemetry with a Spectyra API key (<a routerLink="/projects">Projects</a>). Set <code class="mono">telemetry: &#123; mode: "cloud_redacted" &#125;</code> so each <code class="mono">complete()</code> POSTs aggregated usage plus a bounded <strong>diagnostics</strong> object (no prompt bodies). Redacted <strong>session</strong> rollups from compatible clients appear under <a routerLink="/analytics">Session analytics</a>.
