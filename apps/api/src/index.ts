@@ -41,6 +41,21 @@ import { ensureUserAccountFlagsSchema } from "./services/storage/userAccountRepo
 
 const app = express();
 
+// Reverse proxies (Railway, Fly, etc.) set X-Forwarded-For. express-rate-limit v8+ validates this
+// against Express trust proxy; req.ip also depends on it for accurate client IPs.
+{
+  const raw = process.env.TRUST_PROXY?.trim();
+  if (raw === "0" || raw?.toLowerCase() === "false") {
+    // explicit: do not trust (local or custom front tier handles stripping)
+  } else if (raw === "1" || raw?.toLowerCase() === "true") {
+    app.set("trust proxy", 1);
+  } else if (raw && /^\d+$/.test(raw)) {
+    app.set("trust proxy", parseInt(raw, 10));
+  } else if (process.env.RAILWAY_ENVIRONMENT || process.env.FLY_APP_NAME) {
+    app.set("trust proxy", 1);
+  }
+}
+
 // Enterprise Security: Security headers
 app.use(helmet({
   contentSecurityPolicy: {
