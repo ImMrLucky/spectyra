@@ -20,7 +20,7 @@
     "dev:web": "pnpm --filter web dev",
     "dev": "pnpm --parallel --filter \"./apps/*\" dev",
     "build": "pnpm --recursive build",
-    "build:api": "pnpm --filter \"./apps/api...\" run build",
+    "build:api": "pnpm --filter \"./apps/api\" run build",
     "typecheck": "pnpm --recursive typecheck",
     "test:event-spine": "pnpm --filter @spectyra/event-core run test:local-persistence",
     "test:event-ingestion": "pnpm --filter @spectyra/event-adapters run test:ingestion-pipeline",

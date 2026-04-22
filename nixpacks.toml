@@ -14,14 +14,16 @@ cmds = [
 # Use prefer-offline for faster installs, but do NOT hard-fail on frozen-lockfile.
 # This avoids deployments getting stuck on stale build caches / lockfile drift.
 #
-# IMPORTANT: install only `apps/api` and its workspace dependencies. A full monorepo
-# install pulls desktop/web/companion deps and makes Railway builds very slow.
+# Must be a *full* workspace `pnpm install`. A filtered install (e.g. --filter ./apps/api...)
+# leaves some @spectyra/* workspace links incomplete and `tsc` in apps/api then fails
+# when resolving types through linked packages.
 cmds = [
-  "pnpm install --no-frozen-lockfile --prefer-offline --filter \"./apps/api...\""
+  "pnpm install --no-frozen-lockfile --prefer-offline"
 ]
 
 [phases.build]
 # Do not run root `pnpm build` (`pnpm --recursive build`) — that compiles Electron,
-# Angular, local-companion, etc. API service only needs the API graph.
-cmds = ["pnpm --filter \"./apps/api...\" run build"]
+# Angular, local-companion, etc. Only compile the API package (`apps/api`: tsc).
+# Use a single-package filter (no `...`) so we do not run `build` in the whole API subtree.
+cmds = ["pnpm --filter \"./apps/api\" run build"]
 
