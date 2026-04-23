@@ -78,7 +78,7 @@ export class IntegrationOnboardingService {
     const errors: string[] = [];
     let companionRunning = false;
     let providerConfigured = false;
-    let mode: 'off' | 'observe' | 'on' | undefined;
+    let mode: 'off' | 'on' | undefined;
     let companionBaseUrl: string | undefined;
     let modelAliases: string[] | undefined;
     let openclawDetected = false;
@@ -143,7 +143,7 @@ export class IntegrationOnboardingService {
           }
           providerConfigured = j['providerConfigured'] === true;
           const m = j['mode'];
-          if (m === 'off' || m === 'observe' || m === 'on') mode = m;
+          if (m === 'off' || m === 'on' || m === 'observe') mode = m === 'observe' ? 'on' : m;
           if (typeof j['companionBaseUrl'] === 'string') companionBaseUrl = j['companionBaseUrl'] as string;
           if (Array.isArray(j['modelAliases'])) {
             modelAliases = (j['modelAliases'] as unknown[]).filter((x): x is string => typeof x === 'string');
@@ -278,7 +278,7 @@ export class IntegrationOnboardingService {
     companionRunning: boolean;
     desktopInstalled: boolean;
     providerConfigured: boolean;
-    mode?: 'off' | 'observe' | 'on';
+    mode?: 'off' | 'on';
     companionBaseUrl?: string;
     modelAliases?: string[];
     openclawDetected: boolean;
@@ -299,7 +299,7 @@ export class IntegrationOnboardingService {
     const companionRunning = ipc.statusOk === true;
     let desktopInstalled = desktopInstalledIn;
     let providerConfigured = false;
-    let mode: 'off' | 'observe' | 'on' | undefined;
+    let mode: 'off' | 'on' | undefined;
     let companionBaseUrl: string | undefined;
     let modelAliases: string[] | undefined;
     if (ipc.statusOk && ipc.statusJson) {
@@ -309,7 +309,7 @@ export class IntegrationOnboardingService {
       }
       providerConfigured = j['providerConfigured'] === true;
       const m = j['mode'];
-      if (m === 'off' || m === 'observe' || m === 'on') mode = m;
+      if (m === 'off' || m === 'on' || m === 'observe') mode = m === 'observe' ? 'on' : m;
       if (typeof j['companionBaseUrl'] === 'string') companionBaseUrl = j['companionBaseUrl'] as string;
       if (Array.isArray(j['modelAliases'])) {
         modelAliases = (j['modelAliases'] as unknown[]).filter((x): x is string => typeof x === 'string');

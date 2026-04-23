@@ -347,22 +347,7 @@ export function optimize(input: OptimizeInput): OptimizationPipelineResult {
   const tokenSavings = originalTokens - optimizedTokens;
 
   if (isLicensed) {
-    // ── Licensed: apply optimizations based on requested mode ──
-    if (request.mode === "observe") {
-      return {
-        originalRequest: request,
-        optimizedRequest: request, // observe = show but don't apply
-        transformsApplied: pipelineResult.appliedIds,
-        projectedTokenSavings: tokenSavings,
-        riskAnnotations: pipelineResult.riskAnnotations,
-        featuresDetected: features,
-        flowSignals,
-        licenseStatus: "active",
-        licenseLimited: false,
-      };
-    }
-
-    // mode "on" — apply everything
+    // Licensed + mode "on": apply pipeline output (mode "off" handled above).
     return {
       originalRequest: request,
       optimizedRequest: pipelineResult.optimizedRequest,

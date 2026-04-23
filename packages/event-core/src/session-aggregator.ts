@@ -2,7 +2,7 @@
  * Tool-agnostic aggregation: uses only SpectyraEvent.type and generic payload keys.
  */
 
-import type { SpectyraRunMode, TelemetryMode, PromptSnapshotMode } from "@spectyra/core-types";
+import { type SpectyraRunMode, type TelemetryMode, type PromptSnapshotMode, normalizeSpectyraRunMode } from "@spectyra/core-types";
 import type {
   SessionAnalyticsRecord,
   StepAnalyticsRecord,
@@ -51,7 +51,7 @@ export class EventSessionAggregator {
   private sessionId = "";
   private runId = "";
   private startedAt = new Date().toISOString();
-  private mode: SpectyraRunMode = "observe";
+  private mode: SpectyraRunMode = "on";
   private telemetryMode: TelemetryMode = "local";
   private promptSnapshotMode: PromptSnapshotMode = "local_only";
   private appName?: string;
@@ -98,11 +98,11 @@ export class EventSessionAggregator {
         this.startedAt = event.timestamp;
         const modeStr =
           typeof p["runMode"] === "string"
-            ? (p["runMode"] as SpectyraRunMode)
+            ? p["runMode"]
             : typeof p["mode"] === "string"
-              ? (p["mode"] as SpectyraRunMode)
+              ? p["mode"]
               : undefined;
-        if (modeStr === "off" || modeStr === "observe" || modeStr === "on") this.mode = modeStr;
+        if (modeStr) this.mode = normalizeSpectyraRunMode(modeStr, "on");
         break;
       }
       case "step_started": {

@@ -20,7 +20,7 @@ export interface CompanionInternalRequest {
   model: string;
   provider: string;
   messages: Array<{ role: string; content: string }>;
-  runMode?: "off" | "observe" | "on";
+  runMode?: import("@spectyra/core-types").SpectyraRunMode;
 }
 
 export interface CompanionInternalResponse {

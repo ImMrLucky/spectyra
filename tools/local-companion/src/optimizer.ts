@@ -6,10 +6,10 @@
  * License model:
  *   - OpenClaw free mode (default) → full local optimization without account/billing
  *   - Linked org with active trial or paid plan (Spectyra Cloud billing) → full optimization when run mode is on
- *   - Otherwise → observe-only: full pipeline runs so user SEES projected savings, but zero optimization is applied
+ *   - Otherwise (e.g. account-gated preview) → full pipeline runs so user SEES projected savings, but zero optimization is applied to the provider without billing
  */
 
-import type { SpectyraRunMode } from "@spectyra/core-types";
+import { type SpectyraRunMode, normalizeSpectyraRunMode } from "@spectyra/core-types";
 import type {
   CanonicalRequest,
   CanonicalMessage,
@@ -109,8 +109,9 @@ export function optimize(
   messages: ChatMessage[],
   runMode: SpectyraRunMode,
   licenseKey?: string,
-  opts?: { openclawFreeMode?: boolean },
+  opts?: { openclawFreeMode?: boolean; accountGatedPreview?: boolean },
 ): OptimizeResult {
+  const mode = normalizeSpectyraRunMode(runMode, "on");
   const inputTokensBefore = estimateTokens(messages);
 
   let licenseStatus: LicenseStatus = "observe_only";
@@ -120,7 +121,7 @@ export function optimize(
     licenseStatus = activateLicense(licenseKey) ? "active" : "observe_only";
   }
 
-  if (runMode === "off" && licenseStatus === "active") {
+  if (mode === "off" && licenseStatus === "active") {
     return {
       messages: [...messages],
       inputTokensBefore,
@@ -137,7 +138,7 @@ export function optimize(
   }
 
   const learningProfile = loadCompanionLearningProfile();
-  const canonical = toCanonical(messages, runMode);
+  const canonical = toCanonical(messages, mode);
   const history = toHistoricalSignals(learningProfile);
   const calibration = mergeCalibrationForDetection(learningProfile, undefined);
   const features = detectFeatures(canonical, history, calibration);
@@ -172,8 +173,7 @@ export function optimize(
   /** Do not inflate token/cost deltas when unlicensed (e.g. trial ended) — avoids dashboard savings climbing on preview-only runs. */
   const useProjectedMetrics =
     !pipeline.licenseLimited &&
-    ((licenseStatus === "active" && runMode === "observe") ||
-      (toolThread && mergeFailed));
+    ((licenseStatus === "active" && opts?.accountGatedPreview === true) || (toolThread && mergeFailed));
 
   if (useProjectedMetrics && projected > 0) {
     inputTokensAfter = Math.max(0, inputTokensBefore - projected);

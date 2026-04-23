@@ -19,6 +19,7 @@ import type {
 import type { WorkflowPolicyMode } from "@spectyra/workflow-policy";
 import type { GlobalLearningSnapshot, LearningProfile } from "@spectyra/canonical-model";
 import type { ResolveSpectyraModelInput } from "@spectyra/shared";
+import type { SpectyraEntitlementStatus, SpectyraMetricsSnapshot, SpectyraQuotaStatus } from "./observability/observabilityTypes.js";
 
 // Re-export core-types so downstream consumers only need @spectyra/sdk
 export type {
@@ -42,10 +43,104 @@ export type {
  */
 export type SpectyraMode = "local" | "api";
 
+/**
+ * @public
+ * Log verbosity for in-app / dashboard SDK (console + optional custom logger).
+ */
+export type SpectyraLogLevel = "silent" | "error" | "warn" | "info" | "debug";
+
+/**
+ * @public
+ * Floating devtools panel (browser / DOM only; no-op in Node when disabled).
+ */
+export interface SpectyraDevtoolsConfig {
+  /**
+   * When `false`, no devtools UI is mounted. In browser runtimes, defaults to `true`
+   * unless you set it to `false` here.
+   */
+  enabled?: boolean;
+  /** When `true` (default), the floating panel or pill is available. */
+  floatingPanel?: boolean;
+  /**
+   * When `true` (default), the compact card is shown on first mount.
+   * When `false`, only the minimized pill is shown until the user opens it.
+   */
+  defaultOpen?: boolean;
+  position?: "bottom-right" | "bottom-left" | "top-right" | "top-left";
+}
+
+/**
+ * @public
+ * Runtime entitlement / quota refresh for upgrade-without-redeploy.
+ */
+export interface SpectyraEntitlementsConfig {
+  /**
+   * When `false`, no `GET /v1/entitlements/status` polling. Default: `true` when
+   * a Spectyra API key and API base URL can be resolved; otherwise `false`.
+   */
+  enabled?: boolean;
+  /** Polling interval in ms. Default: 120_000. */
+  refreshIntervalMs?: number;
+  /**
+   * API base including `/v1` (e.g. `https://api.example.com/v1`).
+   * Default: `config.spectyraApiBaseUrl` or `SPECTYRA_API_BASE_URL`.
+   */
+  baseUrl?: string;
+}
+
+// Forward declarations for events (concrete shapes below import SpectyraConfig consumers may extend)
+
+/** @public */
+export interface SpectyraRequestStartEvent {
+  runId: string;
+  provider: string;
+  model: string;
+  runMode: import("@spectyra/core-types").SpectyraRunMode;
+}
+
+/** @public */
+export interface SpectyraRequestEndEvent {
+  runId: string;
+  provider: string;
+  model: string;
+  /** Wall-clock time for the Spectyra-wrapped `complete()` call, ms. */
+  durationMs: number;
+}
+
+/** @public */
+export interface SpectyraOptimizationEvent {
+  runId: string;
+  runMode: import("@spectyra/core-types").SpectyraRunMode;
+  transformsApplied: string[];
+  inputTokensBefore: number;
+  inputTokensAfter: number;
+}
+
+/**
+ * @public
+ * Payload for {@link SpectyraConfig.onCostCalculated} (aggregated costs from the local pricing estimator — never raw prompts).
+ */
+export interface SpectyraCostCalculatedPayload {
+  runId: string;
+  provider: string;
+  model: string;
+  costBefore: number;
+  costAfter: number;
+  savingsAmount: number;
+  savingsPercent: number;
+}
+
+/**
+ * @public
+ * @deprecated Prefer {@link SpectyraCostCalculatedPayload}; kept for older typings.
+ */
+export type SpectyraSavingsCalculation = SpectyraCostCalculatedPayload | Record<string, unknown>;
+
 export interface SpectyraConfig {
   /**
-   * Run mode: off | observe | on
-   * Default when omitted: "on" (optimization when licensed; use "observe" for dry-run / projected savings).
+   * Run mode: `off` (passthrough) or `on` (run the optimizer; application still depends on license / entitlements).
+   * Default when omitted: `"on"`. For account limits, use `GET /v1/entitlements/status` + `getQuotaStatus()`—the SDK
+   * may switch to effective passthrough (same as `runMode: "off"` for optimization) without a second mode.
    */
   runMode?: SpectyraRunMode;
 
@@ -104,11 +199,43 @@ export interface SpectyraConfig {
     Pick<ResolveSpectyraModelInput, "aliasSmartModel" | "aliasFastModel" | "aliasQualityModel" | "providerTierModels">
   >;
 
+  /**
+   * In-app / dashboard: structured logging (in addition to optional hooks).
+   * - `true` enables at least `info`+ for development when `logLevel` is omitted.
+   */
+  debug?: boolean;
+  logLevel?: SpectyraLogLevel;
+  /**
+   * Override console for tests or structured log sinks.
+   * Defaults to global `console` (subset used only).
+   */
+  logger?: Pick<Console, "log" | "warn" | "error" | "debug">;
+
+  /**
+   * Browser-only floating devtools. Defaults to on in `typeof window` environments when not disabled.
+   * Server-side / Node: never mounts UI.
+   */
+  devtools?: SpectyraDevtoolsConfig;
+
+  /**
+   * Polling and runtime entitlements. Upgrade in the web app; SDK picks it up here without redeploy.
+   */
+  entitlements?: SpectyraEntitlementsConfig;
+
+  onRequestStart?: (event: SpectyraRequestStartEvent) => void;
+  onRequestEnd?: (event: SpectyraRequestEndEvent) => void;
+  onOptimization?: (event: SpectyraOptimizationEvent) => void;
+  onMetrics?: (metrics: SpectyraMetricsSnapshot) => void;
+  onQuota?: (quota: SpectyraQuotaStatus) => void;
+  onEntitlementChange?: (entitlement: SpectyraEntitlementStatus) => void;
+  onCostCalculated?: (result: SpectyraCostCalculatedPayload) => void;
+  onPricingStale?: (info: { version: string; fetchedAt: string; stale: boolean }) => void;
+
   // --- Legacy fields (deprecated, kept for backward compat) ---
 
   /**
    * @deprecated Use runMode instead.
-   * "local" maps to runMode "observe", "api" maps to legacy remote gateway.
+   * `"local"` maps to runMode `"on"`, `"api"` maps to legacy remote gateway.
    */
   mode?: SpectyraMode;
 
@@ -150,6 +277,11 @@ export interface SpectyraCompleteInput<TClient = unknown> {
   maxTokens?: number;
   temperature?: number;
   runContext?: {
+    /**
+     * Per-request id for `report.runId` and `onRequestStart` / `onRequestEnd` hooks.
+     * If omitted, a random UUID is generated in `localComplete()`.
+     */
+    runId?: string;
     /** Correlate multiple `complete()` calls with a shared workflow session (optional). */
     sessionId?: string;
     appType?: string;

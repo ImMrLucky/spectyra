@@ -6,7 +6,7 @@ Single reference for how the product fits together: **apps**, **packages**, **au
 
 ## 1. What Spectyra is
 
-Spectyra is a **token and cost optimization layer** around LLM usage: it can trim prompts, run “observe vs optimize” modes, record runs and savings, and (for company accounts) sync **SDK telemetry** to the cloud for dashboards. The **underlying provider is never blocked** when Spectyra is off or in observe-only mode; Spectyra only changes how much work is sent when optimization is enabled and licensed.
+Spectyra is a **token and cost optimization layer** around LLM usage: it can trim prompts, run in **on** (optimize) or **off** (passthrough) modes, record runs and savings, and (for company accounts) sync **SDK telemetry** to the cloud for dashboards. The **underlying provider is never blocked** when Spectyra is off (or when entitlements require passthrough); Spectyra only changes how much work is sent when optimization is enabled and licensed.
 
 ---
 

@@ -75,7 +75,7 @@ import { TrialLicenseUiService, type LiveProductTopline } from '../../../core/ag
             <span *ngIf="topline.trialDaysLeft !== null"> · {{ topline.trialDaysLeft }}d remaining</span>
           </p>
           <p class="tc-detail">
-            {{ topline.metricsPresentation === 'actual' ? 'Savings are actual (optimization active).' : 'Savings are projected (observe mode).' }}
+            {{ topline.metricsPresentation === 'actual' ? 'Savings are actual (optimization active).' : 'Savings are projected until a valid license or plan enables full optimization.' }}
           </p>
         </div>
 
@@ -96,7 +96,7 @@ import { TrialLicenseUiService, type LiveProductTopline } from '../../../core/ag
       <div class="pledge-card">
         <h3 class="pledge-title">Spectyra safety pledge</h3>
         <ul class="pledge-list">
-          <li>Your agent keeps working even with Spectyra off, in observe mode, or after trial expiry.</li>
+          <li>Your agent keeps working with Spectyra off, with optimization paused for quota, or after trial expiry.</li>
           <li>Spectyra never blocks the underlying provider call when optimization is off.</li>
           <li>Prompt text stays local by default — cloud sync is opt-in and redacted.</li>
           <li>No inference data is used for training any model.</li>

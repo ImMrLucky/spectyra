@@ -26,13 +26,14 @@ import type {
 import { detectFeatures } from "@spectyra/feature-detection";
 import { optimize } from "@spectyra/optimization-engine";
 import { safeLog } from "../utils/redaction.js";
+import { normalizeSpectyraRunMode } from "@spectyra/core-types";
 
 export const serverOptimizeRouter = Router();
 serverOptimizeRouter.use(rateLimit(RL_STANDARD));
 
 interface ServerOptimizeRequestBody {
   messages: Array<{ role: string; content: string }>;
-  mode?: "on" | "observe" | "off";
+  mode?: "on" | "off";
   integrationType?: string;
   provider?: { vendor?: string; model?: string };
   execution?: {
@@ -65,7 +66,7 @@ serverOptimizeRouter.post("/optimize", requireSpectyraApiKey, async (req: Authen
       return;
     }
 
-    const mode = body.mode ?? "on";
+    const mode = normalizeSpectyraRunMode(body.mode, "on");
 
     const canonicalReq: CanonicalRequest = {
       requestId: `sopt_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 8)}`,

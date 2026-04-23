@@ -27,7 +27,7 @@ export class TrialLicenseUiService {
 
     let optimizationHeadline = 'Optimization ON';
     if (runMode === 'off') optimizationHeadline = 'Optimization off';
-    else if (!lic || runMode === 'observe') optimizationHeadline = 'Observe only';
+    else if (!lic) optimizationHeadline = 'License or plan required for full savings';
 
     let trustLine =
       'Your agent keeps working — Spectyra never blocks the underlying provider call when optimization is off.';

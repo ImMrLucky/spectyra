@@ -13,8 +13,8 @@ export interface StudioRunRequest {
     advanced?: Record<string, any>;
   };
   mode: 'raw_vs_spectyra';
-  /** off | observe | on — maps to the universal mode model */
-  runMode?: 'off' | 'observe' | 'on';
+  /** `off` | `on` — maps to the universal run mode model */
+  runMode?: 'off' | 'on';
 }
 
 export interface StudioRunSide {

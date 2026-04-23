@@ -1,0 +1,535 @@
+openapi: 3.0.3
+info:
+  title: Spectyra Local Runtime API
+  version: 0.1.0
+  description: |
+    Localhost HTTP surface for the Spectyra non-Node runtime. Provider calls execute on-machine;
+    this API never forwards prompts to Spectyra cloud.
+servers:
+  - url: http://127.0.0.1:4269
+paths:
+  /v1/health:
+    get:
+      summary: Liveness probe
+      operationId: health
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HealthBody"
+  /v1/status:
+    get:
+      summary: Runtime status and control-plane snapshot metadata
+      operationId: status
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/StatusResponse"
+  /v1/quota:
+    get:
+      summary: Current quota / plan snapshot (no prompts)
+      operationId: quota
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/QuotaStatus"
+  /v1/metrics/session:
+    get:
+      summary: In-process session savings/cost rollups
+      operationId: sessionMetrics
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SessionMetrics"
+  /v1/pricing/meta:
+    get:
+      summary: Pricing snapshot freshness (no full price book)
+      operationId: pricingMeta
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PricingMetaResponse"
+  /v1/chat/run:
+    post:
+      summary: Optimized chat completion via provider HTTP APIs
+      operationId: runChat
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RunChatRequest"
+      responses:
+        "200":
+          description: Provider JSON plus Spectyra savings envelope
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RunChatResponse"
+        "400":
+          description: Invalid request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorBody"
+        "502":
+          description: Provider error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorBody"
+  /v1/responses/run:
+    post:
+      summary: OpenAI Responses API (non-Node); other providers return 400
+      operationId: runResponses
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RunChatRequest"
+      responses:
+        "200":
+          description: Same envelope as chat run
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RunChatResponse"
+  /v1/embeddings/run:
+    post:
+      summary: Embeddings via provider APIs (Anthropic unsupported in this version)
+      operationId: runEmbeddings
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RunEmbeddingsRequest"
+      responses:
+        "200":
+          description: Embeddings vectors + usage
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RunEmbeddingsResponse"
+  /v1/analytics/flush:
+    post:
+      summary: Flush queued privacy-safe telemetry to Spectyra cloud (optional)
+      operationId: analyticsFlush
+      responses:
+        "200":
+          description: Accepted
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/FlushBody"
+  /v1/runtime/reload-config:
+    post:
+      summary: Reload config from disk + env (`SPECTYRA_RUNTIME_CONFIG`)
+      operationId: reloadConfig
+      responses:
+        "200":
+          description: Reload ok
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ReloadBody"
+        "500":
+          description: Reload failed
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorBody"
+components:
+  schemas:
+    ErrorBody:
+      type: object
+      required: [error]
+      properties:
+        error:
+          type: string
+        code:
+          type: string
+          nullable: true
+    HealthBody:
+      type: object
+      required: [ok, version]
+      properties:
+        ok:
+          type: boolean
+        version:
+          type: string
+    StatusResponse:
+      type: object
+      properties:
+        runtimeVersion:
+          type: string
+        bindAddress:
+          type: string
+        analyticsEnabled:
+          type: boolean
+        pricingSnapshotVersion:
+          type: string
+          nullable: true
+        pricingSnapshotFetchedAt:
+          type: string
+          format: date-time
+          nullable: true
+        pricingStale:
+          type: boolean
+        entitlementRefreshedAt:
+          type: string
+          format: date-time
+          nullable: true
+        entitlementLastError:
+          type: string
+          nullable: true
+        providersAvailable:
+          type: object
+          additionalProperties:
+            type: boolean
+    PricingMetaResponse:
+      type: object
+      properties:
+        snapshotVersion:
+          type: string
+          nullable: true
+        createdAt:
+          type: string
+          format: date-time
+          nullable: true
+        ttlSeconds:
+          type: integer
+          format: int64
+          nullable: true
+        stale:
+          type: boolean
+    FlushBody:
+      type: object
+      properties:
+        ok:
+          type: boolean
+    ReloadBody:
+      type: object
+      properties:
+        ok:
+          type: boolean
+    ProviderName:
+      type: string
+      description: Known providers use lowercase snake identifiers; unknown strings are accepted as custom providers (may fail locally if unsupported).
+      example: openai
+    EndpointClass:
+      type: string
+      enum: [global, regional, multi_region, first_party, third_party]
+    Message:
+      type: object
+      required: [role, content]
+      properties:
+        role:
+          type: string
+        content:
+          type: string
+    RunChatRequest:
+      type: object
+      required: [provider, model, messages]
+      properties:
+        requestId:
+          type: string
+          nullable: true
+        provider:
+          $ref: "#/components/schemas/ProviderName"
+        model:
+          type: string
+        endpointClass:
+          $ref: "#/components/schemas/EndpointClass"
+          nullable: true
+        region:
+          type: string
+          nullable: true
+        messages:
+          type: array
+          items:
+            $ref: "#/components/schemas/Message"
+        metadata:
+          description: Arbitrary JSON — never echoed to Spectyra cloud telemetry (only aggregated IDs if present).
+          nullable: true
+    NormalizedUsage:
+      type: object
+      properties:
+        provider:
+          $ref: "#/components/schemas/ProviderName"
+        modelId:
+          type: string
+        endpointClass:
+          $ref: "#/components/schemas/EndpointClass"
+          nullable: true
+        region:
+          type: string
+          nullable: true
+        inputTokens:
+          type: integer
+          format: int64
+          nullable: true
+        outputTokens:
+          type: integer
+          format: int64
+          nullable: true
+        cachedInputTokens:
+          type: integer
+          format: int64
+          nullable: true
+        cacheWriteTokens:
+          type: integer
+          format: int64
+          nullable: true
+        cacheReadTokens:
+          type: integer
+          format: int64
+          nullable: true
+        thinkingTokens:
+          type: integer
+          format: int64
+          nullable: true
+        reasoningTokens:
+          type: integer
+          format: int64
+          nullable: true
+        toolCalls:
+          type: integer
+          format: int64
+          nullable: true
+        webSearchCalls:
+          type: integer
+          format: int64
+          nullable: true
+        groundedPrompts:
+          type: integer
+          format: int64
+          nullable: true
+        imageInputs:
+          type: integer
+          format: int64
+          nullable: true
+        imageOutputs:
+          type: integer
+          format: int64
+          nullable: true
+        audioInputTokens:
+          type: integer
+          format: int64
+          nullable: true
+        audioOutputTokens:
+          type: integer
+          format: int64
+          nullable: true
+        storageHours:
+          type: integer
+          format: int64
+          nullable: true
+        batch:
+          type: boolean
+          nullable: true
+        rawProviderUsage:
+          nullable: true
+    QuotaState:
+      type: string
+      enum:
+        - active_free
+        - approaching_limit
+        - quota_exhausted
+        - active_paid
+        - inactive_due_to_quota
+        - paused
+        - deleted
+        - disabled
+    QuotaStatus:
+      type: object
+      properties:
+        plan:
+          type: string
+        state:
+          $ref: "#/components/schemas/QuotaState"
+        used:
+          type: integer
+          format: int64
+          nullable: true
+        limit:
+          type: integer
+          format: int64
+          nullable: true
+        remaining:
+          type: integer
+          format: int64
+          nullable: true
+        percentUsed:
+          type: number
+          format: double
+          nullable: true
+        upgradeUrl:
+          type: string
+          nullable: true
+        frozenAt:
+          type: string
+          format: date-time
+          nullable: true
+    RunMetrics:
+      type: object
+      description: Summary of last run — no prompts or completions.
+      properties:
+        provider:
+          type: string
+        modelId:
+          type: string
+        inputTokensBefore:
+          type: integer
+          format: int64
+          nullable: true
+        outputTokensBefore:
+          type: integer
+          format: int64
+          nullable: true
+        inputTokensAfter:
+          type: integer
+          format: int64
+          nullable: true
+        outputTokensAfter:
+          type: integer
+          format: int64
+          nullable: true
+        costBefore:
+          type: number
+        costAfter:
+          type: number
+        savingsAmount:
+          type: number
+        savingsPercent:
+          type: number
+        latencyMs:
+          type: integer
+          format: int64
+          nullable: true
+        transformNames:
+          type: array
+          items:
+            type: string
+        quotaStateAtRun:
+          $ref: "#/components/schemas/QuotaState"
+    SessionMetrics:
+      type: object
+      properties:
+        totalRequests:
+          type: integer
+          format: int64
+        totalCostBefore:
+          type: number
+        totalCostAfter:
+          type: number
+        totalSavingsAmount:
+          type: number
+        totalSavingsPercent:
+          type: number
+        frozen:
+          type: boolean
+        frozenAt:
+          type: string
+          format: date-time
+          nullable: true
+        lastRunSummary:
+          $ref: "#/components/schemas/RunMetrics"
+          nullable: true
+    RunChatResponse:
+      type: object
+      properties:
+        output:
+          description: Provider-native JSON payload (chat/completions or equivalent).
+        provider:
+          type: string
+        model:
+          type: string
+        usage:
+          $ref: "#/components/schemas/NormalizedUsage"
+        costBefore:
+          type: number
+        costAfter:
+          type: number
+        savingsAmount:
+          type: number
+        savingsPercent:
+          type: number
+        quotaStatus:
+          $ref: "#/components/schemas/QuotaStatus"
+        optimizationActive:
+          type: boolean
+        warnings:
+          type: array
+          items:
+            type: string
+    RunEmbeddingsRequest:
+      type: object
+      required: [provider, model, input]
+      properties:
+        requestId:
+          type: string
+          nullable: true
+        provider:
+          $ref: "#/components/schemas/ProviderName"
+        model:
+          type: string
+        endpointClass:
+          $ref: "#/components/schemas/EndpointClass"
+          nullable: true
+        region:
+          type: string
+          nullable: true
+        input:
+          type: array
+          items:
+            type: string
+        metadata:
+          nullable: true
+    RunEmbeddingsResponse:
+      type: object
+      properties:
+        embeddings:
+          type: array
+          items:
+            type: array
+            items:
+              type: number
+              format: double
+        provider:
+          type: string
+        model:
+          type: string
+        usage:
+          $ref: "#/components/schemas/NormalizedUsage"
+        costBefore:
+          type: number
+        costAfter:
+          type: number
+        savingsAmount:
+          type: number
+        savingsPercent:
+          type: number
+        quotaStatus:
+          $ref: "#/components/schemas/QuotaStatus"
+        optimizationActive:
+          type: boolean
+        warnings:
+          type: array
+          items:
+            type: string

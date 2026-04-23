@@ -16,7 +16,7 @@ import { SnackbarService } from '../../core/services/snackbar.service';
 
 type ResultTab = 'metrics' | 'before' | 'after' | 'diff';
 type StudioRunMode = 'scenario' | 'live';
-type SpectyraRunMode = 'off' | 'observe' | 'on';
+type SpectyraRunMode = 'off' | 'on';
 
 interface StudioAdvancedOptions {
   showToolCalls: boolean;
@@ -73,7 +73,7 @@ export class StudioPage implements OnInit {
   secondary = '';
   showAdvanced = false;
   runMode: StudioRunMode = 'scenario';
-  spectyraMode: SpectyraRunMode = 'observe';
+  spectyraMode: SpectyraRunMode = 'on';
   advanced: StudioAdvancedOptions = {
     showToolCalls: false,
     showPolicyEvaluation: false,

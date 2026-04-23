@@ -8,6 +8,7 @@
 
 import type { RepoContext, OptimizationReportPublic, SpectyraRunMode, SavingsReport, PromptComparison } from "../types";
 import type { ChatMessage } from "@spectyra/shared";
+import { normalizeSpectyraRunMode } from "@spectyra/core-types";
 
 export type { ChatMessage };
 
@@ -194,8 +195,7 @@ function buildSavingsReport(
  * Optimize agent messages.
  *
  * When `runMode` is `off`, returns messages unchanged.
- * When `runMode` is `observe`, computes projected savings without mutating.
- * When `runMode` is `on` (default for backward compat), applies optimizations.
+ * When `runMode` is `on` (default), applies local optimizations to message content.
  *
  * Works fully local without API. If apiEndpoint/apiKey are provided,
  * optionally calls server for deeper optimization (legacy/advanced).
@@ -203,7 +203,8 @@ function buildSavingsReport(
 export async function optimizeAgentMessages(
   input: OptimizeAgentMessagesInput
 ): Promise<OptimizeAgentMessagesOutput> {
-  const { messages, repoContext, mode, runMode = "on", runId, apiEndpoint, apiKey } = input;
+  const { messages, repoContext, mode, runId, apiEndpoint, apiKey } = input;
+  const runMode = normalizeSpectyraRunMode(input.runMode, "on");
   const path = determinePath(mode, repoContext);
 
   // off → pass through
@@ -268,16 +269,6 @@ export async function optimizeAgentMessages(
     storageMode: "local_only",
     localOnly: true,
   };
-
-  // observe → return original messages but include projected savings
-  if (runMode === "observe") {
-    return {
-      messages: [...messages],
-      optimizationReport: report,
-      savingsReport,
-      promptComparison,
-    };
-  }
 
   // on → return optimized messages
   // Optionally try server-side optimization for deeper transforms

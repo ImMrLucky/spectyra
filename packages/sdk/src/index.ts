@@ -26,6 +26,7 @@
 // Primary API
 export { createSpectyra } from "./createSpectyra.js";
 export type { SpectyraInstance } from "./createSpectyra.js";
+export { normalizeSpectyraRunMode } from "@spectyra/core-types";
 
 // Production telemetry (safe diagnostics for cloud rollups)
 export {
@@ -117,6 +118,13 @@ export type {
   ProviderAdapter,
   SpectyraCtx,
   PromptMeta,
+  SpectyraLogLevel,
+  SpectyraDevtoolsConfig,
+  SpectyraEntitlementsConfig,
+  SpectyraRequestStartEvent,
+  SpectyraRequestEndEvent,
+  SpectyraOptimizationEvent,
+  SpectyraSavingsCalculation,
   ClaudeAgentOptions,
   AgentDecision,
   AgentOptionsRequest,
@@ -124,6 +132,18 @@ export type {
   AgentEventRequest,
   AgentEventResponse,
 } from "./types.js";
+export type {
+  SpectyraEntitlementStatus,
+  SpectyraLastRun,
+  SpectyraMetricsSnapshot,
+  SpectyraSavingsSummary,
+  SpectyraQuotaStatus,
+  SpectyraQuotaState,
+  SpectyraDashboardPlan,
+} from "./observability/observabilityTypes.js";
+export { shouldMountDevtoolsByDefault } from "./devtools/mountDevtools.js";
+export { mapToSpectyraEntitlementStatus } from "./entitlements/mapEntitlementStatus.js";
+export type { EntitlementsStatusPayload } from "./entitlements/mapEntitlementStatus.js";
 
 // Legacy API (deprecated but still supported)
 export { SpectyraClient } from "./legacy/SpectyraClient.js";

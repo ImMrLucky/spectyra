@@ -91,7 +91,7 @@ export const INTEGRATION_SCENARIOS: IntegrationCardDefinition[] = [
     directProviderBilling: true,
     promptsStayLocalByDefault: true,
     realTimeSavingsSupported: true,
-    observeModeSupported: true,
+    observeModeSupported: false,
     onModeSupported: true,
     supportedToolsExamples: [
       "OpenAI / Anthropic / Groq apps",
@@ -106,7 +106,7 @@ export const INTEGRATION_SCENARIOS: IntegrationCardDefinition[] = [
     setupSteps: [
       "Install @spectyra/sdk",
       "Wrap the call site where you invoke the model",
-      "Use On mode for live optimization (recommended). Off and Observe are available anytime in settings",
+      "Use On mode for live optimization (recommended). Off is available anytime in settings",
       "See savings locally in real time",
       "Optionally sign in to sync analytics summaries only",
     ],
@@ -122,7 +122,7 @@ export const INTEGRATION_SCENARIOS: IntegrationCardDefinition[] = [
       "Provider keys never sent to Spectyra",
     ],
     troubleshootingTips: [
-      "If you need a dry-run without changing the upstream request, switch to Observe in settings — after On is working",
+      "If you need a dry-run, use the Optimizer Lab in the web app; the SDK run mode is only On or Off",
       "Verify SavingsReport shows direct_provider inference path",
     ],
     copyableConfigSnippets: [{ label: "Minimal TypeScript", language: "typescript", content: sdkSnippet }],
@@ -138,7 +138,7 @@ export const INTEGRATION_SCENARIOS: IntegrationCardDefinition[] = [
     directProviderBilling: true,
     promptsStayLocalByDefault: true,
     realTimeSavingsSupported: true,
-    observeModeSupported: true,
+    observeModeSupported: false,
     onModeSupported: true,
     supportedToolsExamples: ["OpenClaw", "OpenClaw-like agents", "Tools with local OpenAI-compatible URL"],
     setupComplexity: "easy",
@@ -148,7 +148,7 @@ export const INTEGRATION_SCENARIOS: IntegrationCardDefinition[] = [
     setupSteps: [
       "Install Spectyra Desktop",
       "Choose provider and paste your provider API key",
-      "Set run mode to On for live optimization (Off / Observe are optional later)",
+      "Set run mode to On for live optimization (Off is optional)",
       "Start Local Companion",
       "Point your tool to http://localhost:4111/v1",
       "Use models spectyra/smart or spectyra/fast (local routing profiles)",
@@ -182,7 +182,7 @@ export const INTEGRATION_SCENARIOS: IntegrationCardDefinition[] = [
     directProviderBilling: true,
     promptsStayLocalByDefault: true,
     realTimeSavingsSupported: true,
-    observeModeSupported: true,
+    observeModeSupported: false,
     onModeSupported: true,
     supportedToolsExamples: [
       "Claude Agent SDK on a VM",
@@ -224,7 +224,7 @@ export const INTEGRATION_SCENARIOS: IntegrationCardDefinition[] = [
     directProviderBilling: true,
     promptsStayLocalByDefault: true,
     realTimeSavingsSupported: false,
-    observeModeSupported: true,
+    observeModeSupported: false,
     onModeSupported: false,
     supportedToolsExamples: [
       "JSONL exports",

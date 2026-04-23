@@ -1651,8 +1651,10 @@ export function dashboardPageHtml(): string {
           stText = 'Spectyra active';
         } else if (health.spectyraAccountLinked === true && health.billingAllowsRealSavings === false) {
           stText = 'Upgrade to save';
-        } else if (health.runMode === 'observe') {
-          stText = 'Observe only';
+        } else if (health.runMode === 'off') {
+          stText = 'Optimization off';
+        } else if (health.spectyraAccountLinked === false && health.openclawFreeMode !== true) {
+          stText = 'Preview (link account)';
         }
         $('statusText').textContent = stText;
       } else {

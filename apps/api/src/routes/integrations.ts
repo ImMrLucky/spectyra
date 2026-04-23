@@ -163,7 +163,7 @@ integrationsRouter.get("/metadata", (_req, res) => {
       providerCallPath: "direct_provider",
       telemetryDefault: "local",
       promptSnapshotDefault: "local_only",
-      recommendedFirstMode: "observe",
+      recommendedFirstMode: "on",
       securityNotes: [
         "Prompts and responses stay on your machine",
         "Provider calls go directly from your machine to the provider",
@@ -173,7 +173,7 @@ integrationsRouter.get("/metadata", (_req, res) => {
       setupSteps: [
         "Download and install the Spectyra Desktop App",
         "Enter your provider API key (stored locally, never uploaded)",
-        "Choose run mode (observe recommended to start)",
+        "Choose run mode: on to optimize, or off for passthrough",
         "In your LLM app's settings, change the API endpoint to http://127.0.0.1:4111/v1",
         "Run a test and verify savings",
       ],
@@ -195,7 +195,7 @@ integrationsRouter.get("/metadata", (_req, res) => {
       providerCallPath: "direct_provider",
       telemetryDefault: "local",
       promptSnapshotDefault: "local_only",
-      recommendedFirstMode: "observe",
+      recommendedFirstMode: "on",
       securityNotes: [
         "Optimization runs in your process",
         "Your provider SDK client makes the actual LLM call",
@@ -205,7 +205,7 @@ integrationsRouter.get("/metadata", (_req, res) => {
       setupSteps: [
         "Install @spectyra/sdk or @spectyra/agents",
         "Wrap your provider call with spectyra.complete()",
-        'Set runMode to "observe" to start',
+        'Use runMode "on" (default) to optimize, or "off" for passthrough',
         "Review the SavingsReport returned with each call",
       ],
       verificationSteps: [
@@ -225,7 +225,7 @@ integrationsRouter.get("/metadata", (_req, res) => {
       providerCallPath: "direct_provider",
       telemetryDefault: "local",
       promptSnapshotDefault: "local_only",
-      recommendedFirstMode: "observe",
+      recommendedFirstMode: "on",
       securityNotes: [
         "No provider call is made",
         "Savings are projected, not realized",

@@ -13,41 +13,87 @@ import type {
   PromptMeta,
   ClaudeAgentOptions,
   AgentOptionsResponse,
-  ChatOptions,
-  ChatResponse,
   SpectyraCompleteInput,
   SpectyraCompleteResult,
   ProviderAdapter,
 } from "./types.js";
+import {
+  createExecutorAdapter,
+  mapCompleteToRunResult,
+  type SpectyraRunInput,
+  type SpectyraRunExecutor,
+  type SpectyraRunResult,
+} from "./run/spectyraRun.js";
 import { decideAgent } from "./local/decideAgent.js";
 import { toClaudeAgentOptions } from "./adapters/claudeAgent.js";
 import { fetchAgentOptions, sendAgentEvent } from "./remote/agentRemote.js";
 import { localComplete } from "./local/localWrapper.js";
 import { maybePostSdkRunTelemetry } from "./cloud/postRunTelemetry.js";
 import { resolveSpectyraCloudApiKey } from "./cloud/resolveSpectyraCloudApiKey.js";
+import { createSpectyraLogger } from "./observability/spectyraLogger.js";
+import { SpectyraSessionState } from "./observability/spectyraSessionState.js";
+import type {
+  SpectyraEntitlementStatus,
+  SpectyraMetricsSnapshot,
+  SpectyraQuotaStatus,
+  SpectyraSavingsSummary,
+  SpectyraLastRun,
+  SpectyraSessionCostSummary,
+} from "./observability/observabilityTypes.js";
+import { startEntitlementRuntime, entitlementsDefaultEnabled } from "./entitlements/entitlementRuntime.js";
+import { mountSpectyraDevtools, shouldMountDevtoolsByDefault } from "./devtools/mountDevtools.js";
+
+function newRunId(): string {
+  if (typeof crypto !== "undefined" && "randomUUID" in crypto) {
+    return crypto.randomUUID();
+  }
+  return `run_${Math.random().toString(36).slice(2)}${Date.now().toString(36)}`;
+}
+
+function nowMs(): number {
+  if (typeof performance !== "undefined" && "now" in performance) {
+    return performance.now();
+  }
+  return Date.now();
+}
+
+function shouldPassthroughFromEntitlement(c: SpectyraConfig, session: SpectyraSessionState): boolean {
+  if (!entitlementsDefaultEnabled(c)) return false;
+  const q = session.getEntitlement()?.quota;
+  return Boolean(q && !q.canRunOptimized);
+}
+
+function defaultQuota(session: SpectyraSessionState): SpectyraQuotaStatus {
+  return (
+    session.getEntitlement()?.quota ?? {
+      plan: "free",
+      state: "active_free",
+      used: 0,
+      limit: null,
+      remaining: null,
+      percentUsed: null,
+      canRunOptimized: true,
+    }
+  );
+}
 
 export interface SpectyraInstance {
   /**
    * Primary API — wrap a provider call with Spectyra optimization.
-   *
-   * The provider call goes directly from your process to the provider
-   * using your own SDK client. Spectyra optimizes locally before the call
-   * (in `on` mode) or computes projected savings without mutation (in `observe` mode).
-   *
-   * @example
-   * ```ts
-   * const { providerResult, report } = await spectyra.complete({
-   *   provider: "openai",
-   *   client: openaiClient,
-   *   model: "gpt-4.1-mini",
-   *   messages,
-   * });
-   * ```
    */
   complete<TClient, TResult>(
     input: SpectyraCompleteInput<TClient>,
     adapter: ProviderAdapter<TClient, TResult>,
   ): Promise<SpectyraCompleteResult<TResult>>;
+
+  /**
+   * Callback-style API: optimize locally, then run your provider call with optimized messages.
+   * Same privacy and BYOK guarantees as `complete()` (no proxy; provider keys stay in your executor).
+   */
+  run<TResult>(
+    input: SpectyraRunInput,
+    execute: SpectyraRunExecutor<TResult>,
+  ): Promise<SpectyraRunResult<TResult>>;
 
   /**
    * Get agent options locally (SDK mode - default)
@@ -70,36 +116,29 @@ export interface SpectyraInstance {
    * @deprecated Legacy remote stream observation
    */
   observeAgentStream(ctx: SpectyraCtx, stream: AsyncIterable<unknown>): Promise<void>;
+
+  getSessionStats(): SpectyraMetricsSnapshot;
+  getSavingsSummary(): SpectyraSavingsSummary;
+  /** Cumulative estimated costs for this `createSpectyra()` instance (resets with new instance). */
+  getSessionCostSummary(): SpectyraSessionCostSummary;
+  getQuotaStatus(): SpectyraQuotaStatus;
+  getEntitlementStatus(): SpectyraEntitlementStatus | null;
+  getLastRun(): SpectyraLastRun | null;
+  /**
+   * Manually refresh entitlements (normally polled when enabled).
+   */
+  refreshEntitlement(): Promise<void>;
+  /**
+   * Mount the floating devtools (browser only; idempotent if already present).
+   * @returns unmount
+   */
+  mountDevtools(): () => void;
 }
 
 /**
  * Create a Spectyra SDK instance.
- *
- * @example
- * ```ts
- * // Recommended: local-first, direct-provider
- * const spectyra = createSpectyra({
- *   runMode: "on",
- *   telemetry: { mode: "local" },
- *   promptSnapshots: "local_only",
- *   licenseKey: process.env.SPECTYRA_LICENSE_KEY,
- * });
- *
- * const { providerResult, report } = await spectyra.complete(
- *   { provider: "openai", client: openaiClient, model: "gpt-4.1-mini", messages },
- *   createOpenAIAdapter(),
- * );
- * ```
- *
- * @example
- * ```ts
- * // Legacy: local agent options (still works)
- * const spectyra = createSpectyra();
- * const options = spectyra.agentOptions(ctx, prompt);
- * ```
  */
 export function createSpectyra(config: SpectyraConfig = {}): SpectyraInstance {
-  // Resolve legacy "mode" field to new "runMode"
   const legacyMode = config.mode;
   const endpoint = config.endpoint;
   const apiKey = config.apiKey;
@@ -120,14 +159,123 @@ export function createSpectyra(config: SpectyraConfig = {}): SpectyraInstance {
     }
   }
 
+  const session = new SpectyraSessionState();
+  const log = createSpectyraLogger(config);
+  const entRuntime = startEntitlementRuntime(config, session);
+  if (shouldMountDevtoolsByDefault(config) && (config.devtools?.enabled !== false)) {
+    void mountSpectyraDevtools({
+      config,
+      devtools: config.devtools,
+      getEntitlement: () => session.getEntitlement(),
+      getSession: () => session,
+      environmentLabel:
+        (typeof process !== "undefined" && process.env?.NODE_ENV) || "browser",
+    });
+  }
+
   return {
     async complete<TClient, TResult>(
       input: SpectyraCompleteInput<TClient>,
       adapter: ProviderAdapter<TClient, TResult>,
     ): Promise<SpectyraCompleteResult<TResult>> {
-      const out = await localComplete(config, input, adapter);
-      void maybePostSdkRunTelemetry(config, input, out).catch(() => {});
+      const t0 = nowMs();
+      const runId = input.runContext?.runId?.trim() || newRunId();
+      const withRun: SpectyraCompleteInput<TClient> = {
+        ...input,
+        runContext: { ...input.runContext, runId },
+      };
+      const baseMode = config.runMode ?? "on";
+      const passthrough = shouldPassthroughFromEntitlement(config, session);
+      const effectiveMode: import("@spectyra/core-types").SpectyraRunMode = passthrough
+        ? "off"
+        : baseMode;
+      const merged: SpectyraConfig = { ...config, runMode: effectiveMode };
+
+      try {
+        config.onRequestStart?.({
+          runId,
+          provider: input.provider,
+          model: input.model,
+          runMode: effectiveMode,
+        });
+      } catch (e) {
+        log.error("onRequestStart failed", { error: String(e) });
+      }
+
+      log.log("request", "started", { runId, model: input.model, provider: input.provider, runMode: effectiveMode });
+
+      const out = await localComplete(merged, withRun, adapter);
+      void maybePostSdkRunTelemetry(config, withRun, out).catch(() => {});
+
+      const durationMs = nowMs() - t0;
+
+      session.onRequestComplete(out as SpectyraCompleteResult<unknown>);
+
+      const tf = out.report.transformsApplied?.length
+        ? (out.report.transformsApplied ?? []).join(",")
+        : "";
+      log.log("request", "completed", {
+        runId,
+        durationMs: Math.round(durationMs),
+        savingsUsd: out.report.estimatedSavings,
+        savingsPct: out.report.estimatedSavingsPct,
+        runMode: out.report.mode,
+        transforms: tf,
+      });
+
+      if (out.report.transformsApplied && out.report.transformsApplied.length > 0) {
+        try {
+          config.onOptimization?.({
+            runId,
+            runMode: out.report.mode,
+            transformsApplied: out.report.transformsApplied,
+            inputTokensBefore: out.report.inputTokensBefore,
+            inputTokensAfter: out.report.inputTokensAfter,
+          });
+        } catch (e) {
+          log.error("onOptimization failed", { error: String(e) });
+        }
+      }
+
+      try {
+        config.onRequestEnd?.({ runId, provider: input.provider, model: input.model, durationMs });
+        const snap = session.getSessionStats();
+        config.onMetrics?.(snap);
+      } catch (e) {
+        log.error("onRequestEnd/onMetrics failed", { error: String(e) });
+      }
+
+      if (out.licenseLimited && effectiveMode !== "off") {
+        log.log("license", "free tier / license limited: optimization not applied; provider call unchanged where applicable", {
+          runId,
+        });
+      }
+
+      try {
+        config.onCostCalculated?.({
+          runId,
+          provider: input.provider,
+          model: input.model,
+          costBefore: out.report.estimatedCostBefore,
+          costAfter: out.report.estimatedCostAfter,
+          savingsAmount: out.report.estimatedSavings,
+          savingsPercent: out.report.estimatedSavingsPct,
+        });
+      } catch (e) {
+        log.error("onCostCalculated failed", { error: String(e) });
+      }
+
       return out;
+    },
+
+    async run<TResult>(input: SpectyraRunInput, execute: SpectyraRunExecutor<TResult>): Promise<SpectyraRunResult<TResult>> {
+      const adapter = createExecutorAdapter(input.provider, execute);
+      const out = await this.complete(
+        { ...input, client: {} as Record<string, never> },
+        adapter,
+      );
+      const optimizationActive = out.report.mode === "on" && !out.licenseLimited;
+      return mapCompleteToRunResult(out, defaultQuota(session), optimizationActive);
     },
 
     agentOptions(ctx: SpectyraCtx, prompt: string | PromptMeta): ClaudeAgentOptions {
@@ -163,6 +311,37 @@ export function createSpectyra(config: SpectyraConfig = {}): SpectyraInstance {
       } catch (error) {
         console.warn("Error observing agent stream:", error);
       }
+    },
+
+    getSessionStats() {
+      return session.getSessionStats();
+    },
+    getSavingsSummary() {
+      return session.getSavingsSummary();
+    },
+    getSessionCostSummary() {
+      return session.getSessionCostSummary();
+    },
+    getQuotaStatus() {
+      return defaultQuota(session);
+    },
+    getEntitlementStatus() {
+      return session.getEntitlement();
+    },
+    getLastRun() {
+      return session.getLastRun();
+    },
+    async refreshEntitlement() {
+      await entRuntime.refresh();
+    },
+    mountDevtools() {
+      return mountSpectyraDevtools({
+        config,
+        devtools: config.devtools,
+        getEntitlement: () => session.getEntitlement(),
+        getSession: () => session,
+        environmentLabel: (typeof process !== "undefined" && process.env?.NODE_ENV) || "browser",
+      }).unmount;
     },
   };
 }

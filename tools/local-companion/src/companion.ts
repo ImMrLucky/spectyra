@@ -7,7 +7,7 @@
  *
  * - Runs on the customer machine (127.0.0.1 by default)
  * - Accepts OpenAI-compatible and Anthropic-compatible requests
- * - Optimizes prompts locally in off / observe / on mode
+ * - Optimizes prompts locally in `off` or `on` mode
  * - Calls the provider DIRECTLY using the customer's own key
  * - Stores analytics locally — no cloud relay for inference
  * - Designed for OpenClaw, Cursor, Copilot, and other LLM tools
@@ -266,7 +266,7 @@ app.get("/health", async (_req, res) => {
     },
     /** Ready for inference: valid provider + local API key present. */
     companionReady: pc,
-    /** Without this, real input optimization stays in preview (observe-style) until setup saves session + Spectyra API key. */
+    /** Without this, real billable input optimization stays disabled until setup saves session + Spectyra API key (unless OpenClaw free mode). */
     savingsEnabled: snap.openclawFreeMode
       ? snap.optimizationRunMode === "on" && snap.runMode === "on" && pc
       : snap.spectyraAccountLinked &&
@@ -1086,8 +1086,6 @@ function buildReport(
         ? "Optimization was limited for this request."
         : "No estimated savings are recorded without an active trial or paid plan (provider received full messages). Activate savings on the local dashboard to apply trims and see dollar estimates.",
     );
-  } else if (!opt.licenseLimited && modeCfg.optimizationRunMode === "observe" && saved > 0) {
-    notes.push("Run mode is observe: projected savings shown; the provider received unoptimized messages.");
   }
   if (!modeCfg.spectyraAccountLinked && modeCfg.runMode === "on" && !modeCfg.openclawFreeMode) {
     notes.push(
@@ -1189,9 +1187,11 @@ const server = app.listen(cfg.port, cfg.bindHost, () => {
   console.log(`  Savings UI: http://127.0.0.1:${cfg.port}/dashboard  (open in your browser)`);
   console.log(
     `  Run mode:  ${cfg.runMode}` +
-      (cfg.runMode !== cfg.optimizationRunMode
-        ? ` (optimization: ${cfg.optimizationRunMode} until account is linked)`
-        : ""),
+      (cfg.runMode === "on" && !cfg.openclawFreeMode && !cfg.spectyraAccountLinked
+        ? " (preview savings until account is linked)"
+        : cfg.runMode !== cfg.optimizationRunMode
+          ? ` (effective optimization mode: ${cfg.optimizationRunMode} until account is linked)`
+          : ""),
   );
   console.log(`  Telemetry: ${cfg.telemetryMode}`);
   console.log(`  Snapshots: ${cfg.promptSnapshots}`);

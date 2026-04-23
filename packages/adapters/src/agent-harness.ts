@@ -21,7 +21,7 @@ export interface AgentHarnessRequest {
   messages: Array<{ role: string; content: string; name?: string }>;
   model?: string;
   provider?: string;
-  runMode?: "off" | "observe" | "on";
+  runMode?: import("@spectyra/core-types").SpectyraRunMode;
   execution?: Partial<CanonicalExecutionMetadata>;
 }
 

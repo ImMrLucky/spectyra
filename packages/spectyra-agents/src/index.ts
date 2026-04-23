@@ -4,7 +4,7 @@
  * Agent wrappers for Spectyra optimization.
  * Local-first, direct-provider. Works without Spectyra cloud.
  *
- * Supports off / observe / on modes via the `runMode` parameter.
+ * Supports `off` and `on` run modes via the `runMode` parameter.
  */
 
 // Types

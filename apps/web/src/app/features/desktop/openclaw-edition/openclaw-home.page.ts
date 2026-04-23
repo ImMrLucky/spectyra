@@ -39,10 +39,20 @@ import type { AssistantProfile } from '../../../../spectyra-window';
           <span class="chip-label">Provider</span>
           <span class="chip-val">{{ s?.providerConfigured ? providerLabel : 'Not set' }}</span>
         </div>
-        <div class="status-chip" [class.ok]="s?.runMode === 'on'" [class.observe]="s?.runMode === 'observe'">
-          <span class="chip-dot" [class.on]="s?.runMode === 'on'" [class.observe]="s?.runMode === 'observe'"></span>
+        <div
+          class="status-chip"
+          [class.ok]="s?.runMode === 'on' || s?.runMode === 'observe'"
+          [class.warn]="s?.runMode === 'off'"
+        >
+          <span
+            class="chip-dot"
+            [class.on]="s?.runMode === 'on' || s?.runMode === 'observe'"
+            [class.off]="s?.runMode === 'off'"
+          ></span>
           <span class="chip-label">Optimization</span>
-          <span class="chip-val">{{ (s?.runMode || '—') | uppercase }}</span>
+          <span class="chip-val">{{
+            (s?.runMode === 'observe' ? 'on' : s?.runMode || '—') | uppercase
+          }}</span>
         </div>
       </div>
 
@@ -145,7 +155,6 @@ import type { AssistantProfile } from '../../../../spectyra-window';
     }
     .status-chip.ok { border-color: rgba(29,158,117,0.25); }
     .status-chip.warn { border-color: rgba(239,68,68,0.2); }
-    .status-chip.observe { border-color: rgba(186,117,23,0.25); }
     .chip-dot {
       width: 8px; height: 8px; border-radius: 50%;
       background: #444441;
@@ -154,7 +163,7 @@ import type { AssistantProfile } from '../../../../spectyra-window';
       background: var(--spectyra-teal, #1D9E75);
       animation: pulse 2s ease-in-out infinite;
     }
-    .chip-dot.observe { background: var(--spectyra-amber, #BA7517); }
+    .chip-dot.off { background: var(--spectyra-amber, #BA7517); }
     @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.35} }
     .chip-label {
       font-size: 10px;

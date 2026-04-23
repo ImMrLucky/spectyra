@@ -6,10 +6,11 @@
  */
 
 import { loadDesktopConfig, readSpectyraAccountGate } from "./desktopSession.js";
-import type {
-  SpectyraRunMode,
-  TelemetryMode,
-  PromptSnapshotMode,
+import {
+  type SpectyraRunMode,
+  type TelemetryMode,
+  type PromptSnapshotMode,
+  normalizeSpectyraRunMode,
 } from "@spectyra/core-types";
 import { defaultAliasModels, type UpstreamProviderId } from "@spectyra/shared";
 import type { WorkflowPolicyMode } from "@spectyra/workflow-policy";
@@ -59,14 +60,14 @@ export interface CompanionConfig {
 
   /**
    * True when ~/.spectyra/desktop/config.json has a non-expired Supabase session and a Spectyra API key.
-   * Required for `runMode: "on"` to apply real optimizations (otherwise we stay in observe-style behavior).
+   * Required for `runMode: "on"` to apply real optimizations (otherwise we stay in preview-style behavior until OpenClaw free mode or setup).
    */
   spectyraAccountLinked: boolean;
   /** Email shown in health/dashboard — from config or JWT (never verified locally beyond session presence). */
   accountEmail?: string;
   /**
    * Effective mode for the optimization pipeline after account gate.
-   * If the user requests `on` but the account is not linked, this is `observe` (unless `off`).
+   * If the user requests `on` but the account is not linked, this stays `on` for the engine (preview / projected savings) unless `off` was requested or OpenClaw free mode is on.
    */
   optimizationRunMode: SpectyraRunMode;
   /**
@@ -121,14 +122,16 @@ export function loadConfig(): CompanionConfig {
     process.env.SPECTYRA_LICENSE_KEY?.trim() ||
     (typeof dc.licenseKey === "string" && dc.licenseKey ? dc.licenseKey : undefined);
   const spectyraApiKey = gate.apiKey;
-  const requestedRunMode =
-    (process.env.SPECTYRA_RUN_MODE as SpectyraRunMode) || (dc.runMode as SpectyraRunMode) || "on";
+  const requestedRunMode = normalizeSpectyraRunMode(
+    (process.env.SPECTYRA_RUN_MODE as string | undefined) || (dc.runMode as string | undefined) || "on",
+    "on",
+  );
   const optimizationRunMode: SpectyraRunMode =
     requestedRunMode === "off"
       ? "off"
       : openclawFreeMode || spectyraAccountLinked
         ? requestedRunMode
-        : "observe";
+        : "on";
   return {
     openclawFreeMode,
     runMode: requestedRunMode,

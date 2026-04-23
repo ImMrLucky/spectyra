@@ -46,8 +46,12 @@ interface RunRow {
             <tr *ngFor="let r of runs">
               <td>{{ r.provider }}/{{ r.model }}</td>
               <td>
-                <span class="mode-chip" [class.on]="r.mode === 'on'" [class.observe]="r.mode === 'observe'">
-                  {{ r.mode }}
+                <span
+                  class="mode-chip"
+                  [class.on]="r.mode === 'on' || r.mode === 'observe'"
+                  [class.off]="r.mode === 'off'"
+                >
+                  {{ r.mode === 'observe' ? 'on' : r.mode }}
                 </span>
               </td>
               <td class="mono">{{ r.inputTokensBefore | number }} → {{ r.inputTokensAfter | number }}</td>
@@ -159,7 +163,7 @@ interface RunRow {
         color: var(--spectyra-teal);
       }
 
-      .mode-chip.observe {
+      .mode-chip.off {
         background: var(--spectyra-amber-pale);
         color: var(--spectyra-amber-light);
       }

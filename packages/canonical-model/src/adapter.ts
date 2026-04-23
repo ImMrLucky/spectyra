@@ -9,6 +9,7 @@
  * transforms, make policy decisions, or embed vendor-specific heuristics.
  */
 
+import type { SpectyraRunMode } from "@spectyra/core-types";
 import type { CanonicalRequest, CanonicalExecutionMetadata } from "./request.js";
 import type { CanonicalResponse } from "./response.js";
 
@@ -16,7 +17,7 @@ export type AdapterCategory = "provider" | "tool" | "companion" | "agent_harness
 
 export interface AdapterContext {
   /** Override run mode for this specific request. */
-  runModeOverride?: "off" | "observe" | "on";
+  runModeOverride?: SpectyraRunMode;
   /** Additional metadata the caller wants to attach. */
   extra?: Record<string, unknown>;
 }

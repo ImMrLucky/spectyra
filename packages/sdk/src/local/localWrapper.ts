@@ -7,7 +7,7 @@
  *
  * Parity with Local Companion optimizer:
  * - OpenAI tool threads: merge optimized text onto original rows (preserve tool_calls).
- * - Licensed observe mode + tool-merge-fail: projected token savings on the report.
+ * - Licensed + tool-merge-fail: projected token savings on the report.
  * - SavingsReport hints: duplicate / flow / repeated-context estimates.
  * - Optional spectyra/* model resolution via defaultAliasModels + overrides.
  */
@@ -19,12 +19,13 @@ import type {
   SpectyraCompleteResult,
   ProviderAdapter,
 } from "../types.js";
-import type {
-  SpectyraRunMode,
-  TelemetryMode,
-  PromptSnapshotMode,
-  SavingsReport,
-  PromptComparison,
+import {
+  type SpectyraRunMode,
+  type TelemetryMode,
+  type PromptSnapshotMode,
+  type SavingsReport,
+  type PromptComparison,
+  normalizeSpectyraRunMode,
 } from "@spectyra/core-types";
 import type {
   CanonicalRequest,
@@ -92,10 +93,10 @@ export async function localComplete<TClient, TResult>(
   input: SpectyraCompleteInput<TClient>,
   adapter: ProviderAdapter<TClient, TResult>,
 ): Promise<SpectyraCompleteResult<TResult>> {
-  const runMode: SpectyraRunMode = config.runMode ?? "on";
+  const runMode: SpectyraRunMode = normalizeSpectyraRunMode(config.runMode, "on");
   const telemetryMode: TelemetryMode = config.telemetry?.mode ?? "local";
   const promptSnapshotMode: PromptSnapshotMode = config.promptSnapshots ?? "local_only";
-  const runId = crypto.randomUUID();
+  const runId = input.runContext?.runId?.trim() || crypto.randomUUID();
   const originalMessages = input.messages;
   const { provider: resolvedProvider, model: resolvedModel } = resolveUpstreamProviderModel(config, input);
 
@@ -103,7 +104,7 @@ export async function localComplete<TClient, TResult>(
     ? (activateLicense(config.licenseKey) ? "active" : "observe_only")
     : "observe_only";
 
-  if (runMode === "off" && licenseStatus === "active") {
+  if (runMode === "off") {
     assertWorkflowPolicyAllows(config);
     const { result, usage } = await adapter.call({
       client: input.client,
@@ -113,6 +114,7 @@ export async function localComplete<TClient, TResult>(
       temperature: input.temperature,
     });
 
+    const licenseLimited = licenseStatus !== "active";
     return buildResult({
       runId,
       runMode,
@@ -126,8 +128,8 @@ export async function localComplete<TClient, TResult>(
       promptSnapshotMode,
       providerResult: result,
       flowSignals: null,
-      licenseLimited: false,
-      licenseStatus: "active",
+      licenseLimited,
+      licenseStatus,
       sessionId: input.runContext?.sessionId,
     });
   }
@@ -174,9 +176,7 @@ export async function localComplete<TClient, TResult>(
   let inputTokensBefore = estimateTokensFromMessages(originalMessages);
   let inputTokensAfter = estimateTokensFromMessages(messagesToSend);
 
-  const useProjectedMetrics =
-    !pipeline.licenseLimited &&
-    ((licenseStatus === "active" && runMode === "observe") || (toolThread && mergeFailed));
+  const useProjectedMetrics = !pipeline.licenseLimited && (toolThread && mergeFailed);
 
   if (useProjectedMetrics && projected > 0) {
     inputTokensAfter = Math.max(0, inputTokensBefore - projected);
@@ -332,8 +332,6 @@ function buildResult<TResult>(input: BuildResultInput<TResult>): SpectyraComplet
     notes.push(
       "No paid/trial license: provider received full messages. Add a Spectyra license key to apply optimizations.",
     );
-  } else if (input.runMode === "observe" && tokensSaved > 0) {
-    notes.push("Run mode is observe: projected savings shown; the provider received unoptimized messages.");
   }
   if (input.flowSignals?.isStuckLoop && !input.licenseLimited) {
     notes.push("Flow: retry / error-loop pattern detected — consider clarifying the task or trimming context.");

@@ -8,13 +8,29 @@
 /**
  * Top-level run mode that governs optimization behavior.
  *
- * - `off`     – no optimization, no request mutation, host app runs natively.
- * - `observe` – local simulation only, no live request mutation, no duplicate
- *               provider call. Computes projected savings.
- * - `on`      – local optimization applied before the provider call, which
- *               still goes directly to the provider using the customer key.
+ * - `off` – no optimization, no request mutation, host app runs natively
+ *   (e.g. passthrough or not entitled to apply optimizations).
+ * - `on`  – run the optimization pipeline; whether transforms apply also depends
+ *   on license / entitlements in the product layer.
+ *
+ * Legacy `observe` in saved configs and API payloads is accepted only via
+ * {@link normalizeSpectyraRunMode} (mapped to `on` for migration).
  */
-export type SpectyraRunMode = "off" | "observe" | "on";
+export type SpectyraRunMode = "off" | "on";
+
+/**
+ * Map legacy and loose strings to a strict run mode. Unknown values → `defaultMode`.
+ * `"observe"` (removed) is treated as `"on"` for backward compatibility.
+ */
+export function normalizeSpectyraRunMode(
+  raw: string | null | undefined,
+  defaultMode: SpectyraRunMode = "on",
+): SpectyraRunMode {
+  const s = (raw ?? "").trim().toLowerCase();
+  if (s === "off") return "off";
+  if (s === "on" || s === "observe") return "on";
+  return defaultMode;
+}
 
 /**
  * Telemetry destination.

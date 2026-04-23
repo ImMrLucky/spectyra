@@ -33,7 +33,7 @@ export interface OnboardingStatus {
   providerConfigured: boolean;
   openclawDetected: boolean;
   openclawConnected: boolean;
-  mode?: 'off' | 'observe' | 'on';
+  mode?: 'off' | 'on';
   companionBaseUrl?: string;
   modelAliases?: string[];
   message?: string;
@@ -53,7 +53,7 @@ export interface IntegrationDiagnostics {
   providerConfigured: boolean;
   integrationDetected: boolean;
   integrationConnected: boolean;
-  mode?: 'off' | 'observe' | 'on';
+  mode?: 'off' | 'on';
   companionBaseUrl?: string;
   modelAliases?: string[];
   errors?: string[];

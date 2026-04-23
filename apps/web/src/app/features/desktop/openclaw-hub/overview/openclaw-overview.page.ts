@@ -26,10 +26,20 @@ import { OpenClawDesktopService, type OpenClawStatusSnapshot } from '../../../..
           <span class="ov-label">Provider</span>
           <span class="ov-value">{{ s?.providerConfigured ? (s?.provider || 'Connected') : 'Not set' }}</span>
         </div>
-        <div class="ov-card" [class.ok]="s?.runMode === 'on'" [class.observe]="s?.runMode === 'observe'">
-          <span class="ov-dot" [class.on]="s?.runMode === 'on'" [class.observe]="s?.runMode === 'observe'"></span>
+        <div
+          class="ov-card"
+          [class.ok]="s?.runMode === 'on' || s?.runMode === 'observe'"
+          [class.warn]="s?.runMode === 'off'"
+        >
+          <span
+            class="ov-dot"
+            [class.on]="s?.runMode === 'on' || s?.runMode === 'observe'"
+            [class.off]="s?.runMode === 'off'"
+          ></span>
           <span class="ov-label">Optimization</span>
-          <span class="ov-value">{{ (s?.runMode || 'unknown') | uppercase }}</span>
+          <span class="ov-value">{{
+            (s?.runMode === 'observe' ? 'on' : s?.runMode || 'unknown') | uppercase
+          }}</span>
         </div>
       </div>
 
@@ -98,14 +108,13 @@ import { OpenClawDesktopService, type OpenClawStatusSnapshot } from '../../../..
     }
     .ov-card.ok { border-color: rgba(34,197,94,0.25); }
     .ov-card.warn { border-color: rgba(239,68,68,0.2); }
-    .ov-card.observe { border-color: rgba(234,179,8,0.25); }
     .ov-dot {
       width: 8px; height: 8px; border-radius: 50%;
       background: var(--spectyra-red, #ef4444);
       display: inline-block;
     }
     .ov-dot.on { background: var(--spectyra-green, #22c55e); }
-    .ov-dot.observe { background: #eab308; }
+    .ov-dot.off { background: #eab308; }
     .ov-label { font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px; color: var(--text-muted, rgba(255,255,255,0.4)); }
     .ov-value { font-size: 15px; font-weight: 600; color: var(--text-primary, #fff); }
 

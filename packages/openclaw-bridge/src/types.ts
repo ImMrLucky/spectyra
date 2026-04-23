@@ -99,8 +99,8 @@ export interface SessionMetadataHeaders {
 export interface OpenClawInstallGuide {
   title: string;
   privacySummary: string;
-  /** Short bullets for ON / OBSERVE / OFF (optimization modes in Local Companion). */
-  modeExplanations: { on: string; observe: string; off: string };
+  /** Short bullets for ON / OFF (optimization run modes in Local Companion). */
+  modeExplanations: { on: string; off: string };
   flowSummary: string;
 }
 

@@ -56,7 +56,7 @@ export interface WrapGenericAgentLoopConfig<TReq, TRes> {
   mode?: "auto" | "code" | "chat";
 
   /**
-   * Run mode: off | observe | on
+   * Run mode: `off` (passthrough) or `on` (optimize when allowed).
    */
   runMode?: SpectyraRunMode;
 

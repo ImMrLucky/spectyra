@@ -20,7 +20,7 @@ export interface LocalOptimizationStageResult {
 
 /**
  * Resolve `spectyra/*` aliases and run the Spectyra optimization pipeline for the current run mode
- * (off / observe / on). Does not call the upstream LLM.
+ * (`off` / `on`). Does not call the upstream LLM.
  *
  * Real input trimming: OpenClaw free mode uses full local optimization; linked accounts use billing status.
  */
@@ -37,8 +37,11 @@ export async function resolveAndOptimizeLocally(
     providerTierModels: cfg.providerTierModels,
   });
   const licenseForOptimize = await resolveLicenseKeyForOptimize(cfg);
+  const accountGatedPreview =
+    !cfg.openclawFreeMode && !cfg.spectyraAccountLinked && cfg.runMode === "on";
   const optResult = optimize(messages, cfg.optimizationRunMode, licenseForOptimize, {
     openclawFreeMode: cfg.openclawFreeMode,
+    accountGatedPreview,
   });
   return { resolved, optResult };
 }
