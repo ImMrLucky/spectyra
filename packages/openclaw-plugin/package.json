@@ -1,0 +1,42 @@
+{
+  "name": "@spectyra/openclaw-plugin",
+  "version": "0.1.0",
+  "description": "OpenClaw plugin: Spectyra savings UI, flow summaries, and prompt-security warnings (localhost companion only).",
+  "type": "module",
+  "openclaw": {
+    "extensions": ["./src/index.ts"],
+    "runtimeExtensions": ["./dist/index.js"],
+    "compat": {
+      "pluginApi": ">=2026.3.24-beta.2",
+      "minGatewayVersion": "2026.3.24-beta.2"
+    },
+    "build": {
+      "openclawVersion": "2026.3.24-beta.2",
+      "pluginSdkVersion": "2026.3.24-beta.2"
+    }
+  },
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "files": [
+    "dist",
+    "src",
+    "openclaw.plugin.json",
+    "README.md",
+    "SECURITY.md",
+    "PRIVACY.md",
+    "PERMISSIONS.md"
+  ],
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "test": "tsx src/__tests__/run-all-tests.ts"
+  },
+  "license": "MIT",
+  "engines": {
+    "node": ">=18"
+  },
+  "devDependencies": {
+    "tsx": "^4.7.1",
+    "typescript": "~5.4.0"
+  }
+}

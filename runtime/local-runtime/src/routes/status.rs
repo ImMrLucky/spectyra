@@ -35,7 +35,7 @@ pub async fn status(State(state): State<AppState>) -> Json<StatusResponse> {
         bind_address: cfg.bind.clone(),
         analytics_enabled: cfg.analytics_enabled,
         pricing_snapshot_version: snap.as_ref().map(|s| s.version.clone()),
-        pricing_snapshot_fetched_at: snap.as_ref().map(|s| s.fetched_at),
+        pricing_snapshot_fetched_at: snap.as_ref().map(|s| s.resolved_fetched_at()),
         pricing_stale,
         entitlement_refreshed_at: st.entitlement_last_refresh,
         entitlement_last_error: st.entitlement_last_error,

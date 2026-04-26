@@ -1,0 +1,25 @@
+name: Runtime (Rust)
+
+on:
+  push:
+    paths:
+      - "runtime/**"
+      - ".github/workflows/runtime-rust.yml"
+  pull_request:
+    paths:
+      - "runtime/**"
+      - ".github/workflows/runtime-rust.yml"
+
+jobs:
+  build-test:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: runtime
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - name: Cargo build
+        run: cargo build --workspace
+      - name: Cargo test
+        run: cargo test --workspace

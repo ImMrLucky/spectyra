@@ -163,6 +163,81 @@ export class AdminService {
     }>(`${this.baseUrl}/admin/capabilities`, { headers: this.getHeaders() });
   }
 
+  /** Owner admin: `{ snapshot, registry }` — snapshot matches machine catalog; registry = source + stale. */
+  getPricingSnapshot(provider?: string): Observable<{
+    snapshot: Record<string, unknown>;
+    registry: { source: string; stale: boolean; ingestedAt?: string; overrideCount?: number };
+  }> {
+    const q = provider ? `?provider=${encodeURIComponent(provider)}` : '';
+    return this.http.get<{
+      snapshot: Record<string, unknown>;
+      registry: { source: string; stale: boolean; ingestedAt?: string; overrideCount?: number };
+    }>(`${this.baseUrl}/admin/pricing/snapshot${q}`, {
+      headers: this.getHeaders(),
+    });
+  }
+
+  getPricingRegistryStatus(): Observable<{
+    catalogSource: string;
+    stale: boolean;
+    version: string | null;
+    ingestedAt: string | null;
+    overrideCount: number;
+  }> {
+    return this.http.get<{
+      catalogSource: string;
+      stale: boolean;
+      version: string | null;
+      ingestedAt: string | null;
+      overrideCount: number;
+    }>(`${this.baseUrl}/admin/pricing/status`, { headers: this.getHeaders() });
+  }
+
+  ingestBundledPricing(): Observable<{ ok: boolean; version: string }> {
+    return this.http.post<{ ok: boolean; version: string }>(
+      `${this.baseUrl}/admin/pricing/ingest-bundled`,
+      {},
+      { headers: this.getHeaders() },
+    );
+  }
+
+  listPricingOverrides(): Observable<{
+    overrides: Array<{
+      id: string;
+      org_id: string | null;
+      model_id: string;
+      patch_json: Record<string, unknown>;
+      updated_at: string;
+    }>;
+  }> {
+    return this.http.get<{
+      overrides: Array<{
+        id: string;
+        org_id: string | null;
+        model_id: string;
+        patch_json: Record<string, unknown>;
+        updated_at: string;
+      }>;
+    }>(`${this.baseUrl}/admin/pricing/overrides`, { headers: this.getHeaders() });
+  }
+
+  upsertPricingOverride(body: {
+    orgId?: string | null;
+    modelId: string;
+    patch: Record<string, unknown>;
+  }): Observable<{ ok: boolean }> {
+    return this.http.put<{ ok: boolean }>(`${this.baseUrl}/admin/pricing/overrides`, body, {
+      headers: this.getHeaders(),
+    });
+  }
+
+  deletePricingOverride(id: string): Observable<{ ok: boolean }> {
+    return this.http.delete<{ ok: boolean }>(
+      `${this.baseUrl}/admin/pricing/overrides?id=${encodeURIComponent(id)}`,
+      { headers: this.getHeaders() },
+    );
+  }
+
   /** Pause / inactive / reactivate — see API docs for semantics */
   setUserAccess(
     userId: string,

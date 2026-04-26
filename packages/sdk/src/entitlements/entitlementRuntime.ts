@@ -5,7 +5,7 @@ import type { SpectyraEntitlementStatus, SpectyraQuotaStatus } from "../observab
 import type { SpectyraSessionState } from "../observability/spectyraSessionState.js";
 import { mapToSpectyraEntitlementStatus } from "./mapEntitlementStatus.js";
 import { resolveSpectyraApiBaseUrl } from "./resolveApiBaseUrl.js";
-import { fetchEntitlementStatus } from "./fetchEntitlementStatus.js";
+import { EntitlementHttpError, fetchEntitlementStatus } from "./fetchEntitlementStatus.js";
 
 function entitlementsDefaultEnabled(config: SpectyraConfig): boolean {
   if (config.entitlements?.enabled === true) return true;
@@ -20,7 +20,9 @@ function intervalMs(config: SpectyraConfig): number {
 }
 
 function shouldFreezeFromQuota(q: SpectyraQuotaStatus): boolean {
-  return !q.canRunOptimized || q.state === "quota_exhausted" || q.state === "inactive_due_to_quota";
+  if (!q.canRunOptimized) return true;
+  const healthy = q.state === "active_free" || q.state === "active_paid" || q.state === "approaching_limit";
+  return !healthy;
 }
 
 function lastQuotaKey(q: SpectyraQuotaStatus): string {
@@ -39,15 +41,6 @@ export function startEntitlementRuntime(
 ): { stop: () => void; refresh: () => Promise<void> } {
   const log = createSpectyraLogger(config);
   if (!entitlementsDefaultEnabled(config)) {
-    return {
-      stop: () => {},
-      refresh: async () => {},
-    };
-  }
-
-  const key = resolveSpectyraCloudApiKey(config);
-  const base = resolveSpectyraApiBaseUrl(config);
-  if (!key || !base) {
     return {
       stop: () => {},
       refresh: async () => {},
@@ -76,7 +69,34 @@ export function startEntitlementRuntime(
     }
   };
 
+  const applyMissingApiKey = () => {
+    apply({
+      quota: {
+        plan: "free",
+        state: "missing_api_key",
+        used: 0,
+        limit: null,
+        remaining: null,
+        percentUsed: null,
+        canRunOptimized: false,
+        detail:
+          "Spectyra cloud API key or API base URL is missing. Set spectyraCloudApiKey / SPECTYRA_CLOUD_API_KEY and spectyraApiBaseUrl (or your deployment’s discovery env) while entitlements are enabled.",
+      },
+      lastRefreshedAt: new Date().toISOString(),
+      lastError:
+        "Entitlements are enabled but no Spectyra API key or base URL was resolved. Optimization stays off until credentials are configured.",
+    });
+  };
+
   const refresh = async () => {
+    const key = resolveSpectyraCloudApiKey(config);
+    const base = resolveSpectyraApiBaseUrl(config);
+    if (!key || !base) {
+      applyMissingApiKey();
+      log.warn("Entitlements: missing API key or base URL; applied synthetic missing_api_key state");
+      return;
+    }
+
     let mapped: SpectyraEntitlementStatus;
     try {
       const row = await fetchEntitlementStatus(base, key);
@@ -85,21 +105,82 @@ export function startEntitlementRuntime(
     } catch (e) {
       const err = e instanceof Error ? e.message : String(e);
       const prev = session.getEntitlement();
-      mapped = {
-        orgId: prev?.orgId,
-        quota:
-          prev?.quota ?? {
-            plan: "free",
-            state: "active_free",
-            used: 0,
-            limit: null,
-            remaining: null,
-            percentUsed: null,
-            canRunOptimized: true,
-          },
-        lastRefreshedAt: new Date().toISOString(),
-        lastError: err,
-      } satisfies SpectyraEntitlementStatus;
+      if (e instanceof EntitlementHttpError) {
+        if (e.status === 401 || e.status === 403) {
+          const st = e.status === 401 ? ("invalid_api_key" as const) : ("disabled" as const);
+          mapped = {
+            orgId: prev?.orgId,
+            quota: {
+              plan: prev?.quota.plan ?? "free",
+              state: st,
+              used: prev?.quota.used ?? 0,
+              limit: prev?.quota.limit ?? null,
+              remaining: prev?.quota.remaining ?? null,
+              percentUsed: prev?.quota.percentUsed ?? null,
+              upgradeUrl: prev?.quota.upgradeUrl,
+              savingsObserveOnly: prev?.quota.savingsObserveOnly,
+              canRunOptimized: false,
+              detail:
+                e.status === 401 ?
+                  "Spectyra API key was rejected (HTTP 401). Replace the key in your environment."
+                : "SDK access denied (HTTP 403). Check org SDK access in the Spectyra dashboard.",
+            },
+            lastRefreshedAt: new Date().toISOString(),
+            lastError: err,
+          };
+        } else if (e.status === 404 || e.status === 410) {
+          mapped = {
+            orgId: prev?.orgId,
+            quota: {
+              plan: prev?.quota.plan ?? "free",
+              state: "account_deleted",
+              used: prev?.quota.used ?? 0,
+              limit: prev?.quota.limit ?? null,
+              remaining: prev?.quota.remaining ?? null,
+              percentUsed: prev?.quota.percentUsed ?? null,
+              upgradeUrl: prev?.quota.upgradeUrl,
+              savingsObserveOnly: prev?.quota.savingsObserveOnly,
+              canRunOptimized: false,
+              detail:
+                "Organization or API key is no longer valid (HTTP 404/410). Optimization is disabled.",
+            },
+            lastRefreshedAt: new Date().toISOString(),
+            lastError: err,
+          };
+        } else {
+          mapped = {
+            orgId: prev?.orgId,
+            quota:
+              prev?.quota ?? {
+                plan: "free",
+                state: "active_free",
+                used: 0,
+                limit: null,
+                remaining: null,
+                percentUsed: null,
+                canRunOptimized: true,
+              },
+            lastRefreshedAt: new Date().toISOString(),
+            lastError: err,
+          } satisfies SpectyraEntitlementStatus;
+        }
+      } else {
+        mapped = {
+          orgId: prev?.orgId,
+          quota:
+            prev?.quota ?? {
+              plan: "free",
+              state: "active_free",
+              used: 0,
+              limit: null,
+              remaining: null,
+              percentUsed: null,
+              canRunOptimized: true,
+            },
+          lastRefreshedAt: new Date().toISOString(),
+          lastError: err,
+        } satisfies SpectyraEntitlementStatus;
+      }
       log.warn("entitlement refresh failed; keeping last state", { error: err });
     }
     apply(mapped);

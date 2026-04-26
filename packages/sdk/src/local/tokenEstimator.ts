@@ -1,11 +1,14 @@
 /**
  * Lightweight token and cost estimation for local SDK use.
  *
- * Uses ~4 chars/token heuristic. For precise counts, the server-side
- * optimizer or provider usage data should be preferred.
+ * Uses ~4 chars/token heuristic. When `getPricingSnapshot()` has entries, cost uses the registry; otherwise built-in tiers.
  */
 
 import type { ChatMessage } from "../sharedTypes.js";
+import type { ProviderPricingSnapshot } from "../pricing/types.js";
+import { calculateCostFromEntry } from "../pricing/costCalculator.js";
+import { resolveModelPricingEntry } from "../pricing/modelResolver.js";
+import type { NormalizedUsage } from "../pricing/types.js";
 
 const CHARS_PER_TOKEN = 4;
 
@@ -18,17 +21,29 @@ export function estimateTokens(messages: ChatMessage[]): number {
 }
 
 /**
- * Cost estimation using approximate per-token pricing.
- * Returns cost in USD.
+ * Cost estimation in USD — prefers registry snapshot when resolvable.
  */
 export function estimateCost(
   provider: string,
   model: string,
   inputTokens: number,
   outputTokens: number,
+  snapshot?: ProviderPricingSnapshot | null,
 ): number {
-  const pricing = getPricing(provider, model);
-  return (inputTokens * pricing.inputPer1k) / 1000 + (outputTokens * pricing.outputPer1k) / 1000;
+  if (snapshot?.entries?.length) {
+    const warnings: string[] = [];
+    const entry = resolveModelPricingEntry(snapshot.entries, provider, model, warnings);
+    if (entry) {
+      const usage: NormalizedUsage = {
+        provider,
+        modelId: model,
+        inputTokens,
+        outputTokens,
+      };
+      return calculateCostFromEntry(usage, entry, warnings).total;
+    }
+  }
+  return estimateCostLegacy(provider, model, inputTokens, outputTokens);
 }
 
 interface TokenPricing {
@@ -36,10 +51,14 @@ interface TokenPricing {
   outputPer1k: number;
 }
 
-function getPricing(provider: string, model: string): TokenPricing {
+function estimateCostLegacy(provider: string, model: string, inputTokens: number, outputTokens: number): number {
+  const pricing = getPricingLegacy(provider, model);
+  return (inputTokens * pricing.inputPer1k) / 1000 + (outputTokens * pricing.outputPer1k) / 1000;
+}
+
+function getPricingLegacy(provider: string, model: string): TokenPricing {
   const key = `${provider}/${model}`.toLowerCase();
 
-  // Well-known pricing tiers (approximate, conservative)
   if (key.includes("gpt-4o-mini") || key.includes("gpt-4.1-mini")) {
     return { inputPer1k: 0.00015, outputPer1k: 0.0006 };
   }
@@ -62,6 +81,5 @@ function getPricing(provider: string, model: string): TokenPricing {
     return { inputPer1k: 0.0001, outputPer1k: 0.0001 };
   }
 
-  // Conservative fallback
   return { inputPer1k: 0.003, outputPer1k: 0.015 };
 }

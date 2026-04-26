@@ -386,6 +386,15 @@ importers:
         specifier: ~5.4.0
         version: 5.4.5
 
+  packages/openclaw-plugin:
+    devDependencies:
+      tsx:
+        specifier: ^4.7.1
+        version: 4.21.0
+      typescript:
+        specifier: ~5.4.0
+        version: 5.4.5
+
   packages/openclaw-skill: {}
 
   packages/optimization-engine:

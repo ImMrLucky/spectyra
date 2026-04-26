@@ -42,6 +42,9 @@ entitlementsRouter.get("/status", requireSpectyraApiKey, async (req: Authenticat
       canRunOptimized: canRun,
       savingsObserveOnly: isSavingsObserveOnly(org, billingAccessOpts(req)),
       upgradeUrl: resolveUpgradeUrl(),
+      subscriptionStatus: org?.subscription_status ?? null,
+      /** Tombstoned orgs should use `"deleted"` when the row still exists for diagnostics; default live. */
+      orgLifecycleStatus: org ? ("active" as const) : null,
     });
   } catch (e: any) {
     safeLog("error", "entitlements status error", { error: e?.message });

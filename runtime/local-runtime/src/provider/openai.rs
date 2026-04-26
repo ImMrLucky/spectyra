@@ -45,6 +45,7 @@ pub fn map_openai_usage(model: &str, u: &Value) -> NormalizedUsage {
         storage_hours: None,
         batch: None,
         raw_provider_usage: Some(u.clone()),
+        cost_source_override: None,
     }
 }
 
@@ -138,6 +139,7 @@ impl ProviderAdapter for OpenAiAdapter {
             storage_hours: None,
             batch: None,
             raw_provider_usage: Some(usage_v),
+            cost_source_override: None,
         };
 
         let mut embeddings: Vec<Vec<f64>> = Vec::new();

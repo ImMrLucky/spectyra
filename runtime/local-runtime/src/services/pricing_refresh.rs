@@ -14,6 +14,8 @@ struct PricingApiResponse {
     version: String,
     created_at: chrono::DateTime<chrono::Utc>,
     ttl_seconds: u64,
+    #[serde(default)]
+    currency: Option<String>,
     entries: Vec<spectyra_core::pricing::ModelPricingEntry>,
 }
 
@@ -78,7 +80,8 @@ pub async fn refresh_once(state: &AppState) {
         version: body.version.clone(),
         created_at: body.created_at,
         ttl_seconds: body.ttl_seconds,
-        fetched_at: now,
+        currency: body.currency.clone(),
+        fetched_at: Some(now),
         entries: body.entries,
     };
 

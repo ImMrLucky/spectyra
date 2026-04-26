@@ -44,6 +44,7 @@ import {
 } from "@spectyra/learning";
 import { defaultAliasModels, resolveSpectyraModel } from "@spectyra/shared";
 import { estimateCost } from "./tokenEstimator.js";
+import { getPricingSnapshot } from "../pricing/pricingRuntime.js";
 import { estimateTokensFromMessages } from "./tokenEstimate.js";
 import { hasOpenAiToolThread, mergeOptimizedCanonicalIntoChatMessages } from "./toolThreadMerge.js";
 import { deriveSavingsMetrics, estimateRepeatedTokensFromFeatures } from "./featureReportHints.js";
@@ -131,6 +132,7 @@ export async function localComplete<TClient, TResult>(
       licenseLimited,
       licenseStatus,
       sessionId: input.runContext?.sessionId,
+      productSurface: config.productSurface,
     });
   }
 
@@ -227,6 +229,7 @@ export async function localComplete<TClient, TResult>(
     features,
     optimizationSkippedReason,
     sessionId: input.runContext?.sessionId,
+    productSurface: config.productSurface,
   });
   emitSdkEventsForStandaloneComplete(telemetryMode, input, out);
   return out;
@@ -300,12 +303,27 @@ interface BuildResultInput<TResult> {
   features?: FeatureDetectionResult[];
   optimizationSkippedReason?: "tool_merge_failed";
   sessionId?: string;
+  /** Drives user-facing license notes: OpenClaw-compat copy vs neutral in-app wording. */
+  productSurface?: "in_app" | "openclaw_compat";
 }
 
 function buildResult<TResult>(input: BuildResultInput<TResult>): SpectyraCompleteResult<TResult> {
   const reportInputTokensAfter = input.licenseLimited ? input.inputTokensBefore : input.inputTokensAfter;
-  const costBefore = estimateCost(input.provider, input.model, input.inputTokensBefore, input.outputTokens);
-  const costAfter = estimateCost(input.provider, input.model, reportInputTokensAfter, input.outputTokens);
+  const snap = getPricingSnapshot();
+  const costBefore = estimateCost(
+    input.provider,
+    input.model,
+    input.inputTokensBefore,
+    input.outputTokens,
+    snap,
+  );
+  const costAfter = estimateCost(
+    input.provider,
+    input.model,
+    reportInputTokensAfter,
+    input.outputTokens,
+    snap,
+  );
   const savings = costBefore - costAfter;
   const savingsPct = costBefore > 0 ? (savings / costBefore) * 100 : 0;
   const tokensSaved = input.licenseLimited ? 0 : Math.max(0, input.inputTokensBefore - reportInputTokensAfter);
@@ -329,8 +347,11 @@ function buildResult<TResult>(input: BuildResultInput<TResult>): SpectyraComplet
     );
   }
   if (input.licenseLimited) {
+    const surface = input.productSurface ?? "in_app";
     notes.push(
-      "No paid/trial license: provider received full messages. Add a Spectyra license key to apply optimizations.",
+      surface === "openclaw_compat" ?
+        "No paid/trial license: provider received full messages. Add a Spectyra license key to apply optimizations."
+      : "Optimization was not applied on the local-engine path for this call. Use a Spectyra license key for local activation, or configure cloud API key + entitlements for in-app billing. Provider received full messages.",
     );
   }
   if (input.flowSignals?.isStuckLoop && !input.licenseLimited) {

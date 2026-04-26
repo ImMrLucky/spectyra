@@ -33,6 +33,16 @@ import {
 } from "../services/storage/platformRolesRepo.js";
 import { cancelStripeSubscriptionsForOwnerOrgsOnAccountClosure } from "../billing/stripeSubscriptionCancelOnAccountDelete.js";
 import { RL_ADMIN, RL_ADMIN_USER_DELETE, RL_ADMIN_USER_PATCH } from "../middleware/expressRateLimitPresets.js";
+import { resolveAdminPricingCatalog } from "../services/pricing/resolveAdminPricingCatalog.js";
+import { getBundledProviderPricingSnapshot } from "../services/pricing/bundledPricingSnapshot.js";
+import {
+  deletePricingOverride,
+  insertPricingSnapshot,
+  listPricingOverrides,
+  tryParseProviderPricingSnapshot,
+  upsertPricingOverride,
+} from "../services/pricing/pricingRegistryRepo.js";
+import { getPricingRegistryOperatorStatus } from "../services/pricing/pricingRegistryStatus.js";
 
 export const adminRouter = Router();
 
@@ -57,6 +67,119 @@ adminRouter.get("/capabilities", requireUserSession, requireOwner, (req: Authent
     can_manage_platform_roles: ok,
     can_manage_owner_org_billing: ok,
   });
+});
+
+/**
+ * GET /v1/admin/pricing/snapshot
+ *
+ * Returns `{ snapshot, registry }` — snapshot matches machine `GET /v1/pricing/snapshot` shape;
+ * `registry` describes DB vs bundled source and TTL staleness.
+ */
+adminRouter.get("/pricing/snapshot", requireUserSession, requireOwner, async (req: AuthenticatedRequest, res) => {
+  try {
+    const provider =
+      typeof req.query.provider === "string" ? req.query.provider.trim().toLowerCase() : undefined;
+    const body = await resolveAdminPricingCatalog(provider);
+    res.json(body);
+  } catch (e: unknown) {
+    const msg = e instanceof Error ? e.message : String(e);
+    safeLog("error", "admin pricing snapshot", { error: msg });
+    res.status(500).json({ error: "Internal server error" });
+  }
+});
+
+/**
+ * GET /v1/admin/pricing/status — operator summary (staleness, override count) without full catalog.
+ */
+adminRouter.get("/pricing/status", requireUserSession, requireOwner, async (_req: AuthenticatedRequest, res) => {
+  try {
+    const body = await getPricingRegistryOperatorStatus();
+    res.json(body);
+  } catch (e: unknown) {
+    const msg = e instanceof Error ? e.message : String(e);
+    safeLog("error", "admin pricing status", { error: msg });
+    res.status(500).json({ error: "Internal server error" });
+  }
+});
+
+/**
+ * POST /v1/admin/pricing/ingest-bundled — copy bundled catalog into `pricing_registry_snapshots` (manual / job).
+ */
+adminRouter.post("/pricing/ingest-bundled", requireUserSession, requireOwner, async (_req: AuthenticatedRequest, res) => {
+  try {
+    const snap = getBundledProviderPricingSnapshot(undefined);
+    await insertPricingSnapshot(snap, snap.ttlSeconds, "bundled_copy");
+    res.json({ ok: true, version: snap.version });
+  } catch (e: unknown) {
+    const msg = e instanceof Error ? e.message : String(e);
+    safeLog("error", "admin pricing ingest bundled", { error: msg });
+    res.status(500).json({ error: "Internal server error" });
+  }
+});
+
+/**
+ * POST /v1/admin/pricing/snapshot — ingest a full `ProviderPricingSnapshot` JSON body.
+ */
+adminRouter.post("/pricing/snapshot", requireUserSession, requireOwner, async (req: AuthenticatedRequest, res) => {
+  try {
+    const parsed = tryParseProviderPricingSnapshot(req.body);
+    if (!parsed) {
+      return res.status(400).json({ error: "Body must be a valid ProviderPricingSnapshot (version, entries, …)" });
+    }
+    await insertPricingSnapshot(parsed, parsed.ttlSeconds, "admin_upload");
+    res.json({ ok: true, version: parsed.version });
+  } catch (e: unknown) {
+    const msg = e instanceof Error ? e.message : String(e);
+    safeLog("error", "admin pricing snapshot upload", { error: msg });
+    res.status(500).json({ error: "Internal server error" });
+  }
+});
+
+adminRouter.get("/pricing/overrides", requireUserSession, requireOwner, async (_req: AuthenticatedRequest, res) => {
+  try {
+    const rows = await listPricingOverrides();
+    res.json({ overrides: rows });
+  } catch (e: unknown) {
+    const msg = e instanceof Error ? e.message : String(e);
+    safeLog("error", "admin pricing overrides list", { error: msg });
+    res.status(500).json({ error: "Internal server error" });
+  }
+});
+
+adminRouter.put("/pricing/overrides", requireUserSession, requireOwner, async (req: AuthenticatedRequest, res) => {
+  try {
+    const orgIdRaw = (req.body as { orgId?: string | null }).orgId;
+    const orgId = orgIdRaw === undefined || orgIdRaw === "" ? null : String(orgIdRaw);
+    const modelId = String((req.body as { modelId?: string }).modelId ?? "").trim();
+    const patch = (req.body as { patch?: Record<string, unknown> }).patch;
+    if (!modelId || !patch || typeof patch !== "object") {
+      return res.status(400).json({ error: "modelId and patch object are required" });
+    }
+    await upsertPricingOverride(orgId, modelId, patch);
+    res.json({ ok: true });
+  } catch (e: unknown) {
+    const msg = e instanceof Error ? e.message : String(e);
+    safeLog("error", "admin pricing overrides put", { error: msg });
+    res.status(500).json({ error: "Internal server error" });
+  }
+});
+
+adminRouter.delete("/pricing/overrides", requireUserSession, requireOwner, async (req: AuthenticatedRequest, res) => {
+  try {
+    const id = typeof req.query.id === "string" ? req.query.id.trim() : "";
+    if (!id) {
+      return res.status(400).json({ error: "Query id (uuid) is required" });
+    }
+    const ok = await deletePricingOverride(id);
+    if (!ok) {
+      return res.status(404).json({ error: "Override not found" });
+    }
+    res.json({ ok: true });
+  } catch (e: unknown) {
+    const msg = e instanceof Error ? e.message : String(e);
+    safeLog("error", "admin pricing overrides delete", { error: msg });
+    res.status(500).json({ error: "Internal server error" });
+  }
 });
 
 function supabaseAdminHeaders(): { base: string; headers: Record<string, string> } | null {

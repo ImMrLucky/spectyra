@@ -42,6 +42,16 @@ import type {
 } from "./observability/observabilityTypes.js";
 import { startEntitlementRuntime, entitlementsDefaultEnabled } from "./entitlements/entitlementRuntime.js";
 import { mountSpectyraDevtools, shouldMountDevtoolsByDefault } from "./devtools/mountDevtools.js";
+import {
+  getPricingSnapshot,
+  getPricingSnapshotMeta,
+  startPricingRuntime,
+  type PricingSnapshotMeta,
+} from "./pricing/pricingRuntime.js";
+import { resolveModelPricingEntry } from "./pricing/modelResolver.js";
+import { calculateSavingsFromUsages } from "./pricing/costCalculator.js";
+import { normalizedUsageFromTokens } from "./pricing/normalizeUsage.js";
+import type { SavingsCalculation } from "./pricing/types.js";
 
 function newRunId(): string {
   if (typeof crypto !== "undefined" && "randomUUID" in crypto) {
@@ -124,6 +134,12 @@ export interface SpectyraInstance {
   getQuotaStatus(): SpectyraQuotaStatus;
   getEntitlementStatus(): SpectyraEntitlementStatus | null;
   getLastRun(): SpectyraLastRun | null;
+  /** Last run line-item cost breakdown when registry pricing resolved (null otherwise). */
+  getLastRunCostBreakdown(): SavingsCalculation | null;
+  /** Convenience: savings amount + percent from last completed run. */
+  getLastRunSavings(): { savingsAmount: number; savingsPercent: number } | null;
+  /** Pricing snapshot version / staleness for overlay and audits. */
+  getPricingSnapshotMeta(): PricingSnapshotMeta;
   /**
    * Manually refresh entitlements (normally polled when enabled).
    */
@@ -162,6 +178,7 @@ export function createSpectyra(config: SpectyraConfig = {}): SpectyraInstance {
   const session = new SpectyraSessionState();
   const log = createSpectyraLogger(config);
   const entRuntime = startEntitlementRuntime(config, session);
+  void startPricingRuntime(config);
   if (shouldMountDevtoolsByDefault(config) && (config.devtools?.enabled !== false)) {
     void mountSpectyraDevtools({
       config,
@@ -211,6 +228,31 @@ export function createSpectyra(config: SpectyraConfig = {}): SpectyraInstance {
 
       session.onRequestComplete(out as SpectyraCompleteResult<unknown>);
 
+      const snap = getPricingSnapshot();
+      if (snap?.entries?.length) {
+        const w: string[] = [];
+        const entry = resolveModelPricingEntry(snap.entries, out.report.provider, out.report.model, w);
+        if (entry) {
+          const baseU = normalizedUsageFromTokens({
+            provider: out.report.provider,
+            modelId: out.report.model,
+            inputTokens: out.report.inputTokensBefore,
+            outputTokens: out.report.outputTokens,
+          });
+          const optU = normalizedUsageFromTokens({
+            provider: out.report.provider,
+            modelId: out.report.model,
+            inputTokens: out.report.inputTokensAfter,
+            outputTokens: out.report.outputTokens,
+          });
+          session.setLastSavingsCalculation(calculateSavingsFromUsages(baseU, optU, entry, entry));
+        } else {
+          session.setLastSavingsCalculation(null);
+        }
+      } else {
+        session.setLastSavingsCalculation(null);
+      }
+
       const tf = out.report.transformsApplied?.length
         ? (out.report.transformsApplied ?? []).join(",")
         : "";
@@ -222,6 +264,27 @@ export function createSpectyra(config: SpectyraConfig = {}): SpectyraInstance {
         runMode: out.report.mode,
         transforms: tf,
       });
+
+      if (passthrough || session.metricsFrozen) {
+        try {
+          config.onQuota?.(defaultQuota(session));
+        } catch (e) {
+          log.error("onQuota (complete path) failed", { error: String(e) });
+        }
+      }
+
+      const pricingMeta = getPricingSnapshotMeta();
+      if (pricingMeta.version && pricingMeta.stale) {
+        try {
+          config.onPricingStale?.({
+            version: pricingMeta.version,
+            fetchedAt: pricingMeta.fetchedAt,
+            stale: pricingMeta.stale,
+          });
+        } catch (e) {
+          log.error("onPricingStale (complete path) failed", { error: String(e) });
+        }
+      }
 
       if (out.report.transformsApplied && out.report.transformsApplied.length > 0) {
         try {
@@ -330,6 +393,15 @@ export function createSpectyra(config: SpectyraConfig = {}): SpectyraInstance {
     },
     getLastRun() {
       return session.getLastRun();
+    },
+    getLastRunCostBreakdown() {
+      return session.getLastRunCostBreakdown();
+    },
+    getLastRunSavings() {
+      return session.getLastRunSavings();
+    },
+    getPricingSnapshotMeta() {
+      return getPricingSnapshotMeta();
     },
     async refreshEntitlement() {
       await entRuntime.refresh();

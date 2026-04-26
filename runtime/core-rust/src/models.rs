@@ -98,6 +98,8 @@ pub struct NormalizedUsage {
     pub storage_hours: Option<u64>,
     pub batch: Option<bool>,
     pub raw_provider_usage: Option<Value>,
+    #[serde(default)]
+    pub cost_source_override: Option<String>,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]

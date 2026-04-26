@@ -31,6 +31,7 @@ import { retentionRouter } from "./routes/retention.js";
 import { superuserRouter } from "./routes/superuser.js";
 import { settingsRouter } from "./routes/settings.js";
 import { telemetryRouter } from "./routes/telemetry.js";
+import { pricingRouter } from "./routes/pricing.js";
 import { projectAnalyticsRouter } from "./routes/projectAnalytics.js";
 import { scimRouter } from "./routes/scim.js";
 import { serverOptimizeRouter } from "./routes/serverOptimize.js";
@@ -38,6 +39,7 @@ import { isPlatformOwnerGet } from "./routes/isPlatformOwnerGet.js";
 import { requireUserSession } from "./middleware/auth.js";
 import { initDb } from "./services/storage/db.js";
 import { ensurePlatformRolesSchema } from "./services/storage/ensurePlatformRolesSchema.js";
+import { ensurePricingRegistrySchema } from "./services/storage/ensurePricingRegistrySchema.js";
 import { ensureSdkTelemetrySchema } from "./services/storage/ensureSdkTelemetrySchema.js";
 import { ensureUserAccountFlagsSchema } from "./services/storage/userAccountRepo.js";
 
@@ -163,6 +165,7 @@ app.use("/v1/superuser", superuserRouter);
 app.use("/v1/auth", authRouter);
 app.use("/v1/license", licenseRouter);
 app.use("/v1/entitlements", entitlementsRouter);
+app.use("/v1/pricing", pricingRouter);
 app.use("/v1/integrations", integrationsRouter);
 app.use("/v1/agent", agentRouter);
 app.use("/v1/policies", policiesRouter);
@@ -182,6 +185,7 @@ app.use("/v1", serverOptimizeRouter); // POST /v1/optimize — full pipeline (SD
 
 async function startServer(): Promise<void> {
   await ensurePlatformRolesSchema();
+  await ensurePricingRegistrySchema();
   await ensureSdkTelemetrySchema();
   await ensureUserAccountFlagsSchema();
   app.listen(config.port, "0.0.0.0", () => {

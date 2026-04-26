@@ -73,6 +73,19 @@ export interface SpectyraDevtoolsConfig {
  * @public
  * Runtime entitlement / quota refresh for upgrade-without-redeploy.
  */
+/**
+ * @public
+ * Runtime pricing snapshot refresh (registry-backed cost; no redeploy when prices update server-side).
+ */
+export interface SpectyraPricingConfig {
+  /** Default: `true` when Spectyra API key + base URL resolve; set `false` to use built-in tokenEstimator tiers only. */
+  enabled?: boolean;
+  /** Poll interval in ms. Default: 600_000 (10 min). */
+  refreshIntervalMs?: number;
+  /** After this many seconds past fetch, treat snapshot as stale for `onPricingStale` / logs. Default: snapshot `ttlSeconds`. */
+  staleWarnSeconds?: number;
+}
+
 export interface SpectyraEntitlementsConfig {
   /**
    * When `false`, no `GET /v1/entitlements/status` polling. Default: `true` when
@@ -174,6 +187,12 @@ export interface SpectyraConfig {
   spectyraApiBaseUrl?: string;
 
   /**
+   * Product surface for copy and UX defaults. `"in_app"` (default) uses billing-oriented strings in devtools;
+   * `"openclaw_compat"` keeps legacy OpenClaw-oriented wording where applicable.
+   */
+  productSurface?: "in_app" | "openclaw_compat";
+
+  /**
    * Phase 5 — optional local learning profile (mutated in place when present).
    * Use `createEmptyProfile` from `@spectyra/learning` and reuse across `complete()` calls.
    */
@@ -221,6 +240,11 @@ export interface SpectyraConfig {
    * Polling and runtime entitlements. Upgrade in the web app; SDK picks it up here without redeploy.
    */
   entitlements?: SpectyraEntitlementsConfig;
+
+  /**
+   * Normalized pricing snapshot from Spectyra API (`GET /v1/pricing/snapshot`) for USD estimates.
+   */
+  pricing?: SpectyraPricingConfig;
 
   onRequestStart?: (event: SpectyraRequestStartEvent) => void;
   onRequestEnd?: (event: SpectyraRequestEndEvent) => void;

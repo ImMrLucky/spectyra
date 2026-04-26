@@ -98,6 +98,7 @@ impl ProviderAdapter for GoogleGeminiAdapter {
             storage_hours: None,
             batch: None,
             raw_provider_usage: Some(um),
+            cost_source_override: None,
         };
 
         Ok(ProviderChatResponse {
@@ -172,6 +173,7 @@ impl ProviderAdapter for GoogleGeminiAdapter {
             storage_hours: None,
             batch: None,
             raw_provider_usage: None,
+            cost_source_override: None,
         };
 
         Ok(ProviderEmbeddingsResponse { embeddings, usage: nu })

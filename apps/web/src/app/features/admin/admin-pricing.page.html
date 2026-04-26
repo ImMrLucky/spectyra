@@ -1,0 +1,107 @@
+<div class="wrap">
+  <div class="head">
+    <a routerLink="/admin" class="back"><mat-icon>arrow_back</mat-icon> Admin</a>
+    <h1>Pricing registry</h1>
+    <p class="sub">
+      Catalog matches machine <code>GET /v1/pricing/snapshot</code> (DB row when ingested, else bundled). Overrides merge
+      into per-org machine responses. See <code>docs/sdk/SPEC_CHECKLIST.md</code> section F.
+    </p>
+  </div>
+
+  <div class="toolbar">
+    <label>
+      Provider filter
+      <input type="text" [(ngModel)]="providerFilter" placeholder="e.g. openai" />
+    </label>
+    <button type="button" (click)="load()" [disabled]="loading">Refresh catalog</button>
+    <button type="button" (click)="ingestBundled()" [disabled]="ingesting || loading">
+      {{ ingesting ? 'Ingesting…' : 'Ingest bundled → DB' }}
+    </button>
+  </div>
+
+  <div class="err" *ngIf="error">{{ error }}</div>
+  <div class="loading" *ngIf="loading">Loading…</div>
+
+  <div class="err" *ngIf="catalogStale && snapshot && !loading">
+    Catalog snapshot is <strong>past its TTL</strong> (source: {{ catalogSource
+    }}<span *ngIf="registryIngestedAt">, ingested {{ registryIngestedAt }}</span>). Run
+    <strong>Ingest bundled → DB</strong> or POST a fresh snapshot via API.
+  </div>
+
+  <div class="meta" *ngIf="snapshot && !loading">
+    <div><strong>Version</strong> {{ snapshot.version }}</div>
+    <div><strong>Created</strong> {{ snapshot.createdAt }}</div>
+    <div><strong>TTL (s)</strong> {{ snapshot.ttlSeconds }}</div>
+    <div><strong>Currency</strong> {{ snapshot.currency }}</div>
+    <div *ngIf="catalogSource"><strong>Catalog source</strong> {{ catalogSource }}</div>
+    <div *ngIf="overrideCount != null"><strong>Override rows</strong> {{ overrideCount }}</div>
+  </div>
+
+  <h2 class="section">Component overrides</h2>
+  <p class="hint">
+    Global overrides: leave Org id empty. Per-org: paste org UUID. Patch JSON merges into the catalog row for
+    <code>model_id</code> (e.g. tweak <code>components[].price</code>).
+  </p>
+  <div class="ov-form">
+    <label>Org id (empty = global)</label>
+    <input type="text" [(ngModel)]="overrideOrgId" placeholder="optional org UUID" />
+    <label>Model id</label>
+    <input type="text" [(ngModel)]="overrideModelId" placeholder="e.g. gpt-4o-mini" />
+    <label>Patch JSON</label>
+    <textarea [(ngModel)]="overridePatchJson" rows="5"></textarea>
+    <button type="button" (click)="saveOverride()" [disabled]="savingOverride">Save override</button>
+  </div>
+
+  <div class="loading" *ngIf="loadingOverrides">Loading overrides…</div>
+  <table class="tbl" *ngIf="overrides.length && !loadingOverrides">
+    <thead>
+      <tr>
+        <th>Org</th>
+        <th>Model</th>
+        <th>Patch</th>
+        <th>Updated</th>
+        <th></th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr *ngFor="let o of overrides">
+        <td>{{ o.org_id || '(global)' }}</td>
+        <td><code>{{ o.model_id }}</code></td>
+        <td><code class="patch">{{ o.patch_json | json }}</code></td>
+        <td>{{ o.updated_at }}</td>
+        <td><button type="button" class="linkish" (click)="deleteOverride(o.id)">Delete</button></td>
+      </tr>
+    </tbody>
+  </table>
+
+  <h2 class="section">Catalog entries</h2>
+  <table class="tbl" *ngIf="snapshot && !loading">
+    <thead>
+      <tr>
+        <th>Provider</th>
+        <th>Model</th>
+        <th>Display</th>
+        <th>Source</th>
+        <th>Components (USD / unit)</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr *ngFor="let e of snapshot.entries">
+        <td>{{ e.provider }}</td>
+        <td><code>{{ e.modelId }}</code></td>
+        <td>{{ e.displayName }}</td>
+        <td>
+          <a *ngIf="e.sourceUrl" [href]="e.sourceUrl" target="_blank" rel="noopener">{{ e.sourceLabel || 'link' }}</a>
+          <span *ngIf="!e.sourceUrl">{{ e.sourceLabel || '—' }}</span>
+        </td>
+        <td>
+          <ul class="comps">
+            <li *ngFor="let c of e.components">
+              <code>{{ c.key }}</code> — {{ c.price }} / {{ c.unit }}
+            </li>
+          </ul>
+        </td>
+      </tr>
+    </tbody>
+  </table>
+</div>

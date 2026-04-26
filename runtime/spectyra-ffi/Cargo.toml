@@ -1,0 +1,15 @@
+[package]
+name = "spectyra_ffi"
+version = "0.1.0"
+edition = "2021"
+description = "C ABI bridge for shared Spectyra algorithms (JSON in/out)"
+
+[lib]
+crate-type = ["cdylib", "rlib"]
+
+[dependencies]
+chrono = { version = "0.4", features = ["serde"] }
+libc = "0.2"
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+spectyra_core = { path = "../core-rust" }

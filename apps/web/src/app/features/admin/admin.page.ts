@@ -56,6 +56,8 @@ export class AdminPage implements OnInit, OnDestroy {
   canManageRoles = false;
   /** platform_exempt on user's first owned org — superuser / platform owner only */
   canManageOwnerOrgBilling = false;
+  /** Operator-facing pricing DB staleness (from `GET /v1/admin/pricing/status`). */
+  pricingOpsAlert: string | null = null;
 
   private sessionSub?: Subscription;
   private listOrgsSub?: Subscription;
@@ -122,6 +124,20 @@ export class AdminPage implements OnInit, OnDestroy {
           error: () => {
             this.canManageRoles = false;
             this.canManageOwnerOrgBilling = false;
+            this.cdr.markForCheck();
+          },
+        });
+        this.adminService.getPricingRegistryStatus().subscribe({
+          next: s => {
+            if (s.stale && s.catalogSource === 'database') {
+              this.pricingOpsAlert = `Pricing DB snapshot is past TTL (version ${s.version ?? '—'}, ingested ${s.ingestedAt ?? '—'}). Open Pricing registry and run ingest, or configure the scheduled workflow secret DATABASE_URL.`;
+            } else {
+              this.pricingOpsAlert = null;
+            }
+            this.cdr.markForCheck();
+          },
+          error: () => {
+            this.pricingOpsAlert = null;
             this.cdr.markForCheck();
           },
         });

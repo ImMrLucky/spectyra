@@ -1,6 +1,7 @@
 import type { SpectyraDevtoolsConfig, SpectyraConfig } from "../types.js";
 import type { SpectyraEntitlementStatus } from "../observability/observabilityTypes.js";
 import type { SpectyraSessionState } from "../observability/spectyraSessionState.js";
+import { getPricingSnapshotMeta } from "../pricing/pricingRuntime.js";
 
 function isBrowser(): boolean {
   if (typeof globalThis === "undefined") return false;
@@ -173,25 +174,44 @@ export function mountSpectyraDevtools(opts: DevtoolsMountOptions): { unmount: ()
     const q = e?.quota;
     const summ = s.getSavingsSummary();
     const lr = s.getLastRun();
+    const surface = opts.config.productSurface ?? "in_app";
     const paused = summ.optimizationPaused || (q && !q.canRunOptimized);
-    const stateLine = paused
-      ? q && !q.canRunOptimized
-        ? "Paused (entitlement / limit)"
-        : "Paused"
-      : "Active";
+    let stateLine = "Active";
+    if (paused) {
+      if (q?.detail) stateLine = `Paused · ${q.state}`;
+      else if (q && !q.canRunOptimized) {
+        stateLine =
+          surface === "in_app" ? "Optimization paused (billing / plan)" : "Paused (entitlement / limit)";
+      } else {
+        stateLine = "Paused";
+      }
+    }
     row("State", stateLine, paused ? "warn" : "");
     row("Env", opts.environmentLabel, "");
     row("Requests", String(s.requestCount), "");
     row("Savings (est. USD)", summ.totalEstimatedSavingsUsd.toFixed(4), "");
     row("Avg. savings %", summ.averageSavingsPct.toFixed(1) + "%", "");
+    const pm = getPricingSnapshotMeta();
+    if (pm.version) {
+      const fetchedMs = pm.fetchedAt ? Date.parse(pm.fetchedAt) : NaN;
+      const ageSec =
+        Number.isFinite(fetchedMs) ? Math.max(0, Math.round((Date.now() - fetchedMs) / 1000)) : 0;
+      row("Pricing version", pm.version, pm.stale ? "warn" : "");
+      row("Pricing snapshot age", `${ageSec}s (ttl ${pm.ttlSeconds}s)`, pm.stale ? "warn" : "");
+    }
     if (q) {
       row("Plan", q.plan, "");
       row("Quota", q.limit == null ? `${q.used} used` : `${q.used} / ${q.limit} (${q.percentUsed?.toFixed(0) ?? "?"}%)`, "");
-      if (q.state === "approaching_limit") {
+      if (q.canRunOptimized && q.state === "approaching_limit") {
         row(" ", "Approaching free-tier limit", "warn");
       }
       if (!q.canRunOptimized) {
-        row(" ", "Free tier limit reached. Spectyra optimization paused. Upgrade in dashboard to continue savings.", "warn");
+        const msg =
+          q.detail ??
+          (surface === "in_app" ?
+            "Spectyra optimization is paused for this workspace (billing, plan, or API key). Provider calls still work."
+          : "Spectyra optimization paused (entitlement / limit).");
+        row(" ", msg, "warn");
         if (q.upgradeUrl) {
           const a = doc.createElement("a");
           a.href = q.upgradeUrl;
@@ -226,6 +246,23 @@ export function mountSpectyraDevtools(opts: DevtoolsMountOptions): { unmount: ()
         pre.className = "mini";
         pre.textContent = "No completed run yet in this page session.";
         det.appendChild(pre);
+      }
+      const pm2 = getPricingSnapshotMeta();
+      if (pm2.version) {
+        const hdr = doc.createElement("div");
+        hdr.className = "k";
+        hdr.style.marginTop = "8px";
+        hdr.textContent = "Pricing details";
+        det.appendChild(hdr);
+        const pr = doc.createElement("div");
+        pr.className = "mini";
+        pr.textContent = [
+          `version=${pm2.version}`,
+          `fetchedAt=${pm2.fetchedAt || "—"}`,
+          `ttlSeconds=${pm2.ttlSeconds}`,
+          `stale=${pm2.stale ? "yes" : "no"}`,
+        ].join(" · ");
+        det.appendChild(pr);
       }
     }
   };

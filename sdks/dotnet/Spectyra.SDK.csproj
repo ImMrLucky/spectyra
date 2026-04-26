@@ -1,0 +1,17 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+    <RootNamespace>Spectyra</RootNamespace>
+    <AssemblyName>Spectyra.SDK</AssemblyName>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Version>0.0.1</Version>
+    <Description>Scaffold .NET SDK for Spectyra local runtime + future native embedding</Description>
+    <EnableDefaultCompileItems>false</EnableDefaultCompileItems>
+  </PropertyGroup>
+  <ItemGroup>
+    <Compile Include="src/SpectyraClient.cs" />
+    <Compile Include="src/SpectyraFacade.cs" />
+    <Compile Include="src/SpectyraFfi.cs" />
+  </ItemGroup>
+</Project>

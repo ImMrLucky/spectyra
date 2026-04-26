@@ -1,0 +1,30 @@
+# Phase 6: scheduled / manual refresh — copies bundled catalog into Postgres.
+name: Pricing registry refresh
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "0 6 * * 1"
+
+jobs:
+  ingest:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 9
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "pnpm"
+      - run: pnpm install --frozen-lockfile
+      - name: Ingest bundled snapshot
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+        run: |
+          if [ -z "${DATABASE_URL}" ]; then
+            echo "Skipping ingest: DATABASE_URL secret not configured for this repo."
+            exit 0
+          fi
+          pnpm --filter api run pricing:ingest-bundled

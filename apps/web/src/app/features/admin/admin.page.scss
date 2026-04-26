@@ -628,3 +628,14 @@
   color: var(--text-muted);
   font-style: italic;
 }
+
+.ops-alert {
+  margin-bottom: 16px;
+  padding: 12px 14px;
+  border-radius: 8px;
+  background: #fff7ed;
+  border: 1px solid #fdba74;
+  color: #9a3412;
+  font-size: 14px;
+  line-height: 1.45;
+}

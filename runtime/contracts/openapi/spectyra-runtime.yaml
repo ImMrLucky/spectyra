@@ -1,0 +1,184 @@
+openapi: 3.1.0
+info:
+  title: Spectyra Local Runtime API
+  version: 0.1.0
+  description: |
+    Local-first sidecar contract (planned). Inference and optimization run on the customer machine;
+    payloads must never include raw prompts or provider secrets in outbound analytics.
+servers:
+  - url: http://127.0.0.1:4269
+paths:
+  /v1/status:
+    get:
+      summary: Runtime status (version, bind address)
+      operationId: getStatus
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RuntimeStatus"
+  /v1/health:
+    get:
+      summary: Liveness
+      operationId: getHealth
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HealthResponse"
+  /v1/chat/run:
+    post:
+      summary: Chat completion with local optimization (BYOK)
+      operationId: runChat
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ChatRunRequest"
+      responses:
+        "200":
+          description: Provider-shaped output plus savings metadata
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RunResultEnvelope"
+  /v1/responses/run:
+    post:
+      summary: Responses API style run (provider-specific; optional)
+      operationId: runResponses
+      responses:
+        "501":
+          description: Not implemented in early builds
+  /v1/embeddings/run:
+    post:
+      summary: Embeddings with local accounting (optional)
+      operationId: runEmbeddings
+      responses:
+        "501":
+          description: Not implemented in early builds
+  /v1/metrics/session:
+    get:
+      summary: Session aggregate metrics (no message bodies)
+      operationId: getSessionMetrics
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SessionMetrics"
+  /v1/quota:
+    get:
+      summary: Quota mirror from control plane (cached)
+      operationId: getQuota
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/QuotaStatus"
+  /v1/pricing/meta:
+    get:
+      summary: Pricing snapshot identifiers for local cost engine
+      operationId: getPricingMeta
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PricingMeta"
+components:
+  schemas:
+    HealthResponse:
+      type: object
+      properties:
+        status:
+          type: string
+          example: ok
+    RuntimeStatus:
+      type: object
+      properties:
+        version:
+          type: string
+        listen:
+          type: string
+    ChatRunRequest:
+      type: object
+      required: [provider, model]
+      properties:
+        provider:
+          type: string
+          example: openai
+        model:
+          type: string
+        max_tokens:
+          type: integer
+        temperature:
+          type: number
+        messages:
+          type: array
+          items:
+            type: object
+      description: |
+        Message bodies are processed only inside the local runtime. Outbound analytics must use
+        aggregated types only (see platform privacy spec).
+    RunResultEnvelope:
+      type: object
+      properties:
+        output:
+          description: Opaque provider response (stays on host)
+        usage:
+          type: object
+        costBefore:
+          type: number
+        costAfter:
+          type: number
+        savingsAmount:
+          type: number
+        savingsPercent:
+          type: number
+        quotaStatus:
+          $ref: "#/components/schemas/QuotaStatus"
+        optimizationActive:
+          type: boolean
+    QuotaState:
+      type: string
+      enum:
+        - active_free
+        - approaching_limit
+        - quota_exhausted
+        - active_paid
+        - paused
+    QuotaStatus:
+      type: object
+      properties:
+        plan:
+          type: string
+        state:
+          $ref: "#/components/schemas/QuotaState"
+        used:
+          type: number
+        limit:
+          type: [number, "null"]
+        remaining:
+          type: [number, "null"]
+        canRunOptimized:
+          type: boolean
+    SessionMetrics:
+      type: object
+      properties:
+        requestCount:
+          type: integer
+        totalSavingsUsd:
+          type: number
+    PricingMeta:
+      type: object
+      properties:
+        version:
+          type: string
+        source:
+          type: string

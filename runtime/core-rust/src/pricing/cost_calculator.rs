@@ -9,14 +9,31 @@ fn round_money(x: f64) -> f64 {
     (x * 1_000_000.0).round() / 1_000_000.0
 }
 
-fn component_scale(unit: crate::pricing::types::PricingUnit) -> Result<f64, PricingError> {
-    use crate::pricing::types::PricingUnit;
+fn component_scale(unit: &str) -> Result<f64, PricingError> {
     match unit {
-        PricingUnit::Per1MTokens => Ok(1.0 / 1_000_000.0),
-        PricingUnit::Per1KTokens => Ok(1.0 / 1_000.0),
-        PricingUnit::PerRequest => Ok(1.0),
-        PricingUnit::PerHour => Ok(1.0),
+        "per_1m_tokens" => Ok(1.0 / 1_000_000.0),
+        "per_1k_calls" => Ok(1.0 / 1_000.0),
+        "per_request" => Ok(1.0),
+        "per_hour" => Ok(1.0),
+        "per_minute" => Ok(1.0),
+        "per_image" => Ok(1.0),
+        _ => Err(PricingError::UnknownUnit),
     }
+}
+
+fn batch_line_multipliers(usage: &NormalizedUsage, entry: &ModelPricingEntry) -> (f64, f64) {
+    if usage.batch != Some(true) {
+        return (1.0, 1.0);
+    }
+    let Some(bd) = entry.batch_discount.as_ref() else {
+        return (1.0, 1.0);
+    };
+    if !bd.supported {
+        return (1.0, 1.0);
+    }
+    let input_m = bd.input_multiplier.unwrap_or(1.0);
+    let output_m = bd.output_multiplier.unwrap_or(1.0);
+    (input_m, output_m)
 }
 
 fn classify_key(key: &str) -> &'static str {
@@ -49,11 +66,7 @@ pub fn calculate_cost(
         warnings.push("pricing entry marked stale".to_string());
     }
 
-    let batch_mult = if usage.batch == Some(true) {
-        entry.batch_discount.unwrap_or(1.0)
-    } else {
-        1.0
-    };
+    let (input_batch_mult, output_batch_mult) = batch_line_multipliers(usage, entry);
 
     let input_tokens = usage.input_tokens.unwrap_or(0) as f64;
     let output_tokens = usage.output_tokens.unwrap_or(0) as f64;
@@ -91,7 +104,7 @@ pub fn calculate_cost(
         if qty <= 0.0 {
             return Ok(());
         }
-        let scale = component_scale(comp.unit)?;
+        let scale = component_scale(comp.unit.as_str())?;
         let unit_price = comp.unit_price_usd * scale;
         let subtotal = round_money(qty * unit_price * batch_mult);
         lines.push(CostBreakdownLine {
@@ -110,7 +123,7 @@ pub fn calculate_cost(
             &c.key,
             c,
             input_tokens,
-            batch_mult,
+            input_batch_mult,
             Some("input tokens".into()),
         )?;
     } else if input_tokens > 0.0 {
@@ -123,7 +136,7 @@ pub fn calculate_cost(
             &c.key,
             c,
             billable_output,
-            batch_mult,
+            output_batch_mult,
             Some("output tokens (reasoning-adjusted when applicable)".into()),
         )?;
     } else if billable_output > 0.0 {
@@ -136,7 +149,7 @@ pub fn calculate_cost(
             &c.key,
             c,
             cache_read,
-            batch_mult,
+            output_batch_mult,
             Some("cache read".into()),
         )?;
     }
@@ -147,7 +160,7 @@ pub fn calculate_cost(
             &c.key,
             c,
             cache_write,
-            batch_mult,
+            output_batch_mult,
             Some("cache write".into()),
         )?;
     }
@@ -159,7 +172,7 @@ pub fn calculate_cost(
                 &c.key,
                 c,
                 reasoning,
-                batch_mult,
+                output_batch_mult,
                 Some("reasoning/thinking tokens".into()),
             )?;
         }
@@ -167,12 +180,44 @@ pub fn calculate_cost(
 
     let total = round_money(lines.iter().map(|l| l.subtotal).sum());
 
+    let billable_tokens = input_tokens + output_tokens + reasoning;
+    if lines.is_empty() && billable_tokens > 0.0 && usage.cost_source_override.is_none() {
+        warnings.push(
+            "Registry entry has no matching priced components for this usage — totals are not reliable (fallback_estimate)."
+                .to_string(),
+        );
+    }
+
+    let source = if usage
+        .cost_source_override
+        .as_deref()
+        .map(|s| s == "manual_override")
+        .unwrap_or(false)
+    {
+        "manual_override"
+    } else if usage
+        .cost_source_override
+        .as_deref()
+        .map(|s| s == "fallback_estimate")
+        .unwrap_or(false)
+        || (lines.is_empty() && billable_tokens > 0.0)
+    {
+        "fallback_estimate"
+    } else if usage.raw_provider_usage.is_some() {
+        "provider_usage_plus_registry"
+    } else {
+        "registry_only"
+    };
+
     Ok(CostBreakdown {
         provider: entry.provider.clone(),
         model_id: entry.model_id.clone(),
         pricing_entry_id: Some(entry.id.clone()),
-        source: "spectyra_estimate".into(),
-        currency: entry.currency.clone(),
+        source: source.into(),
+        currency: entry
+            .currency
+            .clone()
+            .unwrap_or_else(|| "USD".to_string()),
         lines,
         total,
         warnings,
@@ -206,32 +251,42 @@ pub fn calculate_savings(
 mod tests {
     use super::*;
     use crate::models::ProviderName;
-    use crate::pricing::types::PricingUnit;
-
     fn sample_entry() -> ModelPricingEntry {
         ModelPricingEntry {
             id: "e1".into(),
             provider: "openai".into(),
             model_id: "gpt-4o".into(),
-            currency: "USD".into(),
+            display_name: None,
+            currency: Some("USD".into()),
             components: vec![
                 PricingComponent {
                     key: "input_tokens".into(),
+                    label: None,
                     unit_price_usd: 2.50,
-                    unit: PricingUnit::Per1MTokens,
+                    unit: "per_1m_tokens".into(),
+                    currency: None,
                 },
                 PricingComponent {
                     key: "output_tokens".into(),
+                    label: None,
                     unit_price_usd: 10.0,
-                    unit: PricingUnit::Per1MTokens,
+                    unit: "per_1m_tokens".into(),
+                    currency: None,
                 },
                 PricingComponent {
                     key: "reasoning_tokens".into(),
+                    label: None,
                     unit_price_usd: 5.0,
-                    unit: PricingUnit::Per1MTokens,
+                    unit: "per_1m_tokens".into(),
+                    currency: None,
                 },
             ],
-            batch_discount: Some(0.5),
+            batch_discount: Some(crate::pricing::types::BatchDiscount {
+                supported: true,
+                input_multiplier: Some(0.5),
+                output_multiplier: Some(0.5),
+                notes: None,
+            }),
             fallback_from_model_id: None,
             stale: None,
         }
@@ -260,6 +315,7 @@ mod tests {
             storage_hours: None,
             batch: None,
             raw_provider_usage: None,
+            cost_source_override: None,
         }
     }
 
@@ -270,6 +326,25 @@ mod tests {
         let c = calculate_cost(&u, &entry).unwrap();
         let out_line = c.lines.iter().find(|l| l.component_key == "output_tokens").unwrap();
         assert!((out_line.quantity - 400_000.0).abs() < 1.0);
+    }
+
+    #[test]
+    fn cost_source_override_manual() {
+        let entry = sample_entry();
+        let mut u = usage(1_000_000, 0, 0);
+        u.cost_source_override = Some("manual_override".into());
+        let c = calculate_cost(&u, &entry).unwrap();
+        assert_eq!(c.source, "manual_override");
+    }
+
+    #[test]
+    fn fallback_when_no_priced_lines() {
+        let mut entry = sample_entry();
+        entry.components.clear();
+        let u = usage(1000, 500, 0);
+        let c = calculate_cost(&u, &entry).unwrap();
+        assert_eq!(c.source, "fallback_estimate");
+        assert!(!c.warnings.is_empty());
     }
 
     #[test]

@@ -5,7 +5,8 @@
   "scripts": {
     "dev": "tsx watch src/index.ts",
     "build": "tsc",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "pricing:ingest-bundled": "tsx scripts/refresh-pricing-registry.ts"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.20.1",

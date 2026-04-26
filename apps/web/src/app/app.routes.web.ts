@@ -7,6 +7,7 @@ import { ProjectsPage } from './features/projects/projects.page';
 import { ProjectDetailPage } from './features/projects/project-detail.page';
 import { ProjectEnvironmentPage } from './features/projects/project-environment.page';
 import { AdminPage } from './features/admin/admin.page';
+import { AdminPricingPage } from './features/admin/admin-pricing.page';
 import { OptimizerLabPage } from './features/optimizer-lab/optimizer-lab.page';
 import { HomePage } from './features/home/home.page';
 import { OpenClawLandingPage } from './features/marketing/openclaw-landing.page';
@@ -59,6 +60,7 @@ export const webRoutes: Routes = [
   { path: 'settings/security', component: SecuritySettingsPage, canActivate: [authGuard] },
   { path: 'settings/provider-keys', component: ProviderKeysPage, canActivate: [authGuard] },
 
+  { path: 'admin/pricing', component: AdminPricingPage, canActivate: [authGuard] },
   { path: 'admin', component: AdminPage, canActivate: [authGuard] },
   { path: 'superuser', component: SuperuserPage, canActivate: [authGuard, superuserGuard] },
 

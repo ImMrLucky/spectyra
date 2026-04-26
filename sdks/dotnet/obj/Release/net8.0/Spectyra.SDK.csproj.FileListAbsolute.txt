@@ -1,0 +1,12 @@
+/Users/kassihamilton/spectyra/sdks/dotnet/bin/Release/net8.0/Spectyra.SDK.deps.json
+/Users/kassihamilton/spectyra/sdks/dotnet/bin/Release/net8.0/Spectyra.SDK.dll
+/Users/kassihamilton/spectyra/sdks/dotnet/bin/Release/net8.0/Spectyra.SDK.pdb
+/Users/kassihamilton/spectyra/sdks/dotnet/obj/Release/net8.0/Spectyra.SDK.GeneratedMSBuildEditorConfig.editorconfig
+/Users/kassihamilton/spectyra/sdks/dotnet/obj/Release/net8.0/Spectyra.SDK.AssemblyInfoInputs.cache
+/Users/kassihamilton/spectyra/sdks/dotnet/obj/Release/net8.0/Spectyra.SDK.AssemblyInfo.cs
+/Users/kassihamilton/spectyra/sdks/dotnet/obj/Release/net8.0/Spectyra.SDK.csproj.CoreCompileInputs.cache
+/Users/kassihamilton/spectyra/sdks/dotnet/obj/Release/net8.0/Spectyra.SDK.sourcelink.json
+/Users/kassihamilton/spectyra/sdks/dotnet/obj/Release/net8.0/Spectyra.SDK.dll
+/Users/kassihamilton/spectyra/sdks/dotnet/obj/Release/net8.0/refint/Spectyra.SDK.dll
+/Users/kassihamilton/spectyra/sdks/dotnet/obj/Release/net8.0/Spectyra.SDK.pdb
+/Users/kassihamilton/spectyra/sdks/dotnet/obj/Release/net8.0/ref/Spectyra.SDK.dll

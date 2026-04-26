@@ -99,6 +99,7 @@ impl ProviderAdapter for AnthropicAdapter {
             storage_hours: None,
             batch: None,
             raw_provider_usage: Some(usage_v),
+            cost_source_override: None,
         };
 
         Ok(ProviderChatResponse {

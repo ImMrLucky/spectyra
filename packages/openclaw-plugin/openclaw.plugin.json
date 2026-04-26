@@ -1,0 +1,14 @@
+{
+  "name": "@spectyra/openclaw-plugin",
+  "displayName": "Spectyra OpenClaw Optimizer",
+  "version": "0.1.0",
+  "pluginApi": "1.x",
+  "minGatewayVersion": "2026.3.24-beta.2",
+  "main": "dist/index.js",
+  "permissions": {
+    "network": ["http://127.0.0.1:4111"],
+    "filesystem": [],
+    "shell": false,
+    "secrets": false
+  }
+}

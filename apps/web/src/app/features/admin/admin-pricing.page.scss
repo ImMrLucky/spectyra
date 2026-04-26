@@ -1,0 +1,147 @@
+.wrap {
+  max-width: 1100px;
+  margin: 0 auto;
+  padding: 24px 16px 48px;
+}
+
+.head .back {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  text-decoration: none;
+  color: #2563eb;
+  font-size: 14px;
+  margin-bottom: 8px;
+}
+
+h1 {
+  margin: 0 0 8px;
+  font-size: 1.5rem;
+}
+
+.sub {
+  color: #555;
+  font-size: 14px;
+  max-width: 720px;
+}
+
+.toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  align-items: flex-end;
+  margin: 20px 0;
+}
+
+.toolbar label {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 12px;
+  color: #444;
+}
+
+.toolbar input {
+  min-width: 200px;
+  padding: 6px 8px;
+}
+
+.toolbar button {
+  padding: 8px 14px;
+  cursor: pointer;
+}
+
+.err {
+  color: #b91c1c;
+  margin: 8px 0;
+}
+
+.loading {
+  color: #666;
+}
+
+.meta {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: 8px;
+  margin-bottom: 16px;
+  font-size: 13px;
+}
+
+.tbl {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+}
+
+.tbl th,
+.tbl td {
+  border: 1px solid #e5e5e5;
+  padding: 8px;
+  vertical-align: top;
+  text-align: left;
+}
+
+.tbl th {
+  background: #f8fafc;
+}
+
+.comps {
+  margin: 0;
+  padding-left: 18px;
+}
+
+.section {
+  margin: 28px 0 8px;
+  font-size: 1.1rem;
+}
+
+.hint {
+  font-size: 13px;
+  color: #555;
+  margin: 0 0 12px;
+}
+
+.ov-form {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  max-width: 720px;
+  margin-bottom: 20px;
+}
+
+.ov-form label {
+  font-size: 12px;
+  color: #444;
+}
+
+.ov-form input,
+.ov-form textarea {
+  padding: 8px;
+  font-family: ui-monospace, monospace;
+  font-size: 12px;
+}
+
+.ov-form button {
+  align-self: flex-start;
+  padding: 8px 14px;
+  cursor: pointer;
+}
+
+.patch {
+  display: block;
+  max-width: 420px;
+  white-space: pre-wrap;
+  word-break: break-all;
+  font-size: 11px;
+}
+
+.linkish {
+  background: none;
+  border: none;
+  color: #b91c1c;
+  cursor: pointer;
+  text-decoration: underline;
+  padding: 0;
+  font: inherit;
+}

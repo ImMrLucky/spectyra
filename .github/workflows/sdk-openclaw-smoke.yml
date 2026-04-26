@@ -1,0 +1,32 @@
+# Automated substitute for Phase 0 manual OpenClaw regression smoke (bridge + companion).
+name: SDK OpenClaw smoke
+
+on:
+  push:
+    branches: [main, master]
+  pull_request:
+    paths:
+      - "packages/openclaw-bridge/**"
+      - "tools/local-companion/**"
+      - "packages/integration-metadata/**"
+      - ".github/workflows/sdk-openclaw-smoke.yml"
+
+jobs:
+  smoke:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 9
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "pnpm"
+      - run: pnpm install --frozen-lockfile
+      - name: OpenClaw bridge tests
+        run: pnpm --filter @spectyra/openclaw-bridge run test
+      - name: Local companion tests + bundle
+        run: |
+          pnpm --filter @spectyra/local-companion run test
+          pnpm --filter @spectyra/local-companion run build

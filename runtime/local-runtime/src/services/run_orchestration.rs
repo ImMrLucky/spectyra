@@ -45,6 +45,7 @@ fn baseline_usage_from_request(req: &ChatRunRequest, output_tokens: u64, provide
         storage_hours: None,
         batch: None,
         raw_provider_usage: None,
+        cost_source_override: None,
     }
 }
 
@@ -287,6 +288,7 @@ pub async fn orchestrate_embeddings(
         storage_hours: None,
         batch: None,
         raw_provider_usage: None,
+        cost_source_override: None,
     };
 
     let prov = req.provider.as_str();

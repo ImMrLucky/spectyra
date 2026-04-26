@@ -1,5 +1,6 @@
-//! Spectyra Rust core — pricing, metrics, quota freeze, telemetry shaping, optimization pipeline.
+//! Spectyra Rust core — pricing, metrics, quota, privacy-safe telemetry, optimization pipeline.
 
+pub mod aggregated_telemetry;
 pub mod config;
 pub mod errors;
 pub mod metrics;
@@ -12,6 +13,7 @@ pub mod telemetry;
 pub mod transforms;
 pub mod usage;
 
+pub use aggregated_telemetry::AggregatedRunTelemetry;
 pub use metrics::{RunMetrics, SessionMetrics};
 pub use models::*;
 pub use pipeline::{optimization_allowed, run_chat_pipeline, PipelineError, PipelineOutput};

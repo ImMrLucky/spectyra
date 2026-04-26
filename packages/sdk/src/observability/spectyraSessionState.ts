@@ -6,6 +6,7 @@ import type {
   SpectyraSavingsSummary,
   SpectyraSessionCostSummary,
 } from "./observabilityTypes.js";
+import type { SavingsCalculation } from "../pricing/types.js";
 
 /**
  * In-memory session accounting for a single `createSpectyra()` instance.
@@ -21,6 +22,24 @@ export class SpectyraSessionState {
   private lastRequestAt: string | null = null;
   metricsFrozen = false;
   private entitlement: SpectyraEntitlementStatus | null = null;
+  private lastSavingsCalculation: SavingsCalculation | null = null;
+
+  setLastSavingsCalculation(c: SavingsCalculation | null) {
+    this.lastSavingsCalculation = c;
+  }
+
+  getLastRunCostBreakdown(): SavingsCalculation | null {
+    return this.lastSavingsCalculation;
+  }
+
+  getLastRunSavings(): { savingsAmount: number; savingsPercent: number } | null {
+    const lr = this.lastRun;
+    if (!lr) return null;
+    return {
+      savingsAmount: lr.report.estimatedSavings,
+      savingsPercent: lr.report.estimatedSavingsPct,
+    };
+  }
 
   setEntitlement(s: SpectyraEntitlementStatus) {
     this.entitlement = s;

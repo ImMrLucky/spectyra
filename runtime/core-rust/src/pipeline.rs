@@ -18,7 +18,7 @@ pub enum PipelineError {
     },
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct PipelineOutput {
     pub request: ChatRunRequest,
     pub transform_names: Vec<String>,

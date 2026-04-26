@@ -65,6 +65,7 @@ import { evaluateWorkflowPolicyFromEvents } from "./workflowPolicyFromEvents.js"
 import { activateLicense } from "@spectyra/optimization-engine";
 import { spectyraOpenClawModelDefinitions } from "@spectyra/shared";
 import { recordOpenClawTrafficIfApplicable, getOpenClawIntegrationDiagnostics } from "./openclawTraffic.js";
+import { registerOpenClawPluginReadRoutes } from "./openclawPluginReadApi.js";
 import { dashboardPageHtml } from "./dashboardPageHtml.js";
 import { fetchSpectyraV1 } from "./spectyraCloudFetch.js";
 import {
@@ -283,6 +284,8 @@ app.get("/health", async (_req, res) => {
         : null,
   });
 });
+
+registerOpenClawPluginReadRoutes(app);
 
 app.post("/v1/anonymous/ping", async (req, res) => {
   try {

@@ -2,6 +2,40 @@
 
 Wrap your existing LLM calls: Spectyra optimizes prompts **locally**, then your code calls OpenAI, Anthropic, or Groq **directly**—no proxy, no extra round-trip.
 
+**Phased execution:** [../../docs/sdk/PHASED_CHECKLIST.md](../../docs/sdk/PHASED_CHECKLIST.md) · **Feature matrix:** [../../docs/sdk/SPEC_CHECKLIST.md](../../docs/sdk/SPEC_CHECKLIST.md) · **Integration modes:** [../../docs/sdk/README.md](../../docs/sdk/README.md) · **Language scaffolds:** [../../sdks/](../../sdks/).
+
+---
+
+## Development vs production
+
+**Local / dev**
+
+- Turn on **`debug: true`** and **`logLevel: "info"`** (or `"debug"`) so savings, quota, and entitlement refreshes are visible in the console.
+- In the browser, leave **`devtools`** enabled (default) for the floating panel; set **`devtools.defaultOpen: true`** if you want the card expanded on first load.
+- Use a **Spectyra API key** pointed at **staging** if you have one; entitlements and pricing snapshots will refresh on the interval from config.
+
+**Production**
+
+- Keep **`spectyraCloudApiKey`** (or `SPECTYRA_API_KEY`) and **`spectyraApiBaseUrl`** set so `GET /v1/entitlements/status` and `GET /v1/pricing/snapshot` can refresh **without redeploy** when the customer upgrades billing.
+- Set **`devtools.enabled: false`** if you do not want the floating panel in production UIs.
+- Set **`productSurface: "in_app"`** (default) so user-facing strings follow the in-app / billing wording rather than legacy OpenClaw-oriented copy.
+
+```ts
+import { createSpectyra, createOpenAIAdapter } from "@spectyra/sdk";
+import OpenAI from "openai";
+
+const spectyra = createSpectyra({
+  spectyraCloudApiKey: process.env.SPECTYRA_API_KEY,
+  spectyraApiBaseUrl: process.env.SPECTYRA_API_BASE_URL, // must include /v1
+  productSurface: "in_app",
+  debug: process.env.NODE_ENV !== "production",
+  logLevel: process.env.NODE_ENV !== "production" ? "info" : "warn",
+  devtools: { enabled: process.env.NODE_ENV !== "production" },
+});
+
+const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+```
+
 ---
 
 ## Install (30 seconds)
@@ -45,6 +79,32 @@ const { providerResult, report } = await spectyra.complete(
 // Same response object you would get from the provider SDK, plus a savings report
 console.log(report.estimatedSavingsPct, report.inputTokensBefore, report.inputTokensAfter);
 ```
+
+### Callback style: `run()` (no provider client object)
+
+Use `spectyra.run()` when you want Spectyra to optimize messages, then **you** call the provider in a callback (same BYOK and privacy rules as `complete()`):
+
+```ts
+const out = await spectyra.run(
+  { provider: "openai", model: "gpt-4o-mini", messages: [{ role: "user", content: "Hi!" }] },
+  async ({ messages, model }) => {
+    const res = await openai.chat.completions.create({ model, messages });
+    const text = res.choices[0]?.message?.content ?? "";
+    return {
+      result: res,
+      text,
+      usage: {
+        inputTokens: res.usage?.prompt_tokens ?? 0,
+        outputTokens: res.usage?.completion_tokens ?? 0,
+      },
+    };
+  },
+);
+
+console.log(out.savingsPercent, out.quotaStatus, out.optimizationActive);
+```
+
+Aggregates for this instance: `spectyra.getSessionCostSummary()`, `spectyra.getSavingsSummary()`, `spectyra.getQuotaStatus()`.
 
 **Subpath imports:** `@spectyra/sdk/adapters/openai`, `.../anthropic`, `.../groq`.
 

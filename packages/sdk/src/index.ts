@@ -47,7 +47,7 @@ export {
   ingestSdkComplete,
   ingestSdkPromptComparisonAvailable,
   emitSdkEventsForStandaloneComplete,
-} from "./events/sdkEvents.js";
+} from "./events/emitters.js";
 export type { SpectyraEvent, SpectyraEventType } from "@spectyra/event-core";
 
 // Learning (Phase 5) — optional profile on `SpectyraConfig`
@@ -125,6 +125,7 @@ export type {
   SpectyraRequestEndEvent,
   SpectyraOptimizationEvent,
   SpectyraSavingsCalculation,
+  SpectyraCostCalculatedPayload,
   ClaudeAgentOptions,
   AgentDecision,
   AgentOptionsRequest,
@@ -133,10 +134,18 @@ export type {
   AgentEventResponse,
 } from "./types.js";
 export type {
+  SpectyraRunInput,
+  SpectyraRunResult,
+  SpectyraRunExecutor,
+  SpectyraRunExecuteContext,
+} from "./run/spectyraRun.js";
+export { createExecutorAdapter, mapCompleteToRunResult } from "./run/spectyraRun.js";
+export type {
   SpectyraEntitlementStatus,
   SpectyraLastRun,
   SpectyraMetricsSnapshot,
   SpectyraSavingsSummary,
+  SpectyraSessionCostSummary,
   SpectyraQuotaStatus,
   SpectyraQuotaState,
   SpectyraDashboardPlan,
@@ -144,6 +153,36 @@ export type {
 export { shouldMountDevtoolsByDefault } from "./devtools/mountDevtools.js";
 export { mapToSpectyraEntitlementStatus } from "./entitlements/mapEntitlementStatus.js";
 export type { EntitlementsStatusPayload } from "./entitlements/mapEntitlementStatus.js";
+export { EntitlementHttpError, fetchEntitlementStatus } from "./entitlements/fetchEntitlementStatus.js";
+
+// Pricing & savings (runtime snapshot from Spectyra API; not bundled permanently in apps)
+export type {
+  CurrencyCode,
+  PricingUnit,
+  ProviderName,
+  EndpointClass,
+  PricingComponent,
+  ModelPricingEntry,
+  ProviderPricingSnapshot,
+  CostBreakdown,
+  CostBreakdownLine,
+  NormalizedUsage,
+  SavingsCalculation,
+} from "./pricing/types.js";
+export { fetchPricingSnapshot } from "./pricing/pricingClient.js";
+export {
+  getPricingSnapshot,
+  getPricingSnapshotMeta,
+  startPricingRuntime,
+} from "./pricing/pricingRuntime.js";
+export type { PricingSnapshotMeta } from "./pricing/pricingRuntime.js";
+export { calculateCostFromEntry, calculateSavingsFromUsages } from "./pricing/costCalculator.js";
+export { normalizedUsageFromTokens } from "./pricing/normalizeUsage.js";
+export { resolveModelPricingEntry } from "./pricing/modelResolver.js";
+
+export { createSpectyraLogger } from "./logging/logger.js";
+export type { SpectyraLogger } from "./logging/logger.js";
+export { getSavingsSummaryFromSession, getSessionCostSummaryFromSession } from "./metrics/savingsAggregator.js";
 
 // Legacy API (deprecated but still supported)
 export { SpectyraClient } from "./legacy/SpectyraClient.js";

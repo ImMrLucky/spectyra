@@ -8,8 +8,14 @@
   </div>
 
   <div *ngIf="isAuthenticated && isOwner" class="admin-content">
+    <div class="ops-alert" *ngIf="pricingOpsAlert">{{ pricingOpsAlert }}</div>
     <!-- Quick Links -->
     <div class="quick-links">
+      <a routerLink="/admin/pricing" class="quick-link-card">
+        <span class="link-icon"><mat-icon>attach_money</mat-icon></span>
+        <span class="link-text">Pricing snapshot</span>
+        <span class="link-desc">View bundled SDK pricing catalog</span>
+      </a>
       <a routerLink="/admin/optimizer-lab" class="quick-link-card">
         <span class="link-icon"><mat-icon>analytics</mat-icon></span>
         <span class="link-text">Optimizer Lab</span>

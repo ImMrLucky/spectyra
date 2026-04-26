@@ -33,7 +33,8 @@
     "dev": "tsc --watch",
     "prepublishOnly": "npm run build",
     "test:sdk-moat-summaries": "tsx src/__tests__/sdkMoatSummaries.test.ts",
-    "test:optimization-engine-parity": "tsx src/__tests__/optimizationEngineParity.test.ts"
+    "test:optimization-engine-parity": "tsx src/__tests__/optimizationEngineParity.test.ts",
+    "test:telemetry-privacy": "tsx src/__tests__/telemetryPrivacy.test.ts"
   },
   "keywords": [
     "llm",

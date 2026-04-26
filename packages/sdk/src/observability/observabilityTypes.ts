@@ -8,14 +8,20 @@ export type SpectyraDashboardPlan = "free" | "starter" | "pro" | "enterprise";
 
 /**
  * @public
- * Coarse state for in-app displays and hooks.
+ * Coarse state for in-app displays and hooks (aligned with product spec + server signals).
  */
 export type SpectyraQuotaState =
+  | "missing_api_key"
+  | "invalid_api_key"
   | "active_paid"
   | "active_free"
   | "approaching_limit"
   | "quota_exhausted"
   | "inactive_due_to_quota"
+  | "payment_failed"
+  | "subscription_inactive"
+  | "account_paused"
+  | "account_deleted"
   | "disabled";
 
 /**
@@ -35,6 +41,8 @@ export interface SpectyraQuotaStatus {
   savingsObserveOnly?: boolean;
   /** When false, the SDK should not apply optimizations (local passthrough / run off). */
   canRunOptimized: boolean;
+  /** Short human line for overlay / managers (no “observe mode” wording for `productSurface: "in_app"`). */
+  detail?: string;
 }
 
 /**

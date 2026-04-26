@@ -1,51 +1,39 @@
-# BYOK, local-first architecture, and privacy
+# BYOK and local architecture — what never leaves the host
 
-Spectyra’s non-Node runtime is designed so **customer environments stay authoritative** for inference data and provider credentials.
+## Principles
 
-## What stays local
+1. **Inference is local** — Spectyra optimization and the LLM **provider call** run in **your** process (Node SDK) or on **your** machine (future local runtime / sidecar).
+2. **Bring your own keys (BYOK)** — OpenAI, Anthropic, and Groq keys are read from **your** environment or secret store. They are **not** sent to Spectyra.
+3. **Spectyra cloud is control plane** — account, org, API keys for **Spectyra** (not the LLM provider), billing, quota, and **aggregated** usage for dashboards.
 
-- **Prompts, completions, and full message arrays** for LLM calls made through the runtime.
-- **Retrieved documents** and other RAG payloads you pass in requests.
-- **Provider API keys** and any customer-side secret used to sign outbound provider HTTP calls.
-- **Raw provider request/response bodies** used for application logic (surfaced in API responses to *your* app only).
+## What must **not** be sent to Spectyra
 
-The localhost HTTP API (`runtime/contracts/openapi/spectyra-runtime.openapi.yaml`) is intended to be reached from **trusted processes on the same machine** or a **locked-down sidecar** — not exposed on public interfaces without authentication and network policy.
+- Raw **prompts** or **completions**
+- **Message arrays** or chat history
+- **Documents** / RAG context bodies
+- **Provider** API keys (OpenAI, Anthropic, Groq, etc.)
 
-## What may leave the local machine (Spectyra cloud control plane)
+## What **may** be sent (when you opt in)
 
-When you configure `SPECTYRA_ACCOUNT_KEY` and optional analytics, Spectyra cloud may receive **only**:
+With `telemetry.mode: "cloud_redacted"` and a valid **Spectyra** API key + `SPECTYRA_API_BASE_URL` (base path including `/v1`):
 
-- Account / org / project / environment **identifiers** (when you embed them in metadata or Spectyra’s own headers).
-- **Aggregated token and cost metrics**, savings estimates, and coarse latency summaries.
-- **Quota tier / entitlement status / plan labels** from standard entitlement endpoints.
-- **Pricing snapshot metadata** version and freshness (not customer prompts).
-- **Runtime version** string for support and compatibility.
+- Account / org / project identifiers (as strings you pass, e.g. `runContext.project`)
+- **Aggregated** token counts, cost estimates, savings, model and provider **names**
+- **Quota / plan** state from `GET /v1/entitlements/status`
+- SDK / runtime version and safe diagnostics (transform names, flow metrics that do not echo user text)
 
-Prompt text, completions, embeddings inputs, retrieval chunks, and provider keys **must not** appear in these payloads.
+The Node SDK’s `POST /v1/telemetry/run` body is built in `packages/sdk/src/cloud/postRunTelemetry.ts` and is covered by **automated tests** that reject forbidden keys in the JSON payload.
 
-## What provider keys are used for
+## How savings are computed
 
-`OPENAI_API_KEY`, `ANTHROPIC_API_KEY`, `GEMINI_API_KEY` (or overrides via runtime config env names) are read **only** on the host process to authenticate **direct HTTPS calls** from the runtime to the respective vendor APIs. They are **never** forwarded to Spectyra cloud.
+- The **local** pipeline estimates **input** tokens before and after optimization and applies a **local or snapshot** pricing model to produce `estimatedCostBefore`, `estimatedCostAfter`, and derived savings.
+- **Output** token costs are included in the report where applicable. Exact pricing comes from your configured model id and the platform’s non-secret pricing metadata — not from sending prompt text to the cloud.
 
-## What the Spectyra account key is used for
+## How to integrate
 
-`SPECTYRA_ACCOUNT_KEY` (machine / dashboard API key) authenticates **control-plane** requests such as:
+- **TypeScript / JavaScript (browser or Node):** `npm install @spectyra/sdk` — see `packages/sdk/README.md` and the `run()` API for callback-style usage.
+- **Other languages:** call a **local** Node BFF or the **future** HTTP sidecar described in `docs/runtime/README.md` and `runtime/local-runtime/README.md`.
 
-- `GET /v1/entitlements/status`
-- `GET /v1/pricing/snapshot`
-- Optional `POST /v1/telemetry/run` with **aggregated** JSON matching the **same schema as the Node SDK** (`packages/sdk/src/cloud/postRunTelemetry.ts`): `environment`, `model`, `inputTokens`, `outputTokens`, `optimizedTokens`, `estimatedCost`, `optimizedCost`, `savings`, `diagnostics`, optional `project`
+## OpenClaw
 
-It is **not** used as a provider credential and **not** mixed into provider Authorization headers.
-
-## Telemetry shaping and redaction
-
-The Rust core builds analytics events **only** from explicit metrics types (`RunMetrics`, `SessionMetrics`, `AccountContext`) — never by serializing prompt-bearing structs. Automated tests assert serialized telemetry JSON does not include keys such as `messages`, `content`, `prompt`, `api_key`, or `authorization`.
-
-## Why Spectyra is not an inference proxy
-
-Optimization and provider HTTP calls execute **inside your environment**. Spectyra cloud does not terminate TLS to OpenAI, Anthropic, or Google on your behalf for application inference. Cloud endpoints provide **account state and economics metadata**, not a multi-tenant prompt router.
-
-## Related documentation
-
-- Runtime integration overview: `docs/runtime/README.md`
-- HTTP contract: `runtime/contracts/openapi/spectyra-runtime.openapi.yaml`
+The **Local Companion** package is a separate, OpenClaw-oriented install. It also keeps provider traffic local; this document applies to the **in-app SDK** and **future** local runtime only.
