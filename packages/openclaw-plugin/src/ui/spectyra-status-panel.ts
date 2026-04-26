@@ -35,7 +35,7 @@ export function formatSpectyraStatusMarkdown(desc: StatusPanelDescriptor, extras
     return [
       "## ⚡ Spectyra is installed",
       "",
-      "Start Spectyra in your terminal:",
+      "Start Spectyra in your terminal (`npx` fetches the companion on first run — no separate install required):",
       "",
       "```bash",
       "npx @spectyra/local-companion start --open",

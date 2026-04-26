@@ -1,5 +1,6 @@
-# Spectyra OpenClaw Optimizer Plugin
+# Spectyra OpenClaw Workflow Optimizer Plugin (Save on all LLM API calls)
 
+Save 40% - 60% on OpenClaw costs in real-time.
 Native Spectyra savings and prompt-security visibility inside OpenClaw.
 
 ## ⚡ Quick Start
@@ -11,6 +12,8 @@ openclaw plugins install @spectyra/openclaw-plugin
 ```
 
 2. **Start Spectyra:**
+
+The following command downloads and installs `@spectyra/local-companion` from the registry the first time you run it (you need Node.js, npm/pnpm, and network access to npm).
 
 ```bash
 npx @spectyra/local-companion start --open
