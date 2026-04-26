@@ -16,6 +16,8 @@ openclaw plugins install @spectyra/openclaw-plugin
 npx @spectyra/local-companion start --open
 ```
 
+With the companion running, the dashboard is at `http://127.0.0.1:4111/dashboard`.
+
 3. **Open OpenClaw** and run any prompt.
 
 You should see Spectyra savings directly inside OpenClaw once the local companion is connected.
@@ -58,34 +60,11 @@ This plugin does **not**:
 - Install background services  
 - Stop autonomous flows  
 
-## Advanced setup
-
-Prefer a global install and the `spectyra-companion` CLI:
-
-```bash
-npm install -g @spectyra/local-companion
-spectyra-companion setup
-spectyra-companion start --open
-```
-
-The dashboard opens at `http://127.0.0.1:4111/dashboard`.
-
-## Publishing to ClawHub
-
-Per [ClawHub](https://docs.openclaw.ai/tools/clawhub), `clawhub package publish <path>` accepts a **local folder** (or a zip, GitHub URL, etc.). You do **not** have to zip the plugin if your workflow uses a folder path.
-
-1. From `packages/openclaw-plugin`, run `pnpm run build` so `dist/` exists (`openclaw.runtimeExtensions` points at `./dist/index.js`).
-2. Confirm `package.json` includes the required `openclaw.compat` / `openclaw.build` metadata (see [Plugin setup and config](https://docs.openclaw.ai/plugins/sdk-setup)); bump `openclawVersion` / `pluginSdkVersion` / `compat.*` after you verify against your installed OpenClaw version.
-3. Validate without uploading: `clawhub package publish /absolute/or/relative/path/to/openclaw-plugin --dry-run`
-4. Publish the same path for real when ready.
-
-The web publish flow should apply the same rules: a folder upload is the package root (contains `package.json`, `openclaw.plugin.json`, and built `dist/`).
-
 ## Troubleshooting
 
 ### Companion not running
 
-Use Quick Start (`npx @spectyra/local-companion start --open`) or Advanced setup above.
+Use Quick Start (`npx @spectyra/local-companion start --open`) above.
 
 ### No inline savings showing
 
