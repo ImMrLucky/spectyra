@@ -1,18 +1,25 @@
 import assert from "node:assert/strict";
 import { readFileSync, readdirSync, statSync } from "node:fs";
-import { join, relative } from "node:path";
+import { dirname, join, relative } from "node:path";
 import { fileURLToPath } from "node:url";
-import { CompanionClient } from "../companion/companion-client.js";
-import { beforeMessageSend, extractPromptText, runBeforeMessageSendHook } from "../hooks/message-hooks.js";
-import { evaluateToolCall } from "../hooks/tool-hooks.js";
-import { buildSecurityScanEventPayload, scanPrompt } from "../security/prompt-security-scanner.js";
 import {
+  beforeMessageSend,
+  buildSecurityScanEventPayload,
+  CompanionClient,
+  extractPromptText,
   formatSecurityNoticeMarkdown,
+  resolveSavingsBadgeView,
+  runBeforeMessageSendHook,
+  scanPrompt,
+  scanPromptSecurity,
   SECURITY_ALERT_ALLOWED_ACTION_LABELS,
   SECURITY_NOTICE_FORBIDDEN_BUTTON_SUBSTRINGS,
-} from "../ui/spectyra-security-alert.js";
-import { redactText } from "../utils/redact.js";
-import { resolveSavingsBadgeView } from "../ui/spectyra-savings-badge.js";
+} from "@spectyra/openclaw-plugin";
+import { evaluateToolCall } from "../../packages/openclaw-plugin/src/hooks/tool-hooks.js";
+import { redactText } from "../../packages/openclaw-plugin/src/utils/redact.js";
+
+const __dirname = dirname(fileURLToPath(import.meta.url));
+const pluginSrcRoot = join(__dirname, "../../packages/openclaw-plugin/src");
 
 async function main(): Promise<void> {
   await (async () => {
@@ -171,7 +178,7 @@ async function main(): Promise<void> {
   })();
 
   await (async () => {
-    const pkgSrc = join(fileURLToPath(new URL("../..", import.meta.url)), "src");
+    const pkgSrc = pluginSrcRoot;
     const banned = [
       /child_process/,
       /(?<!\.)exec\s*\(/,

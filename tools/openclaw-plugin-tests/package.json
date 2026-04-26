@@ -1,0 +1,16 @@
+{
+  "name": "@spectyra/openclaw-plugin-tests",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "scripts": {
+    "test": "tsx run-all-tests.ts"
+  },
+  "dependencies": {
+    "@spectyra/openclaw-plugin": "workspace:*"
+  },
+  "devDependencies": {
+    "tsx": "^4.7.1",
+    "typescript": "~5.4.0"
+  }
+}

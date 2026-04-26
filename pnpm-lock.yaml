@@ -632,6 +632,19 @@ importers:
         specifier: ~5.4.0
         version: 5.4.5
 
+  tools/openclaw-plugin-tests:
+    dependencies:
+      '@spectyra/openclaw-plugin':
+        specifier: workspace:*
+        version: link:../../packages/openclaw-plugin
+    devDependencies:
+      tsx:
+        specifier: ^4.7.1
+        version: 4.21.0
+      typescript:
+        specifier: ~5.4.0
+        version: 5.4.5
+
   tools/proxy:
     dependencies:
       cors:

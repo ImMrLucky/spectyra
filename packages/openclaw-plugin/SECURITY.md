@@ -30,3 +30,7 @@ The scanner surfaces **non-blocking** notices and recommended actions. It does *
 ## Threat model
 
 Compromise of the local companion process is out of scope for this package; the plugin assumes `127.0.0.1:4111` is the Spectyra companion you intentionally run.
+
+## Antivirus / VirusTotal heuristics
+
+The plugin ships **prompt-security patterns** (regex for API keys, PEM blocks, bearer tokens, etc.) so it can warn without sending secrets off-device. Some ML scanners (for example Microsoft `Trojan:Script/Wacatac.B!ml`) occasionally flag that class of JavaScript as a false positive. The published package intentionally **does not** include unit-test fixtures that embed fake credentials; those tests live only in the monorepo under `tools/openclaw-plugin-tests/`.

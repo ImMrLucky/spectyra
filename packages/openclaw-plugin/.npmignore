@@ -1,0 +1,2 @@
+# Tests live in tools/openclaw-plugin-tests; keep publish/scan surface minimal.
+src/__tests__
