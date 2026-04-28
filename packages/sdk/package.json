@@ -30,6 +30,7 @@
   ],
   "scripts": {
     "build": "tsc",
+    "typecheck": "tsc --noEmit",
     "dev": "tsc --watch",
     "prepublishOnly": "npm run build",
     "test:sdk-moat-summaries": "tsx src/__tests__/sdkMoatSummaries.test.ts",

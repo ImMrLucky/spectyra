@@ -14,7 +14,7 @@ using System.Reflection;
 [assembly: System.Reflection.AssemblyConfigurationAttribute("Debug")]
 [assembly: System.Reflection.AssemblyDescriptionAttribute("Scaffold .NET SDK for Spectyra local runtime + future native embedding")]
 [assembly: System.Reflection.AssemblyFileVersionAttribute("0.0.1.0")]
-[assembly: System.Reflection.AssemblyInformationalVersionAttribute("0.0.1+ac0a067eea1212f6e03243974cb103336d10b8dc")]
+[assembly: System.Reflection.AssemblyInformationalVersionAttribute("0.0.1+6f94f00468f88297c61cdef34e0f31983a7da12d")]
 [assembly: System.Reflection.AssemblyProductAttribute("Spectyra.SDK")]
 [assembly: System.Reflection.AssemblyTitleAttribute("Spectyra.SDK")]
 [assembly: System.Reflection.AssemblyVersionAttribute("0.0.1.0")]

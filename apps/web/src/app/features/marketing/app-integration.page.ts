@@ -44,6 +44,12 @@ export class AppIntegrationPage implements OnInit, OnDestroy {
   /** Kept in TS so template parsing does not treat `@` / `{` as Angular syntax. */
   readonly installCommand = 'npm install @spectyra/sdk';
 
+  /** One-line installs for non-Node SDKs (from monorepo root; see each README under `sdks/`). */
+  readonly pythonSdkInstall = 'cd sdks/python && pip install -e .';
+  readonly javaSdkBuild = 'cd sdks/java && mvn -q test';
+  readonly dotnetSdkBuild = 'cd sdks/dotnet && dotnet build';
+  readonly goSdkVerify = 'cd sdks/go && go test ./...';
+
   /** Minimal path: install → createSpectyra → complete() with runContext for cloud rollups. */
   readonly quickStartCode = `import { createSpectyra, createOpenAIAdapter } from "@spectyra/sdk";
 import OpenAI from "openai";

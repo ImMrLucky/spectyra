@@ -52,6 +52,11 @@
   strong {
     color: var(--text-primary);
   }
+
+  &--follow {
+    margin-top: 14px;
+    margin-bottom: 0;
+  }
 }
 
 .dev-lead {
@@ -95,6 +100,10 @@
   margin: 12px 0 0;
   font-size: 15px;
   color: var(--text-secondary);
+
+  &--flush-top {
+    margin-top: 0;
+  }
 
   &--small {
     font-size: 13px;

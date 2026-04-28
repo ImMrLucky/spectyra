@@ -14,15 +14,55 @@
             For <strong>developers</strong>, <strong>backend services</strong>, <strong>internal apps</strong>, and <strong>teams</strong> calling LLM APIs from Node — add Spectyra in a few lines, wrap the calls you already make, and trim cost without changing the outcome you intend.
         </p>
         <p class="dev-lead">
-            Install <code class="mono">&#64;spectyra/sdk</code>, create one <code class="mono">createSpectyra()</code> instance, pass your existing OpenAI / Anthropic / Groq client into <code class="mono">complete()</code>. Optimization runs <strong>in your process</strong>; the provider SDK still calls the model with <strong>your</strong> API key. No Spectyra proxy for inference.
+            <strong>Node or TypeScript?</strong> Install <code class="mono">&#64;spectyra/sdk</code> from npm, create one <code class="mono">createSpectyra()</code> instance, pass your existing OpenAI / Anthropic / Groq client into <code class="mono">complete()</code>. Optimization runs <strong>in your process</strong>; the provider SDK still calls the model with <strong>your</strong> API key. No Spectyra proxy for inference.
+        </p>
+        <p class="dev-kicker dev-kicker--follow">
+            <strong>Python, Java, C#, or Go?</strong> Use the matching SDK in our open-source repo (not the npm package). See <a href="#pick-language">Pick your language</a> below — same goals, different install steps.
         </p>
     </div>
 
+    <!-- Pick language — simple map of which SDK where -->
+    <section class="dev-panel" id="pick-language">
+        <h2>Pick your language</h2>
+        <p class="dev-note dev-note--flush-top">
+            <strong>In-app</strong> means Spectyra sits next to your code: it optimizes the prompt, then <strong>you</strong> call the LLM provider with <strong>your</strong> API key. There is no single package for every language.
+        </p>
+        <ul class="dev-list dev-list--compact">
+            <li><strong>Node.js or TypeScript</strong> — the product SDK is the <code class="mono">&#64;spectyra/sdk</code> package on npm. That is what this page focuses on below (install, quick start, telemetry).</li>
+            <li><strong>Python, Java, C# (.NET), or Go</strong> — each has its <strong>own</strong> small SDK in the Spectyra repo under <code class="mono">sdks/python</code>, <code class="mono">sdks/java</code>, <code class="mono">sdks/dotnet</code>, and <code class="mono">sdks/go</code>. You install from that folder (or vendor the code into your build); they are not installed with <code class="mono">npm install &#64;spectyra/sdk</code>.</li>
+        </ul>
+
+        <h3 class="dev-subhead">Node or TypeScript — three steps</h3>
+        <ol class="dev-steps">
+            <li><strong>Install Spectyra</strong> from npm: <code class="mono">npm install &#64;spectyra/sdk</code></li>
+            <li><strong>Install your LLM library</strong> too (for example <code class="mono">openai</code>, <code class="mono">&#64;anthropic-ai/sdk</code>, or <code class="mono">groq-sdk</code>) — Spectyra wraps the client you already use.</li>
+            <li><strong>Wire one <code class="mono">createSpectyra()</code> call</strong>, then use <code class="mono">complete()</code> for each request — see <a href="#node-install-quickstart">Install &amp; quick start</a> below.</li>
+        </ol>
+
+        <h3 class="dev-subhead">Other languages — where to start</h3>
+        <p class="dev-note">Clone <a href="https://github.com/spectyra/spectyra" target="_blank" rel="noopener noreferrer">github.com/spectyra/spectyra</a>, then open the folder for your stack. Each README explains embedded vs runtime mode.</p>
+        <p class="dev-note"><strong>Python</strong> — editable install from the repo:</p>
+        <pre class="dev-code">{{ pythonSdkInstall }}</pre>
+        <p class="dev-note"><strong>Java</strong> — build with Maven:</p>
+        <pre class="dev-code">{{ javaSdkBuild }}</pre>
+        <p class="dev-note"><strong>C# / .NET</strong> — build the SDK project:</p>
+        <pre class="dev-code">{{ dotnetSdkBuild }}</pre>
+        <p class="dev-note"><strong>Go</strong> — run tests to confirm the module on your machine:</p>
+        <pre class="dev-code">{{ goSdkVerify }}</pre>
+        <p class="dev-note dev-note--small">
+            Modes (local library vs HTTP runtime) and security boundaries are summarized in the
+            <a href="https://github.com/spectyra/spectyra/blob/main/docs/sdk/README.md" target="_blank" rel="noopener noreferrer">SDK integration overview</a>
+            on GitHub.
+        </p>
+    </section>
+
+    <hr class="dev-divider" aria-hidden="true" />
+
     <!-- SECTION 2 — INSTALL + QUICK START -->
-    <section class="dev-panel">
-        <h2>Install</h2>
+    <section class="dev-panel" id="node-install-quickstart">
+        <h2>Install (Node / TypeScript)</h2>
         <pre class="dev-code">{{ installCommand }}</pre>
-        <p class="dev-note">Node.js 18+, ESM. Provider packages (e.g. <code class="mono">openai</code>) are peers — you bring your own client.</p>
+        <p class="dev-note">Node.js 18+, ESM. Also add your provider package (e.g. <code class="mono">openai</code>) — Spectyra does not replace it.</p>
 
         <h3 class="dev-subhead">Quick start</h3>
         <p class="dev-note">Initialize once, then wrap each LLM call. <code class="mono">runContext.project</code> and <code class="mono">runContext.environment</code> are optional but help aggregate usage in the Spectyra app when cloud telemetry is configured.</p>
