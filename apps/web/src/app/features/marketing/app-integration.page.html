@@ -7,6 +7,15 @@
         <span class="marketing-nav-current">In-app SDK integrations</span>
     </nav>
 
+    <section class="dev-cta" *ngIf="!isAuthenticated">
+        <p>Create an account for free Spectyra API Key and detailed analytics.</p>
+        <div class="dev-cta-row">
+            <a routerLink="/register" class="btn-primary">Create account</a>
+            <a routerLink="/login" class="btn-secondary">Sign in</a>
+            <a routerLink="/contact" class="btn-ghost">Contact</a>
+        </div>
+    </section>
+
     <!-- 1. Hero -->
     <div class="dev-hero">
         <h1>In-app SDK integrations</h1>
@@ -17,7 +26,7 @@
             <strong>Recommended:</strong> install Spectyra where your LLM API calls happen — usually your <strong>backend</strong>.
         </p>
         <p class="dev-kicker dev-kicker--follow-tight">
-            Start with <strong>TypeScript / Node.js</strong> or <strong>Python</strong>. Other language SDKs are <strong>coming later</strong> (see bottom of page).
+            Spectyra current supports <strong>TypeScript / Node.js</strong> or <strong>Python</strong>. Other language SDKs are <strong>coming later</strong> (see bottom of page).
         </p>
     </div>
 
@@ -27,8 +36,10 @@
         <p class="dev-note dev-note--flush-top">
             The production SDK is <code class="mono">&#64;spectyra/sdk</code>. Use <code class="mono">createSpectyra()</code> once, then <code class="mono">complete()</code> with your existing OpenAI client and <code class="mono">createOpenAIAdapter()</code>. Spectyra optimizes locally, your code still calls OpenAI with <strong>your</strong> API key — there is no Spectyra proxy for inference.
         </p>
+        <br/>
         <h3 class="dev-subhead">Install</h3>
         <pre class="dev-code">{{ tsInstall }}</pre>
+        <br/>
         <h3 class="dev-subhead">Wrap an existing LLM call</h3>
         <pre class="dev-code">{{ tsQuickStart }}</pre>
         <p class="dev-note dev-note--small">
@@ -180,23 +191,6 @@
         <p class="dev-note dev-note--flush-top">
             Java, Go, and .NET SDKs will be linked here with the same <strong>install-from-registry</strong> story when they are ready. This page stays focused on TypeScript and Python so onboarding stays simple.
         </p>
-    </section>
-
-    <!-- 10. CTA -->
-    <section class="dev-panel">
-        <h2>Start with your backend</h2>
-        <p class="dev-note dev-note--flush-top">
-            If your app already calls OpenAI, Anthropic, Groq, or another supported provider from a server route, you can usually add Spectyra by wrapping <strong>that one call</strong> with <code class="mono">createSpectyra</code> + <code class="mono">complete()</code> (TypeScript) or by routing through the runtime / embedded path (Python).
-        </p>
-    </section>
-
-    <section class="dev-cta" *ngIf="!isAuthenticated">
-        <p>Create an account for billing, license keys, and optional cloud analytics.</p>
-        <div class="dev-cta-row">
-            <a routerLink="/register" class="btn-primary">Create account</a>
-            <a routerLink="/login" class="btn-secondary">Sign in</a>
-            <a routerLink="/contact" class="btn-ghost">Contact</a>
-        </div>
     </section>
 
     <section class="dev-cta dev-cta--signed-in" *ngIf="isAuthenticated">
