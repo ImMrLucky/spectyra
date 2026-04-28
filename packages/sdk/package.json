@@ -35,7 +35,9 @@
     "prepublishOnly": "npm run build",
     "test:sdk-moat-summaries": "tsx src/__tests__/sdkMoatSummaries.test.ts",
     "test:optimization-engine-parity": "tsx src/__tests__/optimizationEngineParity.test.ts",
-    "test:telemetry-privacy": "tsx src/__tests__/telemetryPrivacy.test.ts"
+    "test:telemetry-privacy": "tsx src/__tests__/telemetryPrivacy.test.ts",
+    "test:resolve-api-base-url": "tsx src/__tests__/resolveApiBaseUrl.test.ts",
+    "test:resolve-effective-telemetry": "tsx src/__tests__/resolveEffectiveTelemetryMode.test.ts"
   },
   "keywords": [
     "llm",

@@ -10,9 +10,7 @@ import { EntitlementHttpError, fetchEntitlementStatus } from "./fetchEntitlement
 function entitlementsDefaultEnabled(config: SpectyraConfig): boolean {
   if (config.entitlements?.enabled === true) return true;
   if (config.entitlements?.enabled === false) return false;
-  const k = resolveSpectyraCloudApiKey(config);
-  const b = resolveSpectyraApiBaseUrl(config);
-  return Boolean(k && b);
+  return Boolean(resolveSpectyraCloudApiKey(config));
 }
 
 function intervalMs(config: SpectyraConfig): number {
@@ -80,20 +78,20 @@ export function startEntitlementRuntime(
         percentUsed: null,
         canRunOptimized: false,
         detail:
-          "Spectyra cloud API key or API base URL is missing. Set spectyraCloudApiKey / SPECTYRA_CLOUD_API_KEY and spectyraApiBaseUrl (or your deployment’s discovery env) while entitlements are enabled.",
+          "Spectyra cloud API key is missing. Set spectyraCloudApiKey, SPECTYRA_CLOUD_API_KEY, or SPECTYRA_API_KEY while entitlements are enabled.",
       },
       lastRefreshedAt: new Date().toISOString(),
       lastError:
-        "Entitlements are enabled but no Spectyra API key or base URL was resolved. Optimization stays off until credentials are configured.",
+        "Entitlements are enabled but no Spectyra API key was resolved. Optimization stays off until credentials are configured.",
     });
   };
 
   const refresh = async () => {
     const key = resolveSpectyraCloudApiKey(config);
     const base = resolveSpectyraApiBaseUrl(config);
-    if (!key || !base) {
+    if (!key) {
       applyMissingApiKey();
-      log.warn("Entitlements: missing API key or base URL; applied synthetic missing_api_key state");
+      log.warn("Entitlements: missing API key; applied synthetic missing_api_key state");
       return;
     }
 

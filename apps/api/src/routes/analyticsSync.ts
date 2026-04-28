@@ -8,6 +8,10 @@ import { RL_STANDARD } from "../middleware/expressRateLimitPresets.js";
 import { requireUserSession, type AuthenticatedRequest } from "../middleware/auth.js";
 import { query, queryOne } from "../services/storage/db.js";
 import { safeLog } from "../utils/redaction.js";
+import {
+  emptySdkTelemetryOrgRollup,
+  fetchSdkTelemetryOrgRollup,
+} from "../services/analytics/sdkTelemetryRollup.js";
 
 export const analyticsSyncRouter = Router();
 analyticsSyncRouter.use(rateLimit(RL_STANDARD));
@@ -150,14 +154,18 @@ function emptySummaryResponse() {
     total_input_tokens_after: 0,
     avg_token_reduction_pct: 0,
     by_source: [] as ReturnType<typeof summarizeBySourceRow>[],
+    sdk_telemetry: emptySdkTelemetryOrgRollup(),
   };
 }
 
 analyticsSyncRouter.get("/summary", async (req: AuthenticatedRequest, res) => {
+  let orgId: string | null = null;
   try {
     if (!req.auth?.userId) return res.status(401).json({ error: "Not authenticated" });
-    const orgId = await requireOrgId(req.auth.userId);
+    orgId = await requireOrgId(req.auth.userId);
     if (!orgId) return res.status(404).json({ error: "Organization not found" });
+
+    const sdkTelemetry = await fetchSdkTelemetryOrgRollup(orgId);
 
     const grouped = await query<{
       integration_type: string;
@@ -207,12 +215,14 @@ analyticsSyncRouter.get("/summary", async (req: AuthenticatedRequest, res) => {
       total_input_tokens_after: totalInputAfter,
       avg_token_reduction_pct: tokenReductionPct,
       by_source: bySource,
+      sdk_telemetry: sdkTelemetry,
     });
   } catch (error: any) {
     const msg = error?.message || "";
     if (/does not exist|relation.*analytics_sessions_sync/i.test(msg)) {
       safeLog("warn", "analytics summary: table missing, returning empty summary", {});
-      return res.json(emptySummaryResponse());
+      const sdkTelemetry = orgId ? await fetchSdkTelemetryOrgRollup(orgId) : emptySdkTelemetryOrgRollup();
+      return res.json({ ...emptySummaryResponse(), sdk_telemetry: sdkTelemetry });
     }
     safeLog("error", "analytics summary error", { error: msg });
     res.status(500).json({ error: msg || "Internal server error" });

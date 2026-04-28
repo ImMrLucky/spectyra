@@ -49,9 +49,7 @@ import OpenAI from "openai";
 
 const spectyra = createSpectyra({
   runMode: "on",
-  licenseKey: process.env.SPECTYRA_LICENSE_KEY,
   spectyraCloudApiKey: process.env.SPECTYRA_API_KEY,
-  spectyraApiBaseUrl: process.env.SPECTYRA_API_BASE_URL,
 });
 
 const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
@@ -94,9 +92,7 @@ import OpenAI from "openai";
 const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY! });
 const spectyra = createSpectyra({
   runMode: "on",
-  licenseKey: process.env.SPECTYRA_LICENSE_KEY,
   spectyraCloudApiKey: process.env.SPECTYRA_API_KEY,
-  spectyraApiBaseUrl: process.env.SPECTYRA_API_BASE_URL,
 });
 
 export async function POST(req: Request) {
@@ -120,9 +116,7 @@ app.use(express.json());
 const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY! });
 const spectyra = createSpectyra({
   runMode: "on",
-  licenseKey: process.env.SPECTYRA_LICENSE_KEY,
   spectyraCloudApiKey: process.env.SPECTYRA_API_KEY,
-  spectyraApiBaseUrl: process.env.SPECTYRA_API_BASE_URL,
 });
 
 app.post("/api/chat", async (req, res) => {
@@ -160,10 +154,8 @@ export class ChatApiService {
 
   readonly productionTelemetryCode = `const spectyra = createSpectyra({
   runMode: "on",
-  licenseKey: process.env.SPECTYRA_LICENSE_KEY,
   telemetry: { mode: "cloud_redacted" },
-  spectyraCloudApiKey: process.env.SPECTYRA_CLOUD_API_KEY,
-  spectyraApiBaseUrl: process.env.SPECTYRA_API_BASE_URL,
+  spectyraCloudApiKey: process.env.SPECTYRA_API_KEY,
 });`;
 
   /** Callback-style alternative to complete() + adapter (same pipeline). */

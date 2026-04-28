@@ -78,7 +78,7 @@ export interface SpectyraDevtoolsConfig {
  * Runtime pricing snapshot refresh (registry-backed cost; no redeploy when prices update server-side).
  */
 export interface SpectyraPricingConfig {
-  /** Default: `true` when Spectyra API key + base URL resolve; set `false` to use built-in tokenEstimator tiers only. */
+  /** Default: `true` when a Spectyra API key resolves; set `false` to use built-in tokenEstimator tiers only. */
   enabled?: boolean;
   /** Poll interval in ms. Default: 600_000 (10 min). */
   refreshIntervalMs?: number;
@@ -88,15 +88,15 @@ export interface SpectyraPricingConfig {
 
 export interface SpectyraEntitlementsConfig {
   /**
-   * When `false`, no `GET /v1/entitlements/status` polling. Default: `true` when
-   * a Spectyra API key and API base URL can be resolved; otherwise `false`.
+   * When `false`, no `GET /v1/entitlements/status` polling. Default: `true` when a Spectyra API key can be resolved;
+   * otherwise `false`.
    */
   enabled?: boolean;
   /** Polling interval in ms. Default: 120_000. */
   refreshIntervalMs?: number;
   /**
    * API base including `/v1` (e.g. `https://api.example.com/v1`).
-   * Default: `config.spectyraApiBaseUrl` or `SPECTYRA_API_BASE_URL`.
+   * Default: `config.spectyraApiBaseUrl`, then `SPECTYRA_API_BASE_URL`, then Spectyra production (`https://spectyra.ai/v1`).
    */
   baseUrl?: string;
 }
@@ -158,7 +158,9 @@ export interface SpectyraConfig {
   runMode?: SpectyraRunMode;
 
   /**
-   * Telemetry settings
+   * Telemetry: explicit `mode` always wins. When omitted, **in-app** defaults to `cloud_redacted` if a Spectyra
+   * cloud API key is configured (aggregated `POST …/telemetry/run` for org dashboards); otherwise `local`.
+   * Use `productSurface: "openclaw_compat"` to keep the legacy default of `local` unless you set `telemetry.mode` explicitly.
    */
   telemetry?: { mode: TelemetryMode };
 
@@ -175,14 +177,15 @@ export interface SpectyraConfig {
 
   /**
    * Spectyra **dashboard** API key (same as `X-SPECTYRA-API-KEY` in the HTTP API).
-   * When `telemetry.mode` is `"cloud_redacted"`, each `complete()` POSTs aggregated usage to
-   * `POST {spectyraApiBaseUrl}/telemetry/run`. Also reads `SPECTYRA_CLOUD_API_KEY` or `SPECTYRA_API_KEY` when omitted.
+   * When cloud telemetry is active (see `telemetry`), each `complete()` POSTs aggregated usage to
+   * `POST {resolvedApiBase}/telemetry/run`. Reads `SPECTYRA_CLOUD_API_KEY` or `SPECTYRA_API_KEY` when omitted.
    */
   spectyraCloudApiKey?: string;
 
   /**
-   * API base URL **including** `/v1`, e.g. `https://your-api.example.com/v1`.
-   * Defaults to `process.env.SPECTYRA_API_BASE_URL` for cloud telemetry when set.
+   * Optional override for the Spectyra REST root **including** `/v1` (e.g. `https://your-api.example.com/v1`).
+   * When omitted, the SDK uses `SPECTYRA_API_BASE_URL` if set, otherwise **`https://spectyra.ai/v1`** for
+   * entitlements, pricing, and cloud telemetry.
    */
   spectyraApiBaseUrl?: string;
 

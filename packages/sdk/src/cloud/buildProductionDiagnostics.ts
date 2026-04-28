@@ -2,17 +2,25 @@ import type { FlowSignals } from "@spectyra/canonical-model";
 import type { SavingsReport } from "@spectyra/core-types";
 import type { SpectyraCompleteInput } from "../types.js";
 
-const MAX_JSON_CHARS = 12_000;
+const MAX_JSON_CHARS = 20_000;
 
 /** Safe, aggregated diagnostics for cloud rollups (no prompt bodies or provider secrets). */
 export interface SpectyraProductionDiagnostics {
   provider: string;
   runId: string;
+  model?: string;
   integrationType?: string;
   workflowType?: string;
   service?: string;
   traceId?: string;
   sessionId?: string;
+  runMode?: string;
+  /** Input prompt tokens before optimization (this LLM call). */
+  inputTokensBefore?: number;
+  /** Input prompt tokens after optimization. */
+  inputTokensAfter?: number;
+  inputTokensSaved?: number;
+  outputTokens?: number;
   messageTurnCount?: number;
   estimatedSavingsPct: number;
   contextReductionPct?: number;
@@ -55,14 +63,21 @@ export function buildSpectyraProductionDiagnostics(
   flowSignals: FlowSignals | null | undefined,
 ): SpectyraProductionDiagnostics {
   const transforms = report.transformsApplied ?? [];
+  const inputSaved = Math.max(0, report.inputTokensBefore - report.inputTokensAfter);
   const out: SpectyraProductionDiagnostics = {
     provider,
     runId: report.runId,
+    model: report.model,
     integrationType: report.integrationType,
     workflowType: runContext?.workflowType,
     service: runContext?.service,
     traceId: runContext?.traceId,
     sessionId: runContext?.sessionId ?? report.sessionId,
+    runMode: report.mode,
+    inputTokensBefore: report.inputTokensBefore,
+    inputTokensAfter: report.inputTokensAfter,
+    inputTokensSaved: inputSaved,
+    outputTokens: report.outputTokens,
     messageTurnCount: report.messageTurnCount,
     estimatedSavingsPct: report.estimatedSavingsPct,
     contextReductionPct: report.contextReductionPct,

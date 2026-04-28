@@ -22,6 +22,7 @@ import {
   ingestSdkSessionStart,
   shouldEmitSdkNormalizedEvents,
 } from "../events/sdkEvents.js";
+import { resolveEffectiveTelemetryMode } from "../observability/resolveEffectiveTelemetryMode.js";
 
 export type StartSpectyraSessionOptions = {
   appName?: string;
@@ -58,7 +59,7 @@ export function startSpectyraSession(
   options: StartSpectyraSessionOptions = {},
 ): SpectyraSessionHandle {
   const runMode = config.runMode ?? "on";
-  const telemetryMode = config.telemetry?.mode ?? "local";
+  const telemetryMode = resolveEffectiveTelemetryMode(config);
   const promptSnapshotMode = config.promptSnapshots ?? "local_only";
 
   const tracker = createSessionTracker({

@@ -1,4 +1,4 @@
-const MAX_JSON_CHARS = 16_384;
+const MAX_JSON_CHARS = 24_576;
 
 /**
  * Accept a client-supplied diagnostics object for sdk_run_telemetry.diagnostics.

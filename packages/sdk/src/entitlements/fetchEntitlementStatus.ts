@@ -15,7 +15,7 @@ export class EntitlementHttpError extends Error {
 
 /**
  * Fetches `GET {base}/entitlements/status` with `X-SPECTYRA-API-KEY`.
- * `base` must include `/v1`, e.g. `https://api.spectyra.com/v1`.
+ * `base` must include `/v1`, e.g. `https://spectyra.ai/v1`.
  */
 export async function fetchEntitlementStatus(
   baseUrl: string,

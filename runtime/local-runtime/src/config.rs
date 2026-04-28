@@ -28,7 +28,7 @@ impl Default for ProviderKeysConfig {
 pub struct RuntimeConfig {
     pub bind: String,
     pub analytics_enabled: bool,
-    /// Base URL including `/v1`, e.g. `https://api.spectyra.com/v1`
+    /// Base URL including `/v1`, e.g. `https://spectyra.ai/v1`
     pub account_api_base: String,
     pub entitlement_refresh_seconds: u64,
     pub pricing_refresh_seconds: u64,
@@ -44,7 +44,7 @@ impl Default for RuntimeConfig {
             bind: crate::constants::DEFAULT_BIND.into(),
             analytics_enabled: false,
             account_api_base: std::env::var("SPECTYRA_ACCOUNT_API_BASE")
-                .unwrap_or_else(|_| "https://api.spectyra.com/v1".into()),
+                .unwrap_or_else(|_| "https://spectyra.ai/v1".into()),
             entitlement_refresh_seconds: 120,
             pricing_refresh_seconds: 600,
             local_only_enforced: true,

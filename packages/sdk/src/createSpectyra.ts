@@ -30,6 +30,7 @@ import { fetchAgentOptions, sendAgentEvent } from "./remote/agentRemote.js";
 import { localComplete } from "./local/localWrapper.js";
 import { maybePostSdkRunTelemetry } from "./cloud/postRunTelemetry.js";
 import { resolveSpectyraCloudApiKey } from "./cloud/resolveSpectyraCloudApiKey.js";
+import { resolveEffectiveTelemetryMode } from "./observability/resolveEffectiveTelemetryMode.js";
 import { createSpectyraLogger } from "./observability/spectyraLogger.js";
 import { SpectyraSessionState } from "./observability/spectyraSessionState.js";
 import type {
@@ -158,7 +159,7 @@ export function createSpectyra(config: SpectyraConfig = {}): SpectyraInstance {
   const legacyMode = config.mode;
   const endpoint = config.endpoint;
   const apiKey = config.apiKey;
-  const telemetryMode = config.telemetry?.mode ?? "local";
+  const telemetryMode = resolveEffectiveTelemetryMode(config);
 
   if (legacyMode === "api") {
     if (!endpoint) throw new Error("endpoint is required for API mode");

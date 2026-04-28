@@ -29,9 +29,8 @@ export type { SpectyraInstance } from "./createSpectyra.js";
 export { normalizeSpectyraRunMode } from "@spectyra/core-types";
 
 // Production telemetry (safe diagnostics for cloud rollups)
-export {
-  buildSpectyraProductionDiagnostics,
-} from "./cloud/buildProductionDiagnostics.js";
+export { buildSpectyraProductionDiagnostics } from "./cloud/buildProductionDiagnostics.js";
+export { resolveEffectiveTelemetryMode } from "./observability/resolveEffectiveTelemetryMode.js";
 export type { SpectyraProductionDiagnostics } from "./cloud/buildProductionDiagnostics.js";
 
 // Workflow sessions (multi-step analytics)

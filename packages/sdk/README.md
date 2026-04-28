@@ -16,7 +16,7 @@ Wrap your existing LLM calls: Spectyra optimizes prompts **locally**, then your 
 
 **Production**
 
-- Keep **`spectyraCloudApiKey`** (or `SPECTYRA_API_KEY`) and **`spectyraApiBaseUrl`** set so `GET /v1/entitlements/status` and `GET /v1/pricing/snapshot` can refresh **without redeploy** when the customer upgrades billing.
+- Keep **`spectyraCloudApiKey`** (or `SPECTYRA_API_KEY`) set so `GET /v1/entitlements/status` and `GET /v1/pricing/snapshot` hit Spectyra cloud by default and refresh **without redeploy** when the customer upgrades billing. Override **`spectyraApiBaseUrl`** / **`SPECTYRA_API_BASE_URL`** only for a non-default API host.
 - Set **`devtools.enabled: false`** if you do not want the floating panel in production UIs.
 - Set **`productSurface: "in_app"`** (default) so user-facing strings follow the in-app / billing wording rather than legacy OpenClaw-oriented copy.
 
@@ -26,7 +26,6 @@ import OpenAI from "openai";
 
 const spectyra = createSpectyra({
   spectyraCloudApiKey: process.env.SPECTYRA_API_KEY,
-  spectyraApiBaseUrl: process.env.SPECTYRA_API_BASE_URL, // must include /v1
   productSurface: "in_app",
   debug: process.env.NODE_ENV !== "production",
   logLevel: process.env.NODE_ENV !== "production" ? "info" : "warn",
@@ -109,25 +108,25 @@ Aggregates for this instance: `spectyra.getSessionCostSummary()`, `spectyra.getS
 **Subpath imports:** `@spectyra/sdk/adapters/openai`, `.../anthropic`, `.../groq`.
 
 **Optional: file license key**  
-If you use a Spectyra **file** license (e.g. with the desktop / companion flow), add `licenseKey: process.env.SPECTYRA_LICENSE_KEY` to `createSpectyra`. For most **cloud** setups, prefer a **Spectyra API key** and `SPECTYRA_API_BASE_URL` in the next section instead of (or in addition to) a file key.
+If you use a Spectyra **file** license (e.g. with the desktop / companion flow), add `licenseKey: process.env.SPECTYRA_LICENSE_KEY` to `createSpectyra`. For most **cloud** setups, a **Spectyra API key** alone is enough; set `spectyraApiBaseUrl` / `SPECTYRA_API_BASE_URL` only if your org uses a custom API host.
 
 ---
 
 ## Recommended: Spectyra API key (account, quotas, dashboards)
 
-To tie usage to your Spectyra org—**plan, quotas, aggregate telemetry, and in-browser devtools**—add your **Spectyra** API key and API base URL (include `/v1`):
+To tie usage to your Spectyra org—**plan, quotas, aggregate telemetry, and in-browser devtools**—set your **Spectyra** API key (the SDK defaults REST calls to **`https://spectyra.ai/v1`**):
 
 ```bash
 export SPECTYRA_API_KEY="sp_..."          # or SPECTYRA_CLOUD_API_KEY
-export SPECTYRA_API_BASE_URL="https://your-api.example.com/v1"
+# Optional: only if your deployment is not on the default Spectyra cloud API
+# export SPECTYRA_API_BASE_URL="https://your-api.example.com/v1"
 ```
 
 ```ts
 const spectyra = createSpectyra({
   spectyraCloudApiKey: process.env.SPECTYRA_API_KEY, // or SPECTYRA_CLOUD_API_KEY; you can also use `apiKey` if you are not on legacy `mode: "api"`
-  spectyraApiBaseUrl: process.env.SPECTYRA_API_BASE_URL,
-  telemetry: { mode: "cloud_redacted" }, // optional: redacted project rollups in the Spectyra app
-  // entitlements default to on when a key + base URL can be resolved; polls GET /v1/entitlements/status
+  // With a Spectyra API key, telemetry defaults to cloud_redacted (POST /v1/telemetry/run). Set telemetry: { mode: "local" } to disable.
+  // entitlements default to on when a key resolves; polls GET /v1/entitlements/status
 });
 ```
 
@@ -149,7 +148,7 @@ await spectyra.complete(
 - **Entitlements** refresh in the background (a plan or quota change in the **Spectyra web app** applies without redeploying your code).
 - **Free-tier / quota** limits: optimization can pause while your app keeps calling the provider; see `getQuotaStatus()` and the floating panel below.
 
-`telemetry` defaults to `"local"` (no HTTP to Spectyra from telemetry). Set `cloud_redacted` only when you want redacted rollups; prompts still never leave the host.
+With a **Spectyra API key**, `telemetry.mode` defaults to **`cloud_redacted`** (aggregated `POST /v1/telemetry/run` for org dashboards). Set **`telemetry: { mode: "local" }`** to keep usage off Spectyra servers. Use **`productSurface: "openclaw_compat"`** if you need the legacy default of `local` unless `telemetry.mode` is set explicitly. Prompts still never leave the host.
 
 ---
 
@@ -228,9 +227,7 @@ Your app → complete() → local optimization → adapter → LLM
 const spectyra = createSpectyra({
   runMode: "on",
   licenseKey: process.env.SPECTYRA_LICENSE_KEY,
-  telemetry: { mode: "cloud_redacted" },
   spectyraCloudApiKey: process.env.SPECTYRA_API_KEY,
-  spectyraApiBaseUrl: process.env.SPECTYRA_API_BASE_URL, // e.g. https://api.../v1
 });
 
 // On each call:
@@ -249,7 +246,7 @@ await spectyra.complete(
 );
 ```
 
-Use a **project-scoped API key** when your org requires it so rows land in the right project. Default `telemetry.mode` is **`local`**: nothing is POSTed unless you opt in as above.
+Use a **project-scoped API key** when your org requires it so rows land in the right project. With a key, **`telemetry.mode` defaults to `cloud_redacted`** unless you set `telemetry: { mode: "local" }` or `productSurface: "openclaw_compat"`.
 
 ---
 
@@ -296,11 +293,11 @@ Common fields:
 - `runMode` — `"off" \| "on"`.
 - `licenseKey` — local license file key when you use that flow.
 - `spectyraCloudApiKey` — Spectyra `X-SPECTYRA-API-KEY` (or env `SPECTYRA_CLOUD_API_KEY` / `SPECTYRA_API_KEY`, or `apiKey` in config when **not** using legacy `mode: "api"` for the old remote gateway).
-- `spectyraApiBaseUrl` — REST base **including** `/v1` (e.g. `https://.../v1`); also read from `SPECTYRA_API_BASE_URL`.
-- `telemetry: { mode }` — `"local"` (default) or `"cloud_redacted"`.
+- `spectyraApiBaseUrl` — optional REST base **including** `/v1`; also `SPECTYRA_API_BASE_URL`. When both are unset, the SDK uses **`https://spectyra.ai/v1`**.
+- `telemetry: { mode }` — explicit `"off"`, `"local"`, or `"cloud_redacted"`. When omitted, **in-app** defaults to **`cloud_redacted`** if a Spectyra API key resolves; **`openclaw_compat`** defaults to **`local`** unless you set `mode` explicitly.
 - `promptSnapshots` — `"none" \| "local_only" \| "cloud_opt_in"`.
 - `devtools` — e.g. `{ enabled: true, defaultOpen: true, position: "bottom-right" }`.
-- `entitlements` — e.g. `{ enabled: true, refreshIntervalMs: 120_000, baseUrl: "…/v1" }` (defaults align with the keys above).
+- `entitlements` — e.g. `{ enabled: true, refreshIntervalMs: 120_000, baseUrl: "…/v1" }` (optional `baseUrl` overrides the resolved Spectyra REST root).
 - `debug` / `logLevel` / `logger`, plus lifecycle hooks listed under [Observability](#observability).
 
 ### `spectyra.complete(input, adapter)`
@@ -367,8 +364,8 @@ For **OpenClaw users**, the Local Companion install provides a local HTTP + brow
 | Data path | Your process → provider; no proxy by default |
 | Provider API keys | Yours; not sent to Spectyra in the default path |
 | Prompts | Not uploaded unless you opt into specific cloud features documented elsewhere |
-| Telemetry | `local` unless you set `cloud_redacted` + API base + key |
-| Entitlements / pricing | Fetched with your **Spectyra** API key when you configure a base URL |
+| Telemetry | With a Spectyra API key, defaults to `cloud_redacted` (aggregated rollups); set `local` to disable |
+| Entitlements / pricing | Fetched with your **Spectyra** API key (default API host unless you override base URL) |
 
 ---
 

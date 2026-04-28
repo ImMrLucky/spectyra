@@ -51,6 +51,7 @@ import { deriveSavingsMetrics, estimateRepeatedTokensFromFeatures } from "./feat
 import { emitSdkEventsForStandaloneComplete, sdkEventEngine } from "../events/sdkEvents.js";
 import { evaluateWorkflowPolicyFromEvents } from "../workflow/sdkWorkflowPolicyFromEvents.js";
 import { WorkflowPolicyBlockedError } from "../workflow/WorkflowPolicyBlockedError.js";
+import { resolveEffectiveTelemetryMode } from "../observability/resolveEffectiveTelemetryMode.js";
 
 function assertWorkflowPolicyAllows(config: SpectyraConfig): void {
   const wp = config.workflowPolicy;
@@ -95,7 +96,7 @@ export async function localComplete<TClient, TResult>(
   adapter: ProviderAdapter<TClient, TResult>,
 ): Promise<SpectyraCompleteResult<TResult>> {
   const runMode: SpectyraRunMode = normalizeSpectyraRunMode(config.runMode, "on");
-  const telemetryMode: TelemetryMode = config.telemetry?.mode ?? "local";
+  const telemetryMode: TelemetryMode = resolveEffectiveTelemetryMode(config);
   const promptSnapshotMode: PromptSnapshotMode = config.promptSnapshots ?? "local_only";
   const runId = input.runContext?.runId?.trim() || crypto.randomUUID();
   const originalMessages = input.messages;

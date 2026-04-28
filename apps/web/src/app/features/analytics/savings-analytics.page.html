@@ -1,41 +1,159 @@
 <div class="wrap">
   <h1>Session analytics</h1>
   <p class="lede">
-    <strong>What this page is:</strong> rollups from <strong>redacted session summaries</strong> synced to Spectyra when a
-    client turns on cloud sync (tokens, estimated costs, transforms — <em>not</em> raw prompts). Data is grouped
-    <strong>by product lane</strong> so OpenClaw / Local Companion is not mixed with in-app SDK session sync.
+    <strong>What this page is:</strong> session rollups from <strong>redacted session summaries</strong> synced when a
+    client enables cloud sync, <strong>plus</strong> aggregated metrics from the <strong>in-app SDK</strong> when your
+    server sends <code>POST /v1/telemetry/run</code> (default-on cloud telemetry when a Spectyra API key is configured).
+    Nothing here includes raw prompts.
   </p>
 
   <div class="callout" *ngIf="!loading">
     <p>
       <strong>Not the same as “Usage” in the sidebar:</strong>
       <a routerLink="/usage">Workspace usage</a> is your <strong>plan, limits, and billing</strong> snapshot.
-      <strong>Per-call SDK telemetry</strong> (API key, per environment) lives under
-      <a routerLink="/projects">Projects</a> → open a project — that path does <em>not</em> use this session sync table.
+      Per-project drill-downs also live under <a routerLink="/projects">Projects</a>.
     </p>
   </div>
 
   <div class="callout callout--muted" *ngIf="!loading">
     <p>
-      <strong>When does sync happen?</strong> Only when you enable it in a client that supports it — for example Local
+      <strong>When does session sync appear?</strong> Only when you enable it in a client that supports it — for example Local
       Companion’s sync-to-cloud setting, or the Spectyra desktop app posting session summaries while signed in. If you never
-      turned that on, zeros here are expected.
+      turned that on, session cards below may show zeros while SDK telemetry still has data.
     </p>
   </div>
 
   <div class="callout usage-hint" *ngIf="!loading">
     <p>
-      <strong>In-app SDK without desktop:</strong> you do <strong>not</strong> need the desktop app. Use a Spectyra API key
-      with <code>POST /v1/telemetry/run</code> (or the SDK’s cloud telemetry options) and view rollups on
-      <a routerLink="/projects">Projects</a>. Session analytics here only appears if something also syncs session payloads.
+      <strong>In-app SDK:</strong> with <code>SPECTYRA_API_KEY</code> (or <code>spectyraCloudApiKey</code>), the SDK defaults to
+      sending <strong>aggregated</strong> savings and token metrics each <code>complete()</code>. Set
+      <code>telemetry: &#123; mode: 'local' &#125;</code> to turn that off.
     </p>
   </div>
 
   <div *ngIf="loading" class="muted">Loading…</div>
   <div *ngIf="cloudNotice" class="callout notice">{{ cloudNotice }}</div>
 
+  <section *ngIf="summary && summary.sdk_telemetry && summary.sdk_telemetry.total_calls > 0 && !loading" class="section">
+    <h2 class="section__title">In-app SDK telemetry (all projects)</h2>
+    <p class="section__subtitle">
+      Rolled up from every <code>POST /v1/telemetry/run</code> for your org. Dollar savings are model-estimated aggregates, not invoices.
+    </p>
+    <div class="grid">
+      <div class="card">
+        <h3>LLM calls ingested</h3>
+        <p class="big">{{ summary.sdk_telemetry.total_calls | number : '1.0-0' }}</p>
+      </div>
+      <div class="card">
+        <h3>Est. total savings (USD)</h3>
+        <p class="big">{{ summary.sdk_telemetry.total_estimated_savings_usd | number : '1.2-4' }}</p>
+      </div>
+      <div class="card">
+        <h3>Input tokens (before → after)</h3>
+        <p class="big">
+          {{ summary.sdk_telemetry.total_input_tokens_before | number : '1.0-0' }} →
+          {{ summary.sdk_telemetry.total_input_tokens_after | number : '1.0-0' }}
+        </p>
+      </div>
+      <div class="card">
+        <h3>Overall input shrink %</h3>
+        <p class="big">{{ summary.sdk_telemetry.overall_input_token_reduction_pct | number : '1.1-1' }}%</p>
+      </div>
+      <div class="card">
+        <h3>Reply / completion tokens (sum)</h3>
+        <p class="big">{{ summary.sdk_telemetry.total_output_tokens | number : '1.0-0' }}</p>
+      </div>
+      <div class="card">
+        <h3>Avg savings / call (USD)</h3>
+        <p class="big">{{ summary.sdk_telemetry.avg_estimated_savings_usd_per_call | number : '1.2-4' }}</p>
+      </div>
+      <div class="card">
+        <h3>Message turns (sum of hints)</h3>
+        <p class="big">{{ summary.sdk_telemetry.aggregate_message_turns | number : '1.0-0' }}</p>
+      </div>
+      <div class="card">
+        <h3>Repeat-context tokens avoided (est.)</h3>
+        <p class="big">{{ summary.sdk_telemetry.aggregate_repeated_context_tokens_avoided | number : '1.0-0' }}</p>
+      </div>
+      <div class="card">
+        <h3>Repeat tool-output tokens avoided (est.)</h3>
+        <p class="big">{{ summary.sdk_telemetry.aggregate_repeated_tool_output_tokens_avoided | number : '1.0-0' }}</p>
+      </div>
+      <div class="card">
+        <h3>Transforms applied (sum)</h3>
+        <p class="big">{{ summary.sdk_telemetry.aggregate_transform_count | number : '1.0-0' }}</p>
+      </div>
+      <div class="card">
+        <h3>Runs with stuck-loop signal</h3>
+        <p class="big">{{ summary.sdk_telemetry.runs_with_stuck_loop_signal | number : '1.0-0' }}</p>
+      </div>
+      <div class="card">
+        <h3>Compressible units hint (sum)</h3>
+        <p class="big">{{ summary.sdk_telemetry.aggregate_compressible_units_hint | number : '1.0-0' }}</p>
+      </div>
+    </div>
+
+    <h3 class="subsection__title" *ngIf="summary.sdk_telemetry.by_environment?.length">By environment</h3>
+    <div class="source-grid" *ngIf="summary.sdk_telemetry.by_environment?.length">
+      <div class="card source-card" *ngFor="let row of summary.sdk_telemetry.by_environment">
+        <h3 class="source-card__title">{{ row.environment || 'default' }}</h3>
+        <dl class="source-card__stats">
+          <div>
+            <dt>Calls</dt>
+            <dd>{{ row.calls | number : '1.0-0' }}</dd>
+          </div>
+          <div>
+            <dt>Est. savings (USD)</dt>
+            <dd>{{ row.estimated_savings_usd | number : '1.2-4' }}</dd>
+          </div>
+          <div>
+            <dt>Input before → after</dt>
+            <dd>
+              {{ row.input_tokens_before | number : '1.0-0' }} → {{ row.input_tokens_after | number : '1.0-0' }}
+            </dd>
+          </div>
+          <div>
+            <dt>Output tokens</dt>
+            <dd>{{ row.output_tokens | number : '1.0-0' }}</dd>
+          </div>
+          <div>
+            <dt>Input reduction %</dt>
+            <dd>{{ row.input_token_reduction_pct | number : '1.1-1' }}%</dd>
+          </div>
+        </dl>
+      </div>
+    </div>
+
+    <h3 class="subsection__title" *ngIf="summary.sdk_telemetry.by_model?.length">By model</h3>
+    <div class="source-grid" *ngIf="summary.sdk_telemetry.by_model?.length">
+      <div class="card source-card" *ngFor="let row of summary.sdk_telemetry.by_model">
+        <h3 class="source-card__title">{{ row.model }}</h3>
+        <dl class="source-card__stats">
+          <div>
+            <dt>Calls</dt>
+            <dd>{{ row.calls | number : '1.0-0' }}</dd>
+          </div>
+          <div>
+            <dt>Est. savings (USD)</dt>
+            <dd>{{ row.estimated_savings_usd | number : '1.2-4' }}</dd>
+          </div>
+          <div>
+            <dt>Input before → after</dt>
+            <dd>
+              {{ row.input_tokens_before | number : '1.0-0' }} → {{ row.input_tokens_after | number : '1.0-0' }}
+            </dd>
+          </div>
+          <div>
+            <dt>Input reduction %</dt>
+            <dd>{{ row.input_token_reduction_pct | number : '1.1-1' }}%</dd>
+          </div>
+        </dl>
+      </div>
+    </div>
+  </section>
+
   <section *ngIf="summary && !loading" class="section">
-    <h2 class="section__title">All synced products (combined)</h2>
+    <h2 class="section__title">Synced sessions (combined)</h2>
     <p class="section__subtitle">Total across every integration that has written to cloud session sync for this org.</p>
     <div class="grid">
       <div class="card">

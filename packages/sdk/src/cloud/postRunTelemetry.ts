@@ -1,13 +1,8 @@
 import type { SpectyraConfig, SpectyraCompleteInput, SpectyraCompleteResult } from "../types.js";
+import { resolveSpectyraApiBaseUrl } from "../entitlements/resolveApiBaseUrl.js";
+import { resolveEffectiveTelemetryMode } from "../observability/resolveEffectiveTelemetryMode.js";
 import { buildSpectyraProductionDiagnostics } from "./buildProductionDiagnostics.js";
 import { resolveSpectyraCloudApiKey } from "./resolveSpectyraCloudApiKey.js";
-
-function defaultBaseUrl(): string {
-  if (typeof process !== "undefined" && process.env?.SPECTYRA_API_BASE_URL) {
-    return process.env.SPECTYRA_API_BASE_URL.replace(/\/$/, "");
-  }
-  return "";
-}
 
 /**
  * POST aggregated usage for one LLM call to Spectyra SaaS (POST /v1/telemetry/run).
@@ -19,25 +14,41 @@ export async function maybePostSdkRunTelemetry<TResult>(
   input: SpectyraCompleteInput<unknown>,
   result: SpectyraCompleteResult<TResult>,
 ): Promise<void> {
-  const mode = config.telemetry?.mode ?? "local";
-  if (mode !== "cloud_redacted") return;
+  if (resolveEffectiveTelemetryMode(config) !== "cloud_redacted") return;
 
   const apiKey = resolveSpectyraCloudApiKey(config);
   if (!apiKey) return;
 
-  const base = (config.spectyraApiBaseUrl ?? defaultBaseUrl()).replace(/\/$/, "");
-  if (!base) return;
+  const base = resolveSpectyraApiBaseUrl(config);
 
   const project = input.runContext?.project?.trim();
   const environment = (input.runContext?.environment ?? process.env.NODE_ENV ?? "development").toString().slice(0, 128);
   const report = result.report;
 
+  const inputSaved = Math.max(0, report.inputTokensBefore - report.inputTokensAfter);
+  const inputReductionPct =
+    report.inputTokensBefore > 0 ? (100 * inputSaved) / report.inputTokensBefore : 0;
+
   const body: Record<string, unknown> = {
     environment,
     model: report.model,
+    provider: input.provider,
+    integrationType: report.integrationType,
+    inferencePath: report.inferencePath,
     inputTokens: report.inputTokensBefore,
     outputTokens: report.outputTokens,
     optimizedTokens: report.inputTokensAfter,
+    inputTokensSaved: inputSaved,
+    inputTokenReductionPct: inputReductionPct,
+    estimatedSavingsPct: report.estimatedSavingsPct,
+    messageTurnCount: report.messageTurnCount,
+    transformCount: (report.transformsApplied ?? []).length,
+    repeatedContextTokensAvoided: report.repeatedContextTokensAvoided,
+    repeatedToolOutputTokensAvoided: report.repeatedToolOutputTokensAvoided,
+    compressibleUnitsHint: report.compressibleUnitsHint,
+    contextReductionPct: report.contextReductionPct,
+    duplicateReductionPct: report.duplicateReductionPct,
+    flowReductionPct: report.flowReductionPct,
     estimatedCost: report.estimatedCostBefore,
     optimizedCost: report.estimatedCostAfter,
     savings: report.estimatedSavings,

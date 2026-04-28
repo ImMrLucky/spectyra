@@ -37,8 +37,7 @@ function pricingEnabled(config: SpectyraConfig): boolean {
   if (config.pricing?.enabled === false) return false;
   if (config.pricing?.enabled === true) return true;
   const k = resolveSpectyraCloudApiKey(config);
-  const b = resolveSpectyraApiBaseUrl(config);
-  return Boolean(k && b);
+  return Boolean(k);
 }
 
 function intervalMs(config: SpectyraConfig): number {
@@ -52,7 +51,7 @@ export function startPricingRuntime(config: SpectyraConfig): { stop: () => void;
   }
   const key = resolveSpectyraCloudApiKey(config);
   const base = resolveSpectyraApiBaseUrl(config);
-  if (!key || !base) {
+  if (!key) {
     return { stop: () => {}, refresh: async () => {} };
   }
 
