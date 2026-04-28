@@ -5,7 +5,7 @@
   <modelVersion>4.0.0</modelVersion>
   <groupId>ai.spectyra</groupId>
   <artifactId>spectyra-sdk</artifactId>
-  <version>0.0.1-SNAPSHOT</version>
+  <version>0.1.0</version>
   <packaging>jar</packaging>
   <name>Spectyra SDK (Java)</name>
   <description>Scaffold Java SDK for Spectyra local runtime + future JNI embedding</description>

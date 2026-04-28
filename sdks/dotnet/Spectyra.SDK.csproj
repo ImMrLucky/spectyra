@@ -3,10 +3,15 @@
     <TargetFramework>net8.0</TargetFramework>
     <RootNamespace>Spectyra</RootNamespace>
     <AssemblyName>Spectyra.SDK</AssemblyName>
+    <PackageId>Spectyra.SDK</PackageId>
+    <Authors>Spectyra</Authors>
+    <Description>Spectyra .NET SDK — local runtime HTTP client and optional native FFI helpers.</Description>
+    <PackageLicenseExpression>MIT</PackageLicenseExpression>
+    <RepositoryUrl>https://github.com/spectyra/spectyra</RepositoryUrl>
+    <PackageProjectUrl>https://github.com/spectyra/spectyra</PackageProjectUrl>
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
-    <Version>0.0.1</Version>
-    <Description>Scaffold .NET SDK for Spectyra local runtime + future native embedding</Description>
+    <Version>0.1.0</Version>
     <EnableDefaultCompileItems>false</EnableDefaultCompileItems>
   </PropertyGroup>
   <ItemGroup>

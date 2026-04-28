@@ -16,16 +16,29 @@ Install into your application. Wraps provider clients locally; prompts and API k
 - **Cloud control plane (recommended):** Spectyra API key + optional `spectyraApiBaseUrl`. Entitlements and pricing snapshots refresh at runtime (upgrade billing without redeploying app code).
 - **License / local-only paths:** Legacy OpenClaw / desktop flows may still use license keys; do not conflate with multi-language runtimes below.
 
-## 2. Same-repo language SDKs (`sdks/`)
+## 2. Language SDKs (Python, Java, .NET, Go)
 
-For **Python, Java, .NET, and Go** backends, use the scaffold under `sdks/<language>/`. Each SDK supports:
+Install **from each ecosystem’s registry** — you do **not** need to clone the Spectyra repo for a normal integration.
+
+| Language | Install | Package / coordinates |
+|----------|---------|------------------------|
+| **Python** | `pip install spectyra` | PyPI: `spectyra` |
+| **Java** | Add Maven / Gradle dependency | `ai.spectyra:spectyra-sdk` (see `sdks/java/README.md` for XML) |
+| **.NET** | `dotnet add package Spectyra.SDK` | NuGet: `Spectyra.SDK` |
+| **Go** | `go get github.com/spectyra/spectyra-go@v0.1.0` | Module: `github.com/spectyra/spectyra-go` (import `…/spectyra`) |
+
+Source for **maintainers** lives under `sdks/<language>/`. **Contributors** who change an SDK clone the repo and follow the **Contributing** section in each SDK README.
+
+Each SDK supports:
 
 | Mode | When to use |
-|------|----------------|
+|------|-------------|
 | **Runtime (HTTP)** | Call a running **Spectyra local runtime** (`runtime/local-runtime`, default e.g. `http://127.0.0.1:4269`). Best when you want engine updates without shipping new native binaries, or when FFI is impractical. |
 | **Embedded (native)** | Load `libspectyra_ffi` / `spectyra_ffi.dll` built from `runtime/spectyra-ffi`. Use for savings math and (where exposed) pipeline JSON helpers with **no separate process**. Requires shipping the native library per OS/arch. |
 
 **Privacy rule (all modes):** Spectyra cloud receives only account metadata, aggregates, quota, and pricing snapshot metadata — never prompts, completions, or provider secrets. See [../privacy/byok-and-local-architecture.md](../privacy/byok-and-local-architecture.md).
+
+**Publishing:** [PUBLISHING.md](./PUBLISHING.md)
 
 ## 3. OpenClaw (unchanged product line)
 

@@ -41,85 +41,149 @@ export class AppIntegrationPage implements OnInit, OnDestroy {
     this.authSub?.unsubscribe();
   }
 
-  /** Kept in TS so template parsing does not treat `@` / `{` as Angular syntax. */
-  readonly installCommand = 'npm install @spectyra/sdk';
+  /** TypeScript — install (strings avoid `@` parsing issues in templates if ever inlined). */
+  readonly tsInstall = 'npm install @spectyra/sdk openai';
 
-  /** One-line installs for non-Node SDKs (from monorepo root; see each README under `sdks/`). */
-  readonly pythonSdkInstall = 'cd sdks/python && pip install -e .';
-  readonly javaSdkBuild = 'cd sdks/java && mvn -q test';
-  readonly dotnetSdkBuild = 'cd sdks/dotnet && dotnet build';
-  readonly goSdkVerify = 'cd sdks/go && go test ./...';
-
-  /** Minimal path: install → createSpectyra → complete() with runContext for cloud rollups. */
-  readonly quickStartCode = `import { createSpectyra, createOpenAIAdapter } from "@spectyra/sdk";
+  readonly tsQuickStart = `import { createSpectyra, createOpenAIAdapter } from "@spectyra/sdk";
 import OpenAI from "openai";
 
 const spectyra = createSpectyra({
   runMode: "on",
-  licenseKey: process.env.SPECTYRA_LICENSE_KEY, // optional — Plan & Billing → license keys; omit = preview-only
+  licenseKey: process.env.SPECTYRA_LICENSE_KEY,
+  spectyraCloudApiKey: process.env.SPECTYRA_API_KEY,
+  spectyraApiBaseUrl: process.env.SPECTYRA_API_BASE_URL,
 });
 
-const openai = new OpenAI();
+const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 
 const { providerResult, report } = await spectyra.complete(
   {
     provider: "openai",
     client: openai,
     model: "gpt-4o-mini",
-    messages: [{ role: "user", content: "Hello!" }],
-    runContext: {
-      project: "my-service",      // org dashboards / telemetry when cloud mode is on
-      environment: "development", // defaults to NODE_ENV when omitted
-      service: "api",
-      workflowType: "chat",
-    },
+    messages: [{ role: "user", content: "Summarize this support ticket…" }],
   },
   createOpenAIAdapter(),
 );
 
-console.log(report.estimatedSavingsPct, report.inputTokensBefore, report.inputTokensAfter);`;
+// providerResult: same shape OpenAI would return without Spectyra
+// report: tokens, estimated cost, savings %, transforms, etc.
+console.log(report.estimatedSavingsPct, report.estimatedSavings);`;
 
-  /** Cloud rollups: aggregated costs + safe diagnostics only (see SDK README). */
+  readonly pyInstall = 'pip install spectyra openai';
+
+  readonly pyQuickStart = `import os
+from openai import OpenAI
+from spectyra import Spectyra, SpectyraConfig
+
+# Requires a Spectyra local runtime on this URL (BYOK keys live on the runtime).
+spectyra = Spectyra(SpectyraConfig(mode="runtime", runtime_base_url=os.environ.get(
+    "SPECTYRA_RUNTIME_URL", "http://127.0.0.1:4269"
+)))
+
+result = spectyra.run_chat_runtime(
+    provider="openai",
+    model="gpt-4o-mini",
+    messages=[{"role": "user", "content": "Summarize this support ticket…"}],
+)
+print(result.output, result.savings_percent)`;
+
+  readonly nextJsExample = `import { createSpectyra, createOpenAIAdapter } from "@spectyra/sdk";
+import OpenAI from "openai";
+
+const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY! });
+const spectyra = createSpectyra({
+  runMode: "on",
+  licenseKey: process.env.SPECTYRA_LICENSE_KEY,
+  spectyraCloudApiKey: process.env.SPECTYRA_API_KEY,
+  spectyraApiBaseUrl: process.env.SPECTYRA_API_BASE_URL,
+});
+
+export async function POST(req: Request) {
+  const { messages } = await req.json();
+
+  const { providerResult, report } = await spectyra.complete(
+    { provider: "openai", client: openai, model: "gpt-4o-mini", messages },
+    createOpenAIAdapter(),
+  );
+
+  return Response.json({ response: providerResult, savings: report });
+}`;
+
+  readonly expressExample = `import express from "express";
+import OpenAI from "openai";
+import { createSpectyra, createOpenAIAdapter } from "@spectyra/sdk";
+
+const app = express();
+app.use(express.json());
+
+const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY! });
+const spectyra = createSpectyra({
+  runMode: "on",
+  licenseKey: process.env.SPECTYRA_LICENSE_KEY,
+  spectyraCloudApiKey: process.env.SPECTYRA_API_KEY,
+  spectyraApiBaseUrl: process.env.SPECTYRA_API_BASE_URL,
+});
+
+app.post("/api/chat", async (req, res) => {
+  const { providerResult, report } = await spectyra.complete(
+    { provider: "openai", client: openai, model: "gpt-4o-mini", messages: req.body.messages },
+    createOpenAIAdapter(),
+  );
+  res.json({ response: providerResult, savings: report });
+});
+
+app.listen(3000);`;
+
+  readonly angularServiceSnippet = `@Injectable({ providedIn: "root" })
+export class ChatApiService {
+  constructor(private http: HttpClient) {}
+
+  send(messages: Array<{ role: string; content: string }>) {
+    return this.http.post<{ response: unknown; savings: unknown }>("/api/chat", { messages });
+  }
+}`;
+
+  readonly reactFetchSnippet = `async function sendMessage(messages: Array<{ role: string; content: string }>) {
+  const res = await fetch("/api/chat", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ messages }),
+  });
+  return res.json();
+}`;
+
+  readonly sharedBackendSnippet = `const { providerResult, report } = await spectyra.complete(
+  { provider: "openai", client: openai, model: "gpt-4o-mini", messages },
+  createOpenAIAdapter(),
+);`;
+
   readonly productionTelemetryCode = `const spectyra = createSpectyra({
   runMode: "on",
   licenseKey: process.env.SPECTYRA_LICENSE_KEY,
   telemetry: { mode: "cloud_redacted" },
-  spectyraCloudApiKey: process.env.SPECTYRA_CLOUD_API_KEY, // or SPECTYRA_API_KEY
-  spectyraApiBaseUrl: process.env.SPECTYRA_API_BASE_URL, // e.g. https://api.example.com/v1
-});
+  spectyraCloudApiKey: process.env.SPECTYRA_CLOUD_API_KEY,
+  spectyraApiBaseUrl: process.env.SPECTYRA_API_BASE_URL,
+});`;
 
-// same spectyra.complete(...) — runContext.project / environment tag rows in Projects`;
-
-  readonly devLoggingSnippet = `const { providerResult, report, promptComparison, flowSignals } = await spectyra.complete(input, adapter);
-
-console.log(providerResult);
-console.log(report.estimatedSavingsPct, report.inputTokensBefore, report.inputTokensAfter);
-console.log(report.estimatedCostBefore, report.estimatedCostAfter, report.estimatedSavings);
-console.log(report.transformsApplied, report.notes);
-console.log(report.contextReductionPct, report.duplicateReductionPct, report.flowReductionPct);
-console.log(report.repeatedContextTokensAvoided, report.repeatedToolOutputTokensAvoided);
-console.log(report.messageTurnCount, report.compressibleUnitsHint);
-if (promptComparison) console.log(promptComparison.diffSummary);
-console.log(flowSignals);`;
-
-  readonly sessionSnippet = `import { createSpectyra, startSpectyraSession } from "@spectyra/sdk";
-// …same spectyra instance…
-
-const session = startSpectyraSession(spectyra, { runMode: "on" }, { appName: "my-workflow" });
-await session.complete({ /* provider, client, model, messages */ }, adapter);
-// more session.complete(...) calls as needed
-const aggregated = session.finish();
-console.log(aggregated.estimatedWorkflowSavings, aggregated.totalModelCalls);`;
-
-  readonly aliasSnippet = `// Optional: spectyra/* model aliases (same mapping idea as OpenClaw)
-const spectyra = createSpectyra({
-  runMode: "on",
-  licenseKey: process.env.SPECTYRA_LICENSE_KEY,
-  spectyraModelAliasOverrides: { aliasQualityModel: "gpt-4o" },
-});
-
-await spectyra.complete(
-  { provider: "openai", client: openai, model: "spectyra/quality", messages },
-  createOpenAIAdapter(),
+  /** Callback-style alternative to complete() + adapter (same pipeline). */
+  readonly tsRunCallbackSnippet = `await spectyra.run(
+  { provider: "openai", model: "gpt-4o-mini", messages },
+  async (ctx) => {
+    const res = await openai.chat.completions.create({
+      model: ctx.model,
+      messages: ctx.messages,
+    });
+    const text = res.choices[0]?.message?.content ?? "";
+    const u = res.usage;
+    return {
+      result: res,
+      text,
+      usage: {
+        inputTokens: u?.prompt_tokens ?? 0,
+        outputTokens: u?.completion_tokens ?? 0,
+      },
+    };
+  },
 );`;
 }

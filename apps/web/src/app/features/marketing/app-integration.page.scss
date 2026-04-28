@@ -240,3 +240,54 @@
     text-decoration: underline;
   }
 }
+
+.dev-lead--hero-tight {
+  margin-bottom: 12px;
+}
+
+.dev-kicker--follow-tight {
+  margin-top: 14px;
+  margin-bottom: 0;
+}
+
+.dev-callout {
+  margin: 14px 0 0;
+  padding: 12px 14px;
+  border-radius: var(--radius-input);
+  border: 1px solid var(--border);
+  font-size: 14px;
+  line-height: 1.5;
+  color: var(--text-primary);
+  background: var(--bg-elevated);
+
+  &--tip {
+    border-left: 4px solid var(--spectyra-blue);
+  }
+
+  &--warn {
+    border-left: 4px solid #c2410c;
+    background: rgba(194, 65, 12, 0.06);
+  }
+}
+
+.dev-faq {
+  margin: 0;
+  color: var(--text-secondary);
+  font-size: 15px;
+  line-height: 1.55;
+
+  dt {
+    margin-top: 1rem;
+    font-weight: 600;
+    color: var(--text-primary);
+
+    &:first-child {
+      margin-top: 0;
+    }
+  }
+
+  dd {
+    margin: 0.35rem 0 0;
+    padding-left: 0;
+  }
+}

@@ -1,26 +1,84 @@
 # Spectyra Go SDK (`github.com/spectyra/spectyra-go`)
 
-Scaffold for Go backends. See [../../docs/sdk/README.md](../../docs/sdk/README.md).
+Small HTTP client for **Spectyra local runtime** `POST /v1/chat/run`. **BYOK:** provider keys live on the runtime you operate, not in Spectyra’s cloud.
 
-## Runtime mode
+---
 
-```go
-c := spectyra.NewClient(spectyra.Config{RuntimeBaseURL: "http://127.0.0.1:4269"})
-env, err := c.RunChatRuntime(ctx, "openai", "gpt-4o-mini", []spectyra.Message{{Role: "user", Content: "hi"}})
+## Install
+
+```bash
+go get github.com/spectyra/spectyra-go@v0.1.0
 ```
 
-Provider keys must live on the **Spectyra local runtime** process.
-
-## High-level session (runtime + embedded)
+In your module:
 
 ```go
-s, err := spectyra.NewSession(spectyra.SessionConfig{Mode: "embedded", FFILibPath: "/path/to/libspectyra_ffi.so"})
-// entitlement: JSON object matching the pipeline contract (see TS/Python SDKs).
-raw, err := s.RunChat(ctx, "openai", "gpt-4o-mini", msgs, entitlementJSON, false, func(opt []spectyra.Message) (json.RawMessage, error) {
-    return json.RawMessage(`{}`), nil
-})
+import "github.com/spectyra/spectyra-go/spectyra"
 ```
 
-## Embedded (low-level)
+No Git clone is required for normal use (Go modules fetch from the proxy).
 
-`RunChatPipelineFFIJSON(libPath, inputJSON)` — **linux/amd64 + CGO** loads the `.so` via `dlopen`; other platforms return `ErrFFIUnavailable`. See [../../docs/sdk/RUST_AND_FFI_BUILD.md](../../docs/sdk/RUST_AND_FFI_BUILD.md).
+---
+
+## BYOK and local-first
+
+- **Runtime:** `NewClient` targets `SPECTYRA_RUNTIME_URL` or `http://127.0.0.1:4269`. The runtime holds provider credentials for outbound model calls.
+- **Embedded:** Use `session.go` / FFI helpers when you ship `libspectyra_ffi` — see [RUST_AND_FFI_BUILD.md](https://github.com/spectyra/spectyra/blob/main/docs/sdk/RUST_AND_FFI_BUILD.md).
+- **Cloud:** Optional Spectyra API keys are for control-plane and aggregates, not for taking possession of your provider secret.
+
+---
+
+## Hello world (runtime)
+
+```go
+package main
+
+import (
+	"context"
+	"encoding/json"
+	"fmt"
+	"log"
+
+	"github.com/spectyra/spectyra-go/spectyra"
+)
+
+func main() {
+	ctx := context.Background()
+	c := spectyra.NewClient(spectyra.Config{RuntimeBaseURL: "http://127.0.0.1:4269"})
+	env, err := c.RunChatRuntime(ctx, "openai", "gpt-4o-mini", []spectyra.Message{
+		{Role: "user", Content: "Hello!"},
+	})
+	if err != nil {
+		log.Fatal(err)
+	}
+	fmt.Println(string(env))
+	var pretty map[string]any
+	_ = json.Unmarshal(env, &pretty)
+}
+```
+
+---
+
+## Runtime mode (reference)
+
+`RunChatRuntime` sends JSON `{"provider","model","messages"}` to `/v1/chat/run`. Extend the request in your fork if you need metadata fields matching the OpenAPI contract.
+
+---
+
+## Contributing
+
+**Clone this repository only if you are developing or modifying the Go SDK.**
+
+```bash
+git clone https://github.com/spectyra/spectyra.git
+cd spectyra/sdks/go
+go test ./...
+```
+
+Normal services should depend on **`github.com/spectyra/spectyra-go`** via `go get` / `go.mod`.
+
+---
+
+## More documentation
+
+- [docs/sdk/README.md](https://github.com/spectyra/spectyra/blob/main/docs/sdk/README.md)

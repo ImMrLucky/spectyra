@@ -6,7 +6,7 @@
   "compilationOptions": {},
   "targets": {
     ".NETCoreApp,Version=v8.0": {
-      "Spectyra.SDK/0.0.1": {
+      "Spectyra.SDK/0.1.0": {
         "runtime": {
           "Spectyra.SDK.dll": {}
         }
@@ -14,7 +14,7 @@
     }
   },
   "libraries": {
-    "Spectyra.SDK/0.0.1": {
+    "Spectyra.SDK/0.1.0": {
       "type": "project",
       "serviceable": false,
       "sha512": ""

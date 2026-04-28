@@ -82,7 +82,7 @@ This checklist tracks the product spec (OpenClaw packages **out of scope** here)
 | Go | `sdks/go/go.mod` | [x] | [x] linux/amd64 CGO dlopen (`RunChatPipelineFFIJSON(libPath, input)`); stub elsewhere | [x] | [x] `RunChatRuntime`, `Session` facade |
 
 - [x] Publish-ready CI: `.github/workflows/sdks-ci-publish.yml` (build/test matrix; registry tokens per `PUBLISHING.md`).
-- [x] `clients/*/README.md` — kept as lightweight pointers; canonical layout is `sdks/`.
+- [x] `clients/README.md` — **legacy / internal**; canonical SDKs and installs live under `sdks/` and registries (see `docs/sdk/README.md`).
 
 ---
 
