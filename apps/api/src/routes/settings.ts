@@ -10,6 +10,7 @@ import { RL_STANDARD } from "../middleware/expressRateLimitPresets.js";
 import { requireUserSession, requireOrgMembership, type AuthenticatedRequest } from "../middleware/auth.js";
 import { requireOrgRole } from "../middleware/requireRole.js";
 import { getOrgSettings, updateOrgSettings, getProjectSettings, updateProjectSettings } from "../services/storage/settingsRepo.js";
+import { updateOrgName, orgHasPaidStripeSubscription } from "../services/storage/orgsRepo.js";
 import { audit } from "../services/audit/audit.js";
 import { safeLog } from "../utils/redaction.js";
 import type { OrgSettingsDTO, ProjectSettingsDTO } from "@spectyra/shared";
@@ -52,6 +53,52 @@ settingsRouter.get("/:orgId/settings", async (req: AuthenticatedRequest, res) =>
   } catch (error: any) {
     safeLog("error", "Get org settings error", { error: error.message });
     res.status(500).json({ error: error.message || "Internal server error" });
+  }
+});
+
+/**
+ * PATCH /v1/orgs/:orgId/profile
+ *
+ * Update organization display name (Supabase session; ADMIN or OWNER).
+ */
+settingsRouter.patch("/:orgId/profile", requireOrgRole("ADMIN"), async (req: AuthenticatedRequest, res) => {
+  try {
+    const orgId = req.params.orgId;
+
+    if (req.auth?.orgId !== orgId) {
+      return res.status(403).json({ error: "Access denied" });
+    }
+
+    const { name } = req.body as { name?: string };
+    if (!name || typeof name !== "string" || name.trim().length === 0) {
+      return res.status(400).json({ error: "Organization name is required" });
+    }
+
+    const updatedOrg = await updateOrgName(orgId, name.trim());
+
+    await audit(req, "SETTINGS_UPDATED", {
+      targetType: "ORG",
+      targetId: orgId,
+      metadata: { scope: "profile", field: "name" },
+    });
+
+    res.json({
+      success: true,
+      org: {
+        id: updatedOrg.id,
+        name: updatedOrg.name,
+        trial_ends_at: updatedOrg.trial_ends_at,
+        subscription_status: updatedOrg.subscription_status,
+        subscription_active: orgHasPaidStripeSubscription(updatedOrg),
+      },
+    });
+  } catch (error: any) {
+    const msg = error?.message || "Internal server error";
+    if (msg.includes("cannot be empty") || msg.includes("not found")) {
+      return res.status(400).json({ error: "Cannot update organization", message: msg });
+    }
+    safeLog("error", "Update org profile error", { error: msg });
+    res.status(500).json({ error: msg });
   }
 });
 

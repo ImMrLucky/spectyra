@@ -61,6 +61,22 @@ export async function ensureSdkTelemetrySchema(): Promise<void> {
         ON project_usage_daily (org_id, usage_date DESC)
     `);
 
+    await query(`
+      CREATE TABLE IF NOT EXISTS sdk_monitor_event_batches (
+        id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+        org_id UUID NOT NULL REFERENCES orgs(id) ON DELETE CASCADE,
+        project_id UUID NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
+        payload JSONB NOT NULL,
+        event_count INTEGER NOT NULL,
+        api_key_id UUID REFERENCES api_keys(id) ON DELETE SET NULL,
+        created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+      )
+    `);
+    await query(`
+      CREATE INDEX IF NOT EXISTS idx_sdk_monitor_batches_org_created
+        ON sdk_monitor_event_batches (org_id, created_at DESC)
+    `);
+
     console.log("✅ SDK telemetry schema ensured");
   } catch (e: unknown) {
     const msg = e instanceof Error ? e.message : String(e);

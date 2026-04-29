@@ -7,7 +7,7 @@ import { Router } from "express";
 import rateLimit from "express-rate-limit";
 import { RL_STANDARD } from "../middleware/expressRateLimitPresets.js";
 import { requireSpectyraApiKey, type AuthenticatedRequest } from "../middleware/auth.js";
-import { getEntitlement } from "../services/entitlement.js";
+import { canUseSpectyraMachineSdkApis } from "../services/entitlement.js";
 import { resolveMachinePricingSnapshot } from "../services/pricing/resolveMachinePricingSnapshot.js";
 import { safeLog } from "../utils/redaction.js";
 
@@ -20,9 +20,13 @@ pricingRouter.get("/snapshot", requireSpectyraApiKey, async (req: AuthenticatedR
     if (!orgId) {
       return res.status(500).json({ error: "Missing org context" });
     }
-    const ent = await getEntitlement(orgId);
-    if (!ent.sdkEnabled) {
-      return res.status(403).json({ error: "SDK is not enabled for this organization" });
+    const allowed = await canUseSpectyraMachineSdkApis(orgId);
+    if (!allowed) {
+      return res.status(403).json({
+        error: "sdk_pricing_inactive",
+        message:
+          "Pricing snapshot is unavailable for this organization (inactive trial or subscription, canceled or paused billing, or Spectyra disabled SDK access for the org).",
+      });
     }
 
     const provider =
@@ -45,9 +49,13 @@ pricingRouter.get("/model", requireSpectyraApiKey, async (req: AuthenticatedRequ
     if (!orgId) {
       return res.status(500).json({ error: "Missing org context" });
     }
-    const ent = await getEntitlement(orgId);
-    if (!ent.sdkEnabled) {
-      return res.status(403).json({ error: "SDK is not enabled for this organization" });
+    const allowed = await canUseSpectyraMachineSdkApis(orgId);
+    if (!allowed) {
+      return res.status(403).json({
+        error: "sdk_pricing_inactive",
+        message:
+          "Pricing snapshot is unavailable for this organization (inactive trial or subscription, canceled or paused billing, or Spectyra disabled SDK access for the org).",
+      });
     }
 
     const provider =

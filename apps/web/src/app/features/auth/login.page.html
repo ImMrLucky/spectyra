@@ -79,18 +79,17 @@
     <!-- Only show if user is logged in (has session) but doesn't have an org yet -->
     <div *ngIf="needsBootstrap && authMethod === 'supabase' && hasSession" class="bootstrap-box">
       <h2>Welcome to Spectyra!</h2>
-      <p>Let's set up your organization to get started.</p>
+      <p>Optionally name your workspace, or continue with a default name from your email.</p>
       
       <form (ngSubmit)="bootstrap()" *ngIf="!bootstrapSuccess">
         <div class="form-group">
-          <label for="orgName">Organization Name</label>
+          <label for="orgName">Workspace / organization name (optional)</label>
           <input
             type="text"
             id="orgName"
             [(ngModel)]="orgName"
             [disabled]="bootstrapLoading"
-            required
-            placeholder="My Company"
+            placeholder="Leave blank to use a default from your email"
             class="form-input">
         </div>
         
@@ -105,8 +104,8 @@
             class="form-input">
         </div>
         
-        <button type="submit" class="btn btn-primary" [disabled]="bootstrapLoading || !orgName">
-          {{ bootstrapLoading ? 'Setting up...' : 'Create Organization' }}
+        <button type="submit" class="btn btn-primary" [disabled]="bootstrapLoading">
+          {{ bootstrapLoading ? 'Setting up...' : 'Create workspace' }}
         </button>
       </form>
       

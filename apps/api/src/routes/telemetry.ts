@@ -7,9 +7,12 @@ import { Router } from "express";
 import rateLimit from "express-rate-limit";
 import { RL_STANDARD } from "../middleware/expressRateLimitPresets.js";
 import { requireSpectyraApiKey, type AuthenticatedRequest } from "../middleware/auth.js";
-import { getProjectByOrgAndIdentifier } from "../services/storage/orgsRepo.js";
-import { insertSdkTelemetryRun, upsertProjectUsageDaily } from "../services/storage/sdkTelemetryRepo.js";
-import { recordOptimizedRun, getEntitlement } from "../services/entitlement.js";
+import {
+  getOrEnsureDefaultSdkTelemetryProject,
+  getProjectByOrgAndIdentifier,
+} from "../services/storage/orgsRepo.js";
+import { insertSdkTelemetryRun, insertSdkMonitorEventBatch, upsertProjectUsageDaily } from "../services/storage/sdkTelemetryRepo.js";
+import { recordOptimizedRun, canUseSpectyraMachineSdkApis } from "../services/entitlement.js";
 import { safeLog } from "../utils/redaction.js";
 import { sanitizeTelemetryDiagnostics } from "../utils/telemetryDiagnostics.js";
 
@@ -22,15 +25,93 @@ function num(v: unknown, fallback = 0): number {
   return fallback;
 }
 
+function isMonitorEventRow(e: unknown): boolean {
+  if (!e || typeof e !== "object") return false;
+  const o = e as Record<string, unknown>;
+  return (
+    o.metadataOnly === true &&
+    typeof o.eventId === "string" &&
+    o.eventId.length > 0 &&
+    typeof o.timestamp === "string" &&
+    o.timestamp.length > 0
+  );
+}
+
+telemetryRouter.post("/monitor-events", requireSpectyraApiKey, async (req: AuthenticatedRequest, res) => {
+  try {
+    const org = req.context?.org;
+    if (!org?.id) {
+      return res.status(401).json({ error: "Unauthorized" });
+    }
+    const allowed = await canUseSpectyraMachineSdkApis(org.id);
+    if (!allowed) {
+      return res.status(403).json({
+        error: "sdk_telemetry_inactive",
+        message:
+          "SDK telemetry is paused for this organization (inactive trial or subscription, canceled or paused billing, or Spectyra disabled SDK access for the org).",
+      });
+    }
+
+    const apiKeyProjectId = req.context?.project?.id ?? req.auth?.projectId ?? null;
+    const b = req.body as Record<string, unknown>;
+    const projectField =
+      (b.project as string) || (b.projectId as string) || (b.project_id as string) || "";
+    const rawEvents = b.events;
+    if (!Array.isArray(rawEvents) || rawEvents.length === 0) {
+      return res.status(400).json({ error: "events must be a non-empty array" });
+    }
+    const capped = rawEvents.slice(0, 200);
+    if (!capped.every(isMonitorEventRow)) {
+      return res.status(400).json({
+        error: "invalid_event",
+        message: "Each event must include metadataOnly: true, eventId, and timestamp (metadata-only rows).",
+      });
+    }
+
+    let projectId: string | null = apiKeyProjectId;
+    if (projectField) {
+      const resolved = await getProjectByOrgAndIdentifier(org.id, projectField);
+      if (!resolved) {
+        return res.status(404).json({ error: "Project not found for this organization" });
+      }
+      if (apiKeyProjectId && resolved.id !== apiKeyProjectId) {
+        return res.status(403).json({ error: "API key is scoped to a different project" });
+      }
+      projectId = resolved.id;
+    }
+    if (!projectId) {
+      const defaultProject = await getOrEnsureDefaultSdkTelemetryProject(org.id);
+      projectId = defaultProject.id;
+    }
+
+    const id = await insertSdkMonitorEventBatch({
+      orgId: org.id,
+      projectId,
+      events: capped,
+      apiKeyId: req.context?.apiKeyId ?? null,
+    });
+
+    res.status(201).json({ ok: true, id, accepted: capped.length });
+  } catch (error: unknown) {
+    const msg = error instanceof Error ? error.message : String(error);
+    safeLog("error", "telemetry monitor-events ingest error", { error: msg });
+    res.status(500).json({ error: msg || "Internal server error" });
+  }
+});
+
 telemetryRouter.post("/run", requireSpectyraApiKey, async (req: AuthenticatedRequest, res) => {
   try {
     const org = req.context?.org;
     if (!org?.id) {
       return res.status(401).json({ error: "Unauthorized" });
     }
-    const ent = await getEntitlement(org.id);
-    if (!ent.sdkEnabled) {
-      return res.status(403).json({ error: "SDK telemetry is not enabled for this organization" });
+    const allowed = await canUseSpectyraMachineSdkApis(org.id);
+    if (!allowed) {
+      return res.status(403).json({
+        error: "sdk_telemetry_inactive",
+        message:
+          "SDK telemetry is paused for this organization (inactive trial or subscription, canceled or paused billing, or Spectyra disabled SDK access for the org).",
+      });
     }
     const apiKeyProjectId = req.context?.project?.id ?? req.auth?.projectId ?? null;
     const b = req.body as Record<string, unknown>;
@@ -68,10 +149,8 @@ telemetryRouter.post("/run", requireSpectyraApiKey, async (req: AuthenticatedReq
       projectId = resolved.id;
     }
     if (!projectId) {
-      return res.status(400).json({
-        error: "project is required",
-        hint: "Use a project-scoped API key, or include project (name or id) in the JSON body.",
-      });
+      const defaultProject = await getOrEnsureDefaultSdkTelemetryProject(org.id);
+      projectId = defaultProject.id;
     }
 
     const payload = {

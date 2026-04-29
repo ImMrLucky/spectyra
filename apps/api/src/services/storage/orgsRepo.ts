@@ -222,6 +222,25 @@ export async function getOrgProjects(orgId: string): Promise<Project[]> {
 }
 
 /**
+ * Oldest project for an org (stable default for SDK telemetry when the client omits `project`).
+ * Creates "Default Project" if the org has none (legacy orgs).
+ */
+export async function getOrEnsureDefaultSdkTelemetryProject(orgId: string): Promise<Project> {
+  const row = await queryOne<Project>(
+    `
+    SELECT id, org_id, name, created_at
+    FROM projects
+    WHERE org_id = $1
+    ORDER BY created_at ASC
+    LIMIT 1
+    `,
+    [orgId],
+  );
+  if (row) return row;
+  return createProject(orgId, "Default Project");
+}
+
+/**
  * Resolve a project by UUID or by name (case-insensitive) within an org.
  */
 export async function getProjectByOrgAndIdentifier(

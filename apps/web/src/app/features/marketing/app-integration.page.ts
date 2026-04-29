@@ -5,6 +5,7 @@ import { Subscription, combineLatest } from 'rxjs';
 import { map } from 'rxjs/operators';
 import { AuthService } from '../../core/auth/auth.service';
 import { SupabaseService } from '../../services/supabase.service';
+import { SnackbarService } from '../../core/services/snackbar.service';
 
 @Component({
   selector: 'app-app-integration',
@@ -18,9 +19,14 @@ export class AppIntegrationPage implements OnInit, OnDestroy {
   isAuthenticated = false;
   private authSub?: Subscription;
 
+  /** Marketing CTAs — absolute URLs for prod and local dev. */
+  readonly signupUrl = 'https://spectyra.ai/signup';
+  readonly registerUrl = 'https://spectyra.ai/register';
+
   constructor(
     private supabase: SupabaseService,
     private authService: AuthService,
+    private snackbar: SnackbarService,
   ) {}
 
   ngOnInit() {
@@ -41,65 +47,106 @@ export class AppIntegrationPage implements OnInit, OnDestroy {
     this.authSub?.unsubscribe();
   }
 
-  /** TypeScript — install (strings avoid `@` parsing issues in templates if ever inlined). */
+  copyCode(text: string): void {
+    void navigator.clipboard.writeText(text).then(
+      () => this.snackbar.showSuccess('Copied to clipboard'),
+      () => this.snackbar.showError('Could not copy'),
+    );
+  }
+
   readonly tsInstall = 'npm install @spectyra/sdk openai';
 
-  readonly tsQuickStart = `import { createSpectyra, createOpenAIAdapter } from "@spectyra/sdk";
-import OpenAI from "openai";
+  readonly tsQuickStart = [
+    'import { createSpectyra, createOpenAIAdapter } from "@spectyra/sdk";',
+    'import OpenAI from "openai";',
+    '',
+    'const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });',
+    '',
+    'const spectyra = createSpectyra({',
+    '  spectyraCloudApiKey: process.env.SPECTYRA_API_KEY,',
+    '  productSurface: "in_app",',
+    '});',
+    '',
+    'const { providerResult, report } = await spectyra.complete(',
+    '  {',
+    '    provider: "openai",',
+    '    client: openai,',
+    '    model: "gpt-4.1-mini",',
+    '    messages: [{ role: "user", content: "Summarize this support ticket…" }],',
+    '  },',
+    '  createOpenAIAdapter(),',
+    ');',
+    '',
+    'console.log(providerResult);',
+    '// First "wow": savings live on `report`',
+    'console.log(',
+    '  `Saved: ${report.estimatedSavingsPct.toFixed(0)}% · $${report.estimatedSavings.toFixed(2)} estimated`,',
+    ');',
+  ].join('\n');
 
-const spectyra = createSpectyra({
-  runMode: "on",
-  spectyraCloudApiKey: process.env.SPECTYRA_API_KEY,
-});
+  readonly pyInstall = 'pip install spectyra';
 
-const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+  readonly pyQuickStart = [
+    'import os',
+    'from spectyra import Spectyra, SpectyraConfig',
+    '',
+    '# Runtime mode: HTTP to a Spectyra local/runtime process (provider keys live there).',
+    '# For the same in-process BYOK pattern as @spectyra/sdk, use TypeScript/Node today.',
+    'spectyra = Spectyra(',
+    '    SpectyraConfig(',
+    '        mode="runtime",',
+    '        runtime_base_url=os.environ.get("SPECTYRA_RUNTIME_URL", "http://127.0.0.1:4269"),',
+    '    )',
+    ')',
+    '',
+    'result = spectyra.run_chat_runtime(',
+    '    provider="openai",',
+    '    model="gpt-4.1-mini",',
+    '    messages=[{"role": "user", "content": "Summarize this support ticket…"}],',
+    ')',
+    'print(result.output)',
+    'print(result.savings_percent, result.savings_amount)',
+  ].join('\n');
 
-const { providerResult, report } = await spectyra.complete(
-  {
+  readonly savingsPreviewExample = `Saved: 42% · $0.18 estimated
+runId: a1b2c3d4-…
+inferencePath: direct_provider`;
+
+  readonly whatYouGetTs = `{
+  providerResult: /* same object OpenAI SDK returns */,
+  report: {
+    runId: "…",
     provider: "openai",
-    client: openai,
-    model: "gpt-4o-mini",
-    messages: [{ role: "user", content: "Summarize this support ticket…" }],
+    model: "gpt-4.1-mini",
+    inputTokensBefore: 12400,
+    inputTokensAfter: 7100,
+    outputTokens: 900,
+    estimatedCostBefore: 0.42,
+    estimatedCostAfter: 0.24,
+    estimatedSavings: 0.18,
+    estimatedSavingsPct: 42,
+    inferencePath: "direct_provider",
+    providerBillingOwner: "customer",
+    transformsApplied: ["…"],
+    // …plus telemetry / quality hints
   },
-  createOpenAIAdapter(),
-);
-
-// providerResult: same shape OpenAI would return without Spectyra
-// report: tokens, estimated cost, savings %, transforms, etc.
-console.log(report.estimatedSavingsPct, report.estimatedSavings);`;
-
-  readonly pyInstall = 'pip install spectyra openai';
-
-  readonly pyQuickStart = `import os
-from openai import OpenAI
-from spectyra import Spectyra, SpectyraConfig
-
-# Requires a Spectyra local runtime on this URL (BYOK keys live on the runtime).
-spectyra = Spectyra(SpectyraConfig(mode="runtime", runtime_base_url=os.environ.get(
-    "SPECTYRA_RUNTIME_URL", "http://127.0.0.1:4269"
-)))
-
-result = spectyra.run_chat_runtime(
-    provider="openai",
-    model="gpt-4o-mini",
-    messages=[{"role": "user", "content": "Summarize this support ticket…"}],
-)
-print(result.output, result.savings_percent)`;
+  security: { /* inferencePath, telemetryMode, … */ },
+}`;
 
   readonly nextJsExample = `import { createSpectyra, createOpenAIAdapter } from "@spectyra/sdk";
 import OpenAI from "openai";
 
 const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY! });
 const spectyra = createSpectyra({
-  runMode: "on",
   spectyraCloudApiKey: process.env.SPECTYRA_API_KEY,
+  productSurface: "in_app",
 });
 
 export async function POST(req: Request) {
   const { messages } = await req.json();
 
   const { providerResult, report } = await spectyra.complete(
-    { provider: "openai", client: openai, model: "gpt-4o-mini", messages },
+    { provider: "openai", client: openai, model: "gpt-4.1-mini", messages },
     createOpenAIAdapter(),
   );
 
@@ -115,26 +162,30 @@ app.use(express.json());
 
 const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY! });
 const spectyra = createSpectyra({
-  runMode: "on",
   spectyraCloudApiKey: process.env.SPECTYRA_API_KEY,
+  productSurface: "in_app",
 });
 
 app.post("/api/chat", async (req, res) => {
   const { providerResult, report } = await spectyra.complete(
-    { provider: "openai", client: openai, model: "gpt-4o-mini", messages: req.body.messages },
+    { provider: "openai", client: openai, model: "gpt-4.1-mini", messages: req.body.messages },
     createOpenAIAdapter(),
   );
+
   res.json({ response: providerResult, savings: report });
 });
 
 app.listen(3000);`;
 
-  readonly angularServiceSnippet = `@Injectable({ providedIn: "root" })
+  readonly angularServiceSnippet = `import { HttpClient } from "@angular/common/http";
+import { Injectable } from "@angular/core";
+
+@Injectable({ providedIn: "root" })
 export class ChatApiService {
   constructor(private http: HttpClient) {}
 
   send(messages: Array<{ role: string; content: string }>) {
-    return this.http.post<{ response: unknown; savings: unknown }>("/api/chat", { messages });
+    return this.http.post("/api/chat", { messages });
   }
 }`;
 
@@ -148,24 +199,20 @@ export class ChatApiService {
 }`;
 
   readonly sharedBackendSnippet = `const { providerResult, report } = await spectyra.complete(
-  { provider: "openai", client: openai, model: "gpt-4o-mini", messages },
+  { provider: "openai", client: openai, model: "gpt-4.1-mini", messages },
   createOpenAIAdapter(),
 );`;
 
   readonly productionTelemetryCode = `const spectyra = createSpectyra({
-  runMode: "on",
-  telemetry: { mode: "cloud_redacted" },
   spectyraCloudApiKey: process.env.SPECTYRA_API_KEY,
+  telemetry: { mode: "cloud_redacted" },
+  productSurface: "in_app",
 });`;
 
-  /** Callback-style alternative to complete() + adapter (same pipeline). */
-  readonly tsRunCallbackSnippet = `await spectyra.run(
-  { provider: "openai", model: "gpt-4o-mini", messages },
-  async (ctx) => {
-    const res = await openai.chat.completions.create({
-      model: ctx.model,
-      messages: ctx.messages,
-    });
+  readonly tsRunCallbackSnippet = `const out = await spectyra.run(
+  { provider: "openai", model: "gpt-4.1-mini", messages },
+  async ({ messages, model }) => {
+    const res = await openai.chat.completions.create({ model, messages });
     const text = res.choices[0]?.message?.content ?? "";
     const u = res.usage;
     return {
@@ -177,5 +224,42 @@ export class ChatApiService {
       },
     };
   },
-);`;
+);
+
+console.log(out.output);
+console.log(out.savingsPercent, out.savingsAmount);
+// Full savings report: out.complete.report`;
+
+  readonly overlayDevTs = [
+    'import { createSpectyra, createOpenAIAdapter } from "@spectyra/sdk";',
+    'import OpenAI from "openai";',
+    '',
+    'const spectyra = createSpectyra({',
+    '  spectyraCloudApiKey: process.env.SPECTYRA_API_KEY,',
+    '  environment: process.env.APP_ENV || process.env.NODE_ENV,',
+    '  overlay: process.env.SPECTYRA_OVERLAY === "true",',
+    '  debug: process.env.SPECTYRA_DEBUG === "true",',
+    '  productSurface: "in_app",',
+    '});',
+    '',
+    'spectyra.on("savings", (e) => {',
+    '  console.log("savings event", e.traceId, e.savingsPercent);',
+    '});',
+  ].join('\n');
+
+  readonly overlayDevPy = [
+    'import os',
+    'from spectyra import Spectyra, SpectyraConfig',
+    '',
+    'spectyra = Spectyra(',
+    '    SpectyraConfig(',
+    '        mode="runtime",',
+    '        environment=os.environ.get("APP_ENV"),',
+    '        overlay=os.environ.get("SPECTYRA_OVERLAY", "").lower() == "true",',
+    '        debug=os.environ.get("SPECTYRA_DEBUG", "").lower() == "true",',
+    '    )',
+    ')',
+    '',
+    'unsub = spectyra.on_savings(lambda e: print("savings", e.get("trace_id"), e.get("savings_percent")))',
+  ].join('\n');
 }

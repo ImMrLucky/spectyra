@@ -87,10 +87,11 @@ function openclawDesktopDownloadsPayload(): {
 
 /**
  * POST /v1/auth/bootstrap
- * 
- * Bootstrap org/project for a Supabase user (called after first Supabase login)
- * Requires Supabase JWT authentication
- * Creates org, default project, and first API key
+ *
+ * Bootstrap org/project for a Supabase user (called after first Supabase login).
+ * Requires Supabase JWT authentication. Creates org, default project, and first API key.
+ * If `org_name` is omitted or blank, the org name is derived from the JWT email
+ * (same rules as `defaultOrgNameFromEmail`), falling back to `"My workspace"`.
  */
 authRouter.post(
   "/bootstrap",
@@ -103,10 +104,11 @@ authRouter.post(
     }
 
     const { org_name, project_name } = req.body as { org_name?: string; project_name?: string };
-    
-    if (!org_name || org_name.trim().length === 0) {
-      return res.status(400).json({ error: "Organization name is required" });
-    }
+
+    const orgName =
+      typeof org_name === "string" && org_name.trim().length > 0
+        ? org_name.trim()
+        : defaultOrgNameFromEmail(req.auth?.email) || "My workspace";
 
     const userId = req.auth.userId;
 
@@ -175,7 +177,7 @@ authRouter.post(
 
     const outcome = await provisionSpectyraAccountIfNeeded({
       userId,
-      orgName: org_name.trim(),
+      orgName,
       projectName: project_name || "Default Project",
       auditReq: req,
     });

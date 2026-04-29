@@ -47,6 +47,33 @@ export async function insertSdkTelemetryRun(input: SdkTelemetryRunInput): Promis
   return row.id;
 }
 
+export interface SdkMonitorEventBatchInput {
+  orgId: string;
+  projectId: string;
+  /** Redacted monitor rows (JSON-serializable). */
+  events: unknown[];
+  apiKeyId: string | null;
+}
+
+export async function insertSdkMonitorEventBatch(input: SdkMonitorEventBatchInput): Promise<string> {
+  const row = await queryOne<{ id: string }>(
+    `
+    INSERT INTO sdk_monitor_event_batches (org_id, project_id, payload, event_count, api_key_id)
+    VALUES ($1, $2, $3::jsonb, $4, $5)
+    RETURNING id::text AS id
+    `,
+    [
+      input.orgId,
+      input.projectId,
+      JSON.stringify(input.events),
+      Math.max(0, Math.floor(input.events.length)),
+      input.apiKeyId,
+    ],
+  );
+  if (!row?.id) throw new Error("insertSdkMonitorEventBatch: no id returned");
+  return row.id;
+}
+
 export async function upsertProjectUsageDaily(input: SdkTelemetryRunInput): Promise<void> {
   await query(
     `

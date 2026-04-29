@@ -1,7 +1,7 @@
 import { Injectable } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { Observable, from } from 'rxjs';
-import { switchMap } from 'rxjs/operators';
+import { map, switchMap } from 'rxjs/operators';
 import { environment } from '../../../environments/environment';
 import { SupabaseService } from '../../services/supabase.service';
 import type { OrgSettingsDTO, ProjectSettingsDTO } from '@spectyra/shared';
@@ -10,6 +10,18 @@ import type { OrgSettingsDTO, ProjectSettingsDTO } from '@spectyra/shared';
 // These are DTOs (omits IDs and timestamps) for API responses
 export type OrgSettings = OrgSettingsDTO;
 export type ProjectSettings = ProjectSettingsDTO;
+
+/** Response from PATCH /v1/orgs/:orgId/profile */
+export interface OrgProfilePatchResponse {
+  success: boolean;
+  org: {
+    id: string;
+    name: string;
+    trial_ends_at: string | null;
+    subscription_status: string;
+    subscription_active?: boolean;
+  };
+}
 
 @Injectable({
   providedIn: 'root',
@@ -38,9 +50,10 @@ export class SettingsService {
    */
   getOrgSettings(orgId: string): Observable<OrgSettingsDTO> {
     return from(this.getHeaders()).pipe(
-      switchMap(headers =>
-        this.http.get<OrgSettingsDTO>(`${this.baseUrl}/v1/orgs/${orgId}/settings`, { headers })
-      )
+      switchMap((headers) =>
+        this.http.get<{ settings: OrgSettingsDTO }>(`${this.baseUrl}/orgs/${orgId}/settings`, { headers }),
+      ),
+      map((res) => res.settings),
     );
   }
 
@@ -49,13 +62,25 @@ export class SettingsService {
    */
   updateOrgSettings(orgId: string, settings: Partial<OrgSettingsDTO>): Observable<OrgSettingsDTO> {
     return from(this.getHeaders()).pipe(
-      switchMap(headers =>
-        this.http.patch<OrgSettingsDTO>(
-          `${this.baseUrl}/v1/orgs/${orgId}/settings`,
+      switchMap((headers) =>
+        this.http.patch<{ settings: OrgSettingsDTO }>(
+          `${this.baseUrl}/orgs/${orgId}/settings`,
           settings,
-          { headers }
-        )
-      )
+          { headers },
+        ),
+      ),
+      map((res) => res.settings),
+    );
+  }
+
+  /**
+   * Update organization display name (workspace label).
+   */
+  updateOrgProfile(orgId: string, body: { name: string }): Observable<OrgProfilePatchResponse> {
+    return from(this.getHeaders()).pipe(
+      switchMap((headers) =>
+        this.http.patch<OrgProfilePatchResponse>(`${this.baseUrl}/orgs/${orgId}/profile`, body, { headers }),
+      ),
     );
   }
 
@@ -64,24 +89,32 @@ export class SettingsService {
    */
   getProjectSettings(projectId: string): Observable<ProjectSettingsDTO> {
     return from(this.getHeaders()).pipe(
-      switchMap(headers =>
-        this.http.get<ProjectSettingsDTO>(`${this.baseUrl}/v1/projects/${projectId}/settings`, { headers })
-      )
+      switchMap((headers) =>
+        this.http.get<{ settings: ProjectSettingsDTO }>(
+          `${this.baseUrl}/projects/${projectId}/settings`,
+          { headers },
+        ),
+      ),
+      map((res) => res.settings),
     );
   }
 
   /**
    * Update project settings
    */
-  updateProjectSettings(projectId: string, settings: Partial<ProjectSettingsDTO>): Observable<ProjectSettingsDTO> {
+  updateProjectSettings(
+    projectId: string,
+    settings: Partial<ProjectSettingsDTO>,
+  ): Observable<ProjectSettingsDTO> {
     return from(this.getHeaders()).pipe(
-      switchMap(headers =>
-        this.http.patch<ProjectSettingsDTO>(
-          `${this.baseUrl}/v1/projects/${projectId}/settings`,
+      switchMap((headers) =>
+        this.http.patch<{ settings: ProjectSettingsDTO }>(
+          `${this.baseUrl}/projects/${projectId}/settings`,
           settings,
-          { headers }
-        )
-      )
+          { headers },
+        ),
+      ),
+      map((res) => res.settings),
     );
   }
 }

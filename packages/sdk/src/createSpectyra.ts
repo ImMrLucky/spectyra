@@ -16,7 +16,12 @@ import type {
   SpectyraCompleteInput,
   SpectyraCompleteResult,
   ProviderAdapter,
+  SpectyraSavingsEvent,
 } from "./types.js";
+import type { SpectyraMonitorEvent, SpectyraMonitorSummary } from "./monitor/monitorTypes.js";
+import { createMonitorEngine } from "./monitor/monitorEngine.js";
+import { emptyMonitorSummary } from "./monitor/summaries.js";
+import { buildMonitorEventFromComplete, buildFailureMonitorEvent } from "./monitor/emitFromComplete.js";
 import {
   createExecutorAdapter,
   mapCompleteToRunResult,
@@ -42,7 +47,11 @@ import type {
   SpectyraSessionCostSummary,
 } from "./observability/observabilityTypes.js";
 import { startEntitlementRuntime, entitlementsDefaultEnabled } from "./entitlements/entitlementRuntime.js";
-import { mountSpectyraDevtools, shouldMountDevtoolsByDefault } from "./devtools/mountDevtools.js";
+import {
+  mountSpectyraDevtools,
+  shouldMountDevtoolsByDefault,
+  type SpectyraDevtoolsMountHandle,
+} from "./devtools/mountDevtools.js";
 import {
   getPricingSnapshot,
   getPricingSnapshotMeta,
@@ -53,6 +62,8 @@ import { resolveModelPricingEntry } from "./pricing/modelResolver.js";
 import { calculateSavingsFromUsages } from "./pricing/costCalculator.js";
 import { normalizedUsageFromTokens } from "./pricing/normalizeUsage.js";
 import type { SavingsCalculation } from "./pricing/types.js";
+import { resolveSpectyraEnvironmentLabel, resolveEffectiveDebug } from "./config/sdkUiEnv.js";
+import { logSpectyraDebugSafeLine } from "./debug/debugSafeSummary.js";
 
 function newRunId(): string {
   if (typeof crypto !== "undefined" && "randomUUID" in crypto) {
@@ -146,10 +157,40 @@ export interface SpectyraInstance {
    */
   refreshEntitlement(): Promise<void>;
   /**
+   * Safe savings snapshot for dev/QA (no prompt text).
+   */
+  getSavings(): {
+    summary: SpectyraSavingsSummary;
+    lastRun: SpectyraLastRun | null;
+    lastRunSavings: { savingsAmount: number; savingsPercent: number } | null;
+  };
+  /**
+   * Subscribe to post-run savings events (numeric summaries only).
+   * @returns unsubscribe function
+   */
+  on(event: "savings", listener: (e: SpectyraSavingsEvent) => void): () => void;
+  /** Browser savings overlay — mounts devtools if needed. No-op in Node or when `devtools.enabled === false`. */
+  showOverlay(): void;
+  hideOverlay(): void;
+  toggleOverlay(): void;
+  /**
    * Mount the floating devtools (browser only; idempotent if already present).
    * @returns unmount
    */
   mountDevtools(): () => void;
+
+  /**
+   * Record a metadata-only monitor event (requires `monitor: { enabled: true }` on `createSpectyra`).
+   */
+  recordMonitorEvent(
+    partial: Partial<SpectyraMonitorEvent> & Pick<SpectyraMonitorEvent, "provider" | "latencyMs" | "success">,
+  ): void;
+  /** Rollup of buffered monitor events (empty when monitor is disabled). */
+  getMonitorSummary(): SpectyraMonitorSummary;
+  /** Alias of {@link getMonitorSummary} (spec naming: cost rollup). */
+  getCostSummary(): SpectyraMonitorSummary;
+  /** Recent monitor events from the in-memory buffer (newest last). */
+  getRecentMonitorEvents(limit?: number): SpectyraMonitorEvent[];
 }
 
 /**
@@ -178,17 +219,45 @@ export function createSpectyra(config: SpectyraConfig = {}): SpectyraInstance {
 
   const session = new SpectyraSessionState();
   const log = createSpectyraLogger(config);
+  const monitorEngine =
+    config.monitor?.enabled === true
+      ? createMonitorEngine({
+          enabled: true,
+          bufferMaxEvents: config.monitor.bufferMaxEvents,
+          jsonl: config.monitor.jsonl,
+          console: config.monitor.console,
+          defaults: {
+            project: config.projectId,
+            environment: typeof config.environment === "string" ? config.environment : undefined,
+            service: config.service,
+          },
+          logger: config.logger,
+        })
+      : null;
   const entRuntime = startEntitlementRuntime(config, session);
   void startPricingRuntime(config);
-  if (shouldMountDevtoolsByDefault(config) && (config.devtools?.enabled !== false)) {
-    void mountSpectyraDevtools({
+
+  const savingsListeners = new Set<(e: SpectyraSavingsEvent) => void>();
+  let overlayHandle: SpectyraDevtoolsMountHandle | null = null;
+  const envLabel = resolveSpectyraEnvironmentLabel(config);
+
+  function mountDevtoolsUi(): SpectyraDevtoolsMountHandle {
+    const h = mountSpectyraDevtools({
       config,
       devtools: config.devtools,
       getEntitlement: () => session.getEntitlement(),
       getSession: () => session,
-      environmentLabel:
-        (typeof process !== "undefined" && process.env?.NODE_ENV) || "browser",
+      environmentLabel: envLabel,
+      getMonitorSummary: monitorEngine ? () => monitorEngine.getMonitorSummary() : undefined,
     });
+    if (h.didMount) {
+      overlayHandle = h;
+    }
+    return h;
+  }
+
+  if (shouldMountDevtoolsByDefault(config) && config.devtools?.enabled !== false) {
+    void mountDevtoolsUi();
   }
 
   return {
@@ -222,7 +291,25 @@ export function createSpectyra(config: SpectyraConfig = {}): SpectyraInstance {
 
       log.log("request", "started", { runId, model: input.model, provider: input.provider, runMode: effectiveMode });
 
-      const out = await localComplete(merged, withRun, adapter);
+      let out: SpectyraCompleteResult<TResult>;
+      try {
+        out = await localComplete(merged, withRun, adapter);
+      } catch (err) {
+        try {
+          monitorEngine?.recordEvent(
+            buildFailureMonitorEvent({
+              config,
+              input: withRun,
+              durationMs: nowMs() - t0,
+              error: err,
+              runId,
+            }),
+          );
+        } catch {
+          /* monitor must never mask the original error */
+        }
+        throw err;
+      }
       void maybePostSdkRunTelemetry(config, withRun, out).catch(() => {});
 
       const durationMs = nowMs() - t0;
@@ -329,6 +416,71 @@ export function createSpectyra(config: SpectyraConfig = {}): SpectyraInstance {
         log.error("onCostCalculated failed", { error: String(e) });
       }
 
+      const quotaSnap = session.getEntitlement()?.quota ?? null;
+      if (resolveEffectiveDebug(config)) {
+        logSpectyraDebugSafeLine({
+          effectiveMode,
+          passthroughFromQuota: passthrough,
+          quota: quotaSnap,
+          out: out as SpectyraCompleteResult<unknown>,
+          traceId: withRun.runContext?.traceId?.trim() || runId,
+        });
+      }
+
+      const rep = out.report;
+      const traceId = withRun.runContext?.traceId?.trim() || rep.runId || runId;
+      const optimized =
+        effectiveMode === "on" && !passthrough && !out.licenseLimited && rep.mode === "on";
+      let passthroughReason: string | undefined;
+      if (passthrough) {
+        passthroughReason = quotaSnap?.state ? `quota:${quotaSnap.state}` : "quota";
+      } else if (effectiveMode === "off") {
+        passthroughReason = "run_mode_off";
+      } else if (out.licenseLimited) {
+        passthroughReason = "license_limited";
+      }
+      const savingsEvent: SpectyraSavingsEvent = {
+        runId: rep.runId || runId,
+        traceId,
+        provider: rep.provider,
+        model: rep.model,
+        optimized,
+        passthroughReason,
+        savingsPercent: rep.estimatedSavingsPct,
+        savingsUsd: rep.estimatedSavings,
+        inputTokensBefore: rep.inputTokensBefore,
+        inputTokensAfter: rep.inputTokensAfter,
+        outputTokens: rep.outputTokens,
+        estimatedCostBefore: rep.estimatedCostBefore,
+        estimatedCostAfter: rep.estimatedCostAfter,
+      };
+      for (const fn of savingsListeners) {
+        try {
+          fn(savingsEvent);
+        } catch (e) {
+          log.warn("savings listener failed", { error: String(e) });
+        }
+      }
+
+      try {
+        if (monitorEngine) {
+          monitorEngine.recordEvent(
+            buildMonitorEventFromComplete({
+              config,
+              monitor: config.monitor,
+              input: withRun,
+              out: out as SpectyraCompleteResult<unknown>,
+              durationMs,
+              optimized,
+              passthrough,
+              effectiveMode,
+            }),
+          );
+        }
+      } catch {
+        /* never fail complete() because of monitor */
+      }
+
       return out;
     },
 
@@ -401,6 +553,33 @@ export function createSpectyra(config: SpectyraConfig = {}): SpectyraInstance {
     getLastRunSavings() {
       return session.getLastRunSavings();
     },
+    getSavings() {
+      return {
+        summary: session.getSavingsSummary(),
+        lastRun: session.getLastRun(),
+        lastRunSavings: session.getLastRunSavings(),
+      };
+    },
+    on(event: "savings", listener: (e: SpectyraSavingsEvent) => void) {
+      if (event !== "savings") {
+        throw new Error(`Spectyra: unsupported event "${String(event)}" (only "savings" is supported)`);
+      }
+      savingsListeners.add(listener);
+      return () => {
+        savingsListeners.delete(listener);
+      };
+    },
+    showOverlay() {
+      const h = overlayHandle?.didMount ? overlayHandle : mountDevtoolsUi();
+      h.show();
+    },
+    hideOverlay() {
+      overlayHandle?.hide();
+    },
+    toggleOverlay() {
+      const h = overlayHandle?.didMount ? overlayHandle : mountDevtoolsUi();
+      h.toggle();
+    },
     getPricingSnapshotMeta() {
       return getPricingSnapshotMeta();
     },
@@ -408,13 +587,26 @@ export function createSpectyra(config: SpectyraConfig = {}): SpectyraInstance {
       await entRuntime.refresh();
     },
     mountDevtools() {
-      return mountSpectyraDevtools({
-        config,
-        devtools: config.devtools,
-        getEntitlement: () => session.getEntitlement(),
-        getSession: () => session,
-        environmentLabel: (typeof process !== "undefined" && process.env?.NODE_ENV) || "browser",
-      }).unmount;
+      const h = mountDevtoolsUi();
+      return () => {
+        h.unmount();
+        if (overlayHandle === h) {
+          overlayHandle = null;
+        }
+      };
+    },
+
+    recordMonitorEvent(partial) {
+      monitorEngine?.recordEvent(partial);
+    },
+    getMonitorSummary() {
+      return monitorEngine?.getMonitorSummary() ?? emptyMonitorSummary();
+    },
+    getCostSummary() {
+      return monitorEngine?.getMonitorSummary() ?? emptyMonitorSummary();
+    },
+    getRecentMonitorEvents(limit = 50) {
+      return monitorEngine?.getRecentMonitorEvents(limit) ?? [];
     },
   };
 }

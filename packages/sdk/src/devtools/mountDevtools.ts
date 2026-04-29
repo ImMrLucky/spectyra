@@ -1,20 +1,45 @@
 import type { SpectyraDevtoolsConfig, SpectyraConfig } from "../types.js";
 import type { SpectyraEntitlementStatus } from "../observability/observabilityTypes.js";
 import type { SpectyraSessionState } from "../observability/spectyraSessionState.js";
+import type { SpectyraMonitorSummary } from "../monitor/monitorTypes.js";
 import { getPricingSnapshotMeta } from "../pricing/pricingRuntime.js";
+import { resolveEffectiveOverlay } from "../config/sdkUiEnv.js";
 
 function isBrowser(): boolean {
   if (typeof globalThis === "undefined") return false;
   return "document" in globalThis && typeof (globalThis as { document?: unknown }).document !== "undefined";
 }
 
-/** In browser: on unless `config.devtools?.enabled === false`. In Node: off. */
+/**
+ * Browser devtools auto-mount: explicit `devtools.enabled: true` **or** `overlay: true` / `SPECTYRA_OVERLAY=true` (non-production).
+ * Production never auto-mounts from env alone.
+ */
 export function shouldMountDevtoolsByDefault(config: SpectyraConfig): boolean {
   if (!isBrowser()) return false;
   if (config.devtools?.enabled === false) return false;
   if (config.devtools?.enabled === true) return true;
-  return true;
+  return resolveEffectiveOverlay(config);
 }
+
+/** @public Controls for the browser savings overlay (floating devtools). */
+export interface SpectyraDevtoolsMountHandle {
+  /** False when the overlay did not attach (e.g. duplicate root id or non-browser). */
+  readonly didMount: boolean;
+  unmount: () => void;
+  show: () => void;
+  hide: () => void;
+  toggle: () => void;
+  isVisible: () => boolean;
+}
+
+const noopHandle: SpectyraDevtoolsMountHandle = {
+  didMount: false,
+  unmount: () => {},
+  show: () => {},
+  hide: () => {},
+  toggle: () => {},
+  isVisible: () => false,
+};
 
 function posCss(p: string): string {
   switch (p) {
@@ -36,25 +61,27 @@ export interface DevtoolsMountOptions {
   getEntitlement: () => SpectyraEntitlementStatus | null;
   getSession: () => SpectyraSessionState;
   environmentLabel: string;
+  /** When set (e.g. from `monitor: { enabled: true }`), overlay shows buffer rollups alongside savings. */
+  getMonitorSummary?: () => SpectyraMonitorSummary;
 }
 
 /**
  * Floating devtools: compact summary + optional expandable details. Browser + Shadow DOM only.
  */
-export function mountSpectyraDevtools(opts: DevtoolsMountOptions): { unmount: () => void } {
+export function mountSpectyraDevtools(opts: DevtoolsMountOptions): SpectyraDevtoolsMountHandle {
   if (!isBrowser()) {
-    return { unmount: () => {} };
+    return noopHandle;
   }
   const doc = (globalThis as { document: Document }).document;
   if (opts.devtools?.floatingPanel === false) {
-    return { unmount: () => {} };
+    return noopHandle;
   }
 
   const position = opts.devtools?.position ?? "bottom-right";
   const defaultOpen = opts.devtools?.defaultOpen !== false;
   const rootId = "spectyra-sdk-devtools-root";
   if (doc.getElementById(rootId)) {
-    return { unmount: () => {} };
+    return noopHandle;
   }
 
   const root = doc.createElement("div");
@@ -191,6 +218,21 @@ export function mountSpectyraDevtools(opts: DevtoolsMountOptions): { unmount: ()
     row("Requests", String(s.requestCount), "");
     row("Savings (est. USD)", summ.totalEstimatedSavingsUsd.toFixed(4), "");
     row("Avg. savings %", summ.averageSavingsPct.toFixed(1) + "%", "");
+    if (lr) {
+      const tid = lr.runId ?? "—";
+      row("Trace ID", tid, "");
+      row("Last · input tok", `${lr.report.inputTokensBefore} → ${lr.report.inputTokensAfter}`, "");
+      row("Last · output tok", String(lr.report.outputTokens), "");
+      row(
+        "Last · est. cost",
+        `${lr.report.estimatedCostBefore.toFixed(4)} → ${lr.report.estimatedCostAfter.toFixed(4)} USD`,
+        "",
+      );
+      row("Last · savings (est.)", `${lr.report.estimatedSavingsPct.toFixed(1)}% / $${lr.report.estimatedSavings.toFixed(4)}`, "");
+      if (lr.runMode) {
+        row("Last · run mode", lr.runMode, lr.runMode === "off" ? "warn" : "");
+      }
+    }
     const pm = getPricingSnapshotMeta();
     if (pm.version) {
       const fetchedMs = pm.fetchedAt ? Date.parse(pm.fetchedAt) : NaN;
@@ -229,14 +271,24 @@ export function mountSpectyraDevtools(opts: DevtoolsMountOptions): { unmount: ()
       row("Entitlement", e.lastError, "warn");
     }
 
+    const mon = opts.getMonitorSummary?.();
+    if (mon && mon.requestCount > 0) {
+      row("Monitor · requests", String(mon.requestCount), "");
+      row("Monitor · Actual Spend (Provider)", `$${mon.actualSpendProviderUsd.toFixed(4)}`, "");
+      row("Monitor · Missed savings (est.)", `$${mon.missedSavingsUsd.toFixed(4)}`, "");
+      row("Monitor · p95 latency", `${Math.round(mon.p95LatencyMs)} ms`, "");
+    }
+
     det.textContent = "";
     if (showDetails) {
       if (lr) {
         const pre = doc.createElement("div");
         pre.className = "mini";
         pre.textContent = [
+          `Trace: ${lr.runId ?? "—"}`,
           `Model: ${lr.model}`,
           `In tok: ${lr.report.inputTokensBefore} → ${lr.report.inputTokensAfter}`,
+          `Out tok: ${lr.report.outputTokens}`,
           `Cost: ${lr.report.estimatedCostBefore.toFixed(5)} → ${lr.report.estimatedCostAfter.toFixed(5)}`,
           `Transforms: ${(lr.report.transformsApplied ?? []).join(", ") || "—"}`,
         ].join(" · ");
@@ -291,10 +343,34 @@ export function mountSpectyraDevtools(opts: DevtoolsMountOptions): { unmount: ()
     if (!minimized) render();
   }, 2000);
 
+  let wrapVisible = true;
+
+  const show = () => {
+    wrapVisible = true;
+    wrap.style.display = "";
+  };
+
+  const hide = () => {
+    wrapVisible = false;
+    wrap.style.display = "none";
+  };
+
+  const toggle = () => {
+    if (wrapVisible) hide();
+    else show();
+  };
+
+  const isVisible = () => wrapVisible && wrap.style.display !== "none";
+
   return {
+    didMount: true,
     unmount: () => {
       clearInterval(poll);
       root.remove();
     },
+    show,
+    hide,
+    toggle,
+    isVisible,
   };
 }

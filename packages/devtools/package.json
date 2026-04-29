@@ -1,0 +1,28 @@
+{
+  "name": "@spectyra/devtools",
+  "version": "0.1.0",
+  "description": "Lit + re-exports for Spectyra browser devtools and monitor strip (pairs with SDK Phase 6 dev bridge)",
+  "type": "module",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "sideEffects": true,
+  "files": ["dist", "README.md"],
+  "scripts": {
+    "build": "tsc",
+    "typecheck": "tsc --noEmit"
+  },
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/spectyra/spectyra.git",
+    "directory": "packages/devtools"
+  },
+  "dependencies": {
+    "@spectyra/sdk": "workspace:*",
+    "lit": "^3.2.1"
+  },
+  "devDependencies": {
+    "@types/node": "^20.0.0",
+    "typescript": "~5.4.0"
+  }
+}

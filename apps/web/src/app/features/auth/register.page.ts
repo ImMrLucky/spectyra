@@ -41,8 +41,8 @@ export class RegisterPage {
   ) {}
 
   async register() {
-    if (!this.email || !this.password || !this.orgName) {
-      this.error = 'Please fill in all required fields';
+    if (!this.email || !this.password) {
+      this.error = 'Please fill in email and password';
       this.successMessage = null;
       return;
     }
@@ -117,7 +117,7 @@ export class RegisterPage {
       const response = await firstValueFrom(this.http.post<any>(
         `${environment.apiUrl}/auth/bootstrap`,
         {
-          org_name: this.orgName.trim(),
+          org_name: this.orgName.trim() || undefined,
           project_name: this.projectName.trim() || undefined
         },
         { headers }

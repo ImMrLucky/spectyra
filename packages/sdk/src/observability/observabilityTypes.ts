@@ -1,4 +1,4 @@
-import type { SavingsReport } from "@spectyra/core-types";
+import type { SavingsReport, SpectyraRunMode } from "@spectyra/core-types";
 
 /**
  * @public
@@ -102,6 +102,10 @@ export interface SpectyraSessionCostSummary {
  */
 export interface SpectyraLastRun {
   at: string;
+  /** Same as `SavingsReport.runId` for this request (safe correlation id). */
+  runId?: string;
+  /** Effective optimization mode for this run (`off` when passthrough / quota). */
+  runMode?: SpectyraRunMode;
   provider: string;
   model: string;
   report: Pick<

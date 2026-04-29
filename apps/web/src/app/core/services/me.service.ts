@@ -139,10 +139,10 @@ export class MeService {
   }
 
   /**
-   * Electron: if the user is signed in but has no Spectyra org yet, POST /auth/ensure-account
-   * then refresh /auth/me. Returns a provisioned API key plaintext when the server just created one.
+   * If the user is signed in but has no Spectyra org yet, POST /auth/ensure-account
+   * then refresh /auth/me. Idempotent. Returns a provisioned API key plaintext when the server just created one.
    */
-  ensureDesktopOrgIfNeeded(): Observable<{ me: MeResponse; provisionedApiKey?: string }> {
+  ensureOrgIfNeeded(): Observable<{ me: MeResponse; provisionedApiKey?: string }> {
     const cached = this.getCachedMe();
     if (cached?.org && !cached.needs_bootstrap) {
       return of({ me: cached });
@@ -168,5 +168,10 @@ export class MeService {
           );
       }),
     );
+  }
+
+  /** @deprecated Use ensureOrgIfNeeded — same behavior (web + desktop). */
+  ensureDesktopOrgIfNeeded(): Observable<{ me: MeResponse; provisionedApiKey?: string }> {
+    return this.ensureOrgIfNeeded();
   }
 }

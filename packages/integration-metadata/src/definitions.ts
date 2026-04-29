@@ -62,7 +62,7 @@ import OpenAI from 'openai';
 
 const spectyra = createSpectyra({
   runMode: 'on',
-  licenseKey: process.env.SPECTYRA_LICENSE_KEY,
+  spectyraCloudApiKey: process.env.SPECTYRA_API_KEY,
 });
 
 const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
@@ -117,7 +117,7 @@ export const INTEGRATION_SCENARIOS: IntegrationCardDefinition[] = [
       "Confirm prompts stay local by default",
     ],
     securityNotes: [
-      "Telemetry defaults to local; prompt snapshots local-only by default",
+      "With a Spectyra API key, aggregated cloud telemetry defaults on (no prompts); set telemetry: { mode: 'local' } to disable",
       "No Spectyra cloud relay for inference",
       "Provider keys never sent to Spectyra",
     ],

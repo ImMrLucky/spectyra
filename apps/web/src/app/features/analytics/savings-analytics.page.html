@@ -26,7 +26,7 @@
   <div class="callout usage-hint" *ngIf="!loading">
     <p>
       <strong>In-app SDK:</strong> with <code>SPECTYRA_API_KEY</code> (or <code>spectyraCloudApiKey</code>), the SDK defaults to
-      sending <strong>aggregated</strong> savings and token metrics each <code>complete()</code>. Set
+      sending <strong>aggregated</strong> savings and token metrics each <code>complete()</code> (Spectyra uses your workspace default project when <code>runContext.project</code> is omitted). Set
       <code>telemetry: &#123; mode: 'local' &#125;</code> to turn that off.
     </p>
   </div>

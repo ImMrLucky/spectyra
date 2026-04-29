@@ -19,6 +19,7 @@ import { SecuritySettingsPage } from './features/settings/security.page';
 import { ProviderKeysPage } from './features/settings/provider-keys.page';
 import { BillingPage } from './features/billing/billing.page';
 import { UsagePage } from './features/usage/usage.page';
+import { AiMonitorPage } from './features/monitoring/ai-monitor.page';
 import { OpenClawOnboardingPage } from './features/openclaw/openclaw-onboarding.page';
 import { SuperuserPage } from './features/superuser/superuser.page';
 import { authGuard } from './core/guards/auth.guard';
@@ -45,6 +46,7 @@ export const webRoutes: Routes = [
   { path: 'runs', redirectTo: '/overview', pathMatch: 'prefix' },
   { path: 'usage', component: UsagePage, canActivate: [authGuard] },
   { path: 'analytics', component: SavingsAnalyticsPage, canActivate: [authGuard] },
+  { path: 'monitoring', component: AiMonitorPage, canActivate: [authGuard] },
 
   { path: 'billing', component: BillingPage, canActivate: [authGuard] },
   { path: 'policies', redirectTo: '/overview', pathMatch: 'full' },

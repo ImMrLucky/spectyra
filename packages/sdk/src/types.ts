@@ -103,6 +103,29 @@ export interface SpectyraEntitlementsConfig {
 
 // Forward declarations for events (concrete shapes below import SpectyraConfig consumers may extend)
 
+/** @public Deployment label for overlay / logging (not sent as a secret). */
+export type SpectyraEnvironment = "development" | "qa" | "staging" | "production";
+
+/**
+ * @public
+ * Safe savings notification for `spectyra.on("savings", …)` — no prompt text.
+ */
+export interface SpectyraSavingsEvent {
+  runId: string;
+  traceId: string;
+  provider: string;
+  model: string;
+  optimized: boolean;
+  passthroughReason?: string;
+  savingsPercent: number;
+  savingsUsd: number;
+  inputTokensBefore: number;
+  inputTokensAfter: number;
+  outputTokens: number;
+  estimatedCostBefore: number;
+  estimatedCostAfter: number;
+}
+
 /** @public */
 export interface SpectyraRequestStartEvent {
   runId: string;
@@ -148,6 +171,31 @@ export interface SpectyraCostCalculatedPayload {
  * @deprecated Prefer {@link SpectyraCostCalculatedPayload}; kept for older typings.
  */
 export type SpectyraSavingsCalculation = SpectyraCostCalculatedPayload | Record<string, unknown>;
+
+export interface SpectyraMonitorJsonlConfig {
+  enabled?: boolean;
+  path?: string;
+  rotateDaily?: boolean;
+  maxFileSizeMb?: number;
+}
+
+export interface SpectyraMonitorConsoleConfig {
+  enabled?: boolean;
+  level?: "silent" | "error" | "warn" | "info" | "debug";
+}
+
+/**
+ * Opt-in cost monitor (JSONL + in-memory summaries). Defaults off for backward compatibility.
+ */
+export interface SpectyraMonitorSdkConfig {
+  enabled?: boolean;
+  calculateCosts?: boolean;
+  estimateTokensWhenMissing?: boolean;
+  detectProviderFromUrl?: boolean;
+  bufferMaxEvents?: number;
+  jsonl?: SpectyraMonitorJsonlConfig;
+  console?: SpectyraMonitorConsoleConfig;
+}
 
 export interface SpectyraConfig {
   /**
@@ -222,8 +270,21 @@ export interface SpectyraConfig {
   >;
 
   /**
+   * Deployment label shown in the savings overlay and used with `SPECTYRA_OVERLAY` / `SPECTYRA_DEBUG`
+   * safety gates. Does not send secrets — set from `APP_ENV`, `NODE_ENV`, or explicitly.
+   */
+  environment?: SpectyraEnvironment | string;
+
+  /**
+   * Browser-only savings overlay (floating devtools). Defaults to **off** unless `true` or
+   * `SPECTYRA_OVERLAY=true` (ignored in production unless `overlay: true` is set explicitly).
+   */
+  overlay?: boolean;
+
+  /**
    * In-app / dashboard: structured logging (in addition to optional hooks).
-   * - `true` enables at least `info`+ for development when `logLevel` is omitted.
+   * When **true**, or `SPECTYRA_DEBUG=true` outside production, enables safe one-line `console` summaries
+   * after each `complete()` (no prompts, keys, or message bodies). For finer control use `logLevel`.
    */
   debug?: boolean;
   logLevel?: SpectyraLogLevel;
@@ -257,6 +318,18 @@ export interface SpectyraConfig {
   onEntitlementChange?: (entitlement: SpectyraEntitlementStatus) => void;
   onCostCalculated?: (result: SpectyraCostCalculatedPayload) => void;
   onPricingStale?: (info: { version: string; fetchedAt: string; stale: boolean }) => void;
+
+  /**
+   * Opt-in AI cost monitor (metadata-only JSONL + in-memory summaries).
+   * Set `monitor: { enabled: true }` to activate; see `docs/SPECTYRA_AI_MONITOR_SPEC.md`.
+   */
+  monitor?: SpectyraMonitorSdkConfig;
+
+  /** Default project label on monitor events (metadata only). */
+  projectId?: string;
+
+  /** Default service label on monitor events (metadata only). */
+  service?: string;
 
   // --- Legacy fields (deprecated, kept for backward compat) ---
 
@@ -318,7 +391,7 @@ export interface SpectyraCompleteInput<TClient = unknown> {
     service?: string;
     /** Opaque correlation id (no PII). */
     traceId?: string;
-    /** Project name or UUID for cloud telemetry (required when the API key is org-wide). */
+    /** Project name or UUID for cloud telemetry rollups (optional: API uses your org’s default project when omitted). */
     project?: string;
     /** Deployment environment (e.g. `production`, `staging`). Defaults to `process.env.NODE_ENV`. */
     environment?: string;

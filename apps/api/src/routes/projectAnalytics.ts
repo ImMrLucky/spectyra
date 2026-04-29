@@ -35,6 +35,117 @@ async function assertProjectInOrg(
   return { ok: true };
 }
 
+/** GET /v1/projects/:projectId/monitor/rollup?days=30 */
+projectAnalyticsRouter.get("/:projectId/monitor/rollup", async (req: AuthenticatedRequest, res) => {
+  try {
+    if (!req.auth?.userId) return res.status(401).json({ error: "Not authenticated" });
+    const orgId = await resolveOrgId(req);
+    if (!orgId) return res.status(404).json({ error: "Organization not found" });
+    const projectId = req.params.projectId;
+    const gate = await assertProjectInOrg(orgId, projectId);
+    if (!gate.ok) return res.status(gate.status).json({ error: gate.error });
+
+    const days = Math.min(365, Math.max(1, parseInt(String(req.query.days || "30"), 10) || 30));
+
+    const totals = await queryOne<{ total_events: string; total_spend: string }>(
+      `
+      WITH ev AS (
+        SELECT ev
+        FROM sdk_monitor_event_batches b,
+        LATERAL jsonb_array_elements(b.payload) ev
+        WHERE b.org_id = $1::uuid AND b.project_id = $2::uuid
+          AND b.created_at >= (now() AT TIME ZONE 'utc') - ($3::int * interval '1 day')
+      )
+      SELECT COUNT(*)::text AS total_events,
+        COALESCE(SUM(
+          CASE
+            WHEN (ev->'actualCostUsd') IS NOT NULL AND NULLIF(trim(ev->>'actualCostUsd'), '') IS NOT NULL
+            THEN (ev->>'actualCostUsd')::numeric
+            ELSE 0::numeric
+          END
+        ), 0)::text AS total_spend
+      FROM ev
+      `,
+      [orgId, projectId, days],
+    );
+
+    const byProv = await query<{ provider: string; events: string; tokens: string }>(
+      `
+      WITH ev AS (
+        SELECT ev
+        FROM sdk_monitor_event_batches b,
+        LATERAL jsonb_array_elements(b.payload) ev
+        WHERE b.org_id = $1::uuid AND b.project_id = $2::uuid
+          AND b.created_at >= (now() AT TIME ZONE 'utc') - ($3::int * interval '1 day')
+      )
+      SELECT COALESCE(ev->>'provider', 'unknown') AS provider,
+        COUNT(*)::text AS events,
+        COALESCE(SUM(
+          COALESCE(NULLIF(trim(ev->>'inputTokens'), '')::bigint, 0) +
+          COALESCE(NULLIF(trim(ev->>'outputTokens'), '')::bigint, 0)
+        ), 0)::text AS tokens
+      FROM ev
+      GROUP BY 1
+      ORDER BY COUNT(*) DESC
+      `,
+      [orgId, projectId, days],
+    );
+
+    res.json({
+      days,
+      total_events: parseInt(totals?.total_events ?? "0", 10) || 0,
+      total_actual_spend_usd: parseFloat(totals?.total_spend ?? "0") || 0,
+      by_provider: byProv.rows.map((r) => ({
+        provider: r.provider,
+        events: parseInt(r.events, 10) || 0,
+        tokens: parseInt(r.tokens, 10) || 0,
+      })),
+    });
+  } catch (error: unknown) {
+    const msg = error instanceof Error ? error.message : String(error);
+    safeLog("error", "monitor rollup error", { error: msg });
+    res.status(500).json({ error: msg || "Internal server error" });
+  }
+});
+
+/** GET /v1/projects/:projectId/monitor/batches?limit=15 */
+projectAnalyticsRouter.get("/:projectId/monitor/batches", async (req: AuthenticatedRequest, res) => {
+  try {
+    if (!req.auth?.userId) return res.status(401).json({ error: "Not authenticated" });
+    const orgId = await resolveOrgId(req);
+    if (!orgId) return res.status(404).json({ error: "Organization not found" });
+    const projectId = req.params.projectId;
+    const gate = await assertProjectInOrg(orgId, projectId);
+    if (!gate.ok) return res.status(gate.status).json({ error: gate.error });
+
+    const lim = Math.min(50, Math.max(1, parseInt(String(req.query.limit || "15"), 10) || 15));
+
+    const rows = await query<{ id: string; created_at: string; event_count: number; payload: unknown }>(
+      `
+      SELECT id::text, created_at::text, event_count, payload
+      FROM sdk_monitor_event_batches
+      WHERE org_id = $1::uuid AND project_id = $2::uuid
+      ORDER BY created_at DESC
+      LIMIT $3
+      `,
+      [orgId, projectId, lim],
+    );
+
+    res.json({
+      batches: rows.rows.map((r) => ({
+        id: r.id,
+        created_at: r.created_at,
+        event_count: r.event_count,
+        events: r.payload,
+      })),
+    });
+  } catch (error: unknown) {
+    const msg = error instanceof Error ? error.message : String(error);
+    safeLog("error", "monitor batches list error", { error: msg });
+    res.status(500).json({ error: msg || "Internal server error" });
+  }
+});
+
 /** GET /v1/projects/:projectId/summary */
 projectAnalyticsRouter.get("/:projectId/summary", async (req: AuthenticatedRequest, res) => {
   try {

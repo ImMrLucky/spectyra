@@ -1,0 +1,97 @@
+<div class="wrap">
+  <h1>AI cost monitor</h1>
+  <p class="sub">
+    Cloud-synced <strong>metadata-only</strong> monitor rows (provider, model, tokens, estimated spend, latency).
+    Populate with <code>flushMonitorEventsToCloud</code> from <code>&#64;spectyra/sdk</code> or your API key integration.
+    Nothing here stores prompts or provider secrets.
+  </p>
+
+  <div *ngIf="projects.length === 0 && !loading" class="notice">
+    <p>No projects in this workspace. Create one under <a routerLink="/projects">Projects</a>.</p>
+  </div>
+
+  <div class="toolbar" *ngIf="projects.length > 0">
+    <label>
+      Project
+      <select [(ngModel)]="projectId" (ngModelChange)="refresh()">
+        <option *ngFor="let p of projects" [value]="p.id">{{ p.name }}</option>
+      </select>
+    </label>
+    <label>
+      Window (days)
+      <input type="number" min="1" max="365" [(ngModel)]="days" (change)="refresh()" />
+    </label>
+    <button type="button" class="btn" (click)="refresh()" [disabled]="loading">Refresh</button>
+  </div>
+
+  <div *ngIf="loading" class="loading"><p>Loading…</p></div>
+
+  <div *ngIf="error" class="error-box">
+    <p>{{ error }}</p>
+  </div>
+
+  <div *ngIf="rollup && !error" class="grid">
+    <section class="card">
+      <h2>Rollup</h2>
+      <p class="big">{{ rollup.total_events }} events</p>
+      <p class="muted">Actual Spend (Provider) total: <strong>${{ fmtUsd(rollup.total_actual_spend_usd) }}</strong></p>
+      <p class="muted">Window: last {{ rollup.days }} days</p>
+    </section>
+
+    <section class="card" *ngIf="rollup.by_provider?.length">
+      <h2>By provider</h2>
+      <table class="tbl">
+        <thead>
+          <tr>
+            <th>Provider</th>
+            <th>Events</th>
+            <th>Tokens (in+out)</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr *ngFor="let row of rollup.by_provider">
+            <td>{{ row.provider }}</td>
+            <td>{{ row.events }}</td>
+            <td>{{ row.tokens | number }}</td>
+          </tr>
+        </tbody>
+      </table>
+    </section>
+  </div>
+
+  <section class="card table-card" *ngIf="flatEvents.length && !error">
+    <h2>Recent events (newest in batch order)</h2>
+    <div class="table-scroll">
+      <table class="tbl dense">
+        <thead>
+          <tr>
+            <th>Time</th>
+            <th>Provider</th>
+            <th>Model</th>
+            <th>In tok</th>
+            <th>Out tok</th>
+            <th>Spend USD</th>
+            <th>Latency ms</th>
+            <th>OK</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr *ngFor="let ev of flatEvents">
+            <td>{{ evStr(ev, 'timestamp') }}</td>
+            <td>{{ evStr(ev, 'provider') }}</td>
+            <td>{{ evStr(ev, 'model') }}</td>
+            <td>{{ evStr(ev, 'inputTokens') }}</td>
+            <td>{{ evStr(ev, 'outputTokens') }}</td>
+            <td>{{ evStr(ev, 'actualCostUsd') }}</td>
+            <td>{{ evStr(ev, 'latencyMs') }}</td>
+            <td>{{ evStr(ev, 'success') }}</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <section class="card" *ngIf="rollup && rollup.total_events === 0 && !loading && !error">
+    <p class="muted">No synced monitor events in this window yet.</p>
+  </section>
+</div>

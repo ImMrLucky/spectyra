@@ -7,6 +7,7 @@ import { environment } from '../../../environments/environment';
 import { AuthService } from '../../core/auth/auth.service';
 import { SnackbarService } from '../../core/services/snackbar.service';
 import { MeService } from '../../core/services/me.service';
+import { SettingsService } from '../../core/api/settings.service';
 import { firstValueFrom } from 'rxjs';
 import type { ApiKeyDisplay, OrgWithTrial, ProjectDisplay } from '@spectyra/shared';
 
@@ -33,12 +34,17 @@ export class SettingsPage implements OnInit {
   newKeyProjectId: string | null = null;
   newlyCreatedKey: string | null = null;
 
+  /** Editable workspace display name (PATCH /v1/orgs/:id/profile). */
+  orgNameDraft = '';
+  orgProfileSaving = false;
+
   constructor(
     private supabase: SupabaseService,
     private http: HttpClient,
     private authService: AuthService,
     private snackbarService: SnackbarService,
-    private meService: MeService
+    private meService: MeService,
+    private settingsService: SettingsService,
   ) {}
 
   async ngOnInit() {
@@ -64,6 +70,7 @@ export class SettingsPage implements OnInit {
         if (me) {
           if (me.org) {
             this.org = me.org;
+            this.orgNameDraft = me.org.name;
           }
           if (me.projects) {
             this.projects = me.projects;
@@ -189,5 +196,41 @@ export class SettingsPage implements OnInit {
 
   dismissNewKey() {
     this.newlyCreatedKey = null;
+  }
+
+  async saveOrgProfile() {
+    if (!this.org?.id || this.orgProfileSaving) return;
+    const name = this.orgNameDraft.trim();
+    if (!name) {
+      this.snackbarService.showError('Workspace name cannot be empty');
+      return;
+    }
+    if (name === this.org.name) {
+      return;
+    }
+
+    this.orgProfileSaving = true;
+    this.error = null;
+    try {
+      const res = await firstValueFrom(
+        this.settingsService.updateOrgProfile(this.org.id, { name }),
+      );
+      this.org = { ...this.org, ...res.org };
+      this.orgNameDraft = res.org.name;
+      this.meService.clearCache();
+      await firstValueFrom(this.meService.getMe(true));
+      this.snackbarService.showSuccess('Workspace name updated');
+    } catch (err: any) {
+      if (err?.status === 403) {
+        this.error = 'Only workspace admins can change the name.';
+      } else {
+        this.error =
+          err?.error?.message ||
+          err?.error?.error ||
+          'Failed to update workspace name';
+      }
+    } finally {
+      this.orgProfileSaving = false;
+    }
   }
 }

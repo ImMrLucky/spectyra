@@ -90,11 +90,31 @@
     </div>
   </div>
   
-  <!-- Organization Info -->
+  <!-- Workspace / organization -->
   <div class="card" *ngIf="org">
-    <h2>Organization</h2>
-    <div class="org-info">
-      <p><strong>Name:</strong> {{ org.name }}</p>
+    <h2>Workspace</h2>
+    <p class="subtitle">Name shown in the app and on invoices. You can change it anytime (admin only).</p>
+    <div class="form-section">
+      <div class="form-group">
+        <label for="orgNameDraft">Workspace name</label>
+        <input
+          type="text"
+          id="orgNameDraft"
+          [(ngModel)]="orgNameDraft"
+          [disabled]="orgProfileSaving"
+          class="form-input"
+        />
+      </div>
+      <button
+        type="button"
+        class="btn btn-primary"
+        (click)="saveOrgProfile()"
+        [disabled]="orgProfileSaving || !orgNameDraft.trim() || orgNameDraft.trim() === org.name"
+      >
+        {{ orgProfileSaving ? 'Saving...' : 'Save name' }}
+      </button>
+    </div>
+    <div class="org-info" style="margin-top: 1rem;">
       <p><strong>Status:</strong> {{ org.subscription_status }}</p>
       <p *ngIf="org.subscription_status === 'trial' && org.trial_ends_at">
         <strong>Access window ends:</strong> {{ org.trial_ends_at | date:'medium' }}

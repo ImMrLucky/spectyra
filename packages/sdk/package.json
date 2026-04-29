@@ -1,6 +1,6 @@
 {
   "name": "@spectyra/sdk",
-  "version": "0.1.4",
+  "version": "0.1.6",
   "description": "Spectyra SDK for real-time LLM optimization",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
@@ -37,7 +37,9 @@
     "test:optimization-engine-parity": "tsx src/__tests__/optimizationEngineParity.test.ts",
     "test:telemetry-privacy": "tsx src/__tests__/telemetryPrivacy.test.ts",
     "test:resolve-api-base-url": "tsx src/__tests__/resolveApiBaseUrl.test.ts",
-    "test:resolve-effective-telemetry": "tsx src/__tests__/resolveEffectiveTelemetryMode.test.ts"
+    "test:resolve-effective-telemetry": "tsx src/__tests__/resolveEffectiveTelemetryMode.test.ts",
+    "test:monitor-core": "tsx src/__tests__/monitorCore.test.ts",
+    "test:monitor-complete": "tsx src/__tests__/monitorCompleteIntegration.test.ts"
   },
   "keywords": [
     "llm",

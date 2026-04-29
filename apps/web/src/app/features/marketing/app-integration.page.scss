@@ -1,6 +1,10 @@
 p {
   margin-bottom: 16px;
 }
+
+h3 {
+  margin-top: 24px;
+}
 .marketing-page {
   max-width: 800px;
   margin: 0 auto;
@@ -43,6 +47,91 @@ p {
     font-weight: 700;
     margin: 0 0 16px;
     color: var(--text-primary);
+  }
+}
+
+.dev-hero-cta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  align-items: center;
+  margin-top: 20px;
+}
+
+.in-app-badges {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 18px 0 0;
+  padding: 0;
+  list-style: none;
+
+  li {
+    font-size: 12px;
+    font-weight: 600;
+    letter-spacing: 0.02em;
+    text-transform: uppercase;
+    padding: 6px 10px;
+    border-radius: 999px;
+    border: 1px solid var(--border);
+    background: var(--bg-elevated);
+    color: var(--text-secondary);
+  }
+}
+
+.dev-subhead {
+  font-size: 15px;
+  font-weight: 600;
+  margin: 20px 0 10px;
+  color: var(--text-primary);
+}
+
+.code-block .dev-code {
+  padding: 14px 72px 16px 18px;
+}
+
+.code-copy {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  z-index: 1;
+  font-size: 12px;
+  font-weight: 600;
+  padding: 6px 10px;
+  border-radius: 6px;
+  border: 1px solid var(--border);
+  background: var(--bg-card);
+  color: var(--spectyra-blue);
+  cursor: pointer;
+
+  &:hover {
+    border-color: var(--spectyra-blue);
+  }
+}
+
+.dev-code--preview {
+  margin-top: 10px;
+  font-size: 12px;
+  color: var(--text-secondary);
+}
+
+.dev-panel--key {
+  padding: 20px 22px;
+  border-radius: var(--radius-card);
+  border: 1px solid var(--border-bright);
+  background: var(--bg-card);
+}
+
+.dev-cta--inline {
+  margin-top: 0;
+  margin-bottom: 28px;
+  padding: 14px 18px;
+  text-align: center;
+
+  p {
+    margin: 0;
+    font-size: 14px;
+    color: var(--text-secondary);
   }
 }
 

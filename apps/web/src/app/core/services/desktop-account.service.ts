@@ -28,7 +28,7 @@ export class DesktopSpectyraAccountService {
       return;
     }
 
-    this.me.ensureDesktopOrgIfNeeded().subscribe({
+    this.me.ensureOrgIfNeeded().subscribe({
       next: ({ provisionedApiKey }) => {
         if (provisionedApiKey) {
           this.auth.setApiKey(provisionedApiKey);

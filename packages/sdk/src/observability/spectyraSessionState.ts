@@ -57,6 +57,8 @@ export class SpectyraSessionState {
     const rep = r.report;
     this.lastRun = {
       at: this.lastRequestAt,
+      runId: rep.runId,
+      runMode: rep.mode,
       provider: rep.provider,
       model: rep.model,
       report: {

@@ -363,6 +363,34 @@ export class ApiClientService {
     return this.dashboardCall('GET', `${this.baseUrl}/projects/${projectId}/timeseries?range=${range}`);
   }
 
+  /** Synced metadata-only monitor batches (JWT). */
+  getProjectMonitorRollup(
+    projectId: string,
+    days = 30,
+  ): Observable<{
+    days: number;
+    total_events: number;
+    total_actual_spend_usd: number;
+    by_provider: Array<{ provider: string; events: number; tokens: number }>;
+  }> {
+    return this.dashboardCall(
+      'GET',
+      `${this.baseUrl}/projects/${encodeURIComponent(projectId)}/monitor/rollup?days=${encodeURIComponent(String(days))}`,
+    );
+  }
+
+  getProjectMonitorBatches(
+    projectId: string,
+    limit = 15,
+  ): Observable<{
+    batches: Array<{ id: string; created_at: string; event_count: number; events: unknown }>;
+  }> {
+    return this.dashboardCall(
+      'GET',
+      `${this.baseUrl}/projects/${encodeURIComponent(projectId)}/monitor/batches?limit=${encodeURIComponent(String(limit))}`,
+    );
+  }
+
   getProjectEnvironmentSdkDetail(projectId: string, environment: string): Observable<{
     environment: string;
     total_calls: number;

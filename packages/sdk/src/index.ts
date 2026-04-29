@@ -30,6 +30,8 @@ export { normalizeSpectyraRunMode } from "@spectyra/core-types";
 
 // Production telemetry (safe diagnostics for cloud rollups)
 export { buildSpectyraProductionDiagnostics } from "./cloud/buildProductionDiagnostics.js";
+export { flushMonitorEventsToCloud } from "./cloud/monitorSync.js";
+export type { FlushMonitorEventsToCloudOptions } from "./cloud/monitorSync.js";
 export { resolveEffectiveTelemetryMode } from "./observability/resolveEffectiveTelemetryMode.js";
 export type { SpectyraProductionDiagnostics } from "./cloud/buildProductionDiagnostics.js";
 
@@ -120,6 +122,8 @@ export type {
   SpectyraLogLevel,
   SpectyraDevtoolsConfig,
   SpectyraEntitlementsConfig,
+  SpectyraEnvironment,
+  SpectyraSavingsEvent,
   SpectyraRequestStartEvent,
   SpectyraRequestEndEvent,
   SpectyraOptimizationEvent,
@@ -131,7 +135,36 @@ export type {
   AgentOptionsResponse,
   AgentEventRequest,
   AgentEventResponse,
+  SpectyraMonitorSdkConfig,
+  SpectyraMonitorJsonlConfig,
+  SpectyraMonitorConsoleConfig,
 } from "./types.js";
+
+// Monitor core (metadata-only local buffer + JSONL; see docs/SPECTYRA_AI_MONITOR_SPEC.md)
+export { createMonitorEngine } from "./monitor/monitorEngine.js";
+export type { MonitorEngine, MonitorEngineOptions } from "./monitor/monitorEngine.js";
+export { detectProviderFromHost, normalizeMonitorProvider } from "./monitor/providerDetection.js";
+export { extractOpenAiStyleUsage, extractUsageFromProviderResult } from "./monitor/usageExtraction.js";
+export { buildMonitorEventFromComplete, buildFailureMonitorEvent } from "./monitor/emitFromComplete.js";
+export { buildWasteSignalsFromCompletePath, buildWasteSignalsFromHttpAutoPath } from "./monitor/wasteHeuristics.js";
+export type { WasteContextFromComplete, WasteContextFromHttpAuto } from "./monitor/wasteHeuristics.js";
+export { buildMonitorSummaryFromEvents, emptyMonitorSummary } from "./monitor/summaries.js";
+export type {
+  SpectyraMonitorEvent,
+  SpectyraMonitorSummary,
+  SpectyraMonitorProvider,
+  SpectyraWasteSignal,
+  SpectyraMonitorIntegrationMode,
+  SpectyraMonitorPricingSource,
+  SpectyraMonitorOptimizerStatus,
+} from "./monitor/monitorTypes.js";
+export {
+  createSpectyraDevBridgePlaceholder,
+  isSpectyraDevBridgeEnabled,
+  handleSpectyraDevBridgeRequest,
+  createSpectyraDevBridgeConnectMiddleware,
+} from "./monitor/localDevServer.js";
+export type { SpectyraDevBridgeMonitorEngine } from "./monitor/localDevServer.js";
 export type {
   SpectyraRunInput,
   SpectyraRunResult,
@@ -149,7 +182,17 @@ export type {
   SpectyraQuotaState,
   SpectyraDashboardPlan,
 } from "./observability/observabilityTypes.js";
-export { shouldMountDevtoolsByDefault } from "./devtools/mountDevtools.js";
+export {
+  isSpectyraProductionEnvironment,
+  resolveEffectiveOverlay,
+  resolveEffectiveDebug,
+  resolveSpectyraEnvironmentLabel,
+} from "./config/sdkUiEnv.js";
+export {
+  shouldMountDevtoolsByDefault,
+  mountSpectyraDevtools,
+} from "./devtools/mountDevtools.js";
+export type { SpectyraDevtoolsMountHandle } from "./devtools/mountDevtools.js";
 export { mapToSpectyraEntitlementStatus } from "./entitlements/mapEntitlementStatus.js";
 export type { EntitlementsStatusPayload } from "./entitlements/mapEntitlementStatus.js";
 export { EntitlementHttpError, fetchEntitlementStatus } from "./entitlements/fetchEntitlementStatus.js";
@@ -178,6 +221,7 @@ export type { PricingSnapshotMeta } from "./pricing/pricingRuntime.js";
 export { calculateCostFromEntry, calculateSavingsFromUsages } from "./pricing/costCalculator.js";
 export { normalizedUsageFromTokens } from "./pricing/normalizeUsage.js";
 export { resolveModelPricingEntry } from "./pricing/modelResolver.js";
+export { estimateCost, estimateTokens } from "./local/tokenEstimator.js";
 
 export { createSpectyraLogger } from "./logging/logger.js";
 export type { SpectyraLogger } from "./logging/logger.js";

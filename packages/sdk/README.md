@@ -1,24 +1,190 @@
 # @spectyra/sdk
 
-Wrap your existing LLM calls: Spectyra optimizes prompts **locally**, then your code calls OpenAI, Anthropic, or Groq **directly**—no proxy, no extra round-trip.
+**Wrap your existing LLM call** and start seeing token and cost savings. Spectyra runs in your app’s **backend**, uses **your** provider keys, and returns the normal provider response **plus** a savings report—**no Spectyra inference proxy**.
 
-**Phased execution:** [../../docs/sdk/PHASED_CHECKLIST.md](../../docs/sdk/PHASED_CHECKLIST.md) · **Feature matrix:** [../../docs/sdk/SPEC_CHECKLIST.md](../../docs/sdk/SPEC_CHECKLIST.md) · **Integration modes:** [../../docs/sdk/README.md](../../docs/sdk/README.md) · **Language scaffolds:** [../../sdks/](../../sdks/).
+- **Backend-first** — install where LLM calls already happen (API server, serverless, worker).
+- **No prompt proxying** — optimization is local; the adapter calls OpenAI / Anthropic / Groq with your key.
+- **BYOK** — provider API keys never go through Spectyra’s inference path by default.
 
 ---
 
-## Development vs production
+## Get a Free Spectyra API key
 
-**Local / dev**
+You need a free **Spectyra API key** to enable savings, optimization, entitlements, and rollups in the Spectyra app. Create a free account and copy the key into **server-side** config: [spectyra.ai/register](https://spectyra.ai/register).
 
-- Turn on **`debug: true`** and **`logLevel: "info"`** (or `"debug"`) so savings, quota, and entitlement refreshes are visible in the console.
-- In the browser, leave **`devtools`** enabled (default) for the floating panel; set **`devtools.defaultOpen: true`** if you want the card expanded on first load.
-- Use a **Spectyra API key** pointed at **staging** if you have one; entitlements and pricing snapshots will refresh on the interval from config.
+---
 
-**Production**
+## TypeScript / Node.js quick start
 
-- Keep **`spectyraCloudApiKey`** (or `SPECTYRA_API_KEY`) set so `GET /v1/entitlements/status` and `GET /v1/pricing/snapshot` hit Spectyra cloud by default and refresh **without redeploy** when the customer upgrades billing. Override **`spectyraApiBaseUrl`** / **`SPECTYRA_API_BASE_URL`** only for a non-default API host.
-- Set **`devtools.enabled: false`** if you do not want the floating panel in production UIs.
-- Set **`productSurface: "in_app"`** (default) so user-facing strings follow the in-app / billing wording rather than legacy OpenClaw-oriented copy.
+Use this when calls run in a **Node.js** backend, **Next.js** API route, **Express** server, or **serverless** function. Install from npm — **no repo clone** required.
+
+### 1. Install
+
+```bash
+npm install @spectyra/sdk openai
+```
+
+You also need the official **provider** package (`openai`, `@anthropic-ai/sdk`, or `groq-sdk`). **Node.js 18+** and **ESM** (`"type": "module"` or `.mjs`).
+
+### 2. Add your Spectyra API key
+
+Put the key in backend or hosting secrets, for example:
+
+- Vercel / Netlify / Railway environment variables  
+- AWS Secrets Manager, Azure Key Vault, GCP Secret Manager  
+- Docker / Kubernetes secrets  
+- Local `.env` for development only  
+
+### 3. Wrap your existing LLM call
+
+Use **`createSpectyra()`** and **`complete()`** with **`createOpenAIAdapter()`** — your code still calls OpenAI with **your** key.
+
+```ts
+import { createSpectyra, createOpenAIAdapter } from "@spectyra/sdk";
+import OpenAI from "openai";
+
+const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+
+const spectyra = createSpectyra({
+  spectyraCloudApiKey: process.env.SPECTYRA_API_KEY,
+  productSurface: "in_app",
+});
+
+const { providerResult, report } = await spectyra.complete(
+  {
+    provider: "openai",
+    client: openai,
+    model: "gpt-4.1-mini",
+    messages: [{ role: "user", content: "Summarize this support ticket…" }],
+  },
+  createOpenAIAdapter(),
+);
+
+console.log(providerResult);
+// First "wow": savings live on `report`
+console.log(
+  `Saved: ${report.estimatedSavingsPct.toFixed(0)}% · $${report.estimatedSavings.toFixed(2)} estimated`,
+);
+```
+
+After a successful run, console output can look like:
+
+```text
+Saved: 42% · $0.18 estimated
+runId: a1b2c3d4-…
+inferencePath: direct_provider
+```
+
+**Optional:** desktop / file-license flows can pass **`licenseKey: process.env.SPECTYRA_LICENSE_KEY`** to `createSpectyra`. Most cloud setups use **`spectyraCloudApiKey`** only.
+
+---
+
+## What you get back
+
+`complete()` returns your normal provider object as **`providerResult`** plus a **`report`** (`SavingsReport`) with token and cost estimates.
+
+```ts
+{
+  providerResult: /* same object OpenAI SDK returns */,
+  report: {
+    runId: "…",
+    provider: "openai",
+    model: "gpt-4.1-mini",
+    inputTokensBefore: 12400,
+    inputTokensAfter: 7100,
+    outputTokens: 900,
+    estimatedCostBefore: 0.42,
+    estimatedCostAfter: 0.24,
+    estimatedSavings: 0.18,
+    estimatedSavingsPct: 42,
+    inferencePath: "direct_provider",
+    providerBillingOwner: "customer",
+    transformsApplied: ["…"],
+    // …plus telemetry / quality hints
+  },
+  security: { /* inferencePath, telemetryMode, … */ },
+}
+```
+
+---
+
+## Framework examples
+
+Spectyra stays on the **server**; frontends call **your** API.
+
+### Next.js API route
+
+```ts
+import { createSpectyra, createOpenAIAdapter } from "@spectyra/sdk";
+import OpenAI from "openai";
+
+const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY! });
+const spectyra = createSpectyra({
+  spectyraCloudApiKey: process.env.SPECTYRA_API_KEY,
+  productSurface: "in_app",
+});
+
+export async function POST(req: Request) {
+  const { messages } = await req.json();
+
+  const { providerResult, report } = await spectyra.complete(
+    { provider: "openai", client: openai, model: "gpt-4.1-mini", messages },
+    createOpenAIAdapter(),
+  );
+
+  return Response.json({ response: providerResult, savings: report });
+}
+```
+
+### Express
+
+```ts
+import express from "express";
+import OpenAI from "openai";
+import { createSpectyra, createOpenAIAdapter } from "@spectyra/sdk";
+
+const app = express();
+app.use(express.json());
+
+const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY! });
+const spectyra = createSpectyra({
+  spectyraCloudApiKey: process.env.SPECTYRA_API_KEY,
+  productSurface: "in_app",
+});
+
+app.post("/api/chat", async (req, res) => {
+  const { providerResult, report } = await spectyra.complete(
+    { provider: "openai", client: openai, model: "gpt-4.1-mini", messages: req.body.messages },
+    createOpenAIAdapter(),
+  );
+
+  res.json({ response: providerResult, savings: report });
+});
+
+app.listen(3000);
+```
+
+**Angular / React / etc.** — call your backend; keep **`complete()`** on the server with the same pattern as above.
+
+---
+
+## Browser / frontend usage
+
+Most apps should install Spectyra in the **backend**, not the browser.
+
+- Do **not** put OpenAI, Anthropic, Groq, or other **provider** API keys in frontend code.  
+- Do **not** ship your private **Spectyra** API key in browser bundles.  
+
+Reasonable browser uses: optional **savings overlay** during dev/QA (see below), client-safe summaries from **your** API, or apps where the browser only talks to **your** API—not the LLM provider directly.
+
+---
+
+## Dev / QA savings overlay
+
+During development or QA you can enable the **floating panel** (token/cost rollups, latest run). **No raw prompts** are shown by default.
+
+- In **production**, the overlay does **not** turn on from environment alone. Use explicit **`overlay: true`** or **`SPECTYRA_OVERLAY=true`** outside production, or **`devtools: { enabled: true }`** when debugging.  
+- **`debug: true`** or **`SPECTYRA_DEBUG=true`** (non-production) prints **one-line** summaries after each `complete()`—savings % / estimated USD, passthrough reason, or `traceId` only. No messages, keys, or `Authorization` headers.
 
 ```ts
 import { createSpectyra, createOpenAIAdapter } from "@spectyra/sdk";
@@ -26,227 +192,125 @@ import OpenAI from "openai";
 
 const spectyra = createSpectyra({
   spectyraCloudApiKey: process.env.SPECTYRA_API_KEY,
+  environment: process.env.APP_ENV || process.env.NODE_ENV,
+  overlay: process.env.SPECTYRA_OVERLAY === "true",
+  debug: process.env.SPECTYRA_DEBUG === "true",
   productSurface: "in_app",
-  debug: process.env.NODE_ENV !== "production",
-  logLevel: process.env.NODE_ENV !== "production" ? "info" : "warn",
-  devtools: { enabled: process.env.NODE_ENV !== "production" },
 });
 
-const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+spectyra.on("savings", (e) => {
+  console.log("savings event", e.traceId, e.savingsPercent);
+});
 ```
+
+**Runtime helpers** on the same instance: `showOverlay()` / `hideOverlay()` / `toggleOverlay()`, `getSavings()` (summary + last run, no prompts), `on("savings", …)` (returns unsubscribe), `mountDevtools()` if you disabled auto-mount.
+
+For production, keep **`overlay`** and **`debug`** off; you can always log from **`report`** after `complete()`.
 
 ---
 
-## Install (30 seconds)
+## SDK API (what exists today)
 
-```bash
-npm install @spectyra/sdk openai
-```
+- **`createSpectyra(config?)`** — pass **`spectyraCloudApiKey`** / **`SPECTYRA_API_KEY`** for cloud entitlements and optional redacted telemetry.  
+- **`spectyra.complete(input, adapter)`** — primary path; pass your provider client plus e.g. **`createOpenAIAdapter()`**.  
+- **`spectyra.run(input, execute)`** — callback style: you receive optimized messages and call the provider yourself.  
+- **`getSavingsSummary()`**, **`getSessionCostSummary()`**, **`getSessionStats()`**, **`getLastRun()`**, **`getLastRunSavings()`**, **`getQuotaStatus()`**, **`getEntitlementStatus()`** — observability helpers.  
+- **`refreshEntitlement()`** — manual entitlement refresh.  
+- **`mountDevtools()`** — mount the floating panel (browser); often unnecessary if overlay auto-mounts.  
+- **`showOverlay()`** / **`hideOverlay()`** / **`toggleOverlay()`** — control visibility.  
+- **`getSavings()`** — `summary` + `lastRun` + `lastRunSavings` (no prompts).  
+- **`on("savings", listener)`** — numeric post-run events; returns unsubscribe.  
+- **`config.environment`**, **`config.overlay`**, **`config.debug`** — see [Dev / QA savings overlay](#dev-qa-savings-overlay).  
+- **`createOpenAIAdapter()`** / **`createAnthropicAdapter()`** / **`createGroqAdapter()`** — from `@spectyra/sdk` or **`@spectyra/sdk/adapters/*`**.
 
-You also need the official provider SDK (here `openai`); the same pattern works with `@anthropic-ai/sdk` and `groq-sdk`.
+**Not a separate alias API:** use **`complete()`** / **`run()`** (no standalone `optimize()` / `estimate()` / `flush()` in the SDK today).
 
-**Requirements:** Node.js 18+, ESM (`"type": "module"` or use `.mjs`).
-
----
-
-## Minimum setup: wrap one call
-
-1. **Create a Spectyra instance** (defaults are enough to start).
-2. **Pass your provider client**, model, and messages into `complete()`.
-3. **Use a small adapter** so Spectyra knows how to call your provider.
-
-```ts
-import { createSpectyra, createOpenAIAdapter } from "@spectyra/sdk";
-import OpenAI from "openai";
-
-const spectyra = createSpectyra({
-  // runMode defaults to "on"
-});
-
-const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
-
-const { providerResult, report } = await spectyra.complete(
-  {
-    provider: "openai",
-    client: openai,
-    model: "gpt-4o-mini",
-    messages: [{ role: "user", content: "Hello!" }],
-  },
-  createOpenAIAdapter(),
-);
-
-// Same response object you would get from the provider SDK, plus a savings report
-console.log(report.estimatedSavingsPct, report.inputTokensBefore, report.inputTokensAfter);
-```
-
-### Callback style: `run()` (no provider client object)
-
-Use `spectyra.run()` when you want Spectyra to optimize messages, then **you** call the provider in a callback (same BYOK and privacy rules as `complete()`):
+### Optional: `run()` shape
 
 ```ts
 const out = await spectyra.run(
-  { provider: "openai", model: "gpt-4o-mini", messages: [{ role: "user", content: "Hi!" }] },
+  { provider: "openai", model: "gpt-4.1-mini", messages },
   async ({ messages, model }) => {
     const res = await openai.chat.completions.create({ model, messages });
     const text = res.choices[0]?.message?.content ?? "";
+    const u = res.usage;
     return {
       result: res,
       text,
       usage: {
-        inputTokens: res.usage?.prompt_tokens ?? 0,
-        outputTokens: res.usage?.completion_tokens ?? 0,
+        inputTokens: u?.prompt_tokens ?? 0,
+        outputTokens: u?.completion_tokens ?? 0,
       },
     };
   },
 );
 
-console.log(out.savingsPercent, out.quotaStatus, out.optimizationActive);
+console.log(out.output);
+console.log(out.savingsPercent, out.savingsAmount);
+// Full savings report: out.complete.report
 ```
-
-Aggregates for this instance: `spectyra.getSessionCostSummary()`, `spectyra.getSavingsSummary()`, `spectyra.getQuotaStatus()`.
-
-**Subpath imports:** `@spectyra/sdk/adapters/openai`, `.../anthropic`, `.../groq`.
-
-**Optional: file license key**  
-If you use a Spectyra **file** license (e.g. with the desktop / companion flow), add `licenseKey: process.env.SPECTYRA_LICENSE_KEY` to `createSpectyra`. For most **cloud** setups, a **Spectyra API key** alone is enough; set `spectyraApiBaseUrl` / `SPECTYRA_API_BASE_URL` only if your org uses a custom API host.
 
 ---
 
-## Recommended: Spectyra API key (account, quotas, dashboards)
+## Passthrough & fallback
 
-To tie usage to your Spectyra org—**plan, quotas, aggregate telemetry, and in-browser devtools**—set your **Spectyra** API key (the SDK defaults REST calls to **`https://spectyra.ai/v1`**):
+- **`runMode: "off"`** — Spectyra skips optimization; your adapter still runs (killswitch).  
+- **`runMode: "observe"`** — observe semantics; check **`report`** and version docs.  
+- **Quota / entitlements** — when optimization is blocked, Spectyra can pass through so your app keeps working. Inspect **`report`**, **`licenseLimited`**, and **`getQuotaStatus()`**.
 
-```bash
-export SPECTYRA_API_KEY="sp_..."          # or SPECTYRA_CLOUD_API_KEY
-# Optional: only if your deployment is not on the default Spectyra cloud API
-# export SPECTYRA_API_BASE_URL="https://your-api.example.com/v1"
-```
+Redacted cloud telemetry (org rollups) is optional. With a Spectyra API key, **`telemetry.mode`** defaults to **`cloud_redacted`** unless you set **`telemetry: { mode: "local" }`**. Explicit production example:
 
 ```ts
 const spectyra = createSpectyra({
-  spectyraCloudApiKey: process.env.SPECTYRA_API_KEY, // or SPECTYRA_CLOUD_API_KEY; you can also use `apiKey` if you are not on legacy `mode: "api"`
-  // With a Spectyra API key, telemetry defaults to cloud_redacted (POST /v1/telemetry/run). Set telemetry: { mode: "local" } to disable.
-  // entitlements default to on when a key resolves; polls GET /v1/entitlements/status
+  spectyraCloudApiKey: process.env.SPECTYRA_API_KEY,
+  telemetry: { mode: "cloud_redacted" },
+  productSurface: "in_app",
 });
 ```
 
-Add `project` and `environment` on **`complete()`**, not on `createSpectyra`:
+Add **`runContext`** on each **`complete()`** (not on `createSpectyra`) for **`project`** / **`environment`** in dashboards. REST defaults to **`https://spectyra.ai/v1`**; override with **`spectyraApiBaseUrl`** or **`SPECTYRA_API_BASE_URL`** only if your org uses a custom host.
 
-```ts
-await spectyra.complete(
-  {
-    provider: "openai",
-    client: openai,
-    model: "gpt-4o-mini",
-    messages: [{ role: "user", content: "…" }],
-    runContext: { project: "my-app", environment: "production" },
-  },
-  createOpenAIAdapter(),
-);
-```
-
-- **Entitlements** refresh in the background (a plan or quota change in the **Spectyra web app** applies without redeploying your code).
-- **Free-tier / quota** limits: optimization can pause while your app keeps calling the provider; see `getQuotaStatus()` and the floating panel below.
-
-With a **Spectyra API key**, `telemetry.mode` defaults to **`cloud_redacted`** (aggregated `POST /v1/telemetry/run` for org dashboards). Set **`telemetry: { mode: "local" }`** to keep usage off Spectyra servers. Use **`productSurface: "openclaw_compat"`** if you need the legacy default of `local` unless `telemetry.mode` is set explicitly. Prompts still never leave the host.
+Use **`productSurface: "openclaw_compat"`** only if you need legacy telemetry defaults. Prompts still never leave the host.
 
 ---
 
-## What you get beyond the minimal example
+## Security notes
 
-| Topic | When you need it |
-|--------|------------------|
-| [Observability (logs, hooks, getters)](#observability) | Custom UI, debug, “proof of savings” in your app |
-| [Devtools (browser)](#browser-devtools) | Default floating panel in the browser; set *devtools.enabled* to *false* to hide |
-| [Run modes](#run-modes) | `on` (default) vs `off` (passthrough); plan / quota via [entitlements](#recommended-spectyra-api-key-account-quotas-dashboards) |
-| [Adapters (Anthropic, Groq)](#provider-adapters) | Same `complete()` pattern, different adapter |
-| [Cloud telemetry & `runContext`](#cloud-telemetry) | `project`, `environment`, and redacted POSTs to `/v1/telemetry/run` |
-| [Workflow policy, sessions, events](#advanced-topics) | Parity with Local Companion for policy and analytics |
+- Install Spectyra where LLM calls already happen (usually the **server**).  
+- Keep **provider** keys and your **Spectyra** API key server-side.  
+- Use deployment secrets or backend config; local **`.env`** only for development.  
+- Avoid sending raw prompts in telemetry unless you explicitly design for that.
 
 ---
 
-## Observability
+## FAQ
 
-**Config:** `debug`, `logLevel` (`"silent" \| "error" \| "warn" \| "info" \| "debug"`), and optional `logger` (e.g. subset of `console`).
+**Where should I install Spectyra?**  
+On the service that already holds your **provider** credentials—typically your **API server**, not the browser.
 
-**Callbacks on `createSpectyra`:** `onRequestStart`, `onRequestEnd`, `onOptimization`, `onMetrics`, `onQuota`, `onEntitlementChange` (and reserved hooks for a future cost engine: `onCostCalculated`, `onPricingStale`).
+**Do I need to clone the Spectyra repo?**  
+No. Install **`@spectyra/sdk`** from npm.
 
-**Getters on the instance:**
+**OpenClaw vs in-app SDK?**  
+OpenClaw uses the **local companion** skill. In-app integration uses **`@spectyra/sdk`** inside *your* app. See [OpenClaw & Local Companion](https://spectyra.ai/openclaw) on the Spectyra site.
 
-- `getSessionStats()` — cumulative in-process metrics
-- `getSavingsSummary()` — savings-focused rollup
-- `getQuotaStatus()` / `getEntitlementStatus()` — after entitlements are loaded
-- `getLastRun()` — last `complete()` summary
-- `refreshEntitlement()` — manual refetch
-- `mountDevtools()` — mount the panel if you disabled auto-mount (browser only)
-
----
-
-## Browser devtools
-
-In **browser** runtimes, a small **Spectyra** panel can appear (compact + “Full details”, minimizable) so you can demo savings without another package. Turn it off with:
-
-```ts
-createSpectyra({ devtools: { enabled: false } });
-```
-
-`shouldMountDevtoolsByDefault` is exported for advanced bundling setups.
+**Java, Go, or .NET?**  
+Not covered by this package—call your **TypeScript** or **Node** service, or use another stack against Spectyra’s HTTP API where applicable.
 
 ---
 
 ## How it works
 
-1. You call **`spectyra.complete(input, adapter)`** with your client, model, and messages.
-2. **Spectyra optimizes the prompt locally** (deduplication, trimming, etc.); with default settings, your content stays in-process.
-3. The **adapter** performs the real HTTP call to the provider with **your** API key.
-4. You get **`providerResult`**, a **`SavingsReport`** (`report`), and optional **`promptComparison`** / **`flowSignals`**.
+1. You call **`spectyra.complete(input, adapter)`** with your client, model, and messages.  
+2. Spectyra **optimizes the prompt in-process** (dedupe, trim, etc.).  
+3. The **adapter** calls the provider with **your** API key.  
+4. You get **`providerResult`**, **`report`**, and optional extras (`promptComparison`, `flowSignals`).
 
 ```text
 Your app → complete() → local optimization → adapter → LLM
                               ↑________________________|
                             report, savings
 ```
-
----
-
-## Run modes
-
-| `runMode` | Behavior |
-|-----------|----------|
-| **`on`** (default) | Apply optimizations, then call the provider. |
-| **`off`** | No optimization; direct provider call. |
-| **`observe`** | Pipeline runs; projected / observe semantics for comparison (useful for safe estimates). |
-
----
-
-## Cloud telemetry
-
-**Aggregate** usage in the Spectyra app (by project and environment) without sending raw prompts:
-
-```ts
-const spectyra = createSpectyra({
-  runMode: "on",
-  licenseKey: process.env.SPECTYRA_LICENSE_KEY,
-  spectyraCloudApiKey: process.env.SPECTYRA_API_KEY,
-});
-
-// On each call:
-await spectyra.complete(
-  {
-    provider: "openai",
-    client: openai,
-    model: "gpt-4o-mini",
-    messages,
-    runContext: {
-      project: "customer-support-ai",
-      environment: process.env.NODE_ENV ?? "development",
-    },
-  },
-  createOpenAIAdapter(),
-);
-```
-
-Use a **project-scoped API key** when your org requires it so rows land in the right project. With a key, **`telemetry.mode` defaults to `cloud_redacted`** unless you set `telemetry: { mode: "local" }` or `productSurface: "openclaw_compat"`.
 
 ---
 
@@ -284,37 +348,38 @@ const adapter = createGroqAdapter(groq);
 
 ---
 
+## More documentation (repo)
+
+**Phased execution:** [../../docs/sdk/PHASED_CHECKLIST.md](../../docs/sdk/PHASED_CHECKLIST.md) · **Feature matrix:** [../../docs/sdk/SPEC_CHECKLIST.md](../../docs/sdk/SPEC_CHECKLIST.md) · **Integration modes:** [../../docs/sdk/README.md](../../docs/sdk/README.md) · **Language scaffolds:** [../../sdks/](../../sdks/).
+
+---
+
+## Observability (hooks & getters)
+
+**Config:** `debug`, `logLevel` (`"silent" \| "error" \| "warn" \| "info" \| "debug"`), optional `logger`.
+
+**Callbacks on `createSpectyra`:** `onRequestStart`, `onRequestEnd`, `onOptimization`, `onMetrics`, `onQuota`, `onEntitlementChange` (plus reserved hooks for a future cost engine).
+
+**Devtools:** `devtools: { enabled, defaultOpen, position }` — in browser runtimes the floating panel defaults **on** unless disabled; set **`devtools.enabled: false`** to hide it in production UIs.
+
+---
+
 ## API reference (short)
 
 ### `createSpectyra(config?)`
 
-Common fields:
-
-- `runMode` — `"off" \| "on"`.
-- `licenseKey` — local license file key when you use that flow.
-- `spectyraCloudApiKey` — Spectyra `X-SPECTYRA-API-KEY` (or env `SPECTYRA_CLOUD_API_KEY` / `SPECTYRA_API_KEY`, or `apiKey` in config when **not** using legacy `mode: "api"` for the old remote gateway).
-- `spectyraApiBaseUrl` — optional REST base **including** `/v1`; also `SPECTYRA_API_BASE_URL`. When both are unset, the SDK uses **`https://spectyra.ai/v1`**.
-- `telemetry: { mode }` — explicit `"off"`, `"local"`, or `"cloud_redacted"`. When omitted, **in-app** defaults to **`cloud_redacted`** if a Spectyra API key resolves; **`openclaw_compat`** defaults to **`local`** unless you set `mode` explicitly.
-- `promptSnapshots` — `"none" \| "local_only" \| "cloud_opt_in"`.
-- `devtools` — e.g. `{ enabled: true, defaultOpen: true, position: "bottom-right" }`.
-- `entitlements` — e.g. `{ enabled: true, refreshIntervalMs: 120_000, baseUrl: "…/v1" }` (optional `baseUrl` overrides the resolved Spectyra REST root).
-- `debug` / `logLevel` / `logger`, plus lifecycle hooks listed under [Observability](#observability).
+Common fields: `runMode`, `licenseKey`, `spectyraCloudApiKey`, `spectyraApiBaseUrl`, `telemetry`, `promptSnapshots`, `productSurface`, `environment`, `overlay`, `debug`, `logLevel`, `devtools`, `entitlements`, `workflowPolicy`, hooks (see [Observability](#observability-hooks--getters)).
 
 ### `spectyra.complete(input, adapter)`
 
-- `input.provider`, `input.client`, `input.model`, `input.messages` — required.
-- `input.maxTokens` / `input.temperature` — passed through to the adapter when supported.
-- `input.runContext` — optional: `project`, `environment`, `sessionId`, `runId` (for logs/hooks), `emitNormalizedEvents`, etc.
+- `input.provider`, `input.client`, `input.model`, `input.messages` — required.  
+- `input.runContext` — optional: `project`, `environment`, `sessionId`, `runId`, etc.
 
-**Returns** `SpectyraCompleteResult`: `providerResult`, `report` (`SavingsReport`), optional `promptComparison`, `flowSignals`, and license-related fields when applicable.
+**Returns** `SpectyraCompleteResult`: `providerResult`, `report` (`SavingsReport`), optional `promptComparison`, `flowSignals`, license fields when applicable.
 
-### `spectyra.agentOptions(ctx, prompt)`
+### `spectyra.agentOptions(ctx, prompt)` / `agentOptionsRemote` (deprecated)
 
-Local, synchronous agent-style options. No network.
-
-### `spectyra.agentOptionsRemote(...)` (deprecated)
-
-Legacy remote options; prefer `complete()`.
+Prefer **`complete()`** for new code.
 
 ---
 
@@ -326,52 +391,11 @@ Legacy remote options; prefer `complete()`.
 
 ## Advanced topics
 
-**OpenClaw vs in-app** — The **`@spectyra/local-companion`** package is the **OpenClaw** HTTP + local UI. For **embedding in your own app**, you only need **`@spectyra/sdk`**; you do not need the companion to use `complete()`.
+**Local Companion / OpenClaw** — the **`@spectyra/local-companion`** package is the OpenClaw HTTP + local UI path. Embedding in **your** app only requires **`@spectyra/sdk`**.
 
-**Moat analytics (execution graph, state delta)**  
-Use `moatPhase34SummariesFromSdkBuffer`, `moatPhase34SummariesFromEvents`, and `sdkEventEngine` (same event model as Local Companion). See the package exports.
+**Moat analytics, workflow policy, model aliases, `startSpectyraSession`** — see package exports and companion parity docs in the repo.
 
-**Workflow policy (Phase 6)**  
-`workflowPolicy: { mode: "observe" \| "enforce" }` and `WorkflowPolicyBlockedError` for parity with the companion; see `workflowPolicySummaryFromSdkBuffer`.
-
-**Model aliases** (`spectyra/smart`, `spectyra/fast`)  
-Re-exported helpers: `resolveSpectyraModel`, `defaultAliasModels`, etc.
-
-**`startSpectyraSession`**  
-Multi-step workflow sessions and analytics.
-
-**`@spectyra/agents`** (separate package)  
-Higher-level `wrapOpenAIInput` and agent helpers; optional.
-
----
-
-## Local browser dashboard
-
-For **OpenClaw users**, the Local Companion install provides a local HTTP + browser experience—that flow is documented with **`@spectyra/local-companion`**, not required for the in-app SDK above.
-
----
-
-## Legacy: `SpectyraClient`
-
-`SpectyraClient` (deprecated) routed traffic through a Spectyra cloud gateway. **Prefer `createSpectyra().complete()`** for direct-to-provider calls.
-
----
-
-## Security defaults
-
-| Topic | Default |
-|--------|--------|
-| Data path | Your process → provider; no proxy by default |
-| Provider API keys | Yours; not sent to Spectyra in the default path |
-| Prompts | Not uploaded unless you opt into specific cloud features documented elsewhere |
-| Telemetry | With a Spectyra API key, defaults to `cloud_redacted` (aggregated rollups); set `local` to disable |
-| Entitlements / pricing | Fetched with your **Spectyra** API key (default API host unless you override base URL) |
-
----
-
-## Cloud account (browser / JWT)
-
-For interactive account management, the web app and authenticated REST routes under `/v1/account/*` (Supabase `Authorization: Bearer …`) are documented in your deployment; typical paths include plan summary, pause, resume, and cancellation. The **SDK** uses the **API key** flow for `telemetry` and `GET /v1/entitlements/status` from server-side or embedded apps, not a separate “companion” account path.
+**`SpectyraClient` (legacy)** — deprecated gateway client; prefer **`createSpectyra().complete()`**.
 
 ---
 

@@ -1,4 +1,5 @@
 import type { SpectyraConfig, SpectyraLogLevel } from "../types.js";
+import { resolveEffectiveDebug } from "../config/sdkUiEnv.js";
 
 const ORDER: Record<SpectyraLogLevel, number> = {
   silent: 0,
@@ -10,7 +11,7 @@ const ORDER: Record<SpectyraLogLevel, number> = {
 
 function resolveLogLevel(config: SpectyraConfig): SpectyraLogLevel {
   if (config.logLevel) return config.logLevel;
-  if (config.debug) return "info";
+  if (resolveEffectiveDebug(config)) return "info";
   if (typeof process !== "undefined" && process.env?.NODE_ENV === "development") {
     return "info";
   }

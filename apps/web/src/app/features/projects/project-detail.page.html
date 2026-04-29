@@ -7,6 +7,10 @@
   <ng-container *ngIf="!loading && !error && summary">
     <h1>Project <code class="mono">{{ projectId }}</code></h1>
     <p class="subtitle">In-app SDK telemetry — savings and volume by environment.</p>
+    <p class="subtitle">
+      <a [routerLink]="['/monitoring']" [queryParams]="{ project: projectId }">AI cost monitor</a>
+      — cloud-synced metadata (tokens, spend, latency) for this project.
+    </p>
 
     <div class="kpi-grid">
       <div class="kpi">

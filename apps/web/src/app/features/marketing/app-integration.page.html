@@ -1,203 +1,339 @@
 <div class="marketing-page">
-    <nav class="marketing-nav" aria-label="Product">
-        <a routerLink="/" class="marketing-nav-link">Spectyra home</a>
-        <span class="marketing-nav-sep" aria-hidden="true">·</span>
-        <a routerLink="/openclaw" class="marketing-nav-link">OpenClaw &amp; Local Companion</a>
-        <span class="marketing-nav-sep" aria-hidden="true">·</span>
-        <span class="marketing-nav-current">In-app SDK integrations</span>
-    </nav>
+  <nav class="marketing-nav" aria-label="Product">
+    <a routerLink="/" class="marketing-nav-link">Spectyra home</a>
+    <span class="marketing-nav-sep" aria-hidden="true">·</span>
+    <a routerLink="/openclaw" class="marketing-nav-link">OpenClaw &amp; Local Companion</a>
+    <span class="marketing-nav-sep" aria-hidden="true">·</span>
+    <span class="marketing-nav-current">In-app SDK</span>
+  </nav>
 
-    <section class="dev-cta" *ngIf="!isAuthenticated">
-        <p>Create an account for free Spectyra API Key and detailed analytics.</p>
-        <div class="dev-cta-row">
-            <a routerLink="/register" class="btn-primary">Create account</a>
-            <a routerLink="/login" class="btn-secondary">Sign in</a>
-            <a routerLink="/contact" class="btn-ghost">Contact</a>
-        </div>
-    </section>
+  <!-- 1. Hero -->
+  <header class="dev-hero" id="in-app-top">
+    <h1>Add Spectyra in 60 seconds</h1>
+    <p class="dev-lead dev-lead--hero-tight">
+      Wrap your existing LLM API call and start seeing token and cost savings.
+    </p>
+    <p class="dev-lead dev-lead--hero-tight">
+      Spectyra runs in your app’s backend, uses your existing provider keys, and returns the original provider response plus savings details.
+    </p>
+    <p class="dev-callout dev-callout--tip">
+      <strong>Recommended:</strong> install Spectyra where your LLM calls already happen — Node.js backend, Next.js API route, Express API, Python API, RAG pipeline, background worker, or serverless function.
+    </p>
 
-    <!-- 1. Hero -->
-    <div class="dev-hero">
-        <h1>In-app SDK integrations</h1>
-        <p class="dev-lead dev-lead--hero-tight">
-            Add Spectyra directly to your application’s LLM API layer. Spectyra helps reduce LLM cost by optimizing requests before they reach your provider, while keeping your provider keys inside your own app.
-        </p>
-        <p class="dev-callout dev-callout--tip">
-            <strong>Recommended:</strong> install Spectyra where your LLM API calls happen — usually your <strong>backend</strong>.
-        </p>
-        <p class="dev-kicker dev-kicker--follow-tight">
-            Spectyra current supports <strong>TypeScript / Node.js</strong> or <strong>Python</strong>. Other language SDKs are <strong>coming later</strong> (see bottom of page).
-        </p>
+    <ul class="in-app-badges" aria-label="Highlights">
+      <li>Backend-first</li>
+      <li>No prompt proxying</li>
+      <li>BYOK</li>
+      <li>TypeScript + Python</li>
+    </ul>
+
+    <div class="dev-hero-cta">
+      <a [href]="signupUrl" class="btn-primary" rel="noopener noreferrer">Get free API key</a>
+      <a href="#quick-start-ts" class="btn-secondary">View quick start</a>
+    </div>
+  </header>
+
+  <section class="dev-cta dev-cta--inline" *ngIf="!isAuthenticated">
+    <p>Already have an account? <a routerLink="/login">Sign in</a> · <a routerLink="/contact">Contact</a></p>
+  </section>
+
+  <!-- 2. Free API key (before install) -->
+  <section class="dev-panel dev-panel--key" id="api-key">
+    <h2>Get a free Spectyra API key</h2>
+    <p class="dev-note dev-note--flush-top">
+      You need a Spectyra API key to enable optimization, entitlements, and savings rollups in the Spectyra app.
+    </p>
+    <p class="dev-note">
+      Create a free account and copy your API key into server-side config or your host’s secret store:
+      <a [href]="registerUrl" rel="noopener noreferrer">{{ registerUrl }}</a>
+    </p>
+    <p class="dev-note dev-note--small">
+      Store <code class="mono">SPECTYRA_API_KEY</code> the same way you store <code class="mono">OPENAI_API_KEY</code> — never in the browser bundle for production.
+    </p>
+  </section>
+
+  <!-- 3. TypeScript quick start -->
+  <section class="dev-panel" id="quick-start-ts">
+    <h2>TypeScript / Node.js quick start</h2>
+    <p class="dev-note dev-note--flush-top">
+      Use this when your LLM calls happen in a Node.js backend, Next.js API route, Express server, or serverless function. Install from npm — no repo clone required.
+    </p>
+
+    <h3 class="dev-subhead">1. Install</h3>
+    <div class="code-block">
+      <button type="button" class="code-copy" (click)="copyCode(tsInstall)" aria-label="Copy install command">Copy</button>
+      <pre class="dev-code">{{ tsInstall }}</pre>
     </div>
 
-    <!-- 2. Quick Start — TypeScript first -->
-    <section class="dev-panel" id="quick-start-ts">
-        <h2>Quick start — TypeScript / Node.js</h2>
-        <p class="dev-note dev-note--flush-top">
-            The production SDK is <code class="mono">&#64;spectyra/sdk</code>. Use <code class="mono">createSpectyra()</code> once, then <code class="mono">complete()</code> with your existing OpenAI client and <code class="mono">createOpenAIAdapter()</code>. Spectyra optimizes locally, your code still calls OpenAI with <strong>your</strong> API key — there is no Spectyra proxy for inference.
-        </p>
-        <br/>
-        <h3 class="dev-subhead">Install</h3>
-        <pre class="dev-code">{{ tsInstall }}</pre>
-        <br/>
-        <h3 class="dev-subhead">Wrap an existing LLM call</h3>
-        <pre class="dev-code">{{ tsQuickStart }}</pre>
-        <p class="dev-note dev-note--small">
-            If quotas or entitlements force passthrough, optimization may be skipped for that call; check <code class="mono">report.mode</code> and <code class="mono">report.licenseLimited</code> on the result.
-        </p>
-    </section>
+    <h3 class="dev-subhead">2. Add your Spectyra API key</h3>
+    <p class="dev-note dev-note--flush-top">Put the key in backend or hosting secrets, for example:</p>
+    <ul class="dev-list dev-list--compact">
+      <li>Vercel / Netlify / Railway environment variables</li>
+      <li>AWS Secrets Manager, Azure Key Vault, GCP Secret Manager</li>
+      <li>Docker / Kubernetes secrets</li>
+      <li>Local <code class="mono">.env</code> for development only</li>
+    </ul>
 
-    <section class="dev-panel" id="quick-start-py">
-        <h2>Quick start — Python</h2>
-        <p class="dev-note dev-note--flush-top">
-            Use the <strong>PyPI</strong> package <code class="mono">spectyra</code> when your LLM traffic runs in a Python API, RAG job, or worker. The snippet below uses <strong>runtime mode</strong>: it talks to a <strong>Spectyra local runtime</strong> over HTTP (provider keys are configured on that process — BYOK server-side).
-        </p>
-        <h3 class="dev-subhead">Install</h3>
-        <pre class="dev-code">{{ pyInstall }}</pre>
-        <h3 class="dev-subhead">Call through the local runtime</h3>
-        <pre class="dev-code">{{ pyQuickStart }}</pre>
-    </section>
+    <h3 class="dev-subhead">3. Wrap your existing LLM call</h3>
+    <p class="dev-note dev-note--flush-top">
+      The production package is <code class="mono">&#64;spectyra/sdk</code>. Use <code class="mono">createSpectyra()</code> and <code class="mono">complete()</code> with <code class="mono">createOpenAIAdapter()</code> — your code still calls OpenAI with <strong>your</strong> key (no Spectyra inference proxy).
+    </p>
+    <div class="code-block">
+      <button type="button" class="code-copy" (click)="copyCode(tsQuickStart)" aria-label="Copy TypeScript example">Copy</button>
+      <pre class="dev-code">{{ tsQuickStart }}</pre>
+    </div>
 
-    <!-- 3. Browser / frontend -->
-    <section class="dev-panel" id="browser-usage">
-        <h2>Browser / frontend usage</h2>
-        <p class="dev-note dev-note--flush-top">
-            Most apps should run Spectyra on the <strong>server</strong>. Do not put OpenAI, Anthropic, Groq, or other <strong>provider API keys</strong> in frontend bundles.
-        </p>
-        <p class="dev-note">Use a browser build of the SDK only for:</p>
-        <ul class="dev-list dev-list--compact">
-            <li>Optional <strong>devtools overlay</strong> (savings / quota hints) when you already have a Spectyra credential in a <strong>dev</strong> environment — still keep provider calls on the server.</li>
-            <li>Sending <strong>client-safe</strong> usage summaries to <strong>your own API</strong> (no raw prompts unless you explicitly design for that).</li>
-        </ul>
-        <p class="dev-note">
-            Today’s SDK exposes <code class="mono">createSpectyra(&#123; devtools: &#123; enabled: true &#125; &#125;)</code> and <code class="mono">spectyra.mountDevtools()</code> for the floating panel in supported browser environments — not a separate <code class="mono">&#64;spectyra/sdk/browser</code> package.
-        </p>
-        <div class="dev-callout dev-callout--warn">
-            <strong>Never</strong> expose provider API keys in browser code. Keep LLM provider calls on your server whenever possible.
-        </div>
-    </section>
+    <p class="dev-note dev-note--small">
+      Right after your first successful call, you’ll see output like:
+    </p>
+    <pre class="dev-code dev-code--preview" aria-label="Example savings output">{{ savingsPreviewExample }}</pre>
+  </section>
 
-    <!-- 4. Framework examples -->
-    <section class="dev-panel" id="framework-examples">
-        <h2>Framework examples</h2>
-        <p class="dev-note dev-note--flush-top">All snippets keep the OpenAI client and <code class="mono">complete()</code> on the server.</p>
+  <!-- 4. Python quick start -->
+  <section class="dev-panel" id="quick-start-py">
+    <h2>Python quick start</h2>
+    <p class="dev-note dev-note--flush-top">
+      Use this when your LLM traffic runs in a Python API, RAG pipeline, background job, or AI service. The PyPI package is <code class="mono">spectyra</code>.
+    </p>
+    <p class="dev-note">
+      <strong>Note:</strong> today’s <code class="mono">runtime</code> mode calls a Spectyra <strong>local/runtime</strong> HTTP service (provider keys live on that process). For the same in-process, BYOK-in-your-Node-process flow as <code class="mono">&#64;spectyra/sdk</code>, use the TypeScript quick start above.
+    </p>
 
-        <h3 class="dev-subhead">Next.js (App Router API route)</h3>
-        <pre class="dev-code">{{ nextJsExample }}</pre>
+    <h3 class="dev-subhead">1. Install</h3>
+    <div class="code-block">
+      <button type="button" class="code-copy" (click)="copyCode(pyInstall)" aria-label="Copy pip install">Copy</button>
+      <pre class="dev-code">{{ pyInstall }}</pre>
+    </div>
 
-        <h3 class="dev-subhead">Express</h3>
-        <pre class="dev-code">{{ expressExample }}</pre>
+    <h3 class="dev-subhead">2. Add your Spectyra API key</h3>
+    <p class="dev-note dev-note--flush-top">
+      Configure the runtime process with your Spectyra + provider credentials; use deployment secrets or local <code class="mono">.env</code> for development.
+    </p>
 
-        <h3 class="dev-subhead">Angular — frontend + API backend</h3>
-        <p class="dev-note">Angular should call <strong>your</strong> backend. Wrap the LLM with Spectyra in the Node (or other) API that serves <code class="mono">/api/chat</code>.</p>
-        <p class="dev-note"><strong>Angular service (browser)</strong></p>
-        <pre class="dev-code">{{ angularServiceSnippet }}</pre>
-        <p class="dev-note"><strong>Backend (same <code class="mono">complete()</code> as above)</strong></p>
-        <pre class="dev-code">{{ sharedBackendSnippet }}</pre>
+    <h3 class="dev-subhead">3. Call through the runtime</h3>
+    <div class="code-block">
+      <button type="button" class="code-copy" (click)="copyCode(pyQuickStart)" aria-label="Copy Python example">Copy</button>
+      <pre class="dev-code">{{ pyQuickStart }}</pre>
+    </div>
+  </section>
 
-        <h3 class="dev-subhead">React — frontend + API backend</h3>
-        <p class="dev-note">React posts to your API; Spectyra runs server-side.</p>
-        <p class="dev-note"><strong>React (browser)</strong></p>
-        <pre class="dev-code">{{ reactFetchSnippet }}</pre>
-        <p class="dev-note"><strong>Backend</strong></p>
-        <pre class="dev-code">{{ sharedBackendSnippet }}</pre>
-    </section>
+  <!-- 5. What you get back -->
+  <section class="dev-panel" id="savings-result">
+    <h2>What you get back</h2>
+    <p class="dev-note dev-note--flush-top">
+      TypeScript <code class="mono">complete()</code> returns your normal provider object as <code class="mono">providerResult</code> plus a <code class="mono">report</code> (<code class="mono">SavingsReport</code>) with token and cost estimates.
+    </p>
+    <div class="code-block">
+      <button type="button" class="code-copy" (click)="copyCode(whatYouGetTs)" aria-label="Copy shape example">Copy</button>
+      <pre class="dev-code">{{ whatYouGetTs }}</pre>
+    </div>
+  </section>
 
-    <!-- 5. SDK functions — TypeScript -->
-    <section class="dev-panel" id="sdk-functions-ts">
-        <h2>SDK functions — TypeScript (<code class="mono">&#64;spectyra/sdk</code>)</h2>
-        <p class="dev-note dev-note--flush-top">Public surface today (names match the published package):</p>
-        <ul class="dev-list">
-            <li><code class="mono">createSpectyra(config?)</code> — returns a client with <code class="mono">complete</code>, <code class="mono">run</code>, observability helpers, and optional devtools mount.</li>
-            <li><code class="mono">spectyra.complete(input, adapter)</code> — primary path. Pass your provider client (e.g. OpenAI) plus <code class="mono">createOpenAIAdapter()</code> (or Anthropic / Groq adapters). Returns <code class="mono">&#123; providerResult, report, … &#125;</code>.</li>
-            <li><code class="mono">spectyra.run(input, execute)</code> — callback style: your function receives optimized <code class="mono">messages</code> and returns <code class="mono">&#123; result, text, usage &#125;</code>. Same privacy guarantees as <code class="mono">complete()</code>.</li>
-            <li><code class="mono">spectyra.getSavingsSummary()</code>, <code class="mono">getSessionCostSummary()</code>, <code class="mono">getLastRun()</code>, <code class="mono">getQuotaStatus()</code>, <code class="mono">getEntitlementStatus()</code> — session / overlay metrics.</li>
-            <li><code class="mono">spectyra.mountDevtools()</code> — browser-only floating panel (returns <code class="mono">unmount</code>).</li>
-            <li><code class="mono">createOpenAIAdapter()</code> / <code class="mono">createAnthropicAdapter()</code> / <code class="mono">createGroqAdapter()</code> — wire provider SDKs.</li>
-        </ul>
-        <p class="dev-note dev-note--small">
-            <strong>Not shipped yet:</strong> names like <code class="mono">new Spectyra()</code>, <code class="mono">.optimize()</code>, <code class="mono">.estimate()</code>, <code class="mono">.flush()</code>, or a separate <code class="mono">SpectyraBrowser</code> class. When we add higher-level wrappers, this page will be updated to match.
-        </p>
-        <h3 class="dev-subhead">Optional: <code class="mono">run()</code> shape</h3>
-        <pre class="dev-code">{{ tsRunCallbackSnippet }}</pre>
-    </section>
+  <!-- 6. Framework examples -->
+  <section class="dev-panel" id="framework-examples">
+    <h2>Framework examples</h2>
+    <p class="dev-note dev-note--flush-top">Spectyra stays on the server; frameworks call your API.</p>
 
-    <!-- 6. Python SDK functions -->
-    <section class="dev-panel" id="sdk-functions-py">
-        <h2>SDK functions — Python (<code class="mono">spectyra</code>)</h2>
-        <p class="dev-note dev-note--flush-top">Today’s published API centers on the <code class="mono">Spectyra</code> class and <code class="mono">SpectyraConfig</code>:</p>
-        <ul class="dev-list">
-            <li><code class="mono">Spectyra(config)</code> — pick <code class="mono">mode="runtime"</code> (HTTP to local runtime) or <code class="mono">mode="embedded"</code> (native FFI + your provider callback).</li>
-            <li><code class="mono">run_chat_runtime(...)</code> — <code class="mono">POST /v1/chat/run</code> on the runtime; returns <code class="mono">SpectyraRunResult</code> (e.g. <code class="mono">output</code>, savings fields).</li>
-            <li><code class="mono">run_chat(...)</code> — in runtime mode delegates to <code class="mono">run_chat_runtime</code>; in embedded mode runs the FFI pipeline then your <code class="mono">call_provider</code>.</li>
-        </ul>
-        <p class="dev-note dev-note--small">
-            <strong>Not in the Python package yet:</strong> <code class="mono">optimize()</code>, <code class="mono">estimate()</code>, <code class="mono">track_usage()</code>, <code class="mono">get_savings()</code>, <code class="mono">flush()</code> as separate helpers — use runtime responses and your own logging/analytics until those helpers exist.
-        </p>
-    </section>
+    <h3 class="dev-subhead">Next.js API route</h3>
+    <div class="code-block">
+      <button type="button" class="code-copy" (click)="copyCode(nextJsExample)" aria-label="Copy Next.js snippet">Copy</button>
+      <pre class="dev-code">{{ nextJsExample }}</pre>
+    </div>
 
-    <!-- 7. Security -->
-    <section class="dev-panel" id="security">
-        <h2>Security notes</h2>
-        <ul class="dev-list">
-            <li>Install Spectyra on the <strong>backend</strong> where LLM calls already happen.</li>
-            <li>Keep <strong>provider API keys</strong> in environment variables or a secret manager — never in client-side source.</li>
-            <li>Use a <strong>Spectyra API key</strong> or <strong>license key</strong> only on servers (or tightly controlled dev tools), not as a substitute for locking down provider keys.</li>
-            <li>Avoid sending <strong>raw customer prompts</strong> to analytics unless you have an explicit, reviewed data path.</li>
-            <li>Cloud telemetry modes send <strong>aggregated / redacted</strong> payloads when configured — not your OpenAI secret.</li>
-        </ul>
-    </section>
+    <h3 class="dev-subhead">Express</h3>
+    <div class="code-block">
+      <button type="button" class="code-copy" (click)="copyCode(expressExample)" aria-label="Copy Express snippet">Copy</button>
+      <pre class="dev-code">{{ expressExample }}</pre>
+    </div>
 
-    <!-- 8. Pricing / quota -->
-    <section class="dev-panel" id="pricing-quota">
-        <h2>Pricing, entitlements, and telemetry</h2>
-        <p class="dev-note dev-note--flush-top">
-            With a <strong>Spectyra license key</strong> or <strong>Spectyra API key</strong>, the SDK can refresh <strong>entitlements</strong> and <strong>quota</strong>. When quota blocks optimization, Spectyra may <strong>pass through</strong> the request (no optimization) so your app keeps working — inspect <code class="mono">report</code> / <code class="mono">getQuotaStatus()</code>.
-        </p>
-        <p class="dev-note">
-            For aggregate dashboards in the Spectyra web app, enable redacted cloud telemetry:
-        </p>
-        <pre class="dev-code">{{ productionTelemetryCode }}</pre>
-        <p class="dev-note">
-            License keys: <strong>Plan &amp; Billing</strong> in this app. For cloud-only control plane auth, use <code class="mono">spectyraCloudApiKey</code> + <code class="mono">spectyraApiBaseUrl</code> as in the SDK README.
-        </p>
-        <p class="dev-note" *ngIf="isAuthenticated">
-            <a routerLink="/billing">Plan &amp; Billing →</a>
-            ·
-            <a routerLink="/projects">Projects</a>
-            ·
-            <a routerLink="/analytics">Session analytics</a>
-        </p>
-    </section>
+    <h3 class="dev-subhead">Angular frontend + API backend</h3>
+    <p class="dev-note">Angular should call <strong>your</strong> backend API. Wrap the LLM with Spectyra on the backend.</p>
+    <p class="dev-note"><strong>Angular service</strong></p>
+    <div class="code-block">
+      <button type="button" class="code-copy" (click)="copyCode(angularServiceSnippet)" aria-label="Copy Angular service">Copy</button>
+      <pre class="dev-code">{{ angularServiceSnippet }}</pre>
+    </div>
+    <p class="dev-note"><strong>Backend</strong></p>
+    <div class="code-block">
+      <button type="button" class="code-copy" (click)="copyCode(sharedBackendSnippet)" aria-label="Copy backend snippet">Copy</button>
+      <pre class="dev-code">{{ sharedBackendSnippet }}</pre>
+    </div>
 
-    <!-- 9. FAQ -->
-    <section class="dev-panel" id="faq">
-        <h2>FAQ / troubleshooting</h2>
-        <dl class="dev-faq">
-            <dt>Where should I install Spectyra?</dt>
-            <dd>On the service that already holds your provider credentials — typically your API server, not the browser.</dd>
-            <dt>Python snippet fails to connect</dt>
-            <dd>Ensure a Spectyra <strong>local runtime</strong> is listening at <code class="mono">SPECTYRA_RUNTIME_URL</code> (default <code class="mono">http://127.0.0.1:4269</code>) and that provider keys are configured there for runtime mode.</dd>
-            <dt>OpenClaw vs in-app SDK</dt>
-            <dd>OpenClaw uses <code class="mono">&#64;spectyra/local-companion</code> and its dashboard. In-app integrations use <code class="mono">&#64;spectyra/sdk</code> or Python <code class="mono">spectyra</code> inside <em>your</em> app. See <a routerLink="/openclaw">OpenClaw &amp; Local Companion</a>.</dd>
-            <dt>Java, Go, or .NET?</dt>
-            <dd>Packages are planned / documented on GitHub; this page focuses on TypeScript and Python only for now.</dd>
-        </dl>
-    </section>
+    <h3 class="dev-subhead">React frontend + API backend</h3>
+    <p class="dev-note">React posts to your API; Spectyra runs server-side.</p>
+    <div class="code-block">
+      <button type="button" class="code-copy" (click)="copyCode(reactFetchSnippet)" aria-label="Copy React fetch">Copy</button>
+      <pre class="dev-code">{{ reactFetchSnippet }}</pre>
+    </div>
+    <p class="dev-note"><strong>Backend</strong> — same <code class="mono">complete()</code> pattern as above.</p>
+    <div class="code-block">
+      <button type="button" class="code-copy" (click)="copyCode(sharedBackendSnippet)" aria-label="Copy backend snippet">Copy</button>
+      <pre class="dev-code">{{ sharedBackendSnippet }}</pre>
+    </div>
+  </section>
 
-    <!-- Coming later -->
-    <section class="dev-panel dev-panel--supporting">
-        <h2>Coming later</h2>
-        <p class="dev-note dev-note--flush-top">
-            Java, Go, and .NET SDKs will be linked here with the same <strong>install-from-registry</strong> story when they are ready. This page stays focused on TypeScript and Python so onboarding stays simple.
-        </p>
-    </section>
+  <!-- 7. Browser warning -->
+  <section class="dev-panel" id="browser-usage">
+    <h2>Browser / frontend usage</h2>
+    <p class="dev-note dev-note--flush-top">
+      Most apps should install Spectyra in the <strong>backend</strong>, not the browser.
+    </p>
+    <p class="dev-note">Do not put OpenAI, Anthropic, Groq, or other <strong>provider API keys</strong> in frontend code.</p>
+    <p class="dev-note">Reasonable frontend uses:</p>
+    <ul class="dev-list dev-list--compact">
+      <li>Optional <strong>savings overlay</strong> in the browser when <code class="mono">overlay: true</code> or <code class="mono">SPECTYRA_OVERLAY=true</code> (non-production) — see <a href="#dev-overlay">Dev / QA overlay</a></li>
+      <li>Client-safe usage summaries to <strong>your own</strong> API</li>
+      <li>Local development visibility</li>
+      <li>Apps where the browser only calls <strong>your</strong> API, not the LLM provider directly</li>
+    </ul>
+    <div class="dev-callout dev-callout--warn">
+      <strong>Never</strong> expose provider API keys or your private Spectyra API key in browser bundles. There is no separate <code class="mono">SpectyraBrowser</code> helper in the SDK today.
+    </div>
+  </section>
 
-    <section class="dev-cta dev-cta--signed-in" *ngIf="isAuthenticated">
-        <p>
-            You’re signed in. License keys: <a routerLink="/billing">Plan &amp; Billing</a>.
-            SDK telemetry &amp; rollups: <a routerLink="/projects">Projects</a>.
-            Cloud session summaries: <a routerLink="/analytics">Session analytics</a>.
-        </p>
-    </section>
+  <!-- Dev / QA overlay -->
+  <section class="dev-panel" id="dev-overlay">
+    <h2>Dev / QA savings overlay</h2>
+    <p class="dev-note dev-note--flush-top">
+      During development or QA, you can enable the <strong>browser floating panel</strong> to see token/cost rollups and the latest run — <strong>no raw prompts</strong> are shown by default.
+    </p>
+    <p class="dev-note">
+      Defaults are safe: in <strong>production</strong>, the overlay does <strong>not</strong> turn on from environment alone. Use explicit <code class="mono">overlay: true</code> or <code class="mono">SPECTYRA_OVERLAY=true</code> outside production, or set <code class="mono">devtools: &#123; enabled: true &#125;</code> to force the panel when debugging.
+    </p>
+    <p class="dev-note">
+      <code class="mono">debug: true</code> or <code class="mono">SPECTYRA_DEBUG=true</code> (non-production) prints <strong>one-line</strong> summaries to the console after each <code class="mono">complete()</code> — savings % / estimated USD, passthrough reason, or <code class="mono">traceId</code> only. No messages, keys, or Authorization headers.
+    </p>
+
+    <h3 class="dev-subhead">TypeScript</h3>
+    <div class="code-block">
+      <button type="button" class="code-copy" (click)="copyCode(overlayDevTs)" aria-label="Copy overlay TypeScript config">Copy</button>
+      <pre class="dev-code">{{ overlayDevTs }}</pre>
+    </div>
+    <p class="dev-note">Runtime helpers on the same instance:</p>
+    <ul class="dev-list dev-list--compact">
+      <li><code class="mono">spectyra.showOverlay()</code> / <code class="mono">hideOverlay()</code> / <code class="mono">toggleOverlay()</code></li>
+      <li><code class="mono">spectyra.getSavings()</code> — session summary + last run (safe fields)</li>
+      <li><code class="mono">spectyra.on("savings", (e) =&gt; &#123; … &#125;)</code> — subscribe; returns unsubscribe</li>
+    </ul>
+    <p class="dev-note dev-note--small">
+      For production builds, keep <code class="mono">overlay</code> and <code class="mono">debug</code> off. You can always log from <code class="mono">complete()</code> using <code class="mono">report</code> yourself.
+    </p>
+
+    <h3 class="dev-subhead">Python</h3>
+    <p class="dev-note dev-note--flush-top">
+      The same <code class="mono">environment</code>, <code class="mono">overlay</code>, and <code class="mono">debug</code> fields exist on <code class="mono">SpectyraConfig</code> for parity. The <strong>floating UI is TypeScript-only</strong>; in Python use <code class="mono">get_savings()</code>, <code class="mono">on_savings()</code>, and stderr debug lines when <code class="mono">debug</code> is effective.
+    </p>
+    <div class="code-block">
+      <button type="button" class="code-copy" (click)="copyCode(overlayDevPy)" aria-label="Copy overlay Python config">Copy</button>
+      <pre class="dev-code">{{ overlayDevPy }}</pre>
+    </div>
+  </section>
+
+  <!-- 8. SDK functions -->
+  <section class="dev-panel" id="sdk-functions">
+    <h2>SDK API (what exists today)</h2>
+
+    <h3 class="dev-subhead">TypeScript — <code class="mono">&#64;spectyra/sdk</code></h3>
+    <ul class="dev-list">
+      <li><code class="mono">createSpectyra(config?)</code> — creates the client (pass <code class="mono">spectyraCloudApiKey</code> / <code class="mono">SPECTYRA_API_KEY</code> for cloud entitlements and optional redacted telemetry).</li>
+      <li><code class="mono">spectyra.complete(input, adapter)</code> — primary path; pass your provider client plus e.g. <code class="mono">createOpenAIAdapter()</code>.</li>
+      <li><code class="mono">spectyra.run(input, execute)</code> — callback style: you receive optimized messages and call the provider yourself.</li>
+      <li><code class="mono">spectyra.getSavingsSummary()</code>, <code class="mono">getSessionCostSummary()</code>, <code class="mono">getSessionStats()</code>, <code class="mono">getLastRun()</code>, <code class="mono">getLastRunSavings()</code>, <code class="mono">getQuotaStatus()</code>, <code class="mono">getEntitlementStatus()</code> — observability helpers.</li>
+      <li><code class="mono">spectyra.refreshEntitlement()</code> — manual entitlement refresh.</li>
+      <li><code class="mono">spectyra.mountDevtools()</code> — mount the floating panel (browser); usually unnecessary if overlay auto-mounts.</li>
+      <li><code class="mono">spectyra.showOverlay()</code> / <code class="mono">hideOverlay()</code> / <code class="mono">toggleOverlay()</code> — control visibility.</li>
+      <li><code class="mono">spectyra.getSavings()</code> — <code class="mono">summary</code> + <code class="mono">lastRun</code> + <code class="mono">lastRunSavings</code> (no prompts).</li>
+      <li><code class="mono">spectyra.on("savings", listener)</code> — numeric post-run events; returns unsubscribe.</li>
+      <li><code class="mono">config.environment</code>, <code class="mono">config.overlay</code>, <code class="mono">config.debug</code> — see <a href="#dev-overlay">Dev / QA overlay</a>.</li>
+      <li><code class="mono">createOpenAIAdapter()</code> / <code class="mono">createAnthropicAdapter()</code> / <code class="mono">createGroqAdapter()</code> — provider wiring.</li>
+    </ul>
+
+    <h3 class="dev-subhead">Optional: <code class="mono">run()</code> shape</h3>
+    <div class="code-block">
+      <button type="button" class="code-copy" (click)="copyCode(tsRunCallbackSnippet)" aria-label="Copy run() example">Copy</button>
+      <pre class="dev-code">{{ tsRunCallbackSnippet }}</pre>
+    </div>
+
+    <h3 class="dev-subhead">Python — <code class="mono">spectyra</code></h3>
+    <ul class="dev-list">
+      <li><code class="mono">Spectyra(config)</code> — supports <code class="mono">environment</code>, <code class="mono">overlay</code>, <code class="mono">debug</code> on <code class="mono">SpectyraConfig</code> (same gating rules as TypeScript for env-based flags).</li>
+      <li><code class="mono">run_chat_runtime(...)</code> / <code class="mono">run_chat(...)</code> — same as before.</li>
+      <li><code class="mono">get_savings()</code> — last run numeric snapshot (no prompt bodies).</li>
+      <li><code class="mono">on_savings(listener)</code> — subscribe; returns unsubscribe callable.</li>
+      <li><code class="mono">show_overlay()</code> / <code class="mono">hide_overlay()</code> / <code class="mono">toggle_overlay()</code> — no UI in Python; <code class="mono">show_overlay</code> prints a one-time note if <code class="mono">overlay</code> is requested.</li>
+    </ul>
+    <p class="dev-note dev-note--small">
+      <strong>Not in either SDK yet:</strong> a single <code class="mono">optimize()</code> / <code class="mono">estimate()</code> / <code class="mono">flush()</code> alias API — use TypeScript <code class="mono">complete()</code>/<code class="mono">run()</code> or Python <code class="mono">run_chat*</code> instead.
+    </p>
+  </section>
+
+  <!-- 9. Security -->
+  <section class="dev-panel" id="security">
+    <h2>Security notes</h2>
+    <ul class="dev-list">
+      <li>Install Spectyra where LLM calls already happen (usually the server).</li>
+      <li>Keep provider API keys and your Spectyra API key server-side.</li>
+      <li>Use deployment secrets or backend config; local <code class="mono">.env</code> only for development.</li>
+      <li>Avoid sending raw prompts in browser telemetry unless you explicitly design for that.</li>
+      <li>Use public keys only in browser code when you have a deliberate, reviewed pattern.</li>
+    </ul>
+    <p class="dev-note dev-note--small"><strong>Never:</strong> hardcode secrets; ship provider keys to the browser; or send raw customer data to analytics unless explicitly configured.</p>
+  </section>
+
+  <!-- 10. Passthrough / fallback -->
+  <section class="dev-panel" id="passthrough">
+    <h2>Passthrough &amp; fallback behavior</h2>
+    <ul class="dev-list">
+      <li><code class="mono">runMode: "off"</code> — Spectyra skips optimization; your adapter still runs (useful for killswitches).</li>
+      <li><code class="mono">runMode: "observe"</code> — pipeline can run in observe semantics; check <code class="mono">report.mode</code> and docs for your version.</li>
+      <li><strong>Quota / entitlements</strong> — when optimization is blocked, Spectyra can pass through so your app keeps working. Inspect <code class="mono">report</code>, <code class="mono">licenseLimited</code>, and <code class="mono">getQuotaStatus()</code>.</li>
+    </ul>
+    <p class="dev-note">Redacted cloud telemetry (org rollups) is optional:</p>
+    <div class="code-block">
+      <button type="button" class="code-copy" (click)="copyCode(productionTelemetryCode)" aria-label="Copy telemetry config">Copy</button>
+      <pre class="dev-code">{{ productionTelemetryCode }}</pre>
+    </div>
+    <p class="dev-note" *ngIf="isAuthenticated">
+      <a routerLink="/billing">Plan &amp; Billing</a>
+      ·
+      <a routerLink="/projects">Projects</a>
+      ·
+      <a routerLink="/analytics">Session analytics</a>
+    </p>
+  </section>
+
+  <!-- 11. FAQ -->
+  <section class="dev-panel" id="faq">
+    <h2>FAQ</h2>
+    <dl class="dev-faq">
+      <dt>Where should I install Spectyra?</dt>
+      <dd>On the service that already holds your provider credentials — typically your API server, not the browser.</dd>
+
+      <dt>Do I need to clone the Spectyra repo?</dt>
+      <dd>No. Install <code class="mono">&#64;spectyra/sdk</code> or <code class="mono">spectyra</code> from the package registry.</dd>
+
+      <dt>Python can’t connect to the runtime</dt>
+      <dd>Ensure a Spectyra runtime is listening at <code class="mono">SPECTYRA_RUNTIME_URL</code> (default <code class="mono">http://127.0.0.1:4269</code>) and that provider keys are configured there.</dd>
+
+      <dt>OpenClaw vs in-app SDK</dt>
+      <dd>OpenClaw uses the local companion skill. In-app uses <code class="mono">&#64;spectyra/sdk</code> or Python inside <em>your</em> app. See <a routerLink="/openclaw">OpenClaw &amp; Local Companion</a>.</dd>
+
+      <dt>Java, Go, or .NET?</dt>
+      <dd>Not on this page yet — use TypeScript or Python for now.</dd>
+
+      <dt>TypeScript vs Python — same features?</dt>
+      <dd>
+        Core optimization today is centered on <code class="mono">&#64;spectyra/sdk</code> <code class="mono">complete()</code>/<code class="mono">run()</code>.
+        Python <code class="mono">spectyra</code> matches <strong>config flags</strong> (<code class="mono">environment</code>, <code class="mono">overlay</code>, <code class="mono">debug</code>), <code class="mono">get_savings</code>/<code class="mono">on_savings</code>, and safe debug logs; the <strong>browser overlay UI</strong> is TypeScript-only until a native Python UI exists.
+      </dd>
+    </dl>
+  </section>
+
+  <section class="dev-cta dev-cta--signed-in" *ngIf="isAuthenticated">
+    <p>
+      You’re signed in. Keys &amp; billing: <a routerLink="/billing">Plan &amp; Billing</a>.
+      Telemetry rollups: <a routerLink="/projects">Projects</a>.
+      Session summaries: <a routerLink="/analytics">Session analytics</a>.
+    </p>
+  </section>
 </div>

@@ -16,7 +16,7 @@ import type {
 } from "@spectyra/core-types";
 import { queryOne } from "./storage/db.js";
 import { isBillingExemptOrgId } from "../billing/billingExempt.js";
-import { getOrgById, type HasActiveAccessOpts } from "./storage/orgsRepo.js";
+import { getOrgById, hasActiveAccess, type HasActiveAccessOpts } from "./storage/orgsRepo.js";
 import { isSavingsObserveOnly } from "../billing/savingsEligibility.js";
 
 interface OrgRow {
@@ -72,6 +72,21 @@ function effectiveLicenseStatus(org: OrgRow): LicenseStatus {
   if (org.observe_only_override === true) return "expired";
   if (org.observe_only_override === false) return "valid";
   return resolveLicenseStatus(org);
+}
+
+/**
+ * Whether machine-auth SDK HTTP routes (e.g. `POST /v1/telemetry/run`, pricing snapshot) may run.
+ * Blocks when the org is missing, `sdk_access_enabled` is off, subscription is canceled or paused,
+ * or there is no active billing/trial access (trial expired, etc.). Allows `past_due` / `trialing` Stripe states.
+ */
+export async function canUseSpectyraMachineSdkApis(orgId: string): Promise<boolean> {
+  const org = await getOrgById(orgId);
+  if (!org?.sdk_access_enabled) return false;
+  const st = String(org.subscription_status);
+  if (st === "canceled") return false;
+  if (st === "paused") return false;
+  if (st === "past_due" || st === "trialing") return true;
+  return hasActiveAccess(org);
 }
 
 export async function getEntitlement(orgId: string): Promise<EntitlementInfo> {

@@ -75,20 +75,32 @@ export class OverviewPage implements OnInit {
 
   /**
    * /auth/me must succeed before other dashboard calls. Handles:
-   * - needs_bootstrap (no org row) → send user to login to create an org
+   * - needs_bootstrap (no org row) → try POST /auth/ensure-account, then login if still missing
    * - 401 on first call → brief wait + retry (JWT sometimes lags right after sign-in)
    */
   private async ensureMeLoaded(): Promise<boolean> {
     const load = () => firstValueFrom(this.meService.getMe(true));
+
+    const tryAutoProvision = async (): Promise<boolean> => {
+      try {
+        const { me } = await firstValueFrom(this.meService.ensureOrgIfNeeded());
+        return !!(me?.org && !me.needs_bootstrap);
+      } catch {
+        return false;
+      }
+    };
+
     try {
       const me = await load();
       if (me?.needs_bootstrap || !me?.org) {
+        if (await tryAutoProvision()) return true;
         this.router.navigate(['/login'], { queryParams: { returnUrl: '/overview' } });
         return false;
       }
       return true;
     } catch (err: any) {
       if (err?.status === 404 && err?.error?.needs_bootstrap) {
+        if (await tryAutoProvision()) return true;
         this.router.navigate(['/login'], { queryParams: { returnUrl: '/overview' } });
         return false;
       }
@@ -98,12 +110,14 @@ export class OverviewPage implements OnInit {
         try {
           const me2 = await load();
           if (me2?.needs_bootstrap || !me2?.org) {
+            if (await tryAutoProvision()) return true;
             this.router.navigate(['/login'], { queryParams: { returnUrl: '/overview' } });
             return false;
           }
           return true;
         } catch (err2: any) {
           if (err2?.status === 404 && err2?.error?.needs_bootstrap) {
+            if (await tryAutoProvision()) return true;
             this.router.navigate(['/login'], { queryParams: { returnUrl: '/overview' } });
             return false;
           }
@@ -115,10 +129,8 @@ export class OverviewPage implements OnInit {
   }
 
   async loadData() {
-    // Brand-new users can be authenticated by Supabase but not yet bootstrapped
-    // into an org (no org_memberships row). In that case, /auth/me returns
-    // 200 { needs_bootstrap: true, org: null }. Redirect to /login instead of calling
-    // /usage/* and /integrations/status (they require org context).
+    // Brand-new users may have no org_memberships row yet. ensureMeLoaded tries
+    // ensure-account before redirecting to /login so we do not call /usage/* without org context.
     try {
       const ok = await this.ensureMeLoaded();
       if (!ok) {

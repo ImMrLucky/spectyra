@@ -25,7 +25,7 @@ export class HomePage implements OnInit {
   ngOnInit() {
     // Redirect authenticated users, but avoid routes that assume org state exists.
     // Brand-new Supabase users have a session, but /auth/me returns needs_bootstrap until
-    // POST /auth/bootstrap runs. Send them to /login in that case.
+    // POST /auth/ensure-account or bootstrap runs. Try auto-provision, then send to /login if still needed.
     this.supabase
       .getSession()
       .pipe(
@@ -38,10 +38,19 @@ export class HomePage implements OnInit {
 
           return this.meService.getMe().pipe(
             take(1),
+            switchMap((me) => {
+              if (me?.needs_bootstrap || !me?.org) {
+                return this.meService.ensureOrgIfNeeded().pipe(
+                  map(({ me: m }) => m),
+                  catchError(() => of(null)),
+                );
+              }
+              return of(me);
+            }),
             map((me) =>
-              me?.needs_bootstrap || !me?.org
-                ? { kind: 'needs-bootstrap' as const }
-                : { kind: 'org' as const }
+              me && me.org && !me.needs_bootstrap
+                ? { kind: 'org' as const }
+                : { kind: 'needs-bootstrap' as const }
             ),
             catchError((err: any) => {
               // Legacy API: 404 + needs_bootstrap

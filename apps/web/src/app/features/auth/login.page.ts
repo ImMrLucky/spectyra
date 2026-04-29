@@ -131,11 +131,24 @@ export class LoginPage implements OnInit, OnDestroy {
       try {
         const me = await firstValueFrom(this.meService.getMe(true));
         if (me?.needs_bootstrap || !me?.org) {
+          try {
+            const { me: afterEnsure } = await firstValueFrom(this.meService.ensureOrgIfNeeded());
+            if (afterEnsure?.org && !afterEnsure.needs_bootstrap) {
+              this.success = true;
+              this.userEmail = afterEnsure.account_email ?? afterEnsure.org.name;
+              this.hasAccess = afterEnsure.has_access;
+              this.needsBootstrap = false;
+              this.autoRedirectIfReturnUrl();
+              return;
+            }
+          } catch {
+            // Fall through to manual bootstrap UI.
+          }
           this.needsBootstrap = true;
           this.applyPendingOrgPrefill();
         } else if (me.org) {
           this.success = true;
-          this.userEmail = me.org.name;
+          this.userEmail = me.account_email ?? me.org.name;
           this.hasAccess = me.has_access;
           this.needsBootstrap = false;
           this.autoRedirectIfReturnUrl();
@@ -161,11 +174,6 @@ export class LoginPage implements OnInit, OnDestroy {
   }
 
   async bootstrap() {
-    if (!this.orgName || this.orgName.trim().length === 0) {
-      this.error = 'Please enter an organization name';
-      return;
-    }
-
     this.bootstrapLoading = true;
     this.error = null;
 
@@ -174,7 +182,7 @@ export class LoginPage implements OnInit, OnDestroy {
       const response = await firstValueFrom(this.http.post<any>(
         `${environment.apiUrl}/auth/bootstrap`,
         {
-          org_name: this.orgName.trim(),
+          org_name: this.orgName.trim() || undefined,
           project_name: this.projectName.trim() || undefined
         }
       ));

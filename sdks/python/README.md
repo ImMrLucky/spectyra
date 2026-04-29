@@ -62,6 +62,14 @@ OpenAPI for the runtime: `runtime/contracts/openapi/spectyra-runtime.openapi.yam
 
 ---
 
+## AI cost monitor (Python Phases 3–4)
+
+**Monitor core** (`spectyra.monitor.MonitorEngine`): in-memory buffer, optional JSONL, metadata-only rows (parity with `@spectyra/sdk` monitor).
+
+**Auto hook** (`start_spectyra_auto` / `stop_spectyra_auto`): patches `urllib.request.urlopen` for known LLM JSON responses. See `docs/SPECTYRA_PYTHON_MONITORING.md`.
+
+---
+
 ## Embedded mode (optional)
 
 Build `libspectyra_ffi` per [RUST_AND_FFI_BUILD.md](https://github.com/spectyra/spectyra/blob/main/docs/sdk/RUST_AND_FFI_BUILD.md), then:

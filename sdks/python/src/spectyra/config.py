@@ -21,3 +21,12 @@ class SpectyraConfig:
 
     spectyra_api_key: Optional[str] = None
     """Optional Spectyra control-plane key (never sent with prompts to cloud from this scaffold)."""
+
+    environment: Optional[str] = None
+    """Deployment label (`development`, `qa`, `staging`, `production`, or custom). Used with overlay/debug gates."""
+
+    overlay: Optional[bool] = None
+    """Browser savings UI exists only in `@spectyra/sdk` (TypeScript). In Python this flag is reserved for parity; see `show_overlay`."""
+
+    debug: Optional[bool] = None
+    """When effective (see `SPECTYRA_DEBUG`), prints one-line safe summaries after each runtime call (no prompts)."""
