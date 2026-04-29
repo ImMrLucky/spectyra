@@ -35,6 +35,7 @@ import { fetchAgentOptions, sendAgentEvent } from "./remote/agentRemote.js";
 import { localComplete } from "./local/localWrapper.js";
 import { maybePostSdkRunTelemetry } from "./cloud/postRunTelemetry.js";
 import { resolveSpectyraCloudApiKey } from "./cloud/resolveSpectyraCloudApiKey.js";
+import { createMonitorCloudSyncDebouncer } from "./cloud/monitorCloudSyncDebouncer.js";
 import { resolveEffectiveTelemetryMode } from "./observability/resolveEffectiveTelemetryMode.js";
 import { createSpectyraLogger } from "./observability/spectyraLogger.js";
 import { SpectyraSessionState } from "./observability/spectyraSessionState.js";
@@ -62,8 +63,14 @@ import { resolveModelPricingEntry } from "./pricing/modelResolver.js";
 import { calculateSavingsFromUsages } from "./pricing/costCalculator.js";
 import { normalizedUsageFromTokens } from "./pricing/normalizeUsage.js";
 import type { SavingsCalculation } from "./pricing/types.js";
-import { resolveSpectyraEnvironmentLabel, resolveEffectiveDebug } from "./config/sdkUiEnv.js";
+import { resolveSpectyraEnvironmentLabel, resolveEffectiveDebug, isSpectyraProductionEnvironment } from "./config/sdkUiEnv.js";
 import { logSpectyraDebugSafeLine } from "./debug/debugSafeSummary.js";
+import { resolveMonitorEnabledInApp } from "./monitor/resolveMonitorEnabled.js";
+import {
+  aggregateAllMonitorViews,
+  getOptimizerQuotaSummaryFromEvents,
+  type SpectyraMonitorBreakdownRow,
+} from "./monitor/monitorAggregates.js";
 
 function newRunId(): string {
   if (typeof crypto !== "undefined" && "randomUUID" in crypto) {
@@ -180,7 +187,7 @@ export interface SpectyraInstance {
   mountDevtools(): () => void;
 
   /**
-   * Record a metadata-only monitor event (requires `monitor: { enabled: true }` on `createSpectyra`).
+   * Record a metadata-only monitor event when the monitor is enabled (default in-app).
    */
   recordMonitorEvent(
     partial: Partial<SpectyraMonitorEvent> & Pick<SpectyraMonitorEvent, "provider" | "latencyMs" | "success">,
@@ -191,16 +198,45 @@ export interface SpectyraInstance {
   getCostSummary(): SpectyraMonitorSummary;
   /** Recent monitor events from the in-memory buffer (newest last). */
   getRecentMonitorEvents(limit?: number): SpectyraMonitorEvent[];
+  getProviderBreakdown(): SpectyraMonitorBreakdownRow[];
+  getModelBreakdown(): SpectyraMonitorBreakdownRow[];
+  getEnvironmentBreakdown(): SpectyraMonitorBreakdownRow[];
+  getEndpointBreakdown(): SpectyraMonitorBreakdownRow[];
+  getExpensiveCalls(): SpectyraMonitorEvent[];
+  getMissedSavingsSummary(): {
+    totalMissedSavingsUsd: number;
+    eventCount: number;
+    averageMissedPerEventUsd: number;
+  };
+  getWasteSummary(): { byType: Record<string, number>; estimatedImpactUsd: number };
+  getRepeatedCalls(): SpectyraMonitorEvent[];
+  getCacheOpportunities(): SpectyraMonitorEvent[];
+  getOptimizerQuotaSummary(): {
+    plan: string;
+    canRunOptimized: boolean;
+    freeOptimizerPercentUsed: number | null;
+    monitorEventsWhileLimited: number;
+  };
 }
 
 /**
  * Create a Spectyra SDK instance.
  */
 export function createSpectyra(config: SpectyraConfig = {}): SpectyraInstance {
-  const legacyMode = config.mode;
-  const endpoint = config.endpoint;
-  const apiKey = config.apiKey;
-  const telemetryMode = resolveEffectiveTelemetryMode(config);
+  const feat = config.features ?? {};
+  const effectiveConfig: SpectyraConfig = {
+    ...config,
+    features: {
+      monitor: feat.monitor !== false,
+      analytics: feat.analytics !== false,
+      optimizer: feat.optimizer !== false,
+    },
+  };
+
+  const legacyMode = effectiveConfig.mode;
+  const endpoint = effectiveConfig.endpoint;
+  const apiKey = effectiveConfig.apiKey;
+  const telemetryMode = resolveEffectiveTelemetryMode(effectiveConfig);
 
   if (legacyMode === "api") {
     if (!endpoint) throw new Error("endpoint is required for API mode");
@@ -209,7 +245,7 @@ export function createSpectyra(config: SpectyraConfig = {}): SpectyraInstance {
 
   if (telemetryMode === "cloud_redacted") {
     const hasSpectyraCredential =
-      Boolean(config.licenseKey?.trim()) || Boolean(resolveSpectyraCloudApiKey(config));
+      Boolean(effectiveConfig.licenseKey?.trim()) || Boolean(resolveSpectyraCloudApiKey(effectiveConfig));
     if (!hasSpectyraCredential) {
       throw new Error(
         'Spectyra: telemetry.mode "cloud_redacted" requires licenseKey and/or spectyraCloudApiKey (or SPECTYRA_CLOUD_API_KEY / SPECTYRA_API_KEY). These are Spectyra credentials, not provider API keys.',
@@ -218,33 +254,47 @@ export function createSpectyra(config: SpectyraConfig = {}): SpectyraInstance {
   }
 
   const session = new SpectyraSessionState();
-  const log = createSpectyraLogger(config);
-  const monitorEngine =
-    config.monitor?.enabled === true
-      ? createMonitorEngine({
-          enabled: true,
-          bufferMaxEvents: config.monitor.bufferMaxEvents,
-          jsonl: config.monitor.jsonl,
-          console: config.monitor.console,
-          defaults: {
-            project: config.projectId,
-            environment: typeof config.environment === "string" ? config.environment : undefined,
-            service: config.service,
-          },
-          logger: config.logger,
-        })
-      : null;
-  const entRuntime = startEntitlementRuntime(config, session);
-  void startPricingRuntime(config);
+  const log = createSpectyraLogger(effectiveConfig);
+  const monitorEnabled = resolveMonitorEnabledInApp(effectiveConfig);
+  const monitorConsoleEnabled =
+    effectiveConfig.monitor?.console?.enabled ??
+    (typeof process !== "undefined" && !isSpectyraProductionEnvironment(effectiveConfig));
+
+  let monitorEngine: ReturnType<typeof createMonitorEngine> | null = null;
+  const monitorCloudDebouncer = monitorEnabled
+    ? createMonitorCloudSyncDebouncer(effectiveConfig, () => monitorEngine?.getEventsSnapshot() ?? [])
+    : null;
+
+  monitorEngine = monitorEnabled
+    ? createMonitorEngine({
+        enabled: true,
+        bufferMaxEvents: effectiveConfig.monitor?.bufferMaxEvents,
+        jsonl: effectiveConfig.monitor?.jsonl,
+        console: {
+          enabled: monitorConsoleEnabled,
+          level: effectiveConfig.monitor?.console?.level ?? "info",
+        },
+        defaults: {
+          project: effectiveConfig.projectId,
+          environment: typeof effectiveConfig.environment === "string" ? effectiveConfig.environment : undefined,
+          service: effectiveConfig.service,
+        },
+        logger: effectiveConfig.logger,
+        onAfterRecord: monitorCloudDebouncer ? () => monitorCloudDebouncer.schedule() : undefined,
+      })
+    : null;
+
+  const entRuntime = startEntitlementRuntime(effectiveConfig, session);
+  void startPricingRuntime(effectiveConfig);
 
   const savingsListeners = new Set<(e: SpectyraSavingsEvent) => void>();
   let overlayHandle: SpectyraDevtoolsMountHandle | null = null;
-  const envLabel = resolveSpectyraEnvironmentLabel(config);
+  const envLabel = resolveSpectyraEnvironmentLabel(effectiveConfig);
 
   function mountDevtoolsUi(): SpectyraDevtoolsMountHandle {
     const h = mountSpectyraDevtools({
-      config,
-      devtools: config.devtools,
+      config: effectiveConfig,
+      devtools: effectiveConfig.devtools,
       getEntitlement: () => session.getEntitlement(),
       getSession: () => session,
       environmentLabel: envLabel,
@@ -256,8 +306,16 @@ export function createSpectyra(config: SpectyraConfig = {}): SpectyraInstance {
     return h;
   }
 
-  if (shouldMountDevtoolsByDefault(config) && config.devtools?.enabled !== false) {
+  if (shouldMountDevtoolsByDefault(effectiveConfig) && effectiveConfig.devtools?.enabled !== false) {
     void mountDevtoolsUi();
+  }
+
+  function monitorSnapshot(): SpectyraMonitorEvent[] {
+    return monitorEngine?.getEventsSnapshot() ?? [];
+  }
+
+  function monitorViews() {
+    return aggregateAllMonitorViews(monitorSnapshot());
   }
 
   return {
@@ -271,15 +329,15 @@ export function createSpectyra(config: SpectyraConfig = {}): SpectyraInstance {
         ...input,
         runContext: { ...input.runContext, runId },
       };
-      const baseMode = config.runMode ?? "on";
-      const passthrough = shouldPassthroughFromEntitlement(config, session);
+      const baseMode = effectiveConfig.runMode ?? "on";
+      const passthrough = shouldPassthroughFromEntitlement(effectiveConfig, session);
       const effectiveMode: import("@spectyra/core-types").SpectyraRunMode = passthrough
         ? "off"
         : baseMode;
-      const merged: SpectyraConfig = { ...config, runMode: effectiveMode };
+      const merged: SpectyraConfig = { ...effectiveConfig, runMode: effectiveMode };
 
       try {
-        config.onRequestStart?.({
+        effectiveConfig.onRequestStart?.({
           runId,
           provider: input.provider,
           model: input.model,
@@ -298,7 +356,7 @@ export function createSpectyra(config: SpectyraConfig = {}): SpectyraInstance {
         try {
           monitorEngine?.recordEvent(
             buildFailureMonitorEvent({
-              config,
+              config: effectiveConfig,
               input: withRun,
               durationMs: nowMs() - t0,
               error: err,
@@ -310,7 +368,7 @@ export function createSpectyra(config: SpectyraConfig = {}): SpectyraInstance {
         }
         throw err;
       }
-      void maybePostSdkRunTelemetry(config, withRun, out).catch(() => {});
+      void maybePostSdkRunTelemetry(effectiveConfig, withRun, out).catch(() => {});
 
       const durationMs = nowMs() - t0;
 
@@ -355,7 +413,7 @@ export function createSpectyra(config: SpectyraConfig = {}): SpectyraInstance {
 
       if (passthrough || session.metricsFrozen) {
         try {
-          config.onQuota?.(defaultQuota(session));
+          effectiveConfig.onQuota?.(defaultQuota(session));
         } catch (e) {
           log.error("onQuota (complete path) failed", { error: String(e) });
         }
@@ -364,7 +422,7 @@ export function createSpectyra(config: SpectyraConfig = {}): SpectyraInstance {
       const pricingMeta = getPricingSnapshotMeta();
       if (pricingMeta.version && pricingMeta.stale) {
         try {
-          config.onPricingStale?.({
+          effectiveConfig.onPricingStale?.({
             version: pricingMeta.version,
             fetchedAt: pricingMeta.fetchedAt,
             stale: pricingMeta.stale,
@@ -376,7 +434,7 @@ export function createSpectyra(config: SpectyraConfig = {}): SpectyraInstance {
 
       if (out.report.transformsApplied && out.report.transformsApplied.length > 0) {
         try {
-          config.onOptimization?.({
+          effectiveConfig.onOptimization?.({
             runId,
             runMode: out.report.mode,
             transformsApplied: out.report.transformsApplied,
@@ -389,9 +447,9 @@ export function createSpectyra(config: SpectyraConfig = {}): SpectyraInstance {
       }
 
       try {
-        config.onRequestEnd?.({ runId, provider: input.provider, model: input.model, durationMs });
+        effectiveConfig.onRequestEnd?.({ runId, provider: input.provider, model: input.model, durationMs });
         const snap = session.getSessionStats();
-        config.onMetrics?.(snap);
+        effectiveConfig.onMetrics?.(snap);
       } catch (e) {
         log.error("onRequestEnd/onMetrics failed", { error: String(e) });
       }
@@ -403,7 +461,7 @@ export function createSpectyra(config: SpectyraConfig = {}): SpectyraInstance {
       }
 
       try {
-        config.onCostCalculated?.({
+        effectiveConfig.onCostCalculated?.({
           runId,
           provider: input.provider,
           model: input.model,
@@ -417,7 +475,7 @@ export function createSpectyra(config: SpectyraConfig = {}): SpectyraInstance {
       }
 
       const quotaSnap = session.getEntitlement()?.quota ?? null;
-      if (resolveEffectiveDebug(config)) {
+      if (resolveEffectiveDebug(effectiveConfig)) {
         logSpectyraDebugSafeLine({
           effectiveMode,
           passthroughFromQuota: passthrough,
@@ -466,8 +524,8 @@ export function createSpectyra(config: SpectyraConfig = {}): SpectyraInstance {
         if (monitorEngine) {
           monitorEngine.recordEvent(
             buildMonitorEventFromComplete({
-              config,
-              monitor: config.monitor,
+              config: effectiveConfig,
+              monitor: effectiveConfig.monitor,
               input: withRun,
               out: out as SpectyraCompleteResult<unknown>,
               durationMs,
@@ -495,7 +553,7 @@ export function createSpectyra(config: SpectyraConfig = {}): SpectyraInstance {
     },
 
     agentOptions(ctx: SpectyraCtx, prompt: string | PromptMeta): ClaudeAgentOptions {
-      const decision = decideAgent({ config, ctx, prompt });
+      const decision = decideAgent({ config: effectiveConfig, ctx, prompt });
       return toClaudeAgentOptions(decision);
     },
 
@@ -607,6 +665,36 @@ export function createSpectyra(config: SpectyraConfig = {}): SpectyraInstance {
     },
     getRecentMonitorEvents(limit = 50) {
       return monitorEngine?.getRecentMonitorEvents(limit) ?? [];
+    },
+    getProviderBreakdown() {
+      return monitorViews().provider;
+    },
+    getModelBreakdown() {
+      return monitorViews().model;
+    },
+    getEnvironmentBreakdown() {
+      return monitorViews().environment;
+    },
+    getEndpointBreakdown() {
+      return monitorViews().endpoint;
+    },
+    getExpensiveCalls() {
+      return monitorViews().expensive;
+    },
+    getMissedSavingsSummary() {
+      return monitorViews().missed;
+    },
+    getWasteSummary() {
+      return monitorViews().waste;
+    },
+    getRepeatedCalls() {
+      return monitorViews().repeated;
+    },
+    getCacheOpportunities() {
+      return monitorViews().cache;
+    },
+    getOptimizerQuotaSummary() {
+      return getOptimizerQuotaSummaryFromEvents(monitorSnapshot(), defaultQuota(session));
     },
   };
 }

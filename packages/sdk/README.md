@@ -8,6 +8,18 @@
 
 ---
 
+## Fast monitoring install (metadata-only)
+
+```ts
+import "@spectyra/auto";
+```
+
+Starts automatically unless `SPECTYRA_AUTO=false`. For the full SDK (optimization + entitlements), use `import { createSpectyra } from "@spectyra/sdk"`. For the floating cost overlay in the browser: `import "@spectyra/devtools/auto"`.
+
+**Honest limitation:** Spectyra Auto monitors supported AI calls from the services where it is installed. For full workflow attribution and optimization, use the explicit Spectyra SDK integration.
+
+**Privacy:** Spectyra does not proxy your LLM calls and does not receive prompts, responses, provider API keys, or files. Local monitoring works without a Spectyra account.
+
 ## Get a Free Spectyra API key
 
 You need a free **Spectyra API key** to enable savings, optimization, entitlements, and rollups in the Spectyra app. Create a free account and copy the key into **server-side** config: [spectyra.ai/register](https://spectyra.ai/register).

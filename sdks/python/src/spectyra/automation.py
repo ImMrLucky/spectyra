@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import json
 import threading
 import urllib.request
 from io import BytesIO
@@ -9,97 +8,11 @@ from urllib.parse import urlparse
 from urllib.response import addinfourl
 
 from spectyra.monitor.engine import MonitorEngine
-from spectyra.monitor.provider_detection import detect_provider_from_host
-from spectyra.monitor.waste import build_waste_signals_http_auto
-
-_MAX_BODY = 512_000
+from spectyra.monitor.http_record import record_from_json_body
 
 _engine: MonitorEngine | None = None
 _orig_urlopen: Callable[..., Any] | None = None
 _lock = threading.Lock()
-
-
-def _should_record_path(pathname: str, provider: str) -> bool:
-    p = pathname.lower()
-    if provider in ("openai", "groq", "azure-openai"):
-        return "/chat/completions" in p or "/responses" in p
-    if provider == "anthropic":
-        return "/v1/messages" in p
-    if provider == "google-gemini":
-        return "/v1beta/" in p or "/v1/" in p
-    if provider == "mistral":
-        return "/v1/chat/completions" in p
-    if provider in ("openrouter", "together"):
-        return "/v1/chat/completions" in p
-    if provider == "perplexity":
-        return "/chat/completions" in p
-    return False
-
-
-def _extract_openai_usage(body: dict[str, Any]) -> tuple[int, int]:
-    u = body.get("usage")
-    if not isinstance(u, dict):
-        return 0, 0
-    inp = int(u.get("prompt_tokens") or u.get("input_tokens") or 0)
-    out = int(u.get("completion_tokens") or u.get("output_tokens") or 0)
-    return inp, out
-
-
-def _record_from_json(
-    engine: MonitorEngine,
-    *,
-    host: str,
-    pathname: str,
-    method: str,
-    status_code: int,
-    latency_ms: int,
-    body_text: str,
-) -> None:
-    try:
-        provider = detect_provider_from_host(host)
-        if provider == "unknown" or not _should_record_path(pathname, provider):
-            return
-        if len(body_text) > _MAX_BODY:
-            return
-        data = json.loads(body_text)
-        if not isinstance(data, dict):
-            return
-        model = str(data.get("model") or "unknown")[:200]
-        inp, out = _extract_openai_usage(data)
-        cost = 0.0
-        waste = build_waste_signals_http_auto(
-            input_tokens=inp,
-            output_tokens=out,
-            latency_ms=latency_ms,
-            actual_cost_usd=cost,
-        )
-        labels = engine.default_labels
-        ev: dict[str, Any] = {
-            "provider": provider,
-            "model": model,
-            "latencyMs": latency_ms,
-            "success": 200 <= status_code < 400,
-            "method": method,
-            "statusCode": status_code,
-            "urlHost": host,
-            "route": pathname,
-            "project": labels.get("project"),
-            "environment": labels.get("environment"),
-            "service": labels.get("service"),
-            "pricingSource": "provider_usage" if (inp or out) else "unknown",
-            "inputTokens": inp,
-            "outputTokens": out,
-            "totalTokens": inp + out,
-            "actualCostUsd": cost,
-            "integrationMode": "auto_http",
-            "optimizerApplied": False,
-            "optimizerStatus": "not_integrated",
-        }
-        if waste:
-            ev["wasteSignals"] = waste
-        engine.record_event(ev)
-    except (json.JSONDecodeError, OSError, TypeError, ValueError):
-        return
 
 
 def _wrap_urlopen(orig: Callable[..., Any]) -> Callable[..., Any]:
@@ -139,7 +52,8 @@ def _wrap_urlopen(orig: Callable[..., Any]) -> Callable[..., Any]:
         new_resp = addinfourl(fp, headers, full, status_i)  # type: ignore[arg-type]
         try:
             text = body.decode("utf-8", errors="replace")
-            _record_from_json(
+            labels = eng.default_labels
+            record_from_json_body(
                 eng,
                 host=host,
                 pathname=path,
@@ -147,6 +61,10 @@ def _wrap_urlopen(orig: Callable[..., Any]) -> Callable[..., Any]:
                 status_code=status_i,
                 latency_ms=latency_ms,
                 body_text=text,
+                integration_mode="auto_http",
+                project=labels.get("project"),
+                environment=labels.get("environment"),
+                service=labels.get("service"),
             )
         except Exception:
             pass

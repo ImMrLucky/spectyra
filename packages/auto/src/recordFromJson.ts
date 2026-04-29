@@ -16,7 +16,7 @@ function providerEnumToSdkVendor(p: SpectyraMonitorProvider): string {
   return p;
 }
 
-function shouldRecordPath(pathname: string, provider: SpectyraMonitorProvider): boolean {
+export function shouldRecordPath(pathname: string, provider: SpectyraMonitorProvider): boolean {
   const path = pathname.toLowerCase();
   if (provider === "openai" || provider === "groq" || provider === "azure-openai") {
     return path.includes("/chat/completions") || path.includes("/responses");
@@ -105,6 +105,64 @@ export function recordMonitorFromJsonBody(args: {
       outputTokens: outputTok,
       totalTokens: inputTok + outputTok,
       actualCostUsd: actualUsd,
+      integrationMode: args.integrationMode,
+      optimizerApplied: false,
+      optimizerStatus: "not_integrated",
+      wasteSignals: wasteSignals.length ? wasteSignals : undefined,
+      metadataOnly: true,
+    });
+  } catch {
+    /* fail open */
+  }
+}
+
+/**
+ * Records an LLM HTTP response without consuming the response body (streaming-safe).
+ * Latency should be measured from request start until response headers (TTFB).
+ */
+export function recordMonitorFromHttpResponseOnly(args: {
+  engine: MonitorEngine | null;
+  host: string;
+  pathname: string;
+  method: string;
+  statusCode: number;
+  latencyMs: number;
+  integrationMode: SpectyraMonitorIntegrationMode;
+  project?: string;
+  environment?: string;
+  service?: string;
+}): void {
+  try {
+    if (!args.engine) return;
+    const provider = detectProviderFromHost(args.host);
+    if (provider === "unknown") return;
+    if (!shouldRecordPath(args.pathname, provider)) return;
+
+    const wasteSignals = buildWasteSignalsFromHttpAutoPath({
+      inputTokens: 0,
+      outputTokens: 0,
+      latencyMs: args.latencyMs,
+      actualCostUsd: 0,
+    });
+
+    args.engine.recordEvent({
+      provider,
+      model: "unknown",
+      latencyMs: args.latencyMs,
+      success: args.statusCode > 0 && args.statusCode < 400,
+      method: args.method,
+      statusCode: args.statusCode,
+      urlHost: args.host,
+      route: args.pathname,
+      project: args.project,
+      environment: args.environment,
+      service: args.service,
+      pricingSource: "unknown",
+      inputTokens: 0,
+      outputTokens: 0,
+      totalTokens: 0,
+      estimatedCostUsd: 0,
+      actualCostUsd: 0,
       integrationMode: args.integrationMode,
       optimizerApplied: false,
       optimizerStatus: "not_integrated",

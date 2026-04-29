@@ -55,23 +55,21 @@ export class SpectyraMonitorStrip extends LitElement {
 
   private async _pull(): Promise<void> {
     const root = (this.baseUrl ?? "").replace(/\/$/, "");
-    const path = `${root}/__spectyra/monitor/summary`;
-    try {
-      const r = await fetch(path, { credentials: "same-origin" });
-      if (!r.ok) {
-        this._err = `${r.status}`;
-        this._summary = null;
+    const paths = [`${root}/__spectyra/summary`, `${root}/__spectyra/monitor/summary`];
+    for (const path of paths) {
+      try {
+        const r = await fetch(path, { credentials: "same-origin" });
+        if (!r.ok) continue;
+        this._summary = (await r.json()) as SpectyraMonitorSummary;
+        this._err = null;
         this.requestUpdate();
         return;
+      } catch {
+        this._err = "unreachable";
+        this._summary = null;
       }
-      this._summary = (await r.json()) as SpectyraMonitorSummary;
-      this._err = null;
-      this.requestUpdate();
-    } catch {
-      this._err = "unreachable";
-      this._summary = null;
-      this.requestUpdate();
     }
+    this.requestUpdate();
   }
 
   protected render() {

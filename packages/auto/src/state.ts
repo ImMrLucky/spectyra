@@ -1,13 +1,15 @@
 import { createMonitorEngine, startPricingRuntime, type MonitorEngine } from "@spectyra/sdk";
 import { resolveAutoConfig, type SpectyraAutoStartOptions } from "./config.js";
+import { installAxiosInterceptor } from "./patchAxios.js";
 import { installFetchPatch } from "./patchFetch.js";
 import { installHttpPatch } from "./patchHttp.js";
-import { installAxiosInterceptor } from "./patchAxios.js";
+import { installUndiciFetchAlias } from "./patchUndici.js";
 
 let engine: MonitorEngine | null = null;
 let uninstallFetch: (() => void) | null = null;
 let uninstallHttp: (() => void) | null = null;
 let uninstallAxios: (() => void) | null = null;
+let uninstallUndici: (() => void) | null = null;
 
 /**
  * Install global fetch / HTTP instrumentation and a dedicated {@link MonitorEngine}.
@@ -41,6 +43,7 @@ export function startSpectyraAuto(opts: SpectyraAutoStartOptions = {}): MonitorE
   const get = () => engine;
   const defaults = { project: cfg.project, environment: cfg.environment, service: cfg.service };
   uninstallFetch = installFetchPatch(get, defaults);
+  uninstallUndici = installUndiciFetchAlias();
   uninstallHttp = installHttpPatch(get, defaults);
   uninstallAxios = installAxiosInterceptor(get, defaults);
 
@@ -49,9 +52,10 @@ export function startSpectyraAuto(opts: SpectyraAutoStartOptions = {}): MonitorE
 
 export function stopSpectyraAuto(): void {
   uninstallFetch?.();
+  uninstallUndici?.();
   uninstallHttp?.();
   uninstallAxios?.();
-  uninstallFetch = uninstallHttp = uninstallAxios = null;
+  uninstallFetch = uninstallUndici = uninstallHttp = uninstallAxios = null;
   engine = null;
 }
 

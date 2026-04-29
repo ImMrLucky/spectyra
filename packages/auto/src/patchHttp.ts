@@ -2,28 +2,12 @@ import { createRequire } from "node:module";
 import type { ClientRequest, IncomingMessage } from "node:http";
 import type { MonitorEngine } from "@spectyra/sdk";
 import { detectProviderFromHost } from "@spectyra/sdk";
-import { recordMonitorFromJsonBody } from "./recordFromJson.js";
+import { recordMonitorFromHttpResponseOnly } from "./recordFromJson.js";
 
 /** Mutable `node:http` / `node:https` export objects (not ESM namespace imports). */
 const require = createRequire(import.meta.url);
 const nodeHttp = require("node:http") as typeof import("node:http");
 const nodeHttps = require("node:https") as typeof import("node:https");
-
-const MAX_BUFFER = 512_000;
-
-function readBody(res: IncomingMessage): Promise<string> {
-  return new Promise((resolve) => {
-    const chunks: Buffer[] = [];
-    let size = 0;
-    res.on("data", (c: Buffer | string) => {
-      const buf = typeof c === "string" ? Buffer.from(c) : c;
-      size += buf.length;
-      if (size <= MAX_BUFFER) chunks.push(buf);
-    });
-    res.on("end", () => resolve(Buffer.concat(chunks).toString("utf8")));
-    res.on("error", () => resolve(""));
-  });
-}
 
 function wrapRequest(
   orig: typeof nodeHttp.request,
@@ -31,6 +15,7 @@ function wrapRequest(
   defaults: { project?: string; environment?: string; service?: string },
 ): typeof nodeHttp.request {
   return function request(this: unknown, ...args: unknown[]) {
+    const t0 = Date.now();
     const first = args[0];
     let hostname = "";
     let path = "/";
@@ -56,25 +41,20 @@ function wrapRequest(
     const provider = hostname ? detectProviderFromHost(hostname) : "unknown";
     if (provider === "unknown") return req;
 
-    req.on("response", (res) => {
+    req.on("response", (res: IncomingMessage) => {
       const st = res.statusCode ?? 0;
-      const start = Date.now();
-      void (async () => {
-        const body = await readBody(res);
-        const latencyMs = Math.max(0, Date.now() - start);
-        const pathname = path.split("?")[0] ?? path;
-        recordMonitorFromJsonBody({
-          engine: getEngine(),
-          host: hostname,
-          pathname,
-          method,
-          statusCode: st,
-          latencyMs,
-          bodyText: body,
-          integrationMode: "auto_http",
-          ...defaults,
-        });
-      })().catch(() => {});
+      const latencyMs = Math.max(0, Date.now() - t0);
+      const pathname = path.split("?")[0] ?? path;
+      recordMonitorFromHttpResponseOnly({
+        engine: getEngine(),
+        host: hostname,
+        pathname,
+        method,
+        statusCode: st,
+        latencyMs,
+        integrationMode: "auto_http",
+        ...defaults,
+      });
     });
 
     return req;

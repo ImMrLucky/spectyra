@@ -5,6 +5,20 @@ from collections import deque
 from datetime import datetime, timezone
 from typing import Any
 
+from spectyra.monitor.aggregates import (
+    aggregate_all_monitor_views,
+    get_cache_opportunities_from_events,
+    get_endpoint_breakdown_from_events,
+    get_environment_breakdown_from_events,
+    get_expensive_calls_from_events,
+    get_missed_savings_summary_from_events,
+    get_model_breakdown_from_events,
+    get_optimizer_quota_summary_from_events,
+    get_provider_breakdown_from_events,
+    get_repeated_calls_from_events,
+    get_waste_summary_from_events,
+)
+from spectyra.monitor.cross_waste import merge_cross_event_waste_into_event
 from spectyra.monitor.jsonl_writer import MonitorJsonlWriter
 from spectyra.monitor.redaction import scrub_monitor_event_for_persistence
 from spectyra.monitor.summaries import build_monitor_summary_from_events, empty_monitor_summary
@@ -64,9 +78,14 @@ class MonitorEngine:
             "metadataOnly": True,
         }
         ev = scrub_monitor_event_for_persistence(ev)
+        prior = list(self._buffer)
+        merge_cross_event_waste_into_event(prior, ev)
         self._buffer.append(ev)
         if self._jsonl:
             self._jsonl.append(ev)
+
+    def get_events_snapshot(self) -> list[dict[str, Any]]:
+        return list(self._buffer)
 
     def get_monitor_summary(self) -> dict[str, Any]:
         if not self._buffer:
@@ -76,3 +95,39 @@ class MonitorEngine:
     def get_recent_monitor_events(self, limit: int = 50) -> list[dict[str, Any]]:
         lim = max(1, min(500, limit))
         return list(self._buffer)[-lim:]
+
+    def get_cost_summary(self) -> dict[str, Any]:
+        return self.get_monitor_summary()
+
+    def get_provider_breakdown(self) -> list[dict[str, Any]]:
+        return get_provider_breakdown_from_events(self.get_events_snapshot())
+
+    def get_model_breakdown(self) -> list[dict[str, Any]]:
+        return get_model_breakdown_from_events(self.get_events_snapshot())
+
+    def get_environment_breakdown(self) -> list[dict[str, Any]]:
+        return get_environment_breakdown_from_events(self.get_events_snapshot())
+
+    def get_endpoint_breakdown(self) -> list[dict[str, Any]]:
+        return get_endpoint_breakdown_from_events(self.get_events_snapshot())
+
+    def get_expensive_calls(self) -> list[dict[str, Any]]:
+        return get_expensive_calls_from_events(self.get_events_snapshot())
+
+    def get_missed_savings_summary(self) -> dict[str, Any]:
+        return get_missed_savings_summary_from_events(self.get_events_snapshot())
+
+    def get_waste_summary(self) -> dict[str, Any]:
+        return get_waste_summary_from_events(self.get_events_snapshot())
+
+    def get_repeated_calls(self) -> list[dict[str, Any]]:
+        return get_repeated_calls_from_events(self.get_events_snapshot())
+
+    def get_cache_opportunities(self) -> list[dict[str, Any]]:
+        return get_cache_opportunities_from_events(self.get_events_snapshot())
+
+    def get_optimizer_quota_summary(self, quota: dict[str, Any] | None = None) -> dict[str, Any]:
+        return get_optimizer_quota_summary_from_events(self.get_events_snapshot(), quota)
+
+    def aggregate_all_views(self) -> dict[str, Any]:
+        return aggregate_all_monitor_views(self.get_events_snapshot())

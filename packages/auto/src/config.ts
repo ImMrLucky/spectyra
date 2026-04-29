@@ -42,6 +42,13 @@ export function resolveAutoConfig(opts: SpectyraAutoStartOptions): ResolvedAutoC
       rotateDaily: opts.rotateDaily !== false,
       maxFileSizeMb: opts.maxFileSizeMb,
     },
-    consoleEnabled: opts.console === true || process.env.SPECTYRA_CONSOLE === "true",
+    consoleEnabled:
+      opts.console !== undefined
+        ? Boolean(opts.console)
+        : typeof process !== "undefined" && process.env.SPECTYRA_CONSOLE === "true"
+          ? true
+          : typeof process !== "undefined" && process.env.SPECTYRA_CONSOLE === "false"
+            ? false
+            : typeof process !== "undefined" && process.env.NODE_ENV !== "production",
   };
 }

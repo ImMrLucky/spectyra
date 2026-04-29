@@ -31,13 +31,13 @@ def build_waste_signals_http_auto(
                 "confidence": "medium",
             }
         )
-    if latency_ms > 50_000 and actual_cost_usd > 0.1:
+    if latency_ms > 90_000 or (latency_ms > 50_000 and actual_cost_usd > 0.1):
         out.append(
             {
                 "type": "slow_expensive_call",
                 "severity": "info",
                 "title": "Slow provider response",
-                "description": "This LLM HTTP call took a long time with noticeable cost.",
+                "description": "This LLM HTTP call took a long time (and may have noticeable cost when usage is known).",
                 "confidence": "low",
             }
         )

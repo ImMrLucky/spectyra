@@ -185,9 +185,14 @@ export interface SpectyraMonitorConsoleConfig {
 }
 
 /**
- * Opt-in cost monitor (JSONL + in-memory summaries). Defaults off for backward compatibility.
+ * AI cost monitor (metadata-only JSONL + in-memory summaries).
+ * **Enabled by default** unless `features.monitor === false` or `monitor.enabled === false`.
  */
 export interface SpectyraMonitorSdkConfig {
+  /**
+   * When `false`, disables monitor for this instance.
+   * When omitted, monitor follows {@link SpectyraFeaturesConfig.monitor} (default **on**).
+   */
   enabled?: boolean;
   calculateCosts?: boolean;
   estimateTokensWhenMissing?: boolean;
@@ -195,6 +200,28 @@ export interface SpectyraMonitorSdkConfig {
   bufferMaxEvents?: number;
   jsonl?: SpectyraMonitorJsonlConfig;
   console?: SpectyraMonitorConsoleConfig;
+}
+
+/** @public Feature flags for in-app SDK (defaults: monitor/analytics/optimizer on). */
+export interface SpectyraFeaturesConfig {
+  monitor?: boolean;
+  analytics?: boolean;
+  optimizer?: boolean;
+}
+
+/** @public Optional cloud sync for monitor batches. */
+export interface SpectyraAnalyticsSdkConfig {
+  enabled?: boolean;
+  cloudSync?: boolean;
+}
+
+/** @public Local dev HTTP bridge options (Node). */
+export interface SpectyraLocalDevServerConfig {
+  enabled?: boolean;
+  routePrefix?: string;
+  sse?: boolean;
+  allowedHosts?: string[];
+  token?: string;
 }
 
 export interface SpectyraConfig {
@@ -248,6 +275,21 @@ export interface SpectyraConfig {
    * Use `createEmptyProfile` from `@spectyra/learning` and reuse across `complete()` calls.
    */
   learningProfile?: LearningProfile;
+
+  /**
+   * Product feature toggles. Omitted keys default to **on** for in-app monitoring.
+   * Set `features.monitor` to `false` to disable the monitor without touching `monitor.*` sub-config.
+   */
+  features?: SpectyraFeaturesConfig;
+
+  /**
+   * Analytics / cloud sync for monitor batches (`flushMonitorEventsToCloud`).
+   * Requires a Spectyra dashboard API key (`spectyraCloudApiKey` / env). Fail-open.
+   */
+  analytics?: SpectyraAnalyticsSdkConfig;
+
+  /** Local dev HTTP bridge for Node (Express/Fastify); see `createSpectyraDevBridgeConnectMiddleware`. */
+  localDevServer?: SpectyraLocalDevServerConfig;
 
   /** Optional aggregate benchmarks (non-sensitive); tune detector thresholds with local profile. */
   globalLearningSnapshot?: GlobalLearningSnapshot;

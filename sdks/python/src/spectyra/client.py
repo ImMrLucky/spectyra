@@ -5,12 +5,15 @@ import os
 import sys
 import urllib.error
 import urllib.request
-from typing import Any, Callable, Dict, List, Optional
+from typing import TYPE_CHECKING, Any, Callable, Dict, List, Optional
 
 from spectyra.config import SpectyraConfig
 from spectyra.embedded import SpectyraNative
 from spectyra.env import resolve_effective_debug, resolve_effective_overlay, resolve_environment_label
 from spectyra.result import SpectyraRunResult
+
+if TYPE_CHECKING:
+    from spectyra.monitor.engine import MonitorEngine
 
 
 class Spectyra:
@@ -22,6 +25,7 @@ class Spectyra:
         self._last_result: Optional[SpectyraRunResult] = None
         self._savings_listeners: List[Callable[[Dict[str, Any]], None]] = []
         self._overlay_notice_shown = False
+        self._monitor_engine: Optional["MonitorEngine"] = None
         if self.config.mode == "embedded":
             self._native = SpectyraNative(self.config.ffi_path)
 
@@ -168,6 +172,19 @@ class Spectyra:
             raw_envelope=pipe,
         )
         return self._finalize_run(result)
+
+    def attach_monitor_engine(self, engine: Optional["MonitorEngine"]) -> None:
+        """Attach a :class:`~spectyra.monitor.engine.MonitorEngine` for dev bridge / dashboards (optional)."""
+        self._monitor_engine = engine
+
+    @property
+    def monitor(self) -> Optional["MonitorEngine"]:
+        """Active monitor engine: explicitly attached, else auto global if :func:`spectyra_auto.start` ran."""
+        if self._monitor_engine is not None:
+            return self._monitor_engine
+        from spectyra.automation import get_auto_monitor_engine
+
+        return get_auto_monitor_engine()
 
     def get_savings(self) -> Dict[str, Any]:
         """Safe snapshot of the last runtime result (no prompt bodies)."""

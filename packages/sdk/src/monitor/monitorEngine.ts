@@ -3,6 +3,8 @@ import { MonitorEventBuffer } from "./eventBuffer.js";
 import { MonitorJsonlWriter } from "./jsonlWriter.js";
 import { scrubMonitorEventForPersistence } from "./redaction.js";
 import { buildMonitorSummaryFromEvents } from "./summaries.js";
+import { mergeCrossEventWasteIntoEvent } from "./crossEventWaste.js";
+import { emitMonitorEventToDevtoolsBus } from "./monitorBus.js";
 
 export interface MonitorEngineOptions {
   enabled: boolean;
@@ -24,6 +26,8 @@ export interface MonitorEngineOptions {
     integrationMode?: SpectyraMonitorEvent["integrationMode"];
   };
   logger?: Pick<Console, "log" | "warn" | "error" | "debug">;
+  /** Called after each persisted monitor row (metadata-only). */
+  onAfterRecord?: (ev: SpectyraMonitorEvent) => void;
 }
 
 function newEventId(): string {
@@ -38,7 +42,7 @@ function isoNow(): string {
 }
 
 /**
- * Standalone monitor engine (also used by `createSpectyra` when `monitor.enabled`).
+ * Standalone monitor engine (also used by `createSpectyra` when monitoring is enabled).
  * @public
  */
 export function createMonitorEngine(opts: MonitorEngineOptions) {
@@ -88,8 +92,17 @@ export function createMonitorEngine(opts: MonitorEngineOptions) {
       metadataOnly: true,
     });
 
+    const prior = buffer.snapshot();
+    mergeCrossEventWasteIntoEvent(prior, ev);
+
     buffer.push(ev);
     jsonl?.append(ev);
+    emitMonitorEventToDevtoolsBus(ev);
+    try {
+      opts.onAfterRecord?.(ev);
+    } catch {
+      /* fail open */
+    }
 
     const actual = ev.actualCostUsd ?? ev.estimatedCostUsd ?? 0;
     const opt = ev.optimizedCostUsd;
@@ -125,6 +138,10 @@ export function createMonitorEngine(opts: MonitorEngineOptions) {
     return buildMonitorSummaryFromEvents(buffer.snapshot());
   }
 
+  function getEventsSnapshot(): SpectyraMonitorEvent[] {
+    return buffer.snapshot();
+  }
+
   function getRecentMonitorEvents(limit = 50): SpectyraMonitorEvent[] {
     return buffer.recent(limit);
   }
@@ -133,6 +150,7 @@ export function createMonitorEngine(opts: MonitorEngineOptions) {
     recordEvent,
     getMonitorSummary,
     getRecentMonitorEvents,
+    getEventsSnapshot,
     /** @internal testing */
     _buffer: buffer,
   };

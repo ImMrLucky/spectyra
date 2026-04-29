@@ -138,6 +138,9 @@ export type {
   SpectyraMonitorSdkConfig,
   SpectyraMonitorJsonlConfig,
   SpectyraMonitorConsoleConfig,
+  SpectyraFeaturesConfig,
+  SpectyraAnalyticsSdkConfig,
+  SpectyraLocalDevServerConfig,
 } from "./types.js";
 
 // Monitor core (metadata-only local buffer + JSONL; see docs/SPECTYRA_AI_MONITOR_SPEC.md)
@@ -163,8 +166,21 @@ export {
   isSpectyraDevBridgeEnabled,
   handleSpectyraDevBridgeRequest,
   createSpectyraDevBridgeConnectMiddleware,
+  registerSpectyraDevBridgeFastify,
+  normalizeDevBridgeRoutePrefix,
 } from "./monitor/localDevServer.js";
 export type { SpectyraDevBridgeMonitorEngine } from "./monitor/localDevServer.js";
+export { resolveMonitorEnabledInApp } from "./monitor/resolveMonitorEnabled.js";
+export { createMonitorCloudSyncDebouncer, shouldSyncMonitorToCloud } from "./cloud/monitorCloudSyncDebouncer.js";
+export type { SpectyraMonitorBreakdownRow } from "./monitor/monitorAggregates.js";
+// Optional framework hooks (Vercel AI SDK, LangChain.js, LlamaIndex.TS)
+export type { SpectyraFrameworkMonitorRecord } from "./monitor/hooks/types.js";
+export { createSpectyraVercelAiOnFinish, createSpectyraVercelAiTelemetryMetadata } from "./monitor/hooks/vercelAi.js";
+export type { SpectyraVercelAiHookContext } from "./monitor/hooks/vercelAi.js";
+export { createSpectyraLangChainMonitorCallbacks } from "./monitor/hooks/langchain.js";
+export type { SpectyraLangChainHookContext } from "./monitor/hooks/langchain.js";
+export { createSpectyraLlamaIndexMonitorSubscriber } from "./monitor/hooks/llamaindex.js";
+export type { SpectyraLlamaIndexHookContext } from "./monitor/hooks/llamaindex.js";
 export type {
   SpectyraRunInput,
   SpectyraRunResult,

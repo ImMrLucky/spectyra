@@ -1,3 +1,18 @@
+Metadata-Version: 2.4
+Name: spectyra
+Version: 0.1.0
+Summary: Spectyra SDK for Python backends — local runtime HTTP + optional native FFI
+Author: Spectyra
+License: MIT
+Requires-Python: >=3.10
+Description-Content-Type: text/markdown
+Provides-Extra: dev
+Requires-Dist: pytest>=7.0; extra == "dev"
+Requires-Dist: fastapi>=0.100; extra == "dev"
+Requires-Dist: flask>=3.0; extra == "dev"
+Requires-Dist: httpx>=0.27; extra == "dev"
+Requires-Dist: requests>=2.31; extra == "dev"
+
 # Spectyra Python SDK (`spectyra`)
 
 Call a **Spectyra local runtime** over HTTP, or (advanced) load the native **FFI** library and run optimization in-process. Prompts and **provider API keys stay on your machines** — Spectyra cloud only sees account metadata, aggregates, and pricing signals you opt into, not your prompts or secrets.
@@ -64,17 +79,9 @@ OpenAPI for the runtime: `runtime/contracts/openapi/spectyra-runtime.openapi.yam
 
 ## AI cost monitor (Python Phases 3–4)
 
-**Monitor core** (`spectyra.monitor.MonitorEngine`): in-memory buffer, optional JSONL, metadata-only rows (parity with `@spectyra/sdk` monitor), cross-event waste hints, and breakdown helpers.
+**Monitor core** (`spectyra.monitor.MonitorEngine`): in-memory buffer, optional JSONL, metadata-only rows (parity with `@spectyra/sdk` monitor).
 
-**Fast install:** `import spectyra_auto` — starts unless `SPECTYRA_AUTO=false`. Patches `requests` and `httpx` when installed (`pip install "spectyra[dev]"`). Explicit control: `from spectyra_auto import start, stop; start(...)`.
-
-**urllib hook** (`start_spectyra_auto` / `stop_spectyra_auto` on `spectyra.automation`): patches `urllib.request.urlopen` for known LLM JSON responses. See `docs/SPECTYRA_PYTHON_MONITORING.md`.
-
-**Dev bridge (FastAPI / Flask):** `from spectyra.dev import spectyra_router, create_spectyra_blueprint` — mount with prefix `/__spectyra`. Attach a monitor engine via `spectyra.attach_monitor_engine(engine)` or use the global auto engine.
-
-**Honest limitation:** Spectyra Auto monitors supported AI calls from the services where it is installed. For full workflow attribution and optimization, use the explicit Spectyra SDK integration.
-
-**Privacy:** Spectyra does not proxy your LLM calls and does not receive prompts, responses, provider API keys, or files. Local monitoring works without a Spectyra account.
+**Auto hook** (`start_spectyra_auto` / `stop_spectyra_auto`): patches `urllib.request.urlopen` for known LLM JSON responses. See `docs/SPECTYRA_PYTHON_MONITORING.md`.
 
 ---
 

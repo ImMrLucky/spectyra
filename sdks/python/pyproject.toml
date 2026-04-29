@@ -13,7 +13,7 @@ authors = [{ name = "Spectyra" }]
 dependencies = []
 
 [project.optional-dependencies]
-dev = ["pytest>=7.0"]
+dev = ["pytest>=7.0", "fastapi>=0.100", "flask>=3.0", "httpx>=0.27", "requests>=2.31", "aiohttp>=3.9"]
 
 [tool.setuptools.packages.find]
 where = ["src"]
