@@ -78,8 +78,8 @@ export class SpectyraOverlay extends LitElement {
       border-color: #334155;
     }
     .panel {
-      width: min(440px, 94vw);
-      max-height: min(78vh, 640px);
+      width: min(560px, 96vw);
+      max-height: min(88vh, 800px);
       display: flex;
       flex-direction: column;
       background: var(--bg);
@@ -97,15 +97,24 @@ export class SpectyraOverlay extends LitElement {
       padding: 12px 14px;
       background: var(--panel);
       border-bottom: 1px solid var(--border);
-      cursor: grab;
-      touch-action: none;
-    }
-    .head:active {
-      cursor: grabbing;
     }
     .title {
       font-weight: 600;
       letter-spacing: 0.02em;
+      flex: 1;
+      min-width: 0;
+      cursor: grab;
+      touch-action: none;
+      padding: 2px 0;
+    }
+    .title:active {
+      cursor: grabbing;
+    }
+    .head-actions {
+      display: flex;
+      align-items: center;
+      gap: 2px;
+      flex-shrink: 0;
     }
     .icon-btn {
       border: none;
@@ -228,6 +237,7 @@ export class SpectyraOverlay extends LitElement {
     forceVisible: { type: Boolean, attribute: "force-visible" },
     /** When set, sent as `Authorization: Bearer …` on fetches and `?token=` on SSE (matches dev bridge `token`). */
     bridgeToken: { type: String, attribute: "bridge-token" },
+    _collapsed: { type: Boolean, state: true },
   };
 
   baseUrl = "";
@@ -235,7 +245,7 @@ export class SpectyraOverlay extends LitElement {
   forceVisible = false;
   bridgeToken = "";
 
-  private _collapsed = true;
+  _collapsed = true;
   private _tab: TabId = "overview";
   private _summary: SpectyraMonitorSummary | null = null;
   private _waste: WasteRollup | null = null;
@@ -310,7 +320,10 @@ export class SpectyraOverlay extends LitElement {
         }
       };
       this._es.onerror = () => {
+        this._es?.close();
+        this._es = undefined;
         this._err = "stream_unavailable";
+        if (!this._poll) this._startPollingTransport();
         this.requestUpdate();
       };
     } catch {
@@ -484,11 +497,20 @@ export class SpectyraOverlay extends LitElement {
 
     const panel = html`
       <div class="panel">
-        <div class="head" @pointerdown=${this._onHeadPointerDown}>
-          <div class="title">Spectyra Cost Monitor</div>
-          <div>
-            <button class="icon-btn" @click=${() => (this._collapsed = true)} aria-label="Minimize">─</button>
-            <button class="icon-btn" @click=${() => this.remove()} aria-label="Close">×</button>
+        <div class="head">
+          <div class="title" @pointerdown=${this._onHeadPointerDown}>Spectyra Cost Monitor</div>
+          <div class="head-actions" @pointerdown=${(e: Event) => e.stopPropagation()}>
+            <button
+              type="button"
+              class="icon-btn"
+              @click=${() => {
+                this._collapsed = true;
+              }}
+              aria-label="Minimize"
+            >
+              ─
+            </button>
+            <button type="button" class="icon-btn" @click=${() => this.remove()} aria-label="Close">×</button>
           </div>
         </div>
         <div class="tabs" role="tablist">
@@ -666,7 +688,9 @@ export class SpectyraOverlay extends LitElement {
     `;
 
     return html`
-      <div style="position:fixed;left:${this._x}px;bottom:24px;z-index:inherit;pointer-events:auto">
+      <div
+        style="position:fixed;left:${this._x}px;bottom:24px;z-index:2147483646;pointer-events:auto;isolation:isolate"
+      >
         ${this._collapsed
           ? html`<div
               class="pill"
