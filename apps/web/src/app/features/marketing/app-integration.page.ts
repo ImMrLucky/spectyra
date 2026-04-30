@@ -20,7 +20,7 @@ export class AppIntegrationPage implements OnInit, OnDestroy {
   private authSub?: Subscription;
 
   /** Marketing CTAs — absolute URLs for prod and local dev. */
-  readonly signupUrl = 'https://spectyra.ai/signup';
+  readonly signupUrl = 'https://spectyra.ai/register';
   readonly registerUrl = 'https://spectyra.ai/register';
 
   constructor(

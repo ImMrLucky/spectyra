@@ -40,34 +40,61 @@ export class SpectyraMonitorStrip extends LitElement {
 
   private _summary: SpectyraMonitorSummary | null = null;
   private _err: string | null = null;
-  private _timer: ReturnType<typeof setInterval> | undefined;
+  private _timer?: number;
+  private _polling = false;
+  /** Both summary routes 404 — dev bridge not mounted; poll rarely. */
+  private _slow = false;
 
   connectedCallback(): void {
     super.connectedCallback();
-    void this._pull();
-    this._timer = setInterval(() => void this._pull(), Math.max(1500, this.pollIntervalMs));
+    this._polling = true;
+    const tick = async (): Promise<void> => {
+      if (!this._polling) return;
+      await this._pull();
+      if (!this._polling) return;
+      const fast = Math.max(1500, this.pollIntervalMs);
+      this._timer = window.setTimeout(() => void tick(), this._slow ? 60_000 : fast);
+    };
+    void tick();
   }
 
   disconnectedCallback(): void {
-    if (this._timer) clearInterval(this._timer);
+    this._polling = false;
+    if (this._timer !== undefined) clearTimeout(this._timer);
     super.disconnectedCallback();
   }
 
   private async _pull(): Promise<void> {
     const root = (this.baseUrl ?? "").replace(/\/$/, "");
+    if (!root) {
+      this._err = "no_base_url";
+      this._summary = null;
+      this._slow = true;
+      this.requestUpdate();
+      return;
+    }
     const paths = [`${root}/__spectyra/summary`, `${root}/__spectyra/monitor/summary`];
+    let summary404s = 0;
     for (const path of paths) {
       try {
         const r = await fetch(path, { credentials: "same-origin" });
-        if (!r.ok) continue;
-        this._summary = (await r.json()) as SpectyraMonitorSummary;
-        this._err = null;
-        this.requestUpdate();
-        return;
+        if (r.ok) {
+          this._summary = (await r.json()) as SpectyraMonitorSummary;
+          this._err = null;
+          this._slow = false;
+          this.requestUpdate();
+          return;
+        }
+        if (r.status === 404) summary404s += 1;
       } catch {
         this._err = "unreachable";
         this._summary = null;
       }
+    }
+    if (summary404s >= 2) {
+      this._slow = true;
+      this._err = "bridge_off";
+      this._summary = null;
     }
     this.requestUpdate();
   }

@@ -17,6 +17,8 @@ const LS_TAB = "spectyra-overlay-tab";
 
 /** When not using SSE, poll this often (ms) — keep high to avoid freezing the tab. */
 const POLL_INTERVAL_MS = 4000;
+/** When both summary routes return 404 (dev bridge not mounted), poll this rarely. */
+const SLOW_POLL_MS = 60_000;
 
 function isLikelyDevHost(): boolean {
   if (typeof window === "undefined") return false;
@@ -251,7 +253,10 @@ export class SpectyraOverlay extends LitElement {
   private _waste: WasteRollup | null = null;
   private _events: SpectyraMonitorEvent[] = [];
   private _err: string | null = null;
-  private _poll?: ReturnType<typeof setInterval>;
+  /** Dev bridge absent (404 on both summary URLs) — skip waste/events and poll slowly. */
+  private _slowPoll = false;
+  private _pollingActive = false;
+  private _pollTimer?: number;
   private _es?: EventSource;
   private _x = 16;
   private _y = 16;
@@ -311,7 +316,10 @@ export class SpectyraOverlay extends LitElement {
             waste?: WasteRollup;
             eventTail?: SpectyraMonitorEvent[];
           };
-          if (d.summary) this._summary = d.summary;
+          if (d.summary) {
+            this._summary = d.summary;
+            this._slowPoll = false;
+          }
           if (d.waste) this._waste = d.waste;
           if (d.eventTail) this._events = d.eventTail;
           this.requestUpdate();
@@ -323,7 +331,7 @@ export class SpectyraOverlay extends LitElement {
         this._es?.close();
         this._es = undefined;
         this._err = "stream_unavailable";
-        if (!this._poll) this._startPollingTransport();
+        if (!this._pollingActive) this._startPollingTransport();
         this.requestUpdate();
       };
     } catch {
@@ -331,11 +339,26 @@ export class SpectyraOverlay extends LitElement {
     }
   }
 
-  /** Slow HTTP polling (summary + waste + events). */
+  private _stopPollingTransport(): void {
+    this._pollingActive = false;
+    if (this._pollTimer !== undefined) {
+      clearTimeout(this._pollTimer);
+      this._pollTimer = undefined;
+    }
+  }
+
+  /** Slow HTTP polling (summary + waste + events), with backoff when the bridge returns 404. */
   private _startPollingTransport(): void {
-    if (this._poll) return;
-    void this._pull();
-    this._poll = setInterval(() => void this._pull(), POLL_INTERVAL_MS);
+    if (this._pollingActive) return;
+    this._pollingActive = true;
+    const tick = async (): Promise<void> => {
+      if (!this._pollingActive) return;
+      await this._pull();
+      if (!this._pollingActive) return;
+      const ms = this._slowPoll ? SLOW_POLL_MS : POLL_INTERVAL_MS;
+      this._pollTimer = window.setTimeout(() => void tick(), ms);
+    };
+    void tick();
   }
 
   connectedCallback(): void {
@@ -364,7 +387,7 @@ export class SpectyraOverlay extends LitElement {
   }
 
   disconnectedCallback(): void {
-    if (this._poll) clearInterval(this._poll);
+    this._stopPollingTransport();
     this._es?.close();
     window.removeEventListener("pointermove", this._onWinPointerMove);
     window.removeEventListener("pointerup", this._onWinPointerUp);
@@ -377,47 +400,70 @@ export class SpectyraOverlay extends LitElement {
 
   private async _pull(): Promise<void> {
     const root = this._root();
+    if (!root) {
+      this._err = "no_base_url";
+      this._slowPoll = true;
+      this.requestUpdate();
+      return;
+    }
+
     let hit = false;
+    let summary404s = 0;
     for (const path of [`${root}/__spectyra/summary`, `${root}/__spectyra/monitor/summary`]) {
       try {
         const r = await fetch(path, this._fetchInit());
-        if (!r.ok) continue;
-        this._summary = (await r.json()) as SpectyraMonitorSummary;
-        this._err = null;
-        hit = true;
-        break;
+        if (r.ok) {
+          this._summary = (await r.json()) as SpectyraMonitorSummary;
+          this._err = null;
+          hit = true;
+          break;
+        }
+        if (r.status === 404) summary404s += 1;
       } catch {
         this._err = "unreachable";
       }
     }
+
+    const bridgeMissing = !hit && summary404s >= 2;
+    if (bridgeMissing) {
+      this._slowPoll = true;
+      this._err = "bridge_off";
+    } else if (hit) {
+      this._slowPoll = false;
+    }
+
     if (!hit && !this._summary) {
       this._err = this._err ?? "unreachable";
     }
-    try {
-      const r = await fetch(`${this._root()}/__spectyra/waste`, this._fetchInit());
-      if (r.ok) {
-        const j = (await r.json()) as { waste: WasteRollup };
-        this._waste = j.waste ?? null;
-      }
-    } catch {
-      /* ignore */
-    }
-    try {
-      let evHit = false;
-      for (const path of [`${root}/__spectyra/events?limit=200`, `${root}/__spectyra/monitor/events?limit=200`]) {
-        const r = await fetch(path, this._fetchInit());
-        if (!r.ok) continue;
-        const arr = (await r.json()) as SpectyraMonitorEvent[];
-        if (Array.isArray(arr)) {
-          this._events = arr;
-          evHit = true;
-          break;
+
+    if (!bridgeMissing) {
+      try {
+        const r = await fetch(`${root}/__spectyra/waste`, this._fetchInit());
+        if (r.ok) {
+          const j = (await r.json()) as { waste: WasteRollup };
+          this._waste = j.waste ?? null;
         }
+      } catch {
+        /* ignore */
       }
-      if (!evHit) this._events = [];
-    } catch {
-      this._events = [];
+      try {
+        let evHit = false;
+        for (const path of [`${root}/__spectyra/events?limit=200`, `${root}/__spectyra/monitor/events?limit=200`]) {
+          const r = await fetch(path, this._fetchInit());
+          if (!r.ok) continue;
+          const arr = (await r.json()) as SpectyraMonitorEvent[];
+          if (Array.isArray(arr)) {
+            this._events = arr;
+            evHit = true;
+            break;
+          }
+        }
+        if (!evHit) this._events = [];
+      } catch {
+        this._events = [];
+      }
     }
+
     this.requestUpdate();
   }
 

@@ -1,6 +1,6 @@
 {
   "name": "@spectyra/devtools",
-  "version": "0.1.8",
+  "version": "0.1.10",
   "description": "Lit + re-exports for Spectyra browser devtools and monitor strip (pairs with SDK Phase 6 dev bridge)",
   "type": "module",
   "main": "dist/index.js",
