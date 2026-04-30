@@ -11,7 +11,7 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "@spectyra/integration-metadata": "workspace:*"
+    "@spectyra/integration-metadata": "workspace:^0.1.0"
   },
   "devDependencies": {
     "typescript": "^5.3.3"

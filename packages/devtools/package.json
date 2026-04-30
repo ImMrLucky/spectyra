@@ -1,6 +1,6 @@
 {
   "name": "@spectyra/devtools",
-  "version": "0.1.0",
+  "version": "0.1.7",
   "description": "Lit + re-exports for Spectyra browser devtools and monitor strip (pairs with SDK Phase 6 dev bridge)",
   "type": "module",
   "main": "dist/index.js",
@@ -16,19 +16,35 @@
       "default": "./dist/auto.js"
     }
   },
-  "files": ["dist", "README.md"],
+  "files": [
+    "dist",
+    "README.md"
+  ],
   "scripts": {
     "build": "tsc",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "prepublishOnly": "npm run build",
+    "publish:npm": "node ../../tools/npm-publish-spectyra.mjs"
   },
+  "keywords": [
+    "spectyra",
+    "devtools",
+    "monitoring",
+    "llm",
+    "lit",
+    "cost"
+  ],
   "license": "MIT",
   "repository": {
     "type": "git",
     "url": "https://github.com/spectyra/spectyra.git",
     "directory": "packages/devtools"
   },
+  "publishConfig": {
+    "access": "public"
+  },
   "dependencies": {
-    "@spectyra/sdk": "workspace:*",
+    "@spectyra/sdk": "workspace:^0.1.19",
     "lit": "^3.2.1"
   },
   "devDependencies": {

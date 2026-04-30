@@ -222,6 +222,18 @@ export interface SpectyraLocalDevServerConfig {
   sse?: boolean;
   allowedHosts?: string[];
   token?: string;
+  /**
+   * How often the dev bridge **checks** the monitor for `/__spectyra/stream` updates (ms).
+   * Identical snapshots are **not** sent again (saves client work when idle).
+   * Default **8000**. Clamped **3000–120000**. Override with env `SPECTYRA_DEV_BRIDGE_STREAM_MS`.
+   */
+  streamTickMs?: number;
+  /**
+   * Public API origin (`https://api.example.com`, no path) for {@link handleSpectyraDevBridgeRequest}
+   * `GET …/overlay-bootstrap.js`. When omitted, the script derives the origin from `Host` /
+   * `X-Forwarded-Host` + `X-Forwarded-Proto` on the incoming request.
+   */
+  publicOrigin?: string;
 }
 
 export interface SpectyraConfig {

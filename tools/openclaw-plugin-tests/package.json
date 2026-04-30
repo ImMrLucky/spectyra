@@ -7,7 +7,7 @@
     "test": "tsx run-all-tests.ts"
   },
   "dependencies": {
-    "@spectyra/openclaw-plugin": "workspace:*"
+    "@spectyra/openclaw-plugin": "workspace:^0.1.0"
   },
   "devDependencies": {
     "tsx": "^4.7.1",

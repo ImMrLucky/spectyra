@@ -1,6 +1,7 @@
 node_modules/
 dist/
 build/
+**/package.json.publish.bak
 .env
 .env.*
 *.env.*

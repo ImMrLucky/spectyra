@@ -1,6 +1,6 @@
 {
   "name": "@spectyra/sdk",
-  "version": "0.1.7",
+  "version": "0.1.19",
   "description": "Spectyra SDK for real-time LLM optimization",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
@@ -29,10 +29,11 @@
     "RELEASE.md"
   ],
   "scripts": {
-    "build": "tsc",
+    "build": "tsup",
     "typecheck": "tsc --noEmit",
-    "dev": "tsc --watch",
+    "dev": "tsup --watch",
     "prepublishOnly": "npm run build",
+    "publish:npm": "node ../../tools/npm-publish-spectyra.mjs",
     "test:sdk-moat-summaries": "tsx src/__tests__/sdkMoatSummaries.test.ts",
     "test:optimization-engine-parity": "tsx src/__tests__/optimizationEngineParity.test.ts",
     "test:telemetry-privacy": "tsx src/__tests__/telemetryPrivacy.test.ts",
@@ -57,22 +58,22 @@
     "url": "https://github.com/spectyra/spectyra.git",
     "directory": "packages/sdk"
   },
-  "dependencies": {
-    "@spectyra/learning": "workspace:*",
-    "@spectyra/execution-graph": "workspace:*",
-    "@spectyra/state-delta": "workspace:*",
-    "@spectyra/event-adapters": "workspace:*",
-    "@spectyra/event-core": "workspace:*",
-    "@spectyra/analytics-core": "workspace:*",
-    "@spectyra/core-types": "workspace:*",
-    "@spectyra/canonical-model": "workspace:*",
-    "@spectyra/feature-detection": "workspace:*",
-    "@spectyra/optimization-engine": "workspace:*",
-    "@spectyra/shared": "workspace:*",
-    "@spectyra/workflow-policy": "workspace:*"
-  },
+  "dependencies": {},
   "devDependencies": {
+    "@spectyra/analytics-core": "workspace:^0.1.0",
+    "@spectyra/canonical-model": "workspace:^0.1.0",
+    "@spectyra/core-types": "workspace:^0.1.0",
+    "@spectyra/event-adapters": "workspace:^0.1.0",
+    "@spectyra/event-core": "workspace:^0.1.0",
+    "@spectyra/execution-graph": "workspace:^0.1.0",
+    "@spectyra/feature-detection": "workspace:^0.1.0",
+    "@spectyra/learning": "workspace:^0.1.1",
+    "@spectyra/optimization-engine": "workspace:^0.1.0",
+    "@spectyra/shared": "workspace:^0.1.1",
+    "@spectyra/state-delta": "workspace:^0.1.0",
+    "@spectyra/workflow-policy": "workspace:^0.1.0",
     "@types/node": "^20.0.0",
+    "tsup": "^8.3.5",
     "tsx": "^4.7.1",
     "typescript": "~5.4.0"
   }

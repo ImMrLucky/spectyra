@@ -1,19 +1,29 @@
 {
   "name": "@spectyra/auto",
-  "version": "0.1.0",
+  "version": "0.1.11",
   "description": "One-line AI cost monitoring for Node: patch fetch/HTTP, metadata-only JSONL",
   "type": "module",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
   "sideEffects": true,
-  "files": ["dist", "README.md"],
+  "files": [
+    "dist",
+    "README.md"
+  ],
   "scripts": {
     "build": "tsc",
     "typecheck": "tsc --noEmit",
     "prepublishOnly": "npm run build",
+    "publish:npm": "node ../../tools/npm-publish-spectyra.mjs",
     "test:auto": "tsx src/__tests__/autoSmoke.test.ts"
   },
-  "keywords": ["spectyra", "llm", "monitoring", "openai", "anthropic"],
+  "keywords": [
+    "spectyra",
+    "llm",
+    "monitoring",
+    "openai",
+    "anthropic"
+  ],
   "license": "MIT",
   "repository": {
     "type": "git",
@@ -21,7 +31,7 @@
     "directory": "packages/auto"
   },
   "dependencies": {
-    "@spectyra/sdk": "workspace:*"
+    "@spectyra/sdk": "workspace:^0.1.19"
   },
   "devDependencies": {
     "@types/node": "^20.0.0",
@@ -32,6 +42,8 @@
     "axios": ">=1.0.0"
   },
   "peerDependenciesMeta": {
-    "axios": { "optional": true }
+    "axios": {
+      "optional": true
+    }
   }
 }

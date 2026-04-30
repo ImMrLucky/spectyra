@@ -9,6 +9,16 @@ export interface SpectyraAutoStartOptions {
   maxFileSizeMb?: number;
   /** When `true`, one-line monitor logs after each captured response. */
   console?: boolean;
+  /**
+   * When `true` or env `SPECTYRA_CLOUD_SYNC=true`, and a Spectyra **dashboard** API key is set
+   * (`SPECTYRA_CLOUD_API_KEY` / `SPECTYRA_API_KEY` or `spectyraCloudApiKey` below), monitor rows are
+   * debounced and POSTed to Spectyra Cloud for spectyra.ai dashboards.
+   */
+  cloudSync?: boolean;
+  /** Dashboard / machine API key (`X-SPECTYRA-API-KEY`). Optional if set via env. */
+  spectyraCloudApiKey?: string;
+  /** Override Spectyra API root (e.g. `https://spectyra.ai/v1`). Optional if set via env. */
+  spectyraApiBaseUrl?: string;
 }
 
 export interface ResolvedAutoConfig {

@@ -5,18 +5,22 @@
   "type": "module",
   "main": "./src/index.ts",
   "types": "./src/index.ts",
-  "files": ["src"],
+  "files": [
+    "src"
+  ],
   "scripts": {
     "typecheck": "tsc --noEmit",
     "test:anti-coupling": "tsx src/__tests__/anti-coupling.test.ts",
     "test:learning-gate": "tsx src/__tests__/learning-gate.test.ts"
   },
   "dependencies": {
-    "@spectyra/canonical-model": "workspace:*",
-    "@spectyra/feature-detection": "workspace:*",
-    "@spectyra/learning": "workspace:*",
-    "@spectyra/optimizer-algorithms": "workspace:*"
+    "@spectyra/canonical-model": "workspace:^0.1.0",
+    "@spectyra/feature-detection": "workspace:^0.1.0",
+    "@spectyra/learning": "workspace:^0.1.1",
+    "@spectyra/optimizer-algorithms": "workspace:^0.1.0"
   },
-  "devDependencies": { "typescript": "~5.4.0" },
+  "devDependencies": {
+    "typescript": "~5.4.0"
+  },
   "license": "MIT"
 }

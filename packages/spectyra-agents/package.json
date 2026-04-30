@@ -9,9 +9,9 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "@spectyra/sdk": "workspace:*",
-    "@spectyra/shared": "workspace:*",
-    "@spectyra/core-types": "workspace:*"
+    "@spectyra/sdk": "workspace:^0.1.19",
+    "@spectyra/shared": "workspace:^0.1.1",
+    "@spectyra/core-types": "workspace:^0.1.0"
   },
   "devDependencies": {
     "@types/node": "^20.11.0",

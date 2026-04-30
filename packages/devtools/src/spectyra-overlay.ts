@@ -15,6 +15,9 @@ type OverlayQuotaCtx = {
 const LS_POS = "spectyra-overlay-pos";
 const LS_TAB = "spectyra-overlay-tab";
 
+/** When not using SSE, poll this often (ms) — keep high to avoid freezing the tab. */
+const POLL_INTERVAL_MS = 4000;
+
 function isLikelyDevHost(): boolean {
   if (typeof window === "undefined") return false;
   const h = window.location.hostname;
@@ -39,7 +42,8 @@ function spend(ev: SpectyraMonitorEvent): number {
 }
 
 /**
- * Full floating cost monitor (polls dev bridge; optional SSE).
+ * Full floating cost monitor: prefers one {@link EventSource} to `/__spectyra/stream`
+ * (default). Set `poll-only` to use slow HTTP polling instead (e.g. SSE blocked by proxy).
  * @public
  */
 export class SpectyraOverlay extends LitElement {
@@ -219,13 +223,17 @@ export class SpectyraOverlay extends LitElement {
 
   static properties = {
     baseUrl: { type: String, attribute: "base-url" },
-    useSse: { type: Boolean, attribute: "use-sse" },
+    /** When set, use slow HTTP polling instead of one `EventSource` (e.g. SSE blocked by a proxy). */
+    pollOnly: { type: Boolean, attribute: "poll-only" },
     forceVisible: { type: Boolean, attribute: "force-visible" },
+    /** When set, sent as `Authorization: Bearer …` on fetches and `?token=` on SSE (matches dev bridge `token`). */
+    bridgeToken: { type: String, attribute: "bridge-token" },
   };
 
   baseUrl = "";
-  useSse = false;
+  pollOnly = false;
   forceVisible = false;
+  bridgeToken = "";
 
   private _collapsed = true;
   private _tab: TabId = "overview";
@@ -259,6 +267,64 @@ export class SpectyraOverlay extends LitElement {
     }
   };
 
+  private _fetchInit(): RequestInit {
+    const init: RequestInit = { credentials: "same-origin" };
+    if (this.bridgeToken) {
+      init.headers = { Authorization: `Bearer ${this.bridgeToken}` };
+    }
+    return init;
+  }
+
+  private _streamUrl(root: string): string {
+    const u = `${root}/__spectyra/stream`;
+    if (!this.bridgeToken) return u;
+    const sep = u.includes("?") ? "&" : "?";
+    return `${u}${sep}token=${encodeURIComponent(this.bridgeToken)}`;
+  }
+
+  private _preferEventSource(): boolean {
+    return !this.pollOnly && typeof EventSource !== "undefined";
+  }
+
+  private _openEventSource(): void {
+    const root = this._root();
+    try {
+      this._es = new EventSource(this._streamUrl(root));
+      this._es.onopen = () => {
+        this._err = null;
+        this.requestUpdate();
+      };
+      this._es.onmessage = (ev) => {
+        try {
+          const d = JSON.parse(ev.data) as {
+            summary?: SpectyraMonitorSummary;
+            waste?: WasteRollup;
+            eventTail?: SpectyraMonitorEvent[];
+          };
+          if (d.summary) this._summary = d.summary;
+          if (d.waste) this._waste = d.waste;
+          if (d.eventTail) this._events = d.eventTail;
+          this.requestUpdate();
+        } catch {
+          /* ignore */
+        }
+      };
+      this._es.onerror = () => {
+        this._err = "stream_unavailable";
+        this.requestUpdate();
+      };
+    } catch {
+      this._startPollingTransport();
+    }
+  }
+
+  /** Slow HTTP polling (summary + waste + events). */
+  private _startPollingTransport(): void {
+    if (this._poll) return;
+    void this._pull();
+    this._poll = setInterval(() => void this._pull(), POLL_INTERVAL_MS);
+  }
+
   connectedCallback(): void {
     super.connectedCallback();
     if (!this.forceVisible && !isLikelyDevHost()) {
@@ -277,26 +343,10 @@ export class SpectyraOverlay extends LitElement {
     } catch {
       /* ignore */
     }
-    void this._pull();
-    this._poll = setInterval(() => void this._pull(), 500);
-    if (this.useSse && typeof EventSource !== "undefined") {
-      const root = this._root();
-      this._es = new EventSource(`${root}/__spectyra/stream`);
-      this._es.onmessage = (ev) => {
-        try {
-          const d = JSON.parse(ev.data) as {
-            summary?: SpectyraMonitorSummary;
-            waste?: WasteRollup;
-            eventTail?: SpectyraMonitorEvent[];
-          };
-          if (d.summary) this._summary = d.summary;
-          if (d.waste) this._waste = d.waste;
-          if (d.eventTail) this._events = d.eventTail;
-          this.requestUpdate();
-        } catch {
-          /* ignore */
-        }
-      };
+    if (this._preferEventSource()) {
+      this._openEventSource();
+    } else {
+      this._startPollingTransport();
     }
   }
 
@@ -317,7 +367,7 @@ export class SpectyraOverlay extends LitElement {
     let hit = false;
     for (const path of [`${root}/__spectyra/summary`, `${root}/__spectyra/monitor/summary`]) {
       try {
-        const r = await fetch(path, { credentials: "same-origin" });
+        const r = await fetch(path, this._fetchInit());
         if (!r.ok) continue;
         this._summary = (await r.json()) as SpectyraMonitorSummary;
         this._err = null;
@@ -330,21 +380,19 @@ export class SpectyraOverlay extends LitElement {
     if (!hit && !this._summary) {
       this._err = this._err ?? "unreachable";
     }
-    if (!this.useSse) {
-      try {
-        const r = await fetch(`${this._root()}/__spectyra/waste`, { credentials: "same-origin" });
-        if (r.ok) {
-          const j = (await r.json()) as { waste: WasteRollup };
-          this._waste = j.waste ?? null;
-        }
-      } catch {
-        /* ignore */
+    try {
+      const r = await fetch(`${this._root()}/__spectyra/waste`, this._fetchInit());
+      if (r.ok) {
+        const j = (await r.json()) as { waste: WasteRollup };
+        this._waste = j.waste ?? null;
       }
+    } catch {
+      /* ignore */
     }
     try {
       let evHit = false;
       for (const path of [`${root}/__spectyra/events?limit=200`, `${root}/__spectyra/monitor/events?limit=200`]) {
-        const r = await fetch(path, { credentials: "same-origin" });
+        const r = await fetch(path, this._fetchInit());
         if (!r.ok) continue;
         const arr = (await r.json()) as SpectyraMonitorEvent[];
         if (Array.isArray(arr)) {
@@ -353,7 +401,7 @@ export class SpectyraOverlay extends LitElement {
           break;
         }
       }
-      if (!evHit && !this.useSse) this._events = [];
+      if (!evHit) this._events = [];
     } catch {
       this._events = [];
     }

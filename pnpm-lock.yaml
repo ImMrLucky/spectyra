@@ -30,25 +30,25 @@ importers:
         specifier: ^0.2.1
         version: 0.2.1
       '@spectyra/canonical-model':
-        specifier: workspace:*
+        specifier: workspace:^0.1.0
         version: link:../../packages/canonical-model
       '@spectyra/core-types':
-        specifier: workspace:*
+        specifier: workspace:^0.1.0
         version: link:../../packages/core-types
       '@spectyra/feature-detection':
-        specifier: workspace:*
+        specifier: workspace:^0.1.0
         version: link:../../packages/feature-detection
       '@spectyra/integration-metadata':
-        specifier: workspace:*
+        specifier: workspace:^0.1.0
         version: link:../../packages/integration-metadata
       '@spectyra/optimization-engine':
-        specifier: workspace:*
+        specifier: workspace:^0.1.0
         version: link:../../packages/optimization-engine
       '@spectyra/optimizer-algorithms':
-        specifier: workspace:*
+        specifier: workspace:^0.1.0
         version: link:../../packages/optimizer-algorithms
       '@spectyra/shared':
-        specifier: workspace:*
+        specifier: workspace:^0.1.1
         version: link:../../packages/shared
       '@xenova/transformers':
         specifier: ^2.17.2
@@ -115,10 +115,10 @@ importers:
   apps/desktop:
     dependencies:
       '@spectyra/core-types':
-        specifier: workspace:*
+        specifier: workspace:^0.1.0
         version: link:../../packages/core-types
       '@spectyra/shared':
-        specifier: workspace:*
+        specifier: workspace:^0.1.1
         version: link:../../packages/shared
     devDependencies:
       '@types/node':
@@ -143,10 +143,10 @@ importers:
   apps/desktop-pro:
     dependencies:
       '@spectyra/core-types':
-        specifier: workspace:*
+        specifier: workspace:^0.1.0
         version: link:../../packages/core-types
       '@spectyra/shared':
-        specifier: workspace:*
+        specifier: workspace:^0.1.1
         version: link:../../packages/shared
     devDependencies:
       '@types/node':
@@ -201,19 +201,19 @@ importers:
         specifier: ^17.0.0
         version: 17.3.12(@angular/common@17.3.12(@angular/core@17.3.12(rxjs@7.8.2)(zone.js@0.14.10))(rxjs@7.8.2))(@angular/core@17.3.12(rxjs@7.8.2)(zone.js@0.14.10))(@angular/platform-browser@17.3.12(@angular/animations@17.3.12(@angular/core@17.3.12(rxjs@7.8.2)(zone.js@0.14.10)))(@angular/common@17.3.12(@angular/core@17.3.12(rxjs@7.8.2)(zone.js@0.14.10))(rxjs@7.8.2))(@angular/core@17.3.12(rxjs@7.8.2)(zone.js@0.14.10)))(rxjs@7.8.2)
       '@spectyra/analytics-core':
-        specifier: workspace:*
+        specifier: workspace:^0.1.0
         version: link:../../packages/analytics-core
       '@spectyra/event-core':
-        specifier: workspace:*
+        specifier: workspace:^0.1.0
         version: link:../../packages/event-core
       '@spectyra/integration-metadata':
-        specifier: workspace:*
+        specifier: workspace:^0.1.0
         version: link:../../packages/integration-metadata
       '@spectyra/openclaw-bridge':
-        specifier: workspace:*
+        specifier: workspace:^0.1.0
         version: link:../../packages/openclaw-bridge
       '@spectyra/shared':
-        specifier: workspace:*
+        specifier: workspace:^0.1.1
         version: link:../../packages/shared
       '@supabase/supabase-js':
         specifier: ^2.39.0
@@ -247,10 +247,10 @@ importers:
   packages/adapters:
     dependencies:
       '@spectyra/canonical-model':
-        specifier: workspace:*
+        specifier: workspace:^0.1.0
         version: link:../canonical-model
       '@spectyra/core-types':
-        specifier: workspace:*
+        specifier: workspace:^0.1.0
         version: link:../core-types
     devDependencies:
       typescript:
@@ -260,10 +260,10 @@ importers:
   packages/analytics-core:
     dependencies:
       '@spectyra/canonical-model':
-        specifier: workspace:*
+        specifier: workspace:^0.1.0
         version: link:../canonical-model
       '@spectyra/core-types':
-        specifier: workspace:*
+        specifier: workspace:^0.1.0
         version: link:../core-types
     devDependencies:
       tsx:
@@ -276,7 +276,7 @@ importers:
   packages/auto:
     dependencies:
       '@spectyra/sdk':
-        specifier: workspace:*
+        specifier: workspace:^0.1.19
         version: link:../sdk
       axios:
         specifier: '>=1.0.0'
@@ -295,7 +295,7 @@ importers:
   packages/canonical-model:
     dependencies:
       '@spectyra/core-types':
-        specifier: workspace:*
+        specifier: workspace:^0.1.0
         version: link:../core-types
     devDependencies:
       typescript:
@@ -311,7 +311,7 @@ importers:
   packages/devtools:
     dependencies:
       '@spectyra/sdk':
-        specifier: workspace:*
+        specifier: workspace:^0.1.19
         version: link:../sdk
       lit:
         specifier: ^3.2.1
@@ -327,7 +327,7 @@ importers:
   packages/engine-client:
     dependencies:
       '@spectyra/canonical-model':
-        specifier: workspace:*
+        specifier: workspace:^0.1.0
         version: link:../canonical-model
     devDependencies:
       typescript:
@@ -337,10 +337,10 @@ importers:
   packages/event-adapters:
     dependencies:
       '@spectyra/core-types':
-        specifier: workspace:*
+        specifier: workspace:^0.1.0
         version: link:../core-types
       '@spectyra/event-core':
-        specifier: workspace:*
+        specifier: workspace:^0.1.0
         version: link:../event-core
     devDependencies:
       tsx:
@@ -353,10 +353,10 @@ importers:
   packages/event-core:
     dependencies:
       '@spectyra/analytics-core':
-        specifier: workspace:*
+        specifier: workspace:^0.1.0
         version: link:../analytics-core
       '@spectyra/core-types':
-        specifier: workspace:*
+        specifier: workspace:^0.1.0
         version: link:../core-types
     devDependencies:
       tsx:
@@ -369,7 +369,7 @@ importers:
   packages/execution-graph:
     dependencies:
       '@spectyra/event-core':
-        specifier: workspace:*
+        specifier: workspace:^0.1.0
         version: link:../event-core
     devDependencies:
       tsx:
@@ -382,7 +382,7 @@ importers:
   packages/feature-detection:
     dependencies:
       '@spectyra/canonical-model':
-        specifier: workspace:*
+        specifier: workspace:^0.1.0
         version: link:../canonical-model
     devDependencies:
       typescript:
@@ -398,7 +398,7 @@ importers:
   packages/learning:
     dependencies:
       '@spectyra/canonical-model':
-        specifier: workspace:*
+        specifier: workspace:^0.1.0
         version: link:../canonical-model
     devDependencies:
       tsx:
@@ -411,7 +411,7 @@ importers:
   packages/openclaw-bridge:
     dependencies:
       '@spectyra/integration-metadata':
-        specifier: workspace:*
+        specifier: workspace:^0.1.0
         version: link:../integration-metadata
     devDependencies:
       tsx:
@@ -435,16 +435,16 @@ importers:
   packages/optimization-engine:
     dependencies:
       '@spectyra/canonical-model':
-        specifier: workspace:*
+        specifier: workspace:^0.1.0
         version: link:../canonical-model
       '@spectyra/feature-detection':
-        specifier: workspace:*
+        specifier: workspace:^0.1.0
         version: link:../feature-detection
       '@spectyra/learning':
-        specifier: workspace:*
+        specifier: workspace:^0.1.1
         version: link:../learning
       '@spectyra/optimizer-algorithms':
-        specifier: workspace:*
+        specifier: workspace:^0.1.0
         version: link:../optimizer-algorithms
     devDependencies:
       typescript:
@@ -454,7 +454,7 @@ importers:
   packages/optimizer-algorithms:
     dependencies:
       '@spectyra/canonical-model':
-        specifier: workspace:*
+        specifier: workspace:^0.1.0
         version: link:../canonical-model
     devDependencies:
       tsx:
@@ -467,7 +467,7 @@ importers:
   packages/prompt-diff-core:
     dependencies:
       '@spectyra/canonical-model':
-        specifier: workspace:*
+        specifier: workspace:^0.1.0
         version: link:../canonical-model
     devDependencies:
       typescript:
@@ -475,47 +475,49 @@ importers:
         version: 5.4.5
 
   packages/sdk:
-    dependencies:
+    devDependencies:
       '@spectyra/analytics-core':
-        specifier: workspace:*
+        specifier: workspace:^0.1.0
         version: link:../analytics-core
       '@spectyra/canonical-model':
-        specifier: workspace:*
+        specifier: workspace:^0.1.0
         version: link:../canonical-model
       '@spectyra/core-types':
-        specifier: workspace:*
+        specifier: workspace:^0.1.0
         version: link:../core-types
       '@spectyra/event-adapters':
-        specifier: workspace:*
+        specifier: workspace:^0.1.0
         version: link:../event-adapters
       '@spectyra/event-core':
-        specifier: workspace:*
+        specifier: workspace:^0.1.0
         version: link:../event-core
       '@spectyra/execution-graph':
-        specifier: workspace:*
+        specifier: workspace:^0.1.0
         version: link:../execution-graph
       '@spectyra/feature-detection':
-        specifier: workspace:*
+        specifier: workspace:^0.1.0
         version: link:../feature-detection
       '@spectyra/learning':
-        specifier: workspace:*
+        specifier: workspace:^0.1.1
         version: link:../learning
       '@spectyra/optimization-engine':
-        specifier: workspace:*
+        specifier: workspace:^0.1.0
         version: link:../optimization-engine
       '@spectyra/shared':
-        specifier: workspace:*
+        specifier: workspace:^0.1.1
         version: link:../shared
       '@spectyra/state-delta':
-        specifier: workspace:*
+        specifier: workspace:^0.1.0
         version: link:../state-delta
       '@spectyra/workflow-policy':
-        specifier: workspace:*
+        specifier: workspace:^0.1.0
         version: link:../workflow-policy
-    devDependencies:
       '@types/node':
         specifier: ^20.0.0
         version: 20.19.30
+      tsup:
+        specifier: ^8.3.5
+        version: 8.5.1(jiti@1.21.7)(postcss@8.5.6)(tsx@4.21.0)(typescript@5.4.5)
       tsx:
         specifier: ^4.7.1
         version: 4.21.0
@@ -526,10 +528,10 @@ importers:
   packages/security-core:
     dependencies:
       '@spectyra/canonical-model':
-        specifier: workspace:*
+        specifier: workspace:^0.1.0
         version: link:../canonical-model
       '@spectyra/core-types':
-        specifier: workspace:*
+        specifier: workspace:^0.1.0
         version: link:../core-types
     devDependencies:
       typescript:
@@ -539,7 +541,7 @@ importers:
   packages/shared:
     dependencies:
       '@spectyra/integration-metadata':
-        specifier: workspace:*
+        specifier: workspace:^0.1.0
         version: link:../integration-metadata
     devDependencies:
       typescript:
@@ -549,13 +551,13 @@ importers:
   packages/spectyra-agents:
     dependencies:
       '@spectyra/core-types':
-        specifier: workspace:*
+        specifier: workspace:^0.1.0
         version: link:../core-types
       '@spectyra/sdk':
-        specifier: workspace:*
+        specifier: workspace:^0.1.19
         version: link:../sdk
       '@spectyra/shared':
-        specifier: workspace:*
+        specifier: workspace:^0.1.1
         version: link:../shared
     devDependencies:
       '@types/node':
@@ -568,7 +570,7 @@ importers:
   packages/state-delta:
     dependencies:
       '@spectyra/event-core':
-        specifier: workspace:*
+        specifier: workspace:^0.1.0
         version: link:../event-core
     devDependencies:
       tsx:
@@ -616,40 +618,40 @@ importers:
         version: 8.3.2(express@4.22.1)
     devDependencies:
       '@spectyra/analytics-core':
-        specifier: workspace:*
+        specifier: workspace:^0.1.0
         version: link:../../packages/analytics-core
       '@spectyra/canonical-model':
-        specifier: workspace:*
+        specifier: workspace:^0.1.0
         version: link:../../packages/canonical-model
       '@spectyra/core-types':
-        specifier: workspace:*
+        specifier: workspace:^0.1.0
         version: link:../../packages/core-types
       '@spectyra/event-adapters':
-        specifier: workspace:*
+        specifier: workspace:^0.1.0
         version: link:../../packages/event-adapters
       '@spectyra/event-core':
-        specifier: workspace:*
+        specifier: workspace:^0.1.0
         version: link:../../packages/event-core
       '@spectyra/execution-graph':
-        specifier: workspace:*
+        specifier: workspace:^0.1.0
         version: link:../../packages/execution-graph
       '@spectyra/feature-detection':
-        specifier: workspace:*
+        specifier: workspace:^0.1.0
         version: link:../../packages/feature-detection
       '@spectyra/learning':
-        specifier: workspace:*
+        specifier: workspace:^0.1.1
         version: link:../../packages/learning
       '@spectyra/optimization-engine':
-        specifier: workspace:*
+        specifier: workspace:^0.1.0
         version: link:../../packages/optimization-engine
       '@spectyra/shared':
-        specifier: workspace:*
+        specifier: workspace:^0.1.1
         version: link:../../packages/shared
       '@spectyra/state-delta':
-        specifier: workspace:*
+        specifier: workspace:^0.1.0
         version: link:../../packages/state-delta
       '@spectyra/workflow-policy':
-        specifier: workspace:*
+        specifier: workspace:^0.1.0
         version: link:../../packages/workflow-policy
       '@types/cors':
         specifier: ^2.8.17
@@ -670,7 +672,7 @@ importers:
   tools/openclaw-plugin-tests:
     dependencies:
       '@spectyra/openclaw-plugin':
-        specifier: workspace:*
+        specifier: workspace:^0.1.0
         version: link:../../packages/openclaw-plugin
     devDependencies:
       tsx:
@@ -2767,6 +2769,11 @@ packages:
     engines: {node: '>=0.4.0'}
     hasBin: true
 
+  acorn@8.16.0:
+    resolution: {integrity: sha512-UVJyE9MttOsBQIDKw1skb9nAwQuR5wuGD3+82K6JgJlm/Y+KI92oNsMNGZCYdDsVtRHSak0pcV5Dno5+4jh9sw==}
+    engines: {node: '>=0.4.0'}
+    hasBin: true
+
   adjust-sourcemap-loader@4.0.0:
     resolution: {integrity: sha512-OXwN5b9pCUXNQHJpwwD2qP40byEmSgzj8B4ydSN0uMNYWiFmJ6x6KwUllMmfk8Rwu/HJDFR7U8ubsWBoN0Xp0A==}
     engines: {node: '>=8.9'}
@@ -2842,6 +2849,9 @@ packages:
   ansi-styles@6.2.3:
     resolution: {integrity: sha512-4Dj6M28JB+oAH8kFkTLUo+a2jwOFkuqb3yucU0CANcRRUbxS0cP0nZYCGjcc3BNXwRIsUVmDGgzawme7zvJHvg==}
     engines: {node: '>=12'}
+
+  any-promise@1.3.0:
+    resolution: {integrity: sha512-7UvmKalWRt1wgjL1RrGxoSJW/0QZFIegpeGvZG9kjp8vrRu55XTHbwnqq2GpXm9uLbcuhxm3IqX9OB4MZR1b2A==}
 
   anymatch@3.1.3:
     resolution: {integrity: sha512-KMReFUr0B4t+D+OBkjR3KYqvocp2XaSzO55UcB6mgQMd3KbcE+mWTyvVV7D/zsdEbNnV6acZUutkiHQXvTr1Rw==}
@@ -3072,9 +3082,19 @@ packages:
   builder-util@24.13.1:
     resolution: {integrity: sha512-NhbCSIntruNDTOVI9fdXz0dihaqX2YuE1D6zZMrwiErzH4ELZHE6mdiB40wEgZNprDia+FghRFgKoAqMZRRjSA==}
 
+  bundle-require@5.1.0:
+    resolution: {integrity: sha512-3WrrOuZiyaaZPWiEt4G3+IffISVC9HYlWueJEBWED4ZH4aIAC2PnkdnuRrR94M+w6yGWn4AglWtJtBI8YqvgoA==}
+    engines: {node: ^12.20.0 || ^14.13.1 || >=16.0.0}
+    peerDependencies:
+      esbuild: '>=0.18'
+
   bytes@3.1.2:
     resolution: {integrity: sha512-/Nf7TyzTx6S3yRJObOAV7956r8cr2+Oj8AC5dt8wSP3BQAoeX58NoHyCU8P8zGkNXStjTSi6fzO6F0pBdcYbEg==}
     engines: {node: '>= 0.8'}
+
+  cac@6.7.14:
+    resolution: {integrity: sha512-b6Ilus+c3RrdDk+JhLKUAQfzzgLEPy6wcXqS7f/xe1EETvsDP6GORG7SFuOs6cID5YkqchW/LXZbX5bc8j7ZcQ==}
+    engines: {node: '>=8'}
 
   cacache@18.0.4:
     resolution: {integrity: sha512-B+L5iIa9mgcjLbliir2th36yEwPftrzteHYujzsx3dFP/31GCHcIeS8f5MGd80odLOjaOvSpU3EEAmRQptkxLQ==}
@@ -3125,6 +3145,10 @@ packages:
   chokidar@3.6.0:
     resolution: {integrity: sha512-7VT13fmjotKpGipCW9JEQAusEPE+Ei8nl6/g4FBAmIm0GOOLMua9NDDo/DWp0ZAxCr3cPq5ZpBqmPAQgDda2Pw==}
     engines: {node: '>= 8.10.0'}
+
+  chokidar@4.0.3:
+    resolution: {integrity: sha512-Qgzu8kfBvo+cA4962jnP1KkS6Dop5NS6g7R5LFYJr4b8Ub94PPQXUksCw9PvXoeXPRRddRNC5C1JQUR2SMGtnA==}
+    engines: {node: '>= 14.16.0'}
 
   chownr@1.1.4:
     resolution: {integrity: sha512-jJ0bqzaylmJtVnNgzTeSOs8DPavpbYgEr/b0YL8/2GO3xJEhInFmhKMUnEJQjZumK7KXGFhUy89PrsJWlakBVg==}
@@ -3218,6 +3242,10 @@ packages:
   commander@2.20.3:
     resolution: {integrity: sha512-GpVkmM8vF2vQUkj2LvZmD35JxeJOLCwJ9cUkugyk2nuhbv3+mJvpLYYt+0+USMxE+oj+ey/lJEnhZw75x/OMcQ==}
 
+  commander@4.1.1:
+    resolution: {integrity: sha512-NOKm8xhkzAjzFx8B2v5OAHT+u5pRQc2UCa2Vq9jYL/31o2wi9mxBA7LIFs3sV5VSC49z6pEhfbMULvShKj26WA==}
+    engines: {node: '>= 6'}
+
   commander@5.1.0:
     resolution: {integrity: sha512-P0CysNDQ7rtVw4QIQtm+MRxV66vKFSvlsQvGYXZWR3qFU0jlMKHZZZgw8e+8DSah4UDKMqnknRDQz+xuQXQ/Zg==}
     engines: {node: '>= 6'}
@@ -3244,12 +3272,19 @@ packages:
   concat-map@0.0.1:
     resolution: {integrity: sha512-/Srv4dswyQNBfohGpz9o6Yb3Gz3SrUDqBH5rTuhGR7ahtlbYKnVxw2bCFMRljaA7EXHaXZ8wsHdodFvbkhKmqg==}
 
+  confbox@0.1.8:
+    resolution: {integrity: sha512-RMtmw0iFkeR4YV+fUOSucriAQNb9g8zFR52MWCtl+cCZOFRNL6zeB395vPzFhEjjn4fMxXudmELnl/KF/WrK6w==}
+
   config-file-ts@0.2.6:
     resolution: {integrity: sha512-6boGVaglwblBgJqGyxm4+xCmEGcWgnWHSWHY5jad58awQhB6gftq0G8HbzU39YqCIYHMLAiL1yjwiZ36m/CL8w==}
 
   connect-history-api-fallback@2.0.0:
     resolution: {integrity: sha512-U73+6lQFmfiNPrYbXqr6kZ1i1wiRqXnp2nhMsINseWXO8lDau0LGEffJ8kQi4EjLZympVgRdvqjAgiZ1tgzDDA==}
     engines: {node: '>=0.8'}
+
+  consola@3.4.2:
+    resolution: {integrity: sha512-5IKcdX0nnYavi6G7TtOhwkYzyjfJlatbjMjuLSfE2kYT5pMDOilZ4OvMhi637CcDICTmz3wARPoyhqyX1Y+XvA==}
+    engines: {node: ^14.18.0 || >=16.10.0}
 
   console-control-strings@1.1.0:
     resolution: {integrity: sha512-ty/fTekppD2fIwRvnZAVdeOiGd1c7YXEixbgJTNzqcxJWKQnjJ/V1bNEEE6hygpM3WjwHFUVK6HTjWSzV4a8sQ==}
@@ -3753,6 +3788,9 @@ packages:
     resolution: {integrity: sha512-v2ZsoEuVHYy8ZIlYqwPe/39Cy+cFDzp4dXPaxNvkEuouymu+2Jbz0PxpKarJHYJTmv2HWT3O382qY8l4jMWthw==}
     engines: {node: ^12.20.0 || ^14.13.1 || >=16.0.0}
 
+  fix-dts-default-cjs-exports@1.0.1:
+    resolution: {integrity: sha512-pVIECanWFC61Hzl2+oOCtoJ3F17kglZC/6N94eRWycFgBH35hHx0Li604ZIzhseh97mf2p0cv7vVrOZGoqhlEg==}
+
   flat@5.0.2:
     resolution: {integrity: sha512-b6suED+5/3rTpUBdG1gupIl8MPFCAMA0QXwmljLhvCUKcUvdE4gWky9zpuGCcXHOsz4J9wPGNWq6OKpmIzz3hQ==}
     hasBin: true
@@ -4230,6 +4268,10 @@ packages:
   jose@5.10.0:
     resolution: {integrity: sha512-s+3Al/p9g32Iq+oqXxkW//7jk2Vig6FF1CFqzVXoTUXt2qz89YWbL+OwS17NFYEvxC35n0FKeGO2LGYSxeM2Gg==}
 
+  joycon@3.1.1:
+    resolution: {integrity: sha512-34wB/Y7MW7bzjKRjUKTa46I2Z7eV62Rkhva+KkopW7Qvv/OSWBqvkSY7vusOPrNuZcUG3tApvdVgNB8POj3SPw==}
+    engines: {node: '>=10'}
+
   js-tokens@4.0.0:
     resolution: {integrity: sha512-RdJUflcE3cUzKiMqQgsCu06FPu9UdIJO0beYbPhHN4k6apgJtifcoCtT9bcxOpYBtpD2kCM6Sbzg4CausW/PKQ==}
 
@@ -4327,6 +4369,10 @@ packages:
       webpack:
         optional: true
 
+  lilconfig@3.1.3:
+    resolution: {integrity: sha512-/vlFKAoH5Cgt3Ie+JLhRbwOsCQePABiU3tJ1egGvyQ+33R/vcwM2Zl2QR/LzjsBeItPt3oSVXapn+m4nQDvpzw==}
+    engines: {node: '>=14'}
+
   lines-and-columns@1.2.4:
     resolution: {integrity: sha512-7ylylesZQ/PV29jhEDl3Ufjo6ZX7gCqJr5F7PKrqc93v7fzSymt1BpwEU8nAUXs8qzzvqhbjhK5QZg6Mt/HkBg==}
 
@@ -4338,6 +4384,10 @@ packages:
 
   lit@3.3.2:
     resolution: {integrity: sha512-NF9zbsP79l4ao2SNrH3NkfmFgN/hBYSQo90saIVI1o5GpjAdCPVstVzO1MrLOakHoEhYkrtRjPK6Ob521aoYWQ==}
+
+  load-tsconfig@0.2.5:
+    resolution: {integrity: sha512-IXO6OCs9yg8tMKzfPZ1YmheJbZCiEsnBdcB03l0OcfK9prKnJb96siuHCr5Fl37/yo9DnKU+TLpxzTUspw9shg==}
+    engines: {node: ^12.20.0 || ^14.13.1 || >=16.0.0}
 
   loader-runner@4.3.1:
     resolution: {integrity: sha512-IWqP2SCPhyVFTBtRcgMHdzlf9ul25NwaFx4wCEH/KjAXuuHY4yNjvPXsBokp8jCB936PyWRaPKUNh8NvylLp2Q==}
@@ -4400,6 +4450,9 @@ packages:
   lru-cache@6.0.0:
     resolution: {integrity: sha512-Jo6dJ04CmSjuznwJSS3pUeWmd/H0ffTlkXXgwZi+eq1UCmqQwCh+eLsYOYCwY991i2Fah4h1BEMCx4qThGbsiA==}
     engines: {node: '>=10'}
+
+  magic-string@0.30.21:
+    resolution: {integrity: sha512-vd2F4YUyEXKGcLHoq+TEyCjxueSeHnFxyyjNp80yg0XV4vUhnDer/lvvlqM/arB5bXQN5K2/3oinyCRyx8T2CQ==}
 
   magic-string@0.30.8:
     resolution: {integrity: sha512-ISQTe55T2ao7XtlAStud6qwYPZjE4GK1S/BeVPus4jrq6JuOnQ00YKQC581RWhR122W7msZV263KzVeLoqidyQ==}
@@ -4559,6 +4612,9 @@ packages:
     engines: {node: '>=10'}
     hasBin: true
 
+  mlly@1.8.2:
+    resolution: {integrity: sha512-d+ObxMQFmbt10sretNDytwt85VrbkhhUA/JBGm1MPaWJ65Cl4wOgLaB1NYvJSZ0Ef03MMEU/0xpPMXUIQ29UfA==}
+
   mrmime@2.0.0:
     resolution: {integrity: sha512-eu38+hdgojoyq63s+yTpN4XMBdt5l8HhMhc4VKLO9KM5caLIBvUm4thi7fFaxyTmCKeNnXZ5pAlBwCUnhA09uw==}
     engines: {node: '>=10'}
@@ -4576,6 +4632,9 @@ packages:
   mute-stream@1.0.0:
     resolution: {integrity: sha512-avsJQhyd+680gKXyG/sQc0nXaC6rBkPOfyHYcFb9+hdkqQkR9bdnkJ0AMZhke0oesPqIO+mFFJ+IdBc7mst4IA==}
     engines: {node: ^14.17.0 || ^16.13.0 || >=18.0.0}
+
+  mz@2.7.0:
+    resolution: {integrity: sha512-z81GNO7nnYMEhrGh9LeymoE4+Yr0Wn5McHIZMK5cfQCl+NDX08sCZgUc9/6MHni9IWuFLm1Z3HTCXu2z9fN62Q==}
 
   nanoid@3.3.11:
     resolution: {integrity: sha512-N8SpfPUnUp1bK+PMYW8qSWdl9U+wwNWI4QKxOYDy9JAro3WMX7p2OeVRF9v+347pnakNevPmiHhNmZ2HbFA76w==}
@@ -4881,6 +4940,9 @@ packages:
     resolution: {integrity: sha512-gDKb8aZMDeD/tZWs9P6+q0J9Mwkdl6xMV8TjnGP3qJVJ06bdMgkbBlLU8IdfOsIsFz2BW1rNVT3XuNEl8zPAvw==}
     engines: {node: '>=8'}
 
+  pathe@2.0.3:
+    resolution: {integrity: sha512-WUjGcAqP1gQacoQe+OBJsFA7Ld4DyXuUIjZ5cc75cLHvJ7dtNsTugphxIADwspS+AraAUePCKrSVtPLFj/F88w==}
+
   pend@1.2.0:
     resolution: {integrity: sha512-F3asv42UuXchdzt+xXqfW1OGlVBe+mxa2mqI0pg5yAHZPvFmY3Y6drSf/GQ1A86WgWEN9Kzh/WrgKa6iGcHXLg==}
 
@@ -4937,6 +4999,10 @@ packages:
     resolution: {integrity: sha512-uB80kBFb/tfd68bVleG9T5GGsGPjJrLAUpR5PZIrhBnIaRTQRjqdJSsIKkOP6OAIFbj7GOrcudc5pNjZ+geV2g==}
     engines: {node: '>=6'}
 
+  pirates@4.0.7:
+    resolution: {integrity: sha512-TfySrs/5nm8fQJDcBDuUng3VOUKsd7S+zqvbOTiGXHfxX4wK31ard+hoNuvkicM/2YFzlpDgABOevKSsB4G/FA==}
+    engines: {node: '>= 6'}
+
   piscina@4.4.0:
     resolution: {integrity: sha512-+AQduEJefrOApE4bV7KRmp3N2JnnyErlVqq4P/jmko4FPz9Z877BCccl/iB3FdrWSUkvbGV9Kan/KllJgat3Vg==}
 
@@ -4944,12 +5010,33 @@ packages:
     resolution: {integrity: sha512-Ie9z/WINcxxLp27BKOCHGde4ITq9UklYKDzVo1nhk5sqGEXU3FpkwP5GM2voTGJkGd9B3Otl+Q4uwSOeSUtOBA==}
     engines: {node: '>=14.16'}
 
+  pkg-types@1.3.1:
+    resolution: {integrity: sha512-/Jm5M4RvtBFVkKWRu2BLUTNP8/M2a+UwuAX+ae4770q1qVGtfjG+WTCupoZixokjmHiry8uI+dlY8KXYV5HVVQ==}
+
   platform@1.3.6:
     resolution: {integrity: sha512-fnWVljUchTro6RiCFvCXBbNhJc2NijN7oIQxbwsyL0buWJPG85v81ehlHI9fXrJsMNgTofEoWIQeClKpgxFLrg==}
 
   plist@3.1.0:
     resolution: {integrity: sha512-uysumyrvkUX0rX/dEVqt8gC3sTBzd4zoWfLeS29nb53imdaXVvLINYXTI2GNqzaMuvacNx4uJQ8+b3zXR0pkgQ==}
     engines: {node: '>=10.4.0'}
+
+  postcss-load-config@6.0.1:
+    resolution: {integrity: sha512-oPtTM4oerL+UXmx+93ytZVN82RrlY/wPUV8IeDxFrzIjXOLF1pN+EmKPLbubvKHT2HC20xXsCAH2Z+CKV6Oz/g==}
+    engines: {node: '>= 18'}
+    peerDependencies:
+      jiti: '>=1.21.0'
+      postcss: '>=8.0.9'
+      tsx: ^4.8.1
+      yaml: ^2.4.2
+    peerDependenciesMeta:
+      jiti:
+        optional: true
+      postcss:
+        optional: true
+      tsx:
+        optional: true
+      yaml:
+        optional: true
 
   postcss-loader@8.1.1:
     resolution: {integrity: sha512-0IeqyAsG6tYiDRCYKQJLAmgQr47DX6N7sFSWvQxt6AcupX8DIdmykuk/o/tx0Lze3ErGHJEp5OSRxrelC6+NdQ==}
@@ -5129,6 +5216,10 @@ packages:
   readdirp@3.6.0:
     resolution: {integrity: sha512-hOS089on8RduqdbhvQ5Z37A0ESjsqz6qnRcffsMU3495FuTdqSm+7bhJ29JvIOsBDEEnan5DPu9t3To9VRlMzA==}
     engines: {node: '>=8.10.0'}
+
+  readdirp@4.1.2:
+    resolution: {integrity: sha512-GDhwkLfywWL2s6vEjyhri+eXmfH6j1L7JE27WhqLeYzoh/A3DBaYGEj2H/HFZCn/kMfim73FXxEJTw06WtxQwg==}
+    engines: {node: '>= 14.18.0'}
 
   redis@5.10.0:
     resolution: {integrity: sha512-0/Y+7IEiTgVGPrLFKy8oAEArSyEJkU0zvgV5xyi9NzNQ+SLZmyFbUsWIbgPcd4UdUh00opXGKlXJwMmsis5Byw==}
@@ -5459,6 +5550,10 @@ packages:
     resolution: {integrity: sha512-l3BikUxvPOcn5E74dZiq5BGsTb5yEwhaTSzccU6t4sDOH8NWJCstKO5QT2CvtFoK6F0saL7p9xHAqHOlCPJygA==}
     engines: {node: '>= 8'}
 
+  source-map@0.7.6:
+    resolution: {integrity: sha512-i5uvt8C3ikiWeNZSVZNWcfZPItFQOsYTUAOkcUPGd8DqDy1uOUikjt5dG+uRlwyvR108Fb9DOd4GvXfT0N2/uQ==}
+    engines: {node: '>= 12'}
+
   spdx-correct@3.2.0:
     resolution: {integrity: sha512-kN9dJbvnySHULIluDHy32WHRUu3Og7B9sbY7tsFLctQkIqnMh3hErYgdMjTYuqmcXX+lK5T1lnUt3G7zNswmZA==}
 
@@ -5541,6 +5636,11 @@ packages:
     resolution: {integrity: sha512-wQS3GNMofCXwH8TSje8E1SE8zr6ODiGtHQgPtO95p9Mb4FhKC9jvXR2NUTpZ9ZINlckJcFidCmaTFV4P6vsb9g==}
     engines: {node: '>=12.*'}
 
+  sucrase@3.35.1:
+    resolution: {integrity: sha512-DhuTmvZWux4H1UOnWMB3sk0sbaCVOoQZjv8u1rDoTV0HTdGem9hkAZtl4JZy8P2z4Bg0nT+YMeOFyVr4zcG5Tw==}
+    engines: {node: '>=16 || 14 >=14.17'}
+    hasBin: true
+
   sumchecker@3.0.1:
     resolution: {integrity: sha512-MvjXzkz/BOfyVDkG0oFOtBxHX2u3gKbMHIF/dXblZsgD3BWOFLmHovIpZY7BykJdAjcqRCBi1WYBNdEC9yI7vg==}
     engines: {node: '>= 8.0'}
@@ -5619,11 +5719,21 @@ packages:
   text-decoder@1.2.3:
     resolution: {integrity: sha512-3/o9z3X0X0fTupwsYvR03pJ/DjWuqqrfwBgTQzdWDiQSm9KitAyz/9WqsT2JQW7KV2m+bC2ol/zqpW37NHxLaA==}
 
+  thenify-all@1.6.0:
+    resolution: {integrity: sha512-RNxQH/qI8/t3thXJDwcstUO4zeqo64+Uy/+sNVRBx4Xn2OX+OZ9oP+iJnNFqplFra2ZUVeKCSa2oVWi3T4uVmA==}
+    engines: {node: '>=0.8'}
+
+  thenify@3.3.1:
+    resolution: {integrity: sha512-RVZSIV5IG10Hk3enotrhvz0T9em6cyHBLkH/YAZuKqd8hRkKhSfCGIcP2KUY0EPxndzANBmNllzWPwak+bheSw==}
+
   thunky@1.1.0:
     resolution: {integrity: sha512-eHY7nBftgThBqOyHGVN+l8gF0BucP09fMo0oO/Lb0w1OF80dJv+lDVpXG60WMQvkcxAkNybKsrEIE3ZtKGmPrA==}
 
   tiktoken@1.0.22:
     resolution: {integrity: sha512-PKvy1rVF1RibfF3JlXBSP0Jrcw2uq3yXdgcEXtKTYn3QJ/cBRBHDnrJ5jHky+MENZ6DIPwNUGWpkVx+7joCpNA==}
+
+  tinyexec@0.3.2:
+    resolution: {integrity: sha512-KQQR9yN7R5+OSwaK0XQoj22pwHoTlgYqmUscPYoknOoWCWfj/5/ABTMRi69FrKU5ffPVh5QcFikpWJI/P1ocHA==}
 
   tinyglobby@0.2.15:
     resolution: {integrity: sha512-j2Zq4NyQYG5XMST4cbs02Ak8iJUdxRM0XI5QyxXuZOzKOINmWurp3smXu3y5wDcJrptwpSjgXHzIQxR0omXljQ==}
@@ -5658,6 +5768,9 @@ packages:
   truncate-utf8-bytes@1.0.2:
     resolution: {integrity: sha512-95Pu1QXQvruGEhv62XCMO3Mm90GscOCClvrIUwCM0PYOXK3kaF3l3sIHxx71ThJfcbM2O5Au6SO3AWCSEfW4mQ==}
 
+  ts-interface-checker@0.1.13:
+    resolution: {integrity: sha512-Y/arvbn+rrz3JCKl9C4kVNfTfSm2/mEp5FSz5EsZSANGPSlQrpRI5M4PKF+mJnE52jOO90PnPSc3Ur3bTQw0gA==}
+
   ts-morph@27.0.2:
     resolution: {integrity: sha512-fhUhgeljcrdZ+9DZND1De1029PrE+cMkIP7ooqkLRTrRLTqcki2AstsyJm0vRNbTbVCNJ0idGlbBrfqc7/nA8w==}
 
@@ -5666,6 +5779,25 @@ packages:
 
   tslib@2.8.1:
     resolution: {integrity: sha512-oJFu94HQb+KVduSUQL7wnpmqnfmLsOA/nAh6b6EH0wCEoK0/mPeXU6c3wKDV83MkOuHPRHtSXKKU99IBazS/2w==}
+
+  tsup@8.5.1:
+    resolution: {integrity: sha512-xtgkqwdhpKWr3tKPmCkvYmS9xnQK3m3XgxZHwSUjvfTjp7YfXe5tT3GgWi0F2N+ZSMsOeWeZFh7ZZFg5iPhing==}
+    engines: {node: '>=18'}
+    hasBin: true
+    peerDependencies:
+      '@microsoft/api-extractor': ^7.36.0
+      '@swc/core': ^1
+      postcss: ^8.4.12
+      typescript: '>=4.5.0'
+    peerDependenciesMeta:
+      '@microsoft/api-extractor':
+        optional: true
+      '@swc/core':
+        optional: true
+      postcss:
+        optional: true
+      typescript:
+        optional: true
 
   tsx@4.21.0:
     resolution: {integrity: sha512-5C1sg4USs1lfG0GFb2RLXsdpXqBSEhAaA/0kPL01wxzpMqLILNxIxIOKiILz+cdg/pLnOUxFYOR5yhHU666wbw==}
@@ -5698,6 +5830,9 @@ packages:
     resolution: {integrity: sha512-vcI4UpRgg81oIRUFwR0WSIHKt11nJ7SAVlYNIu+QpqeyXP+gpQJy/Z4+F0aGxSE4MqwjyXvW/TzgkLAx2AGHwQ==}
     engines: {node: '>=14.17'}
     hasBin: true
+
+  ufo@1.6.4:
+    resolution: {integrity: sha512-JFNbkD1Svwe0KvGi8GOeLcP4kAWQ609twvCdcHxq1oSL8svv39ZuSvajcD8B+5D0eL4+s1Is2D/O6KN3qcTeRA==}
 
   undici-types@5.26.5:
     resolution: {integrity: sha512-JlCMO+ehdEIKqlFxk6IfVoAUVmgz7cU7zD/h9XZ0qzeosSHmUJVOzSQvvYSYWXkFXC+IfLKSIffhv0sVZup6pA==}
@@ -8576,6 +8711,8 @@ snapshots:
 
   acorn@8.15.0: {}
 
+  acorn@8.16.0: {}
+
   adjust-sourcemap-loader@4.0.0:
     dependencies:
       loader-utils: 2.0.4
@@ -8653,6 +8790,8 @@ snapshots:
       color-convert: 2.0.1
 
   ansi-styles@6.2.3: {}
+
+  any-promise@1.3.0: {}
 
   anymatch@3.1.3:
     dependencies:
@@ -8978,7 +9117,14 @@ snapshots:
     transitivePeerDependencies:
       - supports-color
 
+  bundle-require@5.1.0(esbuild@0.27.4):
+    dependencies:
+      esbuild: 0.27.4
+      load-tsconfig: 0.2.5
+
   bytes@3.1.2: {}
+
+  cac@6.7.14: {}
 
   cacache@18.0.4:
     dependencies:
@@ -9050,6 +9196,10 @@ snapshots:
       readdirp: 3.6.0
     optionalDependencies:
       fsevents: 2.3.3
+
+  chokidar@4.0.3:
+    dependencies:
+      readdirp: 4.1.2
 
   chownr@1.1.4: {}
 
@@ -9127,6 +9277,8 @@ snapshots:
 
   commander@2.20.3: {}
 
+  commander@4.1.1: {}
+
   commander@5.1.0: {}
 
   common-path-prefix@3.0.0: {}
@@ -9158,12 +9310,16 @@ snapshots:
 
   concat-map@0.0.1: {}
 
+  confbox@0.1.8: {}
+
   config-file-ts@0.2.6:
     dependencies:
       glob: 10.5.0
       typescript: 5.4.5
 
   connect-history-api-fallback@2.0.0: {}
+
+  consola@3.4.2: {}
 
   console-control-strings@1.1.0: {}
 
@@ -9813,6 +9969,12 @@ snapshots:
       locate-path: 7.2.0
       path-exists: 5.0.0
 
+  fix-dts-default-cjs-exports@1.0.1:
+    dependencies:
+      magic-string: 0.30.21
+      mlly: 1.8.2
+      rollup: 4.57.0
+
   flat@5.0.2: {}
 
   flatbuffers@1.12.0: {}
@@ -10311,6 +10473,8 @@ snapshots:
 
   jose@5.10.0: {}
 
+  joycon@3.1.1: {}
+
   js-tokens@4.0.0: {}
 
   js-yaml@3.14.2:
@@ -10402,6 +10566,8 @@ snapshots:
     optionalDependencies:
       webpack: 5.94.0(esbuild@0.20.1)
 
+  lilconfig@3.1.3: {}
+
   lines-and-columns@1.2.4: {}
 
   lit-element@4.2.2:
@@ -10419,6 +10585,8 @@ snapshots:
       '@lit/reactive-element': 2.1.2
       lit-element: 4.2.2
       lit-html: 3.3.2
+
+  load-tsconfig@0.2.5: {}
 
   loader-runner@4.3.1: {}
 
@@ -10470,6 +10638,10 @@ snapshots:
   lru-cache@6.0.0:
     dependencies:
       yallist: 4.0.0
+
+  magic-string@0.30.21:
+    dependencies:
+      '@jridgewell/sourcemap-codec': 1.5.5
 
   magic-string@0.30.8:
     dependencies:
@@ -10618,6 +10790,13 @@ snapshots:
 
   mkdirp@1.0.4: {}
 
+  mlly@1.8.2:
+    dependencies:
+      acorn: 8.16.0
+      pathe: 2.0.3
+      pkg-types: 1.3.1
+      ufo: 1.6.4
+
   mrmime@2.0.0: {}
 
   ms@2.0.0: {}
@@ -10630,6 +10809,12 @@ snapshots:
       thunky: 1.1.0
 
   mute-stream@1.0.0: {}
+
+  mz@2.7.0:
+    dependencies:
+      any-promise: 1.3.0
+      object-assign: 4.1.1
+      thenify-all: 1.6.0
 
   nanoid@3.3.11: {}
 
@@ -10955,6 +11140,8 @@ snapshots:
 
   path-type@4.0.0: {}
 
+  pathe@2.0.3: {}
+
   pend@1.2.0: {}
 
   pg-cloudflare@1.3.0:
@@ -11003,6 +11190,8 @@ snapshots:
   pify@4.0.1:
     optional: true
 
+  pirates@4.0.7: {}
+
   piscina@4.4.0:
     optionalDependencies:
       nice-napi: 1.0.2
@@ -11011,6 +11200,12 @@ snapshots:
     dependencies:
       find-up: 6.3.0
 
+  pkg-types@1.3.1:
+    dependencies:
+      confbox: 0.1.8
+      mlly: 1.8.2
+      pathe: 2.0.3
+
   platform@1.3.6: {}
 
   plist@3.1.0:
@@ -11018,6 +11213,14 @@ snapshots:
       '@xmldom/xmldom': 0.8.11
       base64-js: 1.5.1
       xmlbuilder: 15.1.1
+
+  postcss-load-config@6.0.1(jiti@1.21.7)(postcss@8.5.6)(tsx@4.21.0):
+    dependencies:
+      lilconfig: 3.1.3
+    optionalDependencies:
+      jiti: 1.21.7
+      postcss: 8.5.6
+      tsx: 4.21.0
 
   postcss-loader@8.1.1(postcss@8.4.35)(typescript@5.4.5)(webpack@5.94.0(esbuild@0.20.1)):
     dependencies:
@@ -11217,6 +11420,8 @@ snapshots:
   readdirp@3.6.0:
     dependencies:
       picomatch: 2.3.1
+
+  readdirp@4.1.2: {}
 
   redis@5.10.0:
     dependencies:
@@ -11616,6 +11821,8 @@ snapshots:
 
   source-map@0.7.4: {}
 
+  source-map@0.7.6: {}
+
   spdx-correct@3.2.0:
     dependencies:
       spdx-expression-parse: 3.0.1
@@ -11713,6 +11920,16 @@ snapshots:
     dependencies:
       '@types/node': 20.19.30
       qs: 6.14.1
+
+  sucrase@3.35.1:
+    dependencies:
+      '@jridgewell/gen-mapping': 0.3.13
+      commander: 4.1.1
+      lines-and-columns: 1.2.4
+      mz: 2.7.0
+      pirates: 4.0.7
+      tinyglobby: 0.2.15
+      ts-interface-checker: 0.1.13
 
   sumchecker@3.0.1:
     dependencies:
@@ -11821,9 +12038,19 @@ snapshots:
     transitivePeerDependencies:
       - react-native-b4a
 
+  thenify-all@1.6.0:
+    dependencies:
+      thenify: 3.3.1
+
+  thenify@3.3.1:
+    dependencies:
+      any-promise: 1.3.0
+
   thunky@1.1.0: {}
 
   tiktoken@1.0.22: {}
+
+  tinyexec@0.3.2: {}
 
   tinyglobby@0.2.15:
     dependencies:
@@ -11854,6 +12081,8 @@ snapshots:
     dependencies:
       utf8-byte-length: 1.0.5
 
+  ts-interface-checker@0.1.13: {}
+
   ts-morph@27.0.2:
     dependencies:
       '@ts-morph/common': 0.28.1
@@ -11862,6 +12091,34 @@ snapshots:
   tslib@2.6.2: {}
 
   tslib@2.8.1: {}
+
+  tsup@8.5.1(jiti@1.21.7)(postcss@8.5.6)(tsx@4.21.0)(typescript@5.4.5):
+    dependencies:
+      bundle-require: 5.1.0(esbuild@0.27.4)
+      cac: 6.7.14
+      chokidar: 4.0.3
+      consola: 3.4.2
+      debug: 4.4.3
+      esbuild: 0.27.4
+      fix-dts-default-cjs-exports: 1.0.1
+      joycon: 3.1.1
+      picocolors: 1.1.1
+      postcss-load-config: 6.0.1(jiti@1.21.7)(postcss@8.5.6)(tsx@4.21.0)
+      resolve-from: 5.0.0
+      rollup: 4.57.0
+      source-map: 0.7.6
+      sucrase: 3.35.1
+      tinyexec: 0.3.2
+      tinyglobby: 0.2.15
+      tree-kill: 1.2.2
+    optionalDependencies:
+      postcss: 8.5.6
+      typescript: 5.4.5
+    transitivePeerDependencies:
+      - jiti
+      - supports-color
+      - tsx
+      - yaml
 
   tsx@4.21.0:
     dependencies:
@@ -11895,6 +12152,8 @@ snapshots:
   typed-assert@1.0.9: {}
 
   typescript@5.4.5: {}
+
+  ufo@1.6.4: {}
 
   undici-types@5.26.5: {}
 

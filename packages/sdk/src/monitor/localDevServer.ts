@@ -19,6 +19,28 @@ const CORS = {
 
 const DEFAULT_ROUTE_PREFIX = "/__spectyra";
 
+/** Default interval between dev-bridge SSE payloads (ms). */
+const DEFAULT_STREAM_TICK_MS = 8000;
+const MIN_STREAM_TICK_MS = 3000;
+const MAX_STREAM_TICK_MS = 120_000;
+
+function resolveStreamTickMs(cfg?: SpectyraLocalDevServerConfig): number {
+  let n = cfg?.streamTickMs;
+  if (typeof n !== "number" || !Number.isFinite(n) || n <= 0) {
+    if (typeof process !== "undefined") {
+      const raw = process.env.SPECTYRA_DEV_BRIDGE_STREAM_MS?.trim();
+      if (raw) {
+        const p = parseInt(raw, 10);
+        if (Number.isFinite(p) && p > 0) n = p;
+      }
+    }
+  }
+  if (typeof n !== "number" || !Number.isFinite(n) || n <= 0) {
+    n = DEFAULT_STREAM_TICK_MS;
+  }
+  return Math.min(MAX_STREAM_TICK_MS, Math.max(MIN_STREAM_TICK_MS, Math.round(n)));
+}
+
 const DEFAULT_LOCAL_HOSTS = ["localhost", "127.0.0.1", "::1", "[::1]"];
 
 export type SpectyraDevBridgeMonitorEngine = Pick<
@@ -58,6 +80,55 @@ function parseLimit(url: string): number {
   } catch {
     return 50;
   }
+}
+
+function sendJavaScript(res: ServerResponse, body: string, cacheControl: string): void {
+  res.writeHead(200, {
+    "Content-Type": "text/javascript; charset=utf-8",
+    "Cache-Control": cacheControl,
+    ...CORS,
+    "Content-Length": Buffer.byteLength(body, "utf8"),
+  });
+  res.end(body);
+}
+
+/** Resolve `https://host` for overlay bootstrap when UI is on a different origin than this API. */
+export function resolveSpectyraDevBridgePublicOrigin(
+  req: IncomingMessage,
+  cfg?: SpectyraLocalDevServerConfig,
+): string {
+  const trimmed = cfg?.publicOrigin?.trim();
+  if (trimmed) return trimmed.replace(/\/$/, "");
+  const xfProto = String(req.headers["x-forwarded-proto"] ?? "")
+    .split(",")[0]
+    ?.trim()
+    .toLowerCase();
+  const xfHost = String(req.headers["x-forwarded-host"] ?? "")
+    .split(",")[0]
+    ?.trim();
+  const rawHost = xfHost || (req.headers.host ?? "").trim();
+  if (!rawHost) return "http://localhost";
+
+  let proto: string;
+  if (xfProto === "http" || xfProto === "https") {
+    proto = xfProto;
+  } else {
+    const lower = rawHost.split(":")[0]?.toLowerCase() ?? "";
+    proto =
+      lower === "localhost" || lower === "127.0.0.1" || lower === "[::1]" || lower.endsWith(".local")
+        ? "http"
+        : "https";
+  }
+  return `${proto}://${rawHost}`.replace(/\/$/, "");
+}
+
+function sendOverlayBootstrapJs(res: ServerResponse, req: IncomingMessage, cfg?: SpectyraLocalDevServerConfig): void {
+  const origin = resolveSpectyraDevBridgePublicOrigin(req, cfg);
+  const literal = JSON.stringify(origin);
+  const body = `/* Spectyra — sets window.__SPECTYRA_OVERLAY_BASE_URL__ for split UI/API hosts */
+(function(){try{if(typeof window!=="undefined"){window.__SPECTYRA_OVERLAY_BASE_URL__=${literal};}}catch(e){}})();
+`;
+  sendJavaScript(res, body, "public, max-age=120");
 }
 
 function sendJson(res: ServerResponse, status: number, body: unknown): void {
@@ -155,6 +226,12 @@ export function handleSpectyraDevBridgeRequest(
   const isEvents = p === `${routePrefix}/events` || p === `${routePrefix}/monitor/events`;
   const isWaste = p === `${routePrefix}/waste`;
   const isStream = p === `${routePrefix}/stream`;
+  const isOverlayBootstrap = p === `${routePrefix}/overlay-bootstrap.js`;
+
+  if (isOverlayBootstrap) {
+    sendOverlayBootstrapJs(res, req, cfg);
+    return true;
+  }
 
   if (isSummary) {
     sendJson(res, 200, engine.getMonitorSummary() as SpectyraMonitorSummary);
@@ -193,6 +270,9 @@ export function handleSpectyraDevBridgeRequest(
     });
     res.flushHeaders?.();
 
+    const tickMs = resolveStreamTickMs(cfg);
+    let lastPayload = "";
+
     const tick = () => {
       try {
         const evs = eventsSnapshot(engine);
@@ -200,8 +280,10 @@ export function handleSpectyraDevBridgeRequest(
         const payload = JSON.stringify({
           summary: engine.getMonitorSummary(),
           waste: agg.waste,
-          eventTail: engine.getRecentMonitorEvents(20),
+          eventTail: engine.getRecentMonitorEvents(200),
         });
+        if (payload === lastPayload) return;
+        lastPayload = payload;
         res.write(`data: ${payload}\n\n`);
       } catch {
         /* ignore */
@@ -209,9 +291,17 @@ export function handleSpectyraDevBridgeRequest(
     };
 
     tick();
-    const iv = setInterval(tick, 500);
+    const iv = setInterval(tick, tickMs);
+    const keepalive = setInterval(() => {
+      try {
+        res.write(": keepalive\n\n");
+      } catch {
+        /* ignore */
+      }
+    }, 25_000);
     req.on("close", () => {
       clearInterval(iv);
+      clearInterval(keepalive);
       try {
         res.end();
       } catch {
@@ -275,6 +365,7 @@ export function registerSpectyraDevBridgeFastify(
     `${prefix}/events`,
     `${prefix}/waste`,
     `${prefix}/stream`,
+    `${prefix}/overlay-bootstrap.js`,
     `${prefix}/monitor/summary`,
     `${prefix}/monitor/events`,
   ];

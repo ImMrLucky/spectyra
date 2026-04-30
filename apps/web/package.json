@@ -8,9 +8,9 @@
     "test:onboarding-map": "tsx src/app/features/integrations/services/map-onboarding-state.test.ts"
   },
   "dependencies": {
-    "@spectyra/integration-metadata": "workspace:*",
-    "@spectyra/analytics-core": "workspace:*",
-    "@spectyra/event-core": "workspace:*",
+    "@spectyra/integration-metadata": "workspace:^0.1.0",
+    "@spectyra/analytics-core": "workspace:^0.1.0",
+    "@spectyra/event-core": "workspace:^0.1.0",
     "@angular/animations": "^17.0.0",
     "@angular/cdk": "^17.0.0",
     "@angular/common": "^17.0.0",
@@ -21,8 +21,8 @@
     "@angular/platform-browser": "^17.0.0",
     "@angular/platform-browser-dynamic": "^17.0.0",
     "@angular/router": "^17.0.0",
-    "@spectyra/openclaw-bridge": "workspace:*",
-    "@spectyra/shared": "workspace:*",
+    "@spectyra/openclaw-bridge": "workspace:^0.1.0",
+    "@spectyra/shared": "workspace:^0.1.1",
     "@supabase/supabase-js": "^2.39.0",
     "rxjs": "^7.8.1",
     "tslib": "^2.6.2",

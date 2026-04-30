@@ -13,6 +13,8 @@ pnpm add @spectyra/devtools
 
 ## Lit strip
 
+Split **frontend + API**? Load `GET {yourApi}/__spectyra/overlay-bootstrap.js` in `index.html` before this package so `baseUrl` is set automatically (see `@spectyra/auto` README).
+
 ```ts
 import "@spectyra/devtools";
 

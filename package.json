@@ -5,7 +5,8 @@
   "description": "Spectral Token & Cost Reduction Engine",
   "workspaces": [
     "apps/*",
-    "packages/*"
+    "packages/*",
+    "tools/*"
   ],
   "scripts": {
     "openclaw:build": "pnpm --filter @spectyra/desktop run build",

@@ -168,6 +168,7 @@ export {
   createSpectyraDevBridgeConnectMiddleware,
   registerSpectyraDevBridgeFastify,
   normalizeDevBridgeRoutePrefix,
+  resolveSpectyraDevBridgePublicOrigin,
 } from "./monitor/localDevServer.js";
 export type { SpectyraDevBridgeMonitorEngine } from "./monitor/localDevServer.js";
 export { resolveMonitorEnabledInApp } from "./monitor/resolveMonitorEnabled.js";

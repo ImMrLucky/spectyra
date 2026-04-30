@@ -5,11 +5,17 @@
   "type": "module",
   "main": "./src/index.ts",
   "types": "./src/index.ts",
-  "files": ["src"],
-  "scripts": { "typecheck": "tsc --noEmit" },
-  "dependencies": {
-    "@spectyra/canonical-model": "workspace:*"
+  "files": [
+    "src"
+  ],
+  "scripts": {
+    "typecheck": "tsc --noEmit"
   },
-  "devDependencies": { "typescript": "~5.4.0" },
+  "dependencies": {
+    "@spectyra/canonical-model": "workspace:^0.1.0"
+  },
+  "devDependencies": {
+    "typescript": "~5.4.0"
+  },
   "license": "MIT"
 }

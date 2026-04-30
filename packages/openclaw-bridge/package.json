@@ -5,7 +5,9 @@
   "type": "module",
   "main": "./src/index.ts",
   "types": "./src/index.ts",
-  "files": ["src"],
+  "files": [
+    "src"
+  ],
   "exports": {
     ".": {
       "types": "./src/index.ts",
@@ -17,7 +19,7 @@
     "test": "tsx src/__tests__/openclaw-bridge.test.ts"
   },
   "dependencies": {
-    "@spectyra/integration-metadata": "workspace:*"
+    "@spectyra/integration-metadata": "workspace:^0.1.0"
   },
   "devDependencies": {
     "tsx": "^4.7.1",

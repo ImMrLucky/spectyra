@@ -1,4 +1,11 @@
-import { createMonitorEngine, startPricingRuntime, type MonitorEngine } from "@spectyra/sdk";
+import {
+  createMonitorCloudSyncDebouncer,
+  createMonitorEngine,
+  shouldSyncMonitorToCloud,
+  startPricingRuntime,
+  type MonitorEngine,
+} from "@spectyra/sdk";
+import type { SpectyraConfig } from "@spectyra/sdk";
 import { resolveAutoConfig, type SpectyraAutoStartOptions } from "./config.js";
 import { installAxiosInterceptor } from "./patchAxios.js";
 import { installFetchPatch } from "./patchFetch.js";
@@ -21,6 +28,22 @@ export function startSpectyraAuto(opts: SpectyraAutoStartOptions = {}): MonitorE
   const cfg = resolveAutoConfig(opts);
   void startPricingRuntime({});
 
+  const cloudSyncOn =
+    opts.cloudSync === true ||
+    (typeof process !== "undefined" && process.env.SPECTYRA_CLOUD_SYNC === "true");
+  const cloudConfig: SpectyraConfig = {
+    spectyraCloudApiKey: opts.spectyraCloudApiKey,
+    spectyraApiBaseUrl: opts.spectyraApiBaseUrl,
+    projectId: cfg.project,
+    analytics: {
+      enabled: true,
+      cloudSync: cloudSyncOn,
+    },
+  };
+  const cloudDebouncer = shouldSyncMonitorToCloud(cloudConfig)
+    ? createMonitorCloudSyncDebouncer(cloudConfig, () => (engine ? engine.getEventsSnapshot() : []))
+    : null;
+
   engine = createMonitorEngine({
     enabled: true,
     jsonl: cfg.jsonl.enabled
@@ -38,6 +61,7 @@ export function startSpectyraAuto(opts: SpectyraAutoStartOptions = {}): MonitorE
       service: cfg.service,
       integrationMode: "auto_fetch",
     },
+    onAfterRecord: cloudDebouncer ? () => cloudDebouncer.schedule() : undefined,
   });
 
   const get = () => engine;
