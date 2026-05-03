@@ -1,5 +1,5 @@
 import { LitElement, html, css, nothing } from "lit";
-import type { SpectyraMonitorEvent, SpectyraMonitorSummary } from "@spectyra/sdk";
+import type { SpectyraMonitorEvent, SpectyraMonitorSummary } from "../monitor/monitorTypes.js";
 
 type TabId = "overview" | "costs" | "waste" | "settings";
 

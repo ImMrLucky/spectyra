@@ -1,7 +1,7 @@
 import type { IncomingMessage, ServerResponse } from "node:http";
-import { createSpectyraDevBridgeConnectMiddleware } from "@spectyra/sdk";
-import type { SpectyraLocalDevServerConfig } from "@spectyra/sdk";
-import { getAutoMonitorEngine } from "./state.js";
+import { createSpectyraDevBridgeConnectMiddleware } from "../monitor/localDevServer.js";
+import type { SpectyraLocalDevServerConfig } from "../types.js";
+import { getAutoMonitorEngine } from "./stateShared.js";
 
 export type { SpectyraLocalDevServerConfig };
 
@@ -14,9 +14,7 @@ export type ConnectStyleApp = {
 
 /**
  * Mounts the Spectyra dev HTTP bridge (`/__spectyra/*`) on your Node server using the
- * same {@link getAutoMonitorEngine} instance as `@spectyra/auto`.
- *
- * Pair with the browser entry `import "@spectyra/devtools/auto"` (or `<spectyra-overlay>`).
+ * same {@link getAutoMonitorEngine} instance as `@spectyra/sdk/auto`.
  */
 export function useSpectyraAutoDevBridge(app: ConnectStyleApp, options?: SpectyraLocalDevServerConfig): void {
   app.use(createSpectyraDevBridgeConnectMiddleware(() => getAutoMonitorEngine(), options));

@@ -1,31 +1,62 @@
 import {
   createMonitorCloudSyncDebouncer,
-  createMonitorEngine,
   shouldSyncMonitorToCloud,
-  startPricingRuntime,
-  type MonitorEngine,
-} from "@spectyra/sdk";
-import type { SpectyraConfig } from "@spectyra/sdk";
-import { resolveAutoConfig, type SpectyraAutoStartOptions } from "./config.js";
+} from "../cloud/monitorCloudSyncDebouncer.js";
+import { createMonitorEngine, type MonitorEngine } from "../monitor/monitorEngine.js";
+import { startPricingRuntime } from "../pricing/pricingRuntime.js";
+import type { SpectyraConfig } from "../types.js";
+import { resolveAutoConfig, type ResolvedAutoConfig, type SpectyraAutoStartOptions } from "./config.js";
 import { installAxiosInterceptor } from "./patchAxios.js";
 import { installFetchPatch } from "./patchFetch.js";
-import { installHttpPatch } from "./patchHttp.js";
-import { installUndiciFetchAlias } from "./patchUndici.js";
 
 let engine: MonitorEngine | null = null;
 let uninstallFetch: (() => void) | null = null;
-let uninstallHttp: (() => void) | null = null;
+let uninstallNodePatches: (() => void) | null = null;
 let uninstallAxios: (() => void) | null = null;
-let uninstallUndici: (() => void) | null = null;
+let lastResolved: ResolvedAutoConfig | null = null;
+
+export type SpectyraAutoHandle = MonitorEngine;
+
+export interface SpectyraAutoState {
+  running: boolean;
+  project?: string;
+  environment?: string;
+  service?: string;
+  jsonlEnabled?: boolean;
+  consoleEnabled?: boolean;
+  overlayEnabled?: boolean;
+}
+
+export function getSpectyraAutoState(): SpectyraAutoState {
+  return {
+    running: Boolean(engine),
+    project: lastResolved?.project,
+    environment: lastResolved?.environment,
+    service: lastResolved?.service,
+    jsonlEnabled: lastResolved?.jsonl.enabled,
+    consoleEnabled: lastResolved?.consoleEnabled,
+    overlayEnabled: lastResolved?.overlayEnabled,
+  };
+}
+
+/** Installs Node-only HTTP + undici patches; returns a single uninstaller. */
+export type NodePatchInstaller = (
+  getEngine: () => MonitorEngine | null,
+  defaults: { project?: string; environment?: string; service?: string },
+) => () => void;
 
 /**
  * Install global fetch / HTTP instrumentation and a dedicated {@link MonitorEngine}.
  * Idempotent: returns the existing engine if already started.
  */
-export function startSpectyraAuto(opts: SpectyraAutoStartOptions = {}): MonitorEngine {
+export function startSpectyraAutoInternal(
+  opts: SpectyraAutoStartOptions = {},
+  nodePatchInstaller?: NodePatchInstaller,
+): MonitorEngine {
   if (engine) return engine;
 
   const cfg = resolveAutoConfig(opts);
+  lastResolved = cfg;
   void startPricingRuntime({});
 
   const cloudSyncOn =
@@ -67,20 +98,22 @@ export function startSpectyraAuto(opts: SpectyraAutoStartOptions = {}): MonitorE
   const get = () => engine;
   const defaults = { project: cfg.project, environment: cfg.environment, service: cfg.service };
   uninstallFetch = installFetchPatch(get, defaults);
-  uninstallUndici = installUndiciFetchAlias();
-  uninstallHttp = installHttpPatch(get, defaults);
   uninstallAxios = installAxiosInterceptor(get, defaults);
+
+  if (nodePatchInstaller) {
+    uninstallNodePatches = nodePatchInstaller(get, defaults);
+  }
 
   return engine;
 }
 
 export function stopSpectyraAuto(): void {
   uninstallFetch?.();
-  uninstallUndici?.();
-  uninstallHttp?.();
+  uninstallNodePatches?.();
   uninstallAxios?.();
-  uninstallFetch = uninstallUndici = uninstallHttp = uninstallAxios = null;
+  uninstallFetch = uninstallNodePatches = uninstallAxios = null;
   engine = null;
+  lastResolved = null;
 }
 
 export function getAutoMonitorEngine(): MonitorEngine | null {

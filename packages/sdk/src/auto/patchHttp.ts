@@ -1,7 +1,7 @@
 import { createRequire } from "node:module";
 import type { ClientRequest, IncomingMessage } from "node:http";
-import type { MonitorEngine } from "@spectyra/sdk";
-import { detectProviderFromHost } from "@spectyra/sdk";
+import type { MonitorEngine } from "../monitor/monitorEngine.js";
+import { detectProviderFromHost } from "../monitor/providerDetection.js";
 import { recordMonitorFromHttpResponseOnly } from "./recordFromJson.js";
 
 /** Mutable `node:http` / `node:https` export objects (not ESM namespace imports). */

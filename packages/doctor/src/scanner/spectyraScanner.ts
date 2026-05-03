@@ -17,14 +17,21 @@ function depVersion(pkg: Record<string, unknown> | null, name: string): string |
   return d ?? dd;
 }
 
+const SDK_AUTO_RE =
+  /@spectyra\/sdk\/auto|from\s+['"]@spectyra\/sdk\/auto['"]|require\s*\(\s*['"]@spectyra\/sdk\/auto['"]/;
+const LEGACY_AUTO_RE =
+  /@spectyra\/auto|from\s+['"]@spectyra\/auto['"]|require\s*\(\s*['"]@spectyra\/auto['"]/;
+const LEGACY_DEVTOOLS_RE = /@spectyra\/devtools|from\s+['"]@spectyra\/devtools/;
+
 export function scanSpectyra(projectRoot: string, files: string[]): SpectyraStatus {
   const pkg = readPkg(projectRoot);
-  const autoInstalled = Boolean(depVersion(pkg, "@spectyra/auto"));
+  const legacyAutoPkg = Boolean(depVersion(pkg, "@spectyra/auto"));
   const sdkInstalled = Boolean(depVersion(pkg, "@spectyra/sdk"));
   const devtoolsInstalled = Boolean(depVersion(pkg, "@spectyra/devtools"));
   const doctorInstalled = Boolean(depVersion(pkg, "@spectyra/doctor"));
 
-  const autoImportFiles: string[] = [];
+  const sdkAutoImportFiles: string[] = [];
+  const legacyAutoImportFiles: string[] = [];
   const devtoolsImportFiles: string[] = [];
   let hasDevBridge = false;
   let hasStartSpectyraAuto = false;
@@ -42,10 +49,13 @@ export function scanSpectyra(projectRoot: string, files: string[]): SpectyraStat
   }
 
   for (const [rel, c] of entryContent) {
-    if (/@spectyra\/auto|from\s+['"]@spectyra\/auto['"]|require\s*\(\s*['"]@spectyra\/auto['"]/.test(c)) {
-      autoImportFiles.push(rel);
+    if (SDK_AUTO_RE.test(c)) {
+      sdkAutoImportFiles.push(rel);
     }
-    if (/@spectyra\/devtools|from\s+['"]@spectyra\/devtools/.test(c)) {
+    if (LEGACY_AUTO_RE.test(c)) {
+      legacyAutoImportFiles.push(rel);
+    }
+    if (LEGACY_DEVTOOLS_RE.test(c)) {
       devtoolsImportFiles.push(rel);
     }
     if (/useSpectyraAutoDevBridge|createSpectyraDevBridgeConnectMiddleware|registerSpectyraDevBridgeFastify/.test(c)) {
@@ -56,16 +66,27 @@ export function scanSpectyra(projectRoot: string, files: string[]): SpectyraStat
     }
   }
 
+  const autoImportFiles = [...new Set([...sdkAutoImportFiles, ...legacyAutoImportFiles])];
+
   const issues: string[] = [];
-  if (!autoInstalled) issues.push("@spectyra/auto not listed in package.json");
-  if (autoInstalled && autoImportFiles.length === 0) issues.push("No @spectyra/auto import found in scanned sources");
+  const info: string[] = [];
+  if (!sdkInstalled) issues.push("@spectyra/sdk not listed in package.json");
+  if (sdkInstalled && sdkAutoImportFiles.length === 0 && legacyAutoImportFiles.length === 0) {
+    issues.push("No @spectyra/sdk/auto import found in scanned sources");
+  }
+  if (legacyAutoPkg || legacyAutoImportFiles.length > 0) {
+    info.push("Legacy @spectyra/auto detected — migrate to import '@spectyra/sdk/auto'");
+  }
+  if (devtoolsImportFiles.length > 0) {
+    info.push("Legacy @spectyra/devtools import — prefer `import '@spectyra/sdk/auto'` (overlay is included)");
+  }
 
   const mainCandidates = ["apps/api/src/main.ts", "src/main.ts", "src/index.ts", "main.ts", "index.ts"];
   const mainFile = mainCandidates.find((m) => entryContent.has(m));
   if (mainFile) {
     const body = entryContent.get(mainFile)!;
     const firstImport = body.search(/^\s*import\s/m);
-    const spectyraIdx = body.search(/@spectyra\/auto|startSpectyraAuto/);
+    const spectyraIdx = body.search(/@spectyra\/sdk\/auto|@spectyra\/auto|startSpectyraAuto/);
     if (spectyraIdx >= 0 && firstImport >= 0 && spectyraIdx > firstImport + 400) {
       possibleLateImport = true;
       issues.push("Spectyra may load after other imports — consider moving to the very top or using node --import");
@@ -73,15 +94,18 @@ export function scanSpectyra(projectRoot: string, files: string[]): SpectyraStat
   }
 
   return {
-    autoInstalled,
+    autoInstalled: legacyAutoPkg || legacyAutoImportFiles.length > 0,
     sdkInstalled,
     devtoolsInstalled,
     doctorInstalled,
-    autoImportFiles,
+    legacyAutoImportFiles,
+    sdkAutoImportFiles,
     devtoolsImportFiles,
+    autoImportFiles,
     hasDevBridge,
     hasStartSpectyraAuto,
     possibleLateImport,
     issues,
+    info,
   };
 }

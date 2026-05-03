@@ -1,4 +1,4 @@
-import type { MonitorEngine } from "@spectyra/sdk";
+import type { MonitorEngine } from "../monitor/monitorEngine.js";
 import { recordMonitorFromJsonBody } from "./recordFromJson.js";
 
 type FetchFn = typeof fetch;

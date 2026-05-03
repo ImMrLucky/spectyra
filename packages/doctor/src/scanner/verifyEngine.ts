@@ -11,29 +11,41 @@ export function verifyIntegration(result: DoctorScanResult): VerifyLine[] {
   const s = result.spectyraStatus;
 
   lines.push({
-    ok: s.autoInstalled,
-    label: "@spectyra/auto installed",
-    detail: s.autoInstalled ? undefined : "Add dependency in the package that runs LLM calls",
+    ok: s.sdkInstalled,
+    label: "@spectyra/sdk installed",
+    detail: s.sdkInstalled ? undefined : "Add dependency in the package that runs LLM calls",
   });
   lines.push({
-    ok: s.devtoolsInstalled,
-    label: "@spectyra/devtools installed (optional overlay)",
+    ok: s.sdkAutoImportFiles.length > 0,
+    label: "import '@spectyra/sdk/auto' found in scanned sources",
+    detail: s.sdkAutoImportFiles[0],
   });
   lines.push({
-    ok: s.autoImportFiles.length > 0,
-    label: "Spectyra import found in scanned sources",
-    detail: s.autoImportFiles[0],
+    ok: s.legacyAutoImportFiles.length === 0,
+    label: "No legacy @spectyra/auto imports (migrate if present)",
+    detail:
+      s.legacyAutoImportFiles.length > 0
+        ? `Found in: ${s.legacyAutoImportFiles.slice(0, 3).join(", ")}`
+        : undefined,
   });
   lines.push({
-    ok: s.hasStartSpectyraAuto || s.autoImportFiles.some((f) => f.length > 0),
+    ok: s.devtoolsImportFiles.length === 0,
+    label: "No legacy @spectyra/devtools-only import required",
+    detail:
+      s.devtoolsImportFiles.length > 0
+        ? `Optional cleanup: ${s.devtoolsImportFiles.slice(0, 2).join(", ")}`
+        : undefined,
+  });
+  lines.push({
+    ok: s.hasStartSpectyraAuto || s.sdkAutoImportFiles.length > 0 || s.legacyAutoImportFiles.length > 0,
     label: "startSpectyraAuto(...) or side-effect import",
   });
   lines.push({
     ok: !s.devtoolsImportFiles.length || s.hasDevBridge,
-    label: "Dev bridge (required if browser overlay reads API)",
+    label: "Dev bridge (for backend overlay / live monitoring)",
     detail:
       s.devtoolsImportFiles.length && !s.hasDevBridge
-        ? "Add useSpectyraAutoDevBridge when using devtools overlay"
+        ? "Add useSpectyraAutoDevBridge when the browser overlay should read API-side data"
         : undefined,
   });
   lines.push({

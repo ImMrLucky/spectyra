@@ -1,12 +1,10 @@
-import type { SpectyraMonitorIntegrationMode, SpectyraMonitorProvider } from "@spectyra/sdk";
-import {
-  detectProviderFromHost,
-  extractUsageFromProviderResult,
-  estimateCost,
-  getPricingSnapshot,
-  buildWasteSignalsFromHttpAutoPath,
-  type MonitorEngine,
-} from "@spectyra/sdk";
+import type { SpectyraMonitorIntegrationMode, SpectyraMonitorProvider } from "../monitor/monitorTypes.js";
+import { detectProviderFromHost } from "../monitor/providerDetection.js";
+import { extractUsageFromProviderResult } from "../monitor/usageExtraction.js";
+import { estimateCost } from "../local/tokenEstimator.js";
+import { getPricingSnapshot } from "../pricing/pricingRuntime.js";
+import { buildWasteSignalsFromHttpAutoPath } from "../monitor/wasteHeuristics.js";
+import type { MonitorEngine } from "../monitor/monitorEngine.js";
 
 const MAX_JSON_BYTES = 512_000;
 

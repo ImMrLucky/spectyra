@@ -11,10 +11,10 @@
 ## Fast monitoring install (metadata-only)
 
 ```ts
-import "@spectyra/auto";
+import "@spectyra/sdk/auto";
 ```
 
-Starts automatically unless `SPECTYRA_AUTO=false`. For the full SDK (optimization + entitlements), use `import { createSpectyra } from "@spectyra/sdk"`. For the floating cost overlay in the browser: `import "@spectyra/devtools/auto"`.
+Auto-starts in **Node** unless `SPECTYRA_AUTO=false` or `SPECTYRA_AUTO=0`. For the full optimization API, use `import { createSpectyra } from "@spectyra/sdk"`. The same `import "@spectyra/sdk/auto"` resolves to a **browser** build that registers the floating overlay on dev hosts; pair backend apps with `useSpectyraAutoDevBridge` so the overlay can read `/__spectyra/*` data.
 
 **Honest limitation:** Spectyra Auto monitors supported AI calls from the services where it is installed. For full workflow attribution and optimization, use the explicit Spectyra SDK integration.
 

@@ -1,44 +1,94 @@
 # @spectyra/doctor
 
-**Spectyra Integration Doctor** — scan a project locally for AI/LLM usage, Spectyra packages, and suggested setup. **Read-only**: no code writes in v1, no uploads, no reading `.env` file contents (only variable names in source).
+Find where your app makes AI calls and get exact Spectyra setup instructions.
 
-## Usage
+## Quick install
+
+Install globally:
 
 ```bash
-# Default: UI on http://127.0.0.1:4120 + scan + open browser
-npx @spectyra/doctor
-
-# Scan a specific project
-npx @spectyra/doctor --path /absolute/path/to/app
-
-# No browser
-npx @spectyra/doctor --no-open
-
-# Terminal-only scan (no local server)
-npx @spectyra/doctor --no-ui
-
-# Subcommands
-npx @spectyra/doctor scan
-npx @spectyra/doctor verify
-
-# JSON
-npx @spectyra/doctor scan --json
+npm install -g @spectyra/doctor
 ```
 
-Global binary (after install): `spectyra-doctor`.
+Run from your project root:
 
-## Requirements
+```bash
+cd /path/to/your/project
+spectyra-doctor
+```
 
-- Node 18+
+Or scan a project by absolute path:
+
+```bash
+spectyra-doctor --path /absolute/path/to/your/project
+```
+
+You can also run without a global install:
+
+```bash
+npx @spectyra/doctor
+npx @spectyra/doctor --path /absolute/path/to/your/project
+```
+
+The Doctor opens a browser at **http://127.0.0.1:4120** (unless you pass `--no-open` or `--no-ui`).
+
+---
 
 ## What it does
 
-- Walks source files (`*.ts`, `*.tsx`, `*.js`, `*.jsx`, `*.mjs`, `*.cjs`, `*.py`) skipping `node_modules`, build outputs, `.git`, etc.
-- Skips files larger than 1 MB.
-- Detects providers (URLs, env var **names**), AI-ish call sites, frameworks from `package.json`, likely entrypoints, and Spectyra-related imports.
-- Serves a small local UI with SSE (`GET /events`) for live progress and copy-paste recommendations.
+Spectyra Doctor scans your project locally and shows:
 
-## API (local server)
+- where AI/LLM calls happen
+- which providers are used
+- whether calls happen in backend, frontend, workers, or scripts
+- which file should load Spectyra first
+- exact copy-paste integration code
+- possible optimization opportunities
+- post-scan verification after integration
+- possible missed AI calls (when combined with live runtime checks)
+
+It does **not** upload your code. It does **not** read or print secret values. It is **read-only** by default (no file writes).
+
+---
+
+## Install the runtime SDK
+
+After Doctor tells you where to integrate, install the runtime SDK:
+
+```bash
+npm install @spectyra/sdk
+```
+
+Add this at the top of the recommended backend entrypoint:
+
+```ts
+import '@spectyra/sdk/auto';
+```
+
+`@spectyra/sdk/auto` includes monitoring, auto instrumentation, JSONL, dev bridge support, overlay support (browser build / dev bridge on the server), confirmed-style runtime suggestions, and optimizer-related hooks.
+
+---
+
+## CLI reference
+
+| Command | Description |
+|--------|-------------|
+| `spectyra-doctor` | Default: scan `process.cwd()`, start UI on `127.0.0.1:4120`, open browser |
+| `spectyra-doctor --path /abs/project` | Scan that directory |
+| `spectyra-doctor --no-open` | Do not launch a browser |
+| `spectyra-doctor --no-ui` | Terminal-only (no local HTTP UI) |
+| `spectyra-doctor scan` | Scan subcommand |
+| `spectyra-doctor verify` | Static verify checklist |
+| `spectyra-doctor verify --runtime-url http://127.0.0.1:3000/__spectyra` | Include live bridge checks |
+| `spectyra-doctor --json` | JSON output |
+
+Global binary: `spectyra-doctor` (after `npm install -g @spectyra/doctor`).
+
+## Requirements
+
+- Node.js 18+
+
+## Local HTTP API (when UI is enabled)
 
 | Method | Path | Purpose |
 |--------|------|---------|
@@ -51,9 +101,9 @@ Global binary (after install): `spectyra-doctor`.
 
 ## Safety
 
-- Does not read `.env` (paths ignored by scanner).
-- Redacts likely secrets in snippets (`sk-…`, `Bearer …`, etc.).
-- No `pnpm` requirement; works with npm/yarn/bun lockfiles for **detection** only.
+- Does not read `.env` file contents (paths may still be listed as scan targets where applicable).
+- Redacts likely secrets in displayed snippets.
+- No `pnpm` requirement; works with npm / yarn / bun for detection.
 
 ## Develop
 

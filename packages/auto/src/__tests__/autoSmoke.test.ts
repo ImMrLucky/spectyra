@@ -1,7 +1,10 @@
 import assert from "node:assert/strict";
 import { createMonitorEngine } from "@spectyra/sdk";
-import { recordMonitorFromJsonBody } from "../recordFromJson.js";
-import { startSpectyraAuto, stopSpectyraAuto, getAutoMonitorEngine } from "../state.js";
+
+process.env.SPECTYRA_AUTO = "false";
+const { recordMonitorFromJsonBody, startSpectyraAuto, stopSpectyraAuto, getAutoMonitorEngine } = await import(
+  "@spectyra/sdk/auto"
+);
 
 const eng = createMonitorEngine({
   enabled: true,

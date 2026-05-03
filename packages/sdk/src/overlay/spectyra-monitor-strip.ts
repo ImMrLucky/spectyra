@@ -1,5 +1,5 @@
 import { LitElement, html, css } from "lit";
-import type { SpectyraMonitorSummary } from "@spectyra/sdk";
+import type { SpectyraMonitorSummary } from "../monitor/monitorTypes.js";
 
 /**
  * Compact monitor rollup chip; polls the Phase 6 dev bridge (`/__spectyra/monitor/summary`).

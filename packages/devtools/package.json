@@ -44,8 +44,7 @@
     "access": "public"
   },
   "dependencies": {
-    "@spectyra/sdk": "workspace:^0.1.19",
-    "lit": "^3.2.1"
+    "@spectyra/sdk": "workspace:^0.1.19"
   },
   "devDependencies": {
     "@types/node": "^20.0.0",

@@ -17,35 +17,35 @@ export function buildRecommendations(result: DoctorScanResult): IntegrationRecom
     {
       title: "Minimal (side-effect import)",
       language: "typescript",
-      code: `import '@spectyra/auto';`,
+      code: `import '@spectyra/sdk/auto';`,
     },
     {
       title: "Explicit setup (recommended for production APIs)",
       language: "typescript",
-      code: `import { startSpectyraAuto, useSpectyraAutoDevBridge } from '@spectyra/auto';
+      code: `import { startSpectyraAuto, useSpectyraAutoDevBridge } from '@spectyra/sdk/auto';
 
 startSpectyraAuto({
-  project: '${name}',
+  project: process.env.SPECTYRA_PROJECT ?? '${name}',
   environment: process.env.NODE_ENV ?? 'production',
   service: 'api',
   jsonlEnabled: true,
-  jsonlPath: process.env.SPECTYRA_JSONL_PATH ?? '/tmp/spectyra-usage.jsonl',
+  consoleEnabled: true,
   cloudSync: process.env.SPECTYRA_CLOUD_SYNC === 'true',
+  overlayEnabled: process.env.SPECTYRA_OVERLAY === 'true',
   spectyraCloudApiKey: process.env.SPECTYRA_CLOUD_API_KEY,
   spectyraApiBaseUrl: process.env.SPECTYRA_API_BASE_URL,
-  console: process.env.SPECTYRA_CONSOLE === 'true',
 });
 
-// After Fastify/Express app exists:
+// After Fastify/Express app exists — lets the browser overlay read backend monitoring:
 useSpectyraAutoDevBridge(app, {
-  enabled: process.env.SPECTYRA_DEV_BRIDGE === '1' || process.env.SPECTYRA_OVERLAY_DEV === 'true',
+  enabled: process.env.SPECTYRA_DEV_BRIDGE === '1',
   allowedHosts: ['localhost', '127.0.0.1'],
 });`,
     },
     {
       title: "Preload (if AI modules import before Spectyra runs)",
       language: "bash",
-      code: `node --import @spectyra/auto dist/main.js`,
+      code: `node --import @spectyra/sdk/auto dist/main.js`,
     },
   ];
 
@@ -53,10 +53,10 @@ useSpectyraAutoDevBridge(app, {
 
   if (backendCalls || result.providers.length > 0) {
     recs.push({
-      id: "backend-auto",
-      title: "Backend: @spectyra/auto",
+      id: "backend-sdk-auto",
+      title: "Backend: @spectyra/sdk/auto",
       summary:
-        "Install and start Spectyra in the **same Node process** that performs LLM HTTP calls. Place imports at the top of your server entry before route modules load.",
+        "Install Spectyra in the **same Node process** that performs LLM HTTP calls. `@spectyra/sdk/auto` includes monitoring, JSONL, dev bridge hooks, the live overlay (via dev bridge on the server), and optimizer-related instrumentation. Put the import at the very top of your server entry before route modules load.",
       targetFile: primaryEntry,
       codeBlocks: blocks,
       rank: 1,
@@ -65,16 +65,16 @@ useSpectyraAutoDevBridge(app, {
 
   if (hasFrontend || result.userPlacement === "frontend" || result.userPlacement === "both") {
     recs.push({
-      id: "frontend-devtools",
-      title: "Browser overlay: @spectyra/devtools",
+      id: "frontend-overlay",
+      title: "Browser: same runtime import",
       summary:
-        "The overlay reads monitor data from your API's dev bridge. Enable `SPECTYRA_DEV_BRIDGE` (or equivalent) on the backend and load devtools in the frontend bundle.",
+        "The live overlay is included with `import '@spectyra/sdk/auto'`. For backend APIs, enable the dev bridge so the browser can read monitoring data from `/__spectyra/*`. You normally do **not** need a second `@spectyra/devtools` import.",
       targetFile: "index.html or main.ts (frontend)",
       codeBlocks: [
         {
-          title: "Frontend",
+          title: "Frontend bundle (dev)",
           language: "typescript",
-          code: `import '@spectyra/devtools/auto';`,
+          code: `import '@spectyra/sdk/auto';`,
         },
       ],
       rank: 2,
@@ -103,7 +103,8 @@ app.include_router(spectyra_router(), prefix="/__spectyra")`,
     recs.push({
       id: "generic",
       title: "Add Spectyra when you add LLM calls",
-      summary: "No obvious AI HTTP patterns were detected. When you call OpenAI-compatible APIs from Node, add @spectyra/auto at process entry.",
+      summary:
+        "No obvious AI HTTP patterns were detected. When you call OpenAI-compatible APIs from Node, add `import '@spectyra/sdk/auto'` at the process entry (or use `node --import @spectyra/sdk/auto`).",
       targetFile: primaryEntry,
       codeBlocks: blocks,
       rank: 1,

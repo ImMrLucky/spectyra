@@ -1,29 +1,21 @@
 # @spectyra/devtools
 
-Browser helpers for **Spectyra AI monitoring** (see `docs/SPECTYRA_AI_MONITOR_SPEC.md`).
+**Compatibility wrapper** — re-exports browser components and helpers from [`@spectyra/sdk`](https://www.npmjs.com/package/@spectyra/sdk).
 
-- Re-exports the vanilla floating panel from `@spectyra/sdk` (`mountSpectyraDevtools`, `shouldMountDevtoolsByDefault`).
-- Registers **`<spectyra-monitor-strip>`** — a Lit element that polls `GET {baseUrl}/__spectyra/monitor/summary` (Phase 6 dev bridge). Use in local dev with your Node server’s `createSpectyraDevBridgeConnectMiddleware`.
-
-## Install
+**New installs should use:**
 
 ```bash
-pnpm add @spectyra/devtools
+npm install @spectyra/sdk
 ```
-
-## Lit strip
-
-Split **frontend + API**? Load `GET {yourApi}/__spectyra/overlay-bootstrap.js` in `index.html` before this package so `baseUrl` is set automatically (see `@spectyra/auto` README).
 
 ```ts
-import "@spectyra/devtools";
-
-// In HTML (e.g. Vite dev index): baseUrl '' when same origin serves the bridge
-document.body.innerHTML += '<spectyra-monitor-strip baseUrl=""></spectyra-monitor-strip>';
+import "@spectyra/sdk/auto"; // browser: overlay + monitoring side effects
+// or explicit components:
+import "@spectyra/sdk/overlay";
 ```
 
-Attributes: `baseUrl` (default `""`), `poll-interval-ms` (default `3000`).
+`import "@spectyra/devtools/auto"` remains available as a thin alias of `@spectyra/sdk/auto`.
 
-## Safety
+## Legacy note
 
-The strip only fetches **summary JSON** (counts and USD rollups). It does not send provider keys.
+Older docs referenced `pnpm add @spectyra/devtools`. Use **npm** or your preferred package manager; `pnpm` is not required.

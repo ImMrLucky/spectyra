@@ -77,10 +77,17 @@ export async function runScan(
     });
     on({ type: "warning", message: warnings[warnings.length - 1]!.message });
   }
-  if (aiCallSites.length && !spectyraStatus.autoInstalled) {
+  if (
+    aiCallSites.length &&
+    (!spectyraStatus.sdkInstalled ||
+      (spectyraStatus.sdkInstalled &&
+        spectyraStatus.sdkAutoImportFiles.length === 0 &&
+        spectyraStatus.legacyAutoImportFiles.length === 0))
+  ) {
     warnings.push({
-      code: "ai-without-auto",
-      message: "AI patterns found but @spectyra/auto may not be installed in this package",
+      code: "ai-without-sdk-auto",
+      message:
+        "AI patterns found but `import '@spectyra/sdk/auto'` is not detected (or @spectyra/sdk is missing from package.json)",
       severity: "warn",
     });
     on({ type: "warning", message: warnings[warnings.length - 1]!.message });

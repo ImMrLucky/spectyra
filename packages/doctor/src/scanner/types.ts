@@ -78,16 +78,25 @@ export interface Entrypoint {
 }
 
 export interface SpectyraStatus {
+  /** @deprecated Prefer {@link sdkInstalled} + {@link sdkAutoImportFiles}. */
   autoInstalled: boolean;
   sdkInstalled: boolean;
   devtoolsInstalled: boolean;
   doctorInstalled?: boolean;
-  autoImportFiles: string[];
+  /** Files importing legacy `@spectyra/auto`. */
+  legacyAutoImportFiles: string[];
+  /** Files importing `@spectyra/sdk/auto` (recommended). */
+  sdkAutoImportFiles: string[];
+  /** Files importing `@spectyra/devtools` or `/devtools/auto`. */
   devtoolsImportFiles: string[];
+  /** @deprecated Use {@link sdkAutoImportFiles} or {@link legacyAutoImportFiles}. */
+  autoImportFiles: string[];
   hasDevBridge: boolean;
   hasStartSpectyraAuto: boolean;
   possibleLateImport: boolean;
   issues: string[];
+  /** Non-blocking guidance (e.g. migration from legacy packages). */
+  info: string[];
 }
 
 export interface DoctorWarning {

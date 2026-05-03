@@ -54,11 +54,13 @@ async function loadResult() {
     <h3>Entrypoints</h3><ul>${eps || "<li>(none)</li>"}</ul>
     <h3>Spectyra</h3>
     <ul>
-      <li>@spectyra/auto: ${ss.autoInstalled ? "installed" : "not in package.json"}</li>
-      <li>@spectyra/devtools: ${ss.devtoolsInstalled ? "installed" : "optional"}</li>
+      <li>@spectyra/sdk: ${ss.sdkInstalled ? "in package.json" : "not listed"}</li>
+      <li>import '@spectyra/sdk/auto': ${(ss.sdkAutoImportFiles ?? []).length ? `yes (${(ss.sdkAutoImportFiles ?? []).slice(0, 2).join(", ")})` : "not found"}</li>
+      <li>Legacy @spectyra/auto: ${(ss.legacyAutoImportFiles ?? []).length ? "still referenced" : "not detected"}</li>
       <li>startSpectyraAuto: ${ss.hasStartSpectyraAuto ? "found" : "not found"}</li>
-      <li>Dev bridge hint: ${ss.hasDevBridge ? "found" : "not found"}</li>
+      <li>Dev bridge: ${ss.hasDevBridge ? "found" : "not found"}</li>
     </ul>
+    ${(ss.info ?? []).length ? `<h3>Migration / tips</h3><ul>${(ss.info ?? []).map((i) => `<li>${escapeHtml(i)}</li>`).join("")}</ul>` : ""}
     <h3>Warnings</h3>
     <ul>${(data.warnings ?? []).map((w) => `<li>${w.message}</li>`).join("") || "<li>—</li>"}</ul>
   `;

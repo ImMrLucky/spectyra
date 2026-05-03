@@ -39,6 +39,11 @@ function extractEnvVarsInFile(content: string): string[] {
   return [...names];
 }
 
+function withGlobalFlag(re: RegExp): RegExp {
+  const flags = re.flags.includes("g") ? re.flags : `${re.flags}g`;
+  return new RegExp(re.source, flags);
+}
+
 export function scanFileForAiCalls(projectRoot: string, absPath: string): AiCallSite[] {
   let content: string;
   try {
@@ -51,32 +56,37 @@ export function scanFileForAiCalls(projectRoot: string, absPath: string): AiCall
   const envVars = extractEnvVarsInFile(content);
 
   for (const { re, kind } of PATTERNS) {
-    const m = re.exec(content);
-    if (!m) continue;
-    const line = lineOf(content, m.index);
-    const start = Math.max(0, m.index - 80);
-    const snippet = redactSnippet(content.slice(start, m.index + 120));
-    const providers = scanTextForProviders(content, rel);
-    const urlHint =
-      content.match(/https?:\/\/[^\s"'`)]+/)?.[0] ??
-      (/\/chat\/completions/.test(content) ? "/chat/completions" : undefined);
+    const rg = withGlobalFlag(re);
+    let m: RegExpExecArray | null;
+    while ((m = rg.exec(content)) !== null) {
+      const line = lineOf(content, m.index);
+      const start = Math.max(0, m.index - 80);
+      const snippet = redactSnippet(content.slice(start, m.index + 120));
+      const providers = scanTextForProviders(content, rel);
+      const urlHint =
+        content.match(/https?:\/\/[^\s"'`)]+/)?.[0] ??
+        (/\/chat\/completions/.test(content) ? "/chat/completions" : undefined);
 
-    sites.push({
-      file: rel,
-      line,
-      kind,
-      provider: providers[0]?.provider,
-      urlHint,
-      envVars: envVars.filter((e) => /API|KEY|URL|HOST|TOKEN/i.test(e)),
-      confidence: /chat\/completions|api\.(openai|groq|anthropic)/i.test(content) ? "high" : "medium",
-      snippet,
-    });
-    break;
+      sites.push({
+        file: rel,
+        line,
+        kind,
+        provider: providers[0]?.provider,
+        urlHint,
+        envVars: envVars.filter((e) => /API|KEY|URL|HOST|TOKEN/i.test(e)),
+        confidence: /chat\/completions|api\.(openai|groq|anthropic)/i.test(content) ? "high" : "medium",
+        snippet,
+      });
+      if (m.index === rg.lastIndex) {
+        rg.lastIndex += 1;
+      }
+    }
   }
 
   if (sites.length === 0 && /\/chat\/completions|responses\.create|messages\.create/i.test(content)) {
     sites.push({
       file: rel,
+      line: 1,
       kind: "unknown",
       envVars,
       confidence: "medium",
@@ -84,7 +94,13 @@ export function scanFileForAiCalls(projectRoot: string, absPath: string): AiCall
     });
   }
 
-  return sites;
+  const seen = new Set<string>();
+  return sites.filter((s) => {
+    const k = `${s.file}:${s.line ?? 0}:${s.kind}:${s.provider ?? ""}:${s.urlHint ?? ""}`;
+    if (seen.has(k)) return false;
+    seen.add(k);
+    return true;
+  });
 }
 
 export function scanAllAiCalls(projectRoot: string, files: string[]): AiCallSite[] {
@@ -92,7 +108,7 @@ export function scanAllAiCalls(projectRoot: string, files: string[]): AiCallSite
   for (const f of files) {
     all.push(...scanFileForAiCalls(projectRoot, f));
   }
-  const key = (s: AiCallSite) => `${s.file}:${s.line}:${s.kind}`;
+  const key = (s: AiCallSite) => `${s.file}:${s.line ?? 0}:${s.kind}:${s.provider ?? ""}:${s.urlHint ?? ""}`;
   const seen = new Set<string>();
   return all.filter((s) => {
     const k = key(s);

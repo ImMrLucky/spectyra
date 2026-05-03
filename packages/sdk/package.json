@@ -21,6 +21,21 @@
     "./adapters/groq": {
       "types": "./dist/adapters/groq.d.ts",
       "default": "./dist/adapters/groq.js"
+    },
+    "./auto": {
+      "types": "./dist/auto/index.d.ts",
+      "browser": "./dist/overlay/auto.js",
+      "node": "./dist/auto/index.js",
+      "import": "./dist/auto/index.js",
+      "default": "./dist/auto/index.js"
+    },
+    "./overlay": {
+      "types": "./dist/overlay/index.d.ts",
+      "default": "./dist/overlay/index.js"
+    },
+    "./dev": {
+      "types": "./dist/dev/index.d.ts",
+      "default": "./dist/dev/index.js"
     }
   },
   "files": [
@@ -60,6 +75,7 @@
   },
   "dependencies": {},
   "devDependencies": {
+    "lit": "^3.2.1",
     "@spectyra/analytics-core": "workspace:^0.1.0",
     "@spectyra/canonical-model": "workspace:^0.1.0",
     "@spectyra/core-types": "workspace:^0.1.0",
