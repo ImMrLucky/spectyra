@@ -77,10 +77,11 @@ import '@spectyra/sdk/auto';
 | `spectyra-doctor --path /abs/project` | Scan that directory |
 | `spectyra-doctor --no-open` | Do not launch a browser |
 | `spectyra-doctor --no-ui` | Terminal-only (no local HTTP UI) |
-| `spectyra-doctor scan` | Scan subcommand |
-| `spectyra-doctor verify` | Static verify checklist |
-| `spectyra-doctor verify --runtime-url http://127.0.0.1:3000/__spectyra` | Include live bridge checks |
-| `spectyra-doctor --json` | JSON output |
+| `spectyra-doctor scan` | Scan subcommand (stdout summary; use `--json` for full `DoctorScanReport`) |
+| `spectyra-doctor verify` | Static verify checklist (optional live bridge: `--runtime-url http://127.0.0.1:8787`) |
+| `spectyra-doctor ui` | Same as default: start UI + scan |
+| `spectyra-doctor --json` | JSON output (with `scan` or terminal `--no-ui` flow) |
+| `spectyra-doctor --max-file-size-mb 5` | Skip files larger than 5 MB (default: 1) |
 
 Global binary: `spectyra-doctor` (after `npm install -g @spectyra/doctor`).
 
@@ -92,10 +93,11 @@ Global binary: `spectyra-doctor` (after `npm install -g @spectyra/doctor`).
 
 | Method | Path | Purpose |
 |--------|------|---------|
-| GET | `/api/scan` | Run scan, store result |
+| GET | `/api/health` | Liveness |
+| GET | `/api/scan?maxFileSizeMb=2` | Run scan (optional max file size for walkers) |
 | POST | `/api/rescan` | Rescan |
 | GET | `/api/result` | Last `DoctorScanResult` JSON |
-| GET | `/api/verify` | Checklist (runs scan if none yet) |
+| GET | `/api/verify?runtimeUrl=http://127.0.0.1:8787` | Checklist; optional `runtimeUrl` probes live dev bridge (`/__spectyra` appended if omitted) |
 | POST | `/api/set-user-answer` | Body `{ "placement": "backend" \| "frontend" \| "both" \| "not_sure" }` |
 | GET | `/events` | SSE progress stream |
 

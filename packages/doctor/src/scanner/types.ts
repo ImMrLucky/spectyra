@@ -115,19 +115,199 @@ export interface IntegrationRecommendation {
   rank: number;
 }
 
-export interface DoctorScanResult {
+export type AiProviderId =
+  | "openai"
+  | "anthropic"
+  | "groq"
+  | "gemini"
+  | "azure-openai"
+  | "aws-bedrock"
+  | "openrouter"
+  | "together"
+  | "mistral"
+  | "cohere"
+  | "perplexity"
+  | "ollama"
+  | "huggingface"
+  | "replicate"
+  | "deepseek"
+  | "xai"
+  | "fireworks"
+  | "elevenlabs"
+  | "vercel-ai-sdk"
+  | "langchain"
+  | "llamaindex"
+  | "litellm"
+  | "custom-gateway"
+  | "openai-compatible"
+  | "unknown";
+
+export type AiUsageType =
+  | "chat"
+  | "responses"
+  | "completion"
+  | "embedding"
+  | "rerank"
+  | "image"
+  | "audio"
+  | "moderation"
+  | "agent"
+  | "tool-calling"
+  | "streaming"
+  | "batch"
+  | "unknown";
+
+export type AiCallStyle = "sdk" | "http" | "framework" | "custom-wrapper" | "config" | "env" | "unknown";
+
+export interface ModelClassification {
+  raw: string;
+  provider: string;
+  family?: string;
+  capability?: "chat" | "reasoning" | "embedding" | "image" | "audio" | "rerank" | "unknown";
+  costProfile?: "low" | "medium" | "high" | "unknown";
+  spectyraStrategyHints: string[];
+}
+
+export interface SpectyraRecommendation {
+  priority: "critical" | "high" | "medium" | "low";
+  title: string;
+  summary: string;
+  installPackage?: string;
+  setupLocation?: string;
+  wrapperLocation?: string;
+  suggestedImport?: string;
+  suggestedCode?: string;
+  notes: string[];
+  estimatedEffort: "5 minutes" | "15 minutes" | "30 minutes" | "1 hour+";
+  confidence: number;
+}
+
+export interface AiUsageFinding {
+  id: string;
+  filePath: string;
+  relativePath: string;
+  line: number;
+  column?: number;
+  language: string;
+  provider: AiProviderId;
+  providerEvidence: string[];
+  usageType: AiUsageType;
+  callStyle: AiCallStyle;
+  methodName?: string;
+  importName?: string;
+  clientName?: string;
+  modelHints: string[];
+  envHints: string[];
+  urlHints: string[];
+  isStreaming?: boolean;
+  isServerSideLikely?: boolean;
+  isClientSideLikely?: boolean;
+  confidence: number;
+  severity: "high" | "medium" | "low";
+  snippet: string;
+  recommendation: SpectyraRecommendation;
+  packageDir?: string;
+}
+
+export interface IntegrationPoint {
+  filePath: string;
+  relativePath: string;
+  type:
+    | "server-entrypoint"
+    | "api-route"
+    | "llm-wrapper"
+    | "provider-client"
+    | "frontend-entrypoint"
+    | "config";
+  confidence: number;
+  reason: string;
+  suggestedAction: string;
+}
+
+export interface PackageFinding {
+  packageDir: string;
+  manifestPath: string;
+  name?: string;
+  hasSpectyraSdk: boolean;
+  hasSpectyraAutoImport: boolean;
+  aiDependencyHints: string[];
+}
+
+export interface DoctorRisk {
+  level: "high" | "medium" | "low";
+  title: string;
+  detail: string;
+  filePath?: string;
+  line?: number;
+  fix?: string;
+}
+
+export interface ScannableFile {
+  path: string;
+  relativePath: string;
+  extension?: string;
+  language?: string;
+  sizeBytes: number;
+  reason: string;
+}
+
+export interface DoctorScanReport {
   projectRoot: string;
+  scannedAt: string;
   packageManager?: "npm" | "pnpm" | "yarn" | "bun" | "unknown";
   projectType?: "node" | "python" | "mixed" | "unknown";
+  summary: {
+    filesScanned: number;
+    /** Total skip rows from the file walker (includes ignored directories as boundary rows). */
+    filesSkipped?: number;
+    directoriesSkipped?: number;
+    symlinksSkipped?: number;
+    secretFilesSkipped?: number;
+    binariesSkipped?: number;
+    oversizedSkipped?: number;
+    lockfilesSkipped?: number;
+    permissionOrReadWarnings?: number;
+    aiFindings: number;
+    highConfidenceFindings: number;
+    providers: Record<string, number>;
+    usageTypes: Record<string, number>;
+    modelsDetected: string[];
+    packagesWithAiUsage: string[];
+    spectyraInstalled: boolean;
+    spectyraAutoDetected: boolean;
+    recommendedNextStep: string;
+  };
+  packages: PackageFinding[];
+  /** Unique relative paths where AI usage or integration work was detected (not the full file list). */
+  actionableFilePaths: string[];
+  aiFindings: AiUsageFinding[];
+  integrationPoints: IntegrationPoint[];
+  recommendations: SpectyraRecommendation[];
+  risks: DoctorRisk[];
   frameworks: DetectedFramework[];
   providers: DetectedProvider[];
-  aiCallSites: AiCallSite[];
   entrypoints: Entrypoint[];
   spectyraStatus: SpectyraStatus;
-  recommendations: IntegrationRecommendation[];
   warnings: DoctorWarning[];
   userPlacement?: UserPlacementAnswer;
+  aiCallSites: AiCallSite[];
+  /** File walk telemetry (exclusion-first scan). */
+  fileWalk?: DoctorFileWalkSummary;
 }
+
+/** Aggregated output from the exclusion-first file walker; see {@link DoctorScanReport.fileWalk}. */
+export interface DoctorFileWalkSummary {
+  rootDir: string;
+  directoriesSkipped: string[];
+  skippedTotal: number;
+  skippedByReason: Record<string, number>;
+  skippedSample: Array<{ relativePath: string; reason: string; detail?: string }>;
+  permissionOrReadErrors: number;
+  walkWarnings: string[];
+}
+
+/** @alias DoctorScanReport */
+export type DoctorScanResult = DoctorScanReport;
 
 export type ProgressEvent = {
   type: "progress" | "finding" | "warning" | "result" | "error";

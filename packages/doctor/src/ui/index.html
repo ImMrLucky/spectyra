@@ -3,20 +3,28 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Spectyra Integration Doctor</title>
+    <title>Spectyra Doctor</title>
     <link rel="stylesheet" href="/styles.css" />
   </head>
   <body>
-    <header class="hero">
-      <h1>Spectyra Integration Doctor</h1>
-      <p class="sub">
-        Find where your app makes AI calls and get exact Spectyra setup instructions.
-      </p>
-    </header>
+    <div class="layout">
+      <header class="hero">
+        <div>
+          <h1>Spectyra Doctor</h1>
+          <p class="sub">AI Integration Scanner &amp; Setup Assistant — find real LLM usage and get exact Spectyra steps.</p>
+          <p class="meta" id="meta-line">…</p>
+        </div>
+        <div class="actions">
+          <button type="button" class="btn btn-primary" id="btn-rescan">Rescan project</button>
+          <button type="button" class="btn" id="btn-copy-install">Copy install command</button>
+          <button type="button" class="btn" id="btn-verify">Verify integration</button>
+        </div>
+      </header>
 
-    <main>
-      <section class="card" id="target">
-        <h2>Scan target</h2>
+      <div class="grid-cards" id="summary-cards"></div>
+
+      <section class="section card" id="target">
+        <h2>Scan context</h2>
         <p><strong>Project:</strong> <span id="project-root">…</span></p>
         <p><strong>Status:</strong> <span id="scan-status">connecting…</span></p>
         <fieldset>
@@ -26,37 +34,100 @@
           <label><input type="radio" name="placement" value="frontend" /> Frontend</label>
           <label><input type="radio" name="placement" value="both" /> Both</label>
         </fieldset>
-        <button type="button" id="apply-placement">Apply &amp; rescan</button>
+        <button type="button" class="btn" id="apply-placement" style="margin-top: 10px">Apply &amp; rescan</button>
       </section>
 
-      <section class="card">
+      <section class="section card">
         <h2>Live scan</h2>
         <ul id="timeline" class="timeline"></ul>
       </section>
 
-      <section class="card" id="dashboard" hidden>
-        <h2>Findings</h2>
-        <div id="findings"></div>
+      <section class="section card" id="actionable-section" hidden>
+        <h2>Actionable paths</h2>
+        <p class="hint" id="actionable-hint"></p>
+        <ul id="actionable-list" class="mono-list"></ul>
       </section>
 
-      <section class="card" id="recommendations" hidden>
-        <h2>Recommended integration</h2>
-        <div id="rec-body"></div>
+      <section class="section card" id="filewalk-section" hidden>
+        <h2>File scan coverage</h2>
+        <p class="hint" id="filewalk-summary"></p>
+        <div class="kv" id="filewalk-kv"></div>
+        <details class="raw">
+          <summary>Skip reasons (sample)</summary>
+          <ul id="filewalk-skips" class="mono-list"></ul>
+        </details>
       </section>
 
-      <section class="card">
-        <h2>Verification</h2>
-        <button type="button" id="btn-verify">Run verify</button>
-        <ul id="verify-lines"></ul>
+      <section class="section card" id="provider-section" hidden>
+        <h2>Provider map</h2>
+        <div class="provider-map" id="provider-map"></div>
       </section>
 
-      <section class="card muted">
-        <p>
-          Doctor is <strong>read-only</strong>. It does not upload source code. It never reads <code>.env</code>
-          contents — only detects variable <em>names</em> in source.
+      <section class="section card" id="steps-section" hidden>
+        <h2>Recommended next steps</h2>
+        <ol class="checklist" id="checklist"></ol>
+      </section>
+
+      <section class="section card" id="table-section" hidden>
+        <h2>AI usage</h2>
+        <div class="table-wrap">
+          <table class="data" id="findings-table">
+            <thead>
+              <tr>
+                <th>Conf.</th>
+                <th>Provider</th>
+                <th>Model</th>
+                <th>Usage</th>
+                <th>Style</th>
+                <th>File</th>
+                <th>Line</th>
+              </tr>
+            </thead>
+            <tbody id="findings-body"></tbody>
+          </table>
+        </div>
+      </section>
+
+      <section class="section card" id="points-section" hidden>
+        <h2>Integration points</h2>
+        <ul id="integration-points" class="checklist"></ul>
+      </section>
+
+      <section class="section card" id="risks-section" hidden>
+        <h2>Risks &amp; notes</h2>
+        <ul id="risks-list" class="checklist"></ul>
+      </section>
+
+      <section class="section card" id="verify-section">
+        <h2>Verification checklist</h2>
+        <p class="hint">
+          Optional: set your running app's Spectyra dev bridge URL (same host you mount the bridge on; <code>/__spectyra</code> is added if
+          missing).
         </p>
+        <label class="block-label">
+          Runtime bridge URL
+          <input type="url" id="runtime-verify-url" class="input-url" placeholder="http://127.0.0.1:8787" autocomplete="off" />
+        </label>
+        <ul id="verify-lines"></ul>
+        <div id="verify-runtime-extra" class="verify-extra" hidden></div>
       </section>
-    </main>
+
+      <details class="raw card">
+        <summary>Advanced — raw scan JSON</summary>
+        <pre class="snip" id="raw-json"></pre>
+      </details>
+
+      <p class="muted-foot">
+        Doctor is <strong>read-only</strong>. It does not upload source. It skips secret <code>.env</code> files; only template env
+        files and code are scanned.
+      </p>
+    </div>
+
+    <div class="detail-backdrop" id="detail-backdrop"></div>
+    <aside class="detail-drawer" id="detail-drawer">
+      <button type="button" class="btn" id="detail-close" style="margin-bottom: 12px">Close</button>
+      <div id="detail-content"></div>
+    </aside>
 
     <script src="/app.js" type="module"></script>
   </body>

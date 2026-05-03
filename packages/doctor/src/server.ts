@@ -7,6 +7,16 @@ import { verifyIntegration } from "./scanner/verifyEngine.js";
 import { getLastResult, getUserPlacement, setLastResult, setUserPlacement } from "./state.js";
 import type { ProgressEvent, UserPlacementAnswer } from "./scanner/types.js";
 
+function maxScanBytesFromQuery(query: express.Request["query"]): number {
+  const rawBytes = query.maxFileSizeBytes ?? query.maxFileSize;
+  if (rawBytes !== undefined) {
+    const n = parseInt(String(rawBytes), 10);
+    if (Number.isFinite(n) && n > 0) return n;
+  }
+  const maxMb = parseFloat(String(query.maxFileSizeMb ?? "1"));
+  return Number.isFinite(maxMb) && maxMb > 0 ? Math.round(maxMb * 1_000_000) : 1_000_000;
+}
+
 const __dirname = dirname(fileURLToPath(import.meta.url));
 
 export type DoctorServerOptions = {
@@ -49,15 +59,21 @@ export function createDoctorApp(projectRoot: string): express.Express {
     });
   });
 
+  app.get("/api/health", (_req, res) => {
+    res.json({ ok: true, service: "spectyra-doctor" });
+  });
+
   app.get("/api/result", (_req, res) => {
     res.json(getLastResult());
   });
 
-  app.get("/api/scan", async (_req, res) => {
+  app.get("/api/scan", async (req, res) => {
+    const maxBytes = maxScanBytesFromQuery(req.query);
     try {
       const r = await runScan(projectRoot, {
         userPlacement: getUserPlacement(),
         onProgress: (ev) => broadcast(ev),
+        maxFileSizeBytes: maxBytes,
       });
       setLastResult(r);
       res.json(r);
@@ -68,11 +84,13 @@ export function createDoctorApp(projectRoot: string): express.Express {
     }
   });
 
-  app.post("/api/rescan", async (_req, res) => {
+  app.post("/api/rescan", async (req, res) => {
+    const maxBytes = maxScanBytesFromQuery(req.query);
     try {
       const r = await runScan(projectRoot, {
         userPlacement: getUserPlacement(),
         onProgress: (ev) => broadcast(ev),
+        maxFileSizeBytes: maxBytes,
       });
       setLastResult(r);
       res.json(r);
@@ -92,11 +110,11 @@ export function createDoctorApp(projectRoot: string): express.Express {
     res.json({ ok: true, placement: getUserPlacement() });
   });
 
-  app.get("/api/verify", async (_req, res) => {
+  app.get("/api/verify", async (req, res) => {
     let r = getLastResult();
     if (!r) {
       try {
-        r = await runScan(projectRoot, {});
+        r = await runScan(projectRoot, { maxFileSizeBytes: 1_000_000 });
         setLastResult(r);
       } catch (e) {
         const msg = e instanceof Error ? e.message : String(e);
@@ -104,7 +122,9 @@ export function createDoctorApp(projectRoot: string): express.Express {
         return;
       }
     }
-    res.json({ lines: verifyIntegration(r) });
+    const runtimeUrl = typeof req.query.runtimeUrl === "string" ? req.query.runtimeUrl : undefined;
+    const { lines, runtime } = await verifyIntegration(r, { runtimeUrl });
+    res.json({ lines, runtime });
   });
 
   app.get("/", (_req, res) => {

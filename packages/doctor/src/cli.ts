@@ -8,12 +8,17 @@ import { startDoctorServer } from "./server.js";
 import { setLastResult } from "./state.js";
 
 type Parsed = {
-  cmd: "default" | "scan" | "verify";
+  cmd: "default" | "scan" | "verify" | "ui";
   path: string;
   port: number;
   noOpen: boolean;
   noUi: boolean;
   json: boolean;
+  maxFileSizeMb: number;
+  /** Exact byte cap when set via --max-file-size (overrides --max-file-size-mb). */
+  maxFileSizeBytes?: number;
+  /** Dev bridge base URL (with or without `/__spectyra`) for `verify`. */
+  runtimeUrl?: string;
 };
 
 function parseArgv(argv: string[]): Parsed {
@@ -24,6 +29,7 @@ function parseArgv(argv: string[]): Parsed {
     noOpen: false,
     noUi: false,
     json: false,
+    maxFileSizeMb: 1,
   };
   const args = [...argv];
   if (args[0] === "scan") {
@@ -31,6 +37,9 @@ function parseArgv(argv: string[]): Parsed {
     args.shift();
   } else if (args[0] === "verify") {
     out.cmd = "verify";
+    args.shift();
+  } else if (args[0] === "ui") {
+    out.cmd = "ui";
     args.shift();
   }
   for (let i = 0; i < args.length; i++) {
@@ -55,11 +64,20 @@ function parseArgv(argv: string[]): Parsed {
       out.json = true;
       continue;
     }
-    if (a === "--watch") {
-      /* v1: no-op */
+    if (a === "--max-file-size-mb" && args[i + 1]) {
+      out.maxFileSizeMb = Math.max(0.1, parseFloat(args[++i]!) || 1);
       continue;
     }
-    if (a === "--verbose") {
+    if (a === "--max-file-size" && args[i + 1]) {
+      const n = parseInt(args[++i]!, 10);
+      if (Number.isFinite(n) && n > 0) out.maxFileSizeBytes = n;
+      continue;
+    }
+    if (a === "--runtime-url" && args[i + 1]) {
+      out.runtimeUrl = args[++i]!;
+      continue;
+    }
+    if (a === "--watch" || a === "--verbose") {
       continue;
     }
     if (a === "-h" || a === "--help") {
@@ -71,53 +89,37 @@ function parseArgv(argv: string[]): Parsed {
 }
 
 function printHelp(): void {
-  console.log(`spectyra-doctor — Spectyra Integration Doctor
+  console.log(`spectyra-doctor — Spectyra AI Integration Scanner
 
 Usage:
   spectyra-doctor [options]
   spectyra-doctor scan [options]
   spectyra-doctor verify [options]
+  spectyra-doctor ui [options]
 
 Options:
-  --path <dir>    Project root (default: cwd)
-  --port <n>      UI port (default: 4120)
-  --no-open       Do not open a browser
-  --no-ui         Terminal scan only (no local server)
-  --json          JSON output (scan / verify)
-  --watch         Reserved (ignored in v1)
-  -h, --help      Show help
+  --path <dir>           Project root (default: cwd)
+  --port <n>             UI port (default: 4120)
+  --no-open              Do not open a browser
+  --no-ui                Terminal scan only (no local server)
+  --json                 JSON output (scan / verify)
+  --max-file-size-mb <n> Skip files larger than this (default: 1)
+  --max-file-size <bytes> Skip files larger than this exact size in bytes (overrides --max-file-size-mb)
+  --runtime-url <url>    With verify: probe live Spectyra dev bridge (append /__spectyra if omitted)
+  -h, --help             Show help
 `);
 }
 
-async function main(): Promise<void> {
-  const opts = parseArgv(process.argv.slice(2));
+function maxBytesForScan(opts: Parsed): number {
+  if (opts.maxFileSizeBytes !== undefined && opts.maxFileSizeBytes > 0) return opts.maxFileSizeBytes;
+  return Math.round(opts.maxFileSizeMb * 1_000_000);
+}
+
+async function startUiFlow(opts: Parsed): Promise<void> {
   const projectRoot = normalizeProjectRoot(opts.path);
-
-  if (opts.cmd === "scan") {
-    const result = await runScan(projectRoot, {});
-    setLastResult(result);
-    if (opts.json) console.log(JSON.stringify(result, null, 2));
-    else printScanReport(result);
-    return;
-  }
-
-  if (opts.cmd === "verify") {
-    const result = await runScan(projectRoot, {});
-    setLastResult(result);
-    const lines = verifyIntegration(result);
-    if (opts.json) console.log(JSON.stringify({ result, lines }, null, 2));
-    else {
-      log.info("Spectyra Doctor — verify");
-      console.log(`Project: ${projectRoot}\n`);
-      for (const line of lines) {
-        console.log(`${line.ok ? "✅" : "❌"} ${line.label}${line.detail ? ` — ${line.detail}` : ""}`);
-      }
-    }
-    return;
-  }
-
+  const maxFileSizeBytes = maxBytesForScan(opts);
   if (opts.noUi) {
-    const result = await runScan(projectRoot, {});
+    const result = await runScan(projectRoot, { maxFileSizeBytes });
     setLastResult(result);
     if (opts.json) console.log(JSON.stringify(result, null, 2));
     else printScanReport(result);
@@ -125,7 +127,7 @@ async function main(): Promise<void> {
   }
 
   const { url, close } = await startDoctorServer({ projectRoot, port: opts.port });
-  log.ok(`Spectyra Integration Doctor listening at ${url}`);
+  log.ok(`Spectyra Doctor listening at ${url}`);
   if (!opts.noOpen) {
     try {
       await openBrowser(url);
@@ -134,7 +136,10 @@ async function main(): Promise<void> {
     }
   }
   try {
-    await fetch(`${url}/api/scan`);
+    await fetch(
+      `${url}/api/scan?maxFileSizeMb=${encodeURIComponent(String(opts.maxFileSizeMb))}` +
+        (opts.maxFileSizeBytes ? `&maxFileSizeBytes=${encodeURIComponent(String(opts.maxFileSizeBytes))}` : ""),
+    );
   } catch {
     log.warn("Initial scan request failed — use Rescan in UI");
   }
@@ -147,28 +152,74 @@ async function main(): Promise<void> {
   process.on("SIGTERM", () => void shutdown());
 }
 
+async function main(): Promise<void> {
+  const opts = parseArgv(process.argv.slice(2));
+  const projectRoot = normalizeProjectRoot(opts.path);
+  const scanOpts = { maxFileSizeBytes: maxBytesForScan(opts) };
+
+  if (opts.cmd === "scan") {
+    const result = await runScan(projectRoot, scanOpts);
+    setLastResult(result);
+    if (opts.json) console.log(JSON.stringify(result, null, 2));
+    else printScanReport(result);
+    return;
+  }
+
+  if (opts.cmd === "verify") {
+    const result = await runScan(projectRoot, scanOpts);
+    setLastResult(result);
+    const { lines, runtime } = await verifyIntegration(result, { runtimeUrl: opts.runtimeUrl });
+    if (opts.json) console.log(JSON.stringify({ result, lines, runtime }, null, 2));
+    else {
+      log.info("Spectyra Doctor — verify");
+      console.log(`Project: ${projectRoot}\n`);
+      for (const line of lines) {
+        console.log(`${line.ok ? "✅" : "❌"} ${line.label}${line.detail ? ` — ${line.detail}` : ""}`);
+      }
+      if (runtime?.possiblyMissed?.length) {
+        console.log("\nProviders seen in scan but not in recent runtime events:");
+        for (const m of runtime.possiblyMissed) {
+          console.log(`  • ${m.provider}: ${m.files.join(", ")}`);
+        }
+      }
+    }
+    return;
+  }
+
+  if (opts.cmd === "ui") {
+    await startUiFlow(opts);
+    return;
+  }
+
+  await startUiFlow(opts);
+}
+
 function printScanReport(result: Awaited<ReturnType<typeof runScan>>): void {
   log.info("Spectyra Doctor");
-  console.log(`Project: ${result.projectRoot}\n`);
-  console.log("Providers:");
-  for (const p of result.providers) {
-    console.log(`  - ${p.provider} (${p.confidence})`);
+  console.log(`Project: ${result.projectRoot}`);
+  console.log(`Scanned at: ${result.scannedAt}`);
+  console.log(`Files: ${result.summary.filesScanned} scanned | skipped rows: ${result.summary.filesSkipped ?? 0} | dirs not descended: ${result.summary.directoriesSkipped ?? 0}`);
+  if (result.fileWalk) {
+    const br = result.fileWalk.skippedByReason["binary-file"] ?? 0;
+    const sy = result.fileWalk.skippedByReason.symlink ?? 0;
+    const sec = result.fileWalk.skippedByReason["secret-file"] ?? 0;
+    console.log(`  (binaries skipped: ${br}, symlinks skipped: ${sy}, secret paths skipped: ${sec})`);
   }
-  if (result.providers.length === 0) console.log("  (none detected)");
-  console.log("\nAI call sites:");
-  for (const s of result.aiCallSites.slice(0, 40)) {
-    console.log(`  - ${s.file}${s.line ? `:${s.line}` : ""} [${s.kind}]`);
+  console.log(`AI findings: ${result.summary.aiFindings}\n`);
+  console.log("Providers (aggregated):");
+  for (const [k, v] of Object.entries(result.summary.providers)) {
+    console.log(`  ${k}: ${v}`);
   }
-  if (result.aiCallSites.length === 0) console.log("  (none detected)");
-  console.log("\nEntrypoints:");
-  for (const e of result.entrypoints) {
-    console.log(`  - ${e.file} (${e.type}, ${e.framework ?? "unknown"})`);
+  if (Object.keys(result.summary.providers).length === 0) console.log("  (none)");
+  console.log("\nTop AI findings:");
+  for (const f of result.aiFindings.slice(0, 20)) {
+    console.log(`  - ${f.relativePath}:${f.line} [${f.provider}] ${f.usageType} (${Math.round(f.confidence * 100)}%)`);
   }
-  const top = result.recommendations[0];
-  if (top) {
-    console.log(`\nRecommended: ${top.title}`);
-    console.log(top.summary);
-    if (top.targetFile) console.log(`\nTarget file: ${top.targetFile}`);
+  if (result.aiFindings.length === 0) console.log("  (none)");
+  console.log("\nRecommended next steps:");
+  for (const r of result.recommendations.slice(0, 8)) {
+    console.log(`  • [${r.priority}] ${r.title}`);
+    if (r.suggestedCode) console.log(`    ${r.suggestedCode.split("\n")[0]}`);
   }
 }
 

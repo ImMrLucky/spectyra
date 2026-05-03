@@ -1,4 +1,5 @@
 import type { DoctorScanResult } from "./types.js";
+import { runRuntimeVerify, type RuntimeVerifyResult } from "./runtimeVerify.js";
 
 export interface VerifyLine {
   ok: boolean;
@@ -6,7 +7,12 @@ export interface VerifyLine {
   detail?: string;
 }
 
-export function verifyIntegration(result: DoctorScanResult): VerifyLine[] {
+export type VerifyIntegrationResult = { lines: VerifyLine[]; runtime?: RuntimeVerifyResult };
+
+export async function verifyIntegration(
+  result: DoctorScanResult,
+  options?: { runtimeUrl?: string },
+): Promise<VerifyIntegrationResult> {
   const lines: VerifyLine[] = [];
   const s = result.spectyraStatus;
 
@@ -59,5 +65,47 @@ export function verifyIntegration(result: DoctorScanResult): VerifyLine[] {
     detail: s.possibleLateImport ? "Warning: Spectyra may load late" : undefined,
   });
 
-  return lines;
+  const runtimeUrl = options?.runtimeUrl?.trim();
+  if (!runtimeUrl) {
+    return { lines };
+  }
+
+  const runtime = await runRuntimeVerify(result.aiFindings, runtimeUrl);
+  lines.push({
+    ok: runtime.reachable,
+    label: "Spectyra dev bridge reachable (runtime)",
+    detail: runtime.reachable ? runtime.baseUrl : runtime.errors[0] ?? "No successful summary/events/waste response",
+  });
+  lines.push({
+    ok: !runtime.reachable || runtime.summaryOk,
+    label: "Bridge /summary",
+    detail:
+      runtime.summaryOk && runtime.requestCount !== undefined
+        ? `requestCount≈${runtime.requestCount}`
+        : runtime.summaryOk
+          ? "OK"
+          : runtime.errors.find((e) => e.includes("Summary")) ?? "unavailable",
+  });
+  lines.push({
+    ok: !runtime.reachable || runtime.eventsOk,
+    label: "Bridge /events",
+    detail: runtime.eventsOk
+      ? `${runtime.eventsObserved ?? 0} event(s); providers: ${runtime.providersObserved.length ? runtime.providersObserved.join(", ") : "—"}`
+      : runtime.errors.find((e) => e.includes("Events")) ?? "unavailable",
+  });
+  lines.push({
+    ok: !runtime.reachable || runtime.wasteOk,
+    label: "Bridge /waste",
+    detail: runtime.wasteOk ? "OK" : "endpoint missing or error",
+  });
+
+  for (const miss of runtime.possiblyMissed) {
+    lines.push({
+      ok: false,
+      label: `Runtime did not observe provider: ${miss.provider}`,
+      detail: `${miss.files.slice(0, 6).join(", ")}${miss.files.length > 6 ? "…" : ""} — ${miss.reason}`,
+    });
+  }
+
+  return { lines, runtime };
 }

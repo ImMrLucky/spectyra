@@ -329,6 +329,9 @@ importers:
       fast-glob:
         specifier: ^3.3.3
         version: 3.3.3
+      isbinaryfile:
+        specifier: ^5.0.0
+        version: 5.0.7
       open:
         specifier: ^10.1.0
         version: 10.2.0
