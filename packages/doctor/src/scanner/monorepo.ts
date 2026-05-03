@@ -1,7 +1,7 @@
 import { readFileSync } from "node:fs";
 import fg from "fast-glob";
-import { dirname, join, relative } from "node:path";
-import type { PackageFinding } from "./types.js";
+import { dirname, relative } from "node:path";
+import type { DoctorScanReport, PackageFinding } from "./types.js";
 
 const PKG_IGNORE = [
   "**/node_modules/**",
@@ -66,19 +66,53 @@ export function buildPackageFindings(projectRoot: string, manifestAbsPaths: stri
     const name = typeof pkg.name === "string" ? pkg.name : undefined;
     const deps = { ...(pkg.dependencies as Record<string, string>), ...(pkg.devDependencies as Record<string, string>) };
     const hasSpectyraSdk = Boolean(deps["@spectyra/sdk"]);
+    const hasLegacySpectyraAuto = Boolean(deps["@spectyra/auto"]);
+    const hasLegacySpectyraDevtools = Boolean(deps["@spectyra/devtools"]);
     const aiDependencyHints = AI_DEP_HINTS.filter((k) =>
       Object.keys(deps).some((d) => d === k || d.startsWith(`${k}/`) || d.includes(k.replace(/\*$/, ""))),
     );
     out.push({
       packageDir,
+      relativePath: packageDir,
       manifestPath: pkgJsonRel,
       name,
+      packageManager: "unknown",
       hasSpectyraSdk,
       hasSpectyraAutoImport: false,
+      hasLegacySpectyraAuto,
+      hasLegacySpectyraDevtools,
       aiDependencyHints,
+      aiFindingCount: 0,
+      installCommand: "",
     });
   }
   return out.sort((a, b) => a.manifestPath.localeCompare(b.manifestPath));
+}
+
+/** pnpm: `pnpm --filter <name> add …` (workspace-safe). */
+export function computeSdkInstallCommand(
+  pm: DoctorScanReport["packageManager"] | undefined,
+  p: PackageFinding,
+): string {
+  if (p.hasSpectyraSdk) return "";
+  const filter = p.name && p.name.length > 0 ? p.name : p.packageDir === "." ? "." : p.packageDir;
+  if (pm === "pnpm") return `pnpm --filter ${filter} add @spectyra/sdk`;
+  const dir = p.packageDir === "." ? "." : p.packageDir;
+  if (pm === "yarn") return `cd ${dir} && yarn add @spectyra/sdk`;
+  if (pm === "bun") return `cd ${dir} && bun add @spectyra/sdk`;
+  return `cd ${dir} && npm install @spectyra/sdk`;
+}
+
+export function applyPackageScanStats(
+  packages: PackageFinding[],
+  aiFindings: import("./types.js").AiUsageFinding[],
+  pm: DoctorScanReport["packageManager"],
+): void {
+  for (const p of packages) {
+    p.aiFindingCount = aiFindings.filter((f) => f.packageDir === p.packageDir).length;
+    p.packageManager = pm === "unknown" || !pm ? "unknown" : pm;
+    p.installCommand = computeSdkInstallCommand(pm, p);
+  }
 }
 
 /** Directory (relative to project root) containing the nearest package.json for a file. */

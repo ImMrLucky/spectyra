@@ -6,10 +6,11 @@ import type {
   AiUsageType,
   AiCallSite,
   ScannableFile,
-  SpectyraRecommendation,
 } from "./types.js";
 import { classifyModelHint, extractModelLiteralsFromText } from "./modelClassifier.js";
 import { nearestPackageDirForFile } from "./monorepo.js";
+import { isJsTsFamilyPath, scanJsTsAstSource } from "./jsTsAstScanner.js";
+import { buildSpectyraFindingRecommendation } from "../recommendations/recommendationEngine.js";
 
 const PROVIDER_URL = [
   ["openai", /api\.openai\.com/i],
@@ -128,50 +129,20 @@ function mapProvider(p: string): AiProviderId {
   return "unknown";
 }
 
-function defaultRecommendation(args: {
-  provider: AiProviderId;
-  usageType: AiUsageType;
-  callStyle: AiCallStyle;
-  primaryEntry: string;
-  packageDir?: string;
-}): SpectyraRecommendation {
-  const notes: string[] = [
-    "Prefer `import \"@spectyra/sdk/auto\"` at your Node server entry for automatic metadata capture where supported.",
-    "For full optimization (token routing, reports), use `createSpectyra` with the appropriate provider adapter from `@spectyra/sdk`.",
-  ];
-  if (args.usageType === "streaming") {
-    notes.push("Streaming: use `createSpectyra().complete(...)` where you can swap to Spectyra-managed calls, or rely on `@spectyra/sdk/auto` for HTTP-level capture.");
+function severityFromConfidence(c: number): "high" | "medium" | "low" {
+  if (c >= 0.85) return "high";
+  if (c >= 0.65) return "medium";
+  return "low";
+}
+
+function dedupeFindings(rows: AiUsageFinding[]): AiUsageFinding[] {
+  const m = new Map<string, AiUsageFinding>();
+  for (const f of rows) {
+    const k = `${f.relativePath}|${f.line}|${f.provider}|${f.methodName ?? ""}|${f.callStyle}`;
+    const prev = m.get(k);
+    if (!prev || f.confidence > prev.confidence) m.set(k, f);
   }
-  const suggestedCode =
-    args.callStyle === "sdk" && (args.provider === "openai" || args.provider === "groq" || args.provider === "anthropic")
-      ? `import { createSpectyra, createOpenAIAdapter } from "@spectyra/sdk";
-import OpenAI from "openai";
-
-const spectyra = createSpectyra({ runMode: "on", licenseKey: process.env.SPECTYRA_LICENSE_KEY });
-const client = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
-
-const { providerResult, report } = await spectyra.complete(
-  { provider: "openai", client, model: "gpt-4o-mini", messages },
-  createOpenAIAdapter(),
-);
-// Use providerResult like the raw SDK response; inspect report for savings.`
-      : `import "@spectyra/sdk/auto";
-
-// Add at the very top of ${args.primaryEntry}`;
-
-  return {
-    priority: "high",
-    title: `Instrument ${args.provider} usage`,
-    summary: `Detected ${args.callStyle} ${args.usageType} usage for ${args.provider}.`,
-    installPackage: "@spectyra/sdk",
-    setupLocation: args.primaryEntry,
-    wrapperLocation: args.callStyle === "custom-wrapper" ? args.packageDir : args.packageDir,
-    suggestedImport: `import "@spectyra/sdk/auto";`,
-    suggestedCode,
-    notes,
-    estimatedEffort: "15 minutes",
-    confidence: 0.75,
-  };
+  return [...m.values()];
 }
 
 export function scanAiUsage(
@@ -198,15 +169,16 @@ export function scanAiUsage(
       },
     ) => {
       const line = lineOf(text, partial.index);
-      const id = `${rel}:${line}:${partial.provider}:${partial.usageType}`;
+      const id = `${rel}:${line}:${partial.provider}:${partial.methodName ?? ""}:${partial.callStyle}`;
       if (findings.some((f) => f.id === id)) return;
       const snip = partial.snippet ?? snippetAt(text, partial.index);
-      const rec = defaultRecommendation({
+      const pkgDir = nearestPackageDirForFile(sf.path, projectRoot, ctx.manifestAbsPaths);
+      const rec = buildSpectyraFindingRecommendation({
         provider: partial.provider,
         usageType: partial.usageType,
         callStyle: partial.callStyle,
         primaryEntry: ctx.primaryEntry,
-        packageDir: nearestPackageDirForFile(sf.path, projectRoot, ctx.manifestAbsPaths),
+        packageDir: pkgDir,
       });
       rec.confidence = partial.confidence;
       findings.push({
@@ -218,9 +190,28 @@ export function scanAiUsage(
         language: lang,
         snippet: snip,
         recommendation: rec,
-        packageDir: nearestPackageDirForFile(sf.path, projectRoot, ctx.manifestAbsPaths),
+        packageDir: pkgDir,
       });
     };
+
+    if (isJsTsFamilyPath(rel)) {
+      for (const h of scanJsTsAstSource(text)) {
+        push({
+          index: h.index,
+          provider: h.provider,
+          providerEvidence: h.providerEvidence,
+          usageType: h.usageType,
+          callStyle: h.callStyle,
+          methodName: h.methodName,
+          modelHints: h.modelHints,
+          envHints: h.envHints,
+          urlHints: h.urlHints,
+          isStreaming: h.isStreaming,
+          confidence: h.confidence,
+          severity: severityFromConfidence(h.confidence),
+        });
+      }
+    }
 
     const sdkRules: Array<{
       re: RegExp;
@@ -293,8 +284,47 @@ export function scanAiUsage(
         envHints,
         urlHints: [],
         confidence: 0.88,
-        severity: "high",
+        severity: severityFromConfidence(0.88),
       });
+    }
+
+    if (isJsTsFamilyPath(rel)) {
+      const methodLineRules: Array<{
+        re: RegExp;
+        provider: AiProviderId;
+        usageType: AiUsageType;
+        callStyle: AiCallStyle;
+        evidence: string;
+        confidence: number;
+      }> = [
+        { re: /\.chat\.completions\.(create|parse|stream)\s*\(/g, provider: "openai", usageType: "chat", callStyle: "sdk", evidence: "openai.chat.completions", confidence: 0.92 },
+        { re: /\.responses\.(create|stream)\s*\(/g, provider: "openai", usageType: "responses", callStyle: "sdk", evidence: "openai.responses", confidence: 0.92 },
+        { re: /\.embeddings\.create\s*\(/g, provider: "openai", usageType: "embedding", callStyle: "sdk", evidence: "openai.embeddings", confidence: 0.9 },
+        { re: /\.messages\.(create|stream)\s*\(/g, provider: "anthropic", usageType: "chat", callStyle: "sdk", evidence: "anthropic.messages", confidence: 0.92 },
+        { re: /\.beta\.messages\.create\s*\(/g, provider: "anthropic", usageType: "chat", callStyle: "sdk", evidence: "anthropic.beta.messages", confidence: 0.9 },
+        { re: /\.generateContent(Stream)?\s*\(/g, provider: "gemini", usageType: "chat", callStyle: "sdk", evidence: "gemini.generateContent", confidence: 0.9 },
+        { re: /\.models\.generateContent(Stream)?\s*\(/g, provider: "gemini", usageType: "chat", callStyle: "sdk", evidence: "gemini.models.generateContent", confidence: 0.9 },
+        { re: /\bstreamText\s*\(|\bgenerateText\s*\(|\bgenerateObject\s*\(|\bstreamObject\s*\(|\bembed(Many)?\s*\(/g, provider: "vercel-ai-sdk", usageType: "chat", callStyle: "framework", evidence: "vercel-ai-sdk-fn", confidence: 0.86 },
+      ];
+      for (const rule of methodLineRules) {
+        rule.re.lastIndex = 0;
+        let mm: RegExpExecArray | null;
+        while ((mm = rule.re.exec(text)) !== null) {
+          push({
+            index: mm.index,
+            provider: rule.provider,
+            providerEvidence: [rule.evidence],
+            usageType: inferUsageType(text.slice(Math.max(0, mm.index - 120), mm.index + 120)) ?? rule.usageType,
+            callStyle: rule.callStyle,
+            methodName: mm[0]?.slice(0, 80),
+            modelHints: extractModelLiteralsFromText(text).slice(0, 6),
+            envHints: [...text.matchAll(ENV_NAMES)].map((x) => x[1]!).filter(Boolean).slice(0, 8),
+            urlHints: [],
+            confidence: rule.confidence,
+            severity: severityFromConfidence(rule.confidence),
+          });
+        }
+      }
     }
 
     if (lang === "python" || /\.py$/i.test(rel)) {
@@ -314,7 +344,7 @@ export function scanAiUsage(
           envHints,
           urlHints: [],
           confidence: 0.86,
-          severity: "high",
+          severity: severityFromConfidence(0.86),
         });
       }
     }
@@ -432,7 +462,7 @@ export function scanAiUsage(
   }
 
   void projectRoot;
-  return findings.sort((a, b) => b.confidence - a.confidence);
+  return dedupeFindings(findings).sort((a, b) => b.confidence - a.confidence);
 }
 
 export function findingsToAiCallSites(findings: AiUsageFinding[]): AiCallSite[] {

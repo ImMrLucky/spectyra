@@ -12,7 +12,7 @@ import { scanSpectyra } from "./spectyraScanner.js";
 import type { DoctorFileWalkSummary, DoctorScanResult, DoctorWarning, ScanProgressFn, UserPlacementAnswer } from "./types.js";
 import { walkProjectTree } from "./fileWalker.js";
 import { readFileSync } from "node:fs";
-import { discoverPackageManifests, buildPackageFindings, applySdkAutoFlags } from "./monorepo.js";
+import { discoverPackageManifests, buildPackageFindings, applySdkAutoFlags, applyPackageScanStats } from "./monorepo.js";
 import { scanAiUsage, findingsToAiCallSites } from "./aiUsageScanner.js";
 import { scanIntegrationPoints, primaryEntryFromPoints } from "./integrationPointScanner.js";
 import { buildTopRecommendations } from "../recommendations/topRecommendations.js";
@@ -43,7 +43,8 @@ export async function runScan(
   on({ type: "finding", message: `Package manager: ${packageManager}`, data: { packageManager } });
 
   on({ type: "progress", message: "Walking project files…" });
-  const walk = await walkProjectTree(projectRoot, {
+  const walk = await walkProjectTree({
+    rootDir: projectRoot,
     maxFileSizeBytes: options.maxFileSizeBytes,
     followSymlinks: options.followSymlinks,
   });
@@ -121,9 +122,10 @@ export async function runScan(
     on({ type: "finding", message: `${f.relativePath}:${f.line} — ${f.provider} (${f.callStyle})`, data: f });
   }
 
+  applyPackageScanStats(packages, aiFindings, packageManager);
+
   const integrationPoints = scanIntegrationPoints(projectRoot, aiFindings);
-  const spectyraStatus = scanSpectyra(projectRoot, filePaths);
-  spectyraStatus.sdkInstalled = spectyraStatus.sdkInstalled || packages.some((p) => p.hasSpectyraSdk);
+  const spectyraStatus = scanSpectyra(projectRoot, filePaths, { packages });
 
   const aiCallSites = findingsToAiCallSites(aiFindings);
 

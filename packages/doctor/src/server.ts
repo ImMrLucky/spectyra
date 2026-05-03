@@ -28,7 +28,7 @@ export function createDoctorApp(projectRoot: string): express.Express {
   const app = express();
   app.use(express.json({ limit: "32kb" }));
 
-  const uiDir = join(__dirname, "..", "ui");
+  const uiDir = join(__dirname, "ui");
   app.use(express.static(uiDir));
 
   const sseClients = new Set<(ev: ProgressEvent) => void>();

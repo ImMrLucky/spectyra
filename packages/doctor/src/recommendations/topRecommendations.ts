@@ -1,11 +1,8 @@
 import type { AiUsageFinding, DoctorScanReport, PackageFinding, SpectyraRecommendation } from "../scanner/types.js";
+import { computeSdkInstallCommand } from "../scanner/monorepo.js";
 
-function installHint(pm: DoctorScanReport["packageManager"], pkgDir: string, name?: string): string {
-  const filter = name ?? pkgDir.replace(/^\.\//, "");
-  if (pm === "pnpm") return `pnpm add @spectyra/sdk --filter ${filter}`;
-  if (pm === "yarn") return `yarn workspace ${filter} add @spectyra/sdk`;
-  if (pkgDir && pkgDir !== ".") return `cd ${pkgDir} && npm install @spectyra/sdk`;
-  return `npm install @spectyra/sdk`;
+function installHint(pm: DoctorScanReport["packageManager"], p: PackageFinding): string {
+  return p.installCommand || computeSdkInstallCommand(pm, p);
 }
 
 export function buildTopRecommendations(report: DoctorScanReport): SpectyraRecommendation[] {
@@ -19,7 +16,7 @@ export function buildTopRecommendations(report: DoctorScanReport): SpectyraRecom
       title: `Install @spectyra/sdk in ${p.packageDir === "." ? "workspace root" : p.packageDir}`,
       summary: `AI usage maps to this package but Spectyra is not listed in its package.json.`,
       installPackage: "@spectyra/sdk",
-      suggestedCode: installHint(pm, p.packageDir === "." ? "." : p.packageDir, p.name),
+      suggestedCode: installHint(pm, p),
       notes: ["Run the install from your repo root or package folder; Doctor never runs installs for you."],
       estimatedEffort: "5 minutes",
       confidence: 0.95,

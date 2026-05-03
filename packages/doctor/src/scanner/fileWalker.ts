@@ -1,13 +1,14 @@
 import { closeSync, openSync, readSync } from "node:fs";
 import { lstatSync, readdirSync } from "node:fs";
 import { isBinaryFileSync } from "isbinaryfile";
-import { isAbsolute, join, relative, resolve } from "node:path";
+import { basename, isAbsolute, join, relative, resolve } from "node:path";
 import type { ScannableFile } from "./types.js";
 
-/** Options for {@link walkProjectTree} (project root is the first argument). */
+/** Options for {@link walkProjectTree}. */
 export interface FileWalkerOptions {
-  maxFileSizeBytes?: number;
+  rootDir: string;
   followSymlinks?: boolean;
+  maxFileSizeBytes?: number;
 }
 
 export interface SkippedFile {
@@ -79,18 +80,6 @@ const LOCKFILE_NAMES = new Set(
     "cargo.lock",
     "poetry.lock",
     "pipfile.lock",
-  ].map((s) => s.toLowerCase()),
-);
-
-const SAFE_ENV_BASENAMES = new Set(
-  [
-    ".env.example",
-    ".env.sample",
-    ".env.template",
-    ".env.defaults",
-    ".env.dist",
-    "env.example",
-    "sample.env",
   ].map((s) => s.toLowerCase()),
 );
 
@@ -168,12 +157,33 @@ function fileExtensionLower(path: string): string | undefined {
   return base.slice(dot);
 }
 
-function isSecretEnvPath(relPosix: string): boolean {
-  const base = basenameLower(relPosix);
-  if (SAFE_ENV_BASENAMES.has(base)) return false;
-  if (base === ".env") return true;
-  if (base.startsWith(".env.")) return true;
-  return false;
+/** Safe env templates: suffix-based (not exact-only). */
+export function isSafeEnvTemplate(base: string): boolean {
+  const b = base;
+  return (
+    b === ".env.example" ||
+    b === ".env.sample" ||
+    b === ".env.template" ||
+    b === ".env.defaults" ||
+    b === ".env.dist" ||
+    b === ".env.local.example" ||
+    b.endsWith(".example") ||
+    b.endsWith(".sample") ||
+    b.endsWith(".template") ||
+    b.endsWith(".defaults") ||
+    b.endsWith(".dist") ||
+    b.endsWith(".example.local") ||
+    b.endsWith(".sample.local") ||
+    b.endsWith(".template.local")
+  );
+}
+
+/** True when this path should never be read (real secrets / non-template .env*). */
+export function isSecretEnvPath(relativePath: string): boolean {
+  const base = basename(relativePath.replace(/\\/g, "/"));
+  if (!base.startsWith(".env")) return false;
+  if (isSafeEnvTemplate(base)) return false;
+  return true;
 }
 
 function isLockfileName(baseLower: string): boolean {
@@ -258,8 +268,8 @@ function classifySkipReason(err: unknown): "permission-error" | "read-error" {
  * Recursively walk `rootDir` exclusion-first: all non-ignored text files up to size limit.
  * Uses [isbinaryfile](https://github.com/gjtorikian/isBinaryFile) on a small buffer plus UTF-8 / NUL heuristics.
  */
-export async function walkProjectTree(rootDirRaw: string, opts: FileWalkerOptions = {}): Promise<FileWalkerResult> {
-  const rootDir = resolve(rootDirRaw);
+export async function walkProjectTree(opts: FileWalkerOptions): Promise<FileWalkerResult> {
+  const rootDir = resolve(opts.rootDir);
   const maxFileSizeBytes = opts.maxFileSizeBytes ?? 1_000_000;
   const followSymlinksRequested = opts.followSymlinks ?? false;
 
@@ -431,7 +441,7 @@ export async function walkProjectTree(rootDirRaw: string, opts: FileWalkerOption
 }
 
 /** @deprecated Prefer {@link walkProjectTree} for skip metadata. */
-export async function walkProjectFiles(rootDir: string, opts: FileWalkerOptions = {}): Promise<ScannableFile[]> {
-  const r = await walkProjectTree(rootDir, opts);
+export async function walkProjectFiles(rootDir: string, opts: Omit<FileWalkerOptions, "rootDir"> = {}): Promise<ScannableFile[]> {
+  const r = await walkProjectTree({ rootDir, ...opts });
   return r.files;
 }

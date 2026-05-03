@@ -1,10 +1,11 @@
 import { readFileSync } from "node:fs";
-import { relative } from "node:path";
-import type { SpectyraStatus } from "./types.js";
+import { join, relative } from "node:path";
+import { discoverPackageManifests, nearestPackageDirForFile } from "./monorepo.js";
+import type { PackageFinding, SpectyraStatus } from "./types.js";
 
-function readPkg(projectRoot: string): Record<string, unknown> | null {
+function readPkgAt(projectRoot: string, manifestRel: string): Record<string, unknown> | null {
   try {
-    return JSON.parse(readFileSync(`${projectRoot}/package.json`, "utf8")) as Record<string, unknown>;
+    return JSON.parse(readFileSync(`${projectRoot}/${manifestRel}`, "utf8")) as Record<string, unknown>;
   } catch {
     return null;
   }
@@ -23,12 +24,21 @@ const LEGACY_AUTO_RE =
   /@spectyra\/auto|from\s+['"]@spectyra\/auto['"]|require\s*\(\s*['"]@spectyra\/auto['"]/;
 const LEGACY_DEVTOOLS_RE = /@spectyra\/devtools|from\s+['"]@spectyra\/devtools/;
 
-export function scanSpectyra(projectRoot: string, files: string[]): SpectyraStatus {
-  const pkg = readPkg(projectRoot);
-  const legacyAutoPkg = Boolean(depVersion(pkg, "@spectyra/auto"));
-  const sdkInstalled = Boolean(depVersion(pkg, "@spectyra/sdk"));
-  const devtoolsInstalled = Boolean(depVersion(pkg, "@spectyra/devtools"));
-  const doctorInstalled = Boolean(depVersion(pkg, "@spectyra/doctor"));
+export interface ScanSpectyraContext {
+  packages?: PackageFinding[];
+}
+
+export function scanSpectyra(projectRoot: string, files: string[], ctx: ScanSpectyraContext = {}): SpectyraStatus {
+  const packages = ctx.packages ?? [];
+  const manifestAbsPaths = discoverPackageManifests(projectRoot);
+
+  const rootPkg = readPkgAt(projectRoot, "package.json");
+  const legacyAutoPkgRoot = Boolean(depVersion(rootPkg, "@spectyra/auto"));
+  const sdkAtRoot = Boolean(depVersion(rootPkg, "@spectyra/sdk"));
+  const devtoolsInstalledRoot = Boolean(depVersion(rootPkg, "@spectyra/devtools"));
+  const doctorInstalled = Boolean(depVersion(rootPkg, "@spectyra/doctor"));
+
+  const sdkInstalled = packages.length > 0 ? packages.some((p) => p.hasSpectyraSdk) : sdkAtRoot;
 
   const sdkAutoImportFiles: string[] = [];
   const legacyAutoImportFiles: string[] = [];
@@ -41,23 +51,16 @@ export function scanSpectyra(projectRoot: string, files: string[]): SpectyraStat
   for (const abs of files) {
     const rel = relative(projectRoot, abs).replace(/\\/g, "/");
     try {
-      const c = readFileSync(abs, "utf8");
-      entryContent.set(rel, c);
+      entryContent.set(rel, readFileSync(abs, "utf8"));
     } catch {
       /* skip */
     }
   }
 
   for (const [rel, c] of entryContent) {
-    if (SDK_AUTO_RE.test(c)) {
-      sdkAutoImportFiles.push(rel);
-    }
-    if (LEGACY_AUTO_RE.test(c)) {
-      legacyAutoImportFiles.push(rel);
-    }
-    if (LEGACY_DEVTOOLS_RE.test(c)) {
-      devtoolsImportFiles.push(rel);
-    }
+    if (SDK_AUTO_RE.test(c)) sdkAutoImportFiles.push(rel);
+    if (LEGACY_AUTO_RE.test(c)) legacyAutoImportFiles.push(rel);
+    if (LEGACY_DEVTOOLS_RE.test(c)) devtoolsImportFiles.push(rel);
     if (/useSpectyraAutoDevBridge|createSpectyraDevBridgeConnectMiddleware|registerSpectyraDevBridgeFastify/.test(c)) {
       hasDevBridge = true;
     }
@@ -66,18 +69,44 @@ export function scanSpectyra(projectRoot: string, files: string[]): SpectyraStat
     }
   }
 
+  const devtoolsInstalledResolved =
+    packages.length > 0
+      ? packages.some((p) => p.hasLegacySpectyraDevtools) || devtoolsImportFiles.length > 0
+      : devtoolsInstalledRoot || devtoolsImportFiles.length > 0;
+
   const autoImportFiles = [...new Set([...sdkAutoImportFiles, ...legacyAutoImportFiles])];
 
   const issues: string[] = [];
   const info: string[] = [];
-  if (!sdkInstalled) issues.push("@spectyra/sdk not listed in package.json");
-  if (sdkInstalled && sdkAutoImportFiles.length === 0 && legacyAutoImportFiles.length === 0) {
-    issues.push("No @spectyra/sdk/auto import found in scanned sources");
+
+  function legacyAutoInPackage(packageDir: string): boolean {
+    return legacyAutoImportFiles.some((f) => nearestPackageDirForFile(join(projectRoot, f), projectRoot, manifestAbsPaths) === packageDir);
   }
-  if (legacyAutoPkg || legacyAutoImportFiles.length > 0) {
+
+  if (packages.length > 0) {
+    for (const p of packages) {
+      if (p.aiFindingCount === 0) continue;
+      if (!p.hasSpectyraSdk) {
+        issues.push(
+          `@spectyra/sdk not listed in ${p.packageDir === "." ? "workspace root package.json" : `${p.packageDir}/package.json`}`,
+        );
+      } else if (!p.hasSpectyraAutoImport && !legacyAutoInPackage(p.packageDir)) {
+        issues.push(
+          `No @spectyra/sdk/auto import found in scanned sources for ${p.packageDir === "." ? "workspace root" : p.packageDir}`,
+        );
+      }
+    }
+  } else {
+    if (!sdkAtRoot) issues.push("@spectyra/sdk not listed in package.json");
+    if (sdkAtRoot && sdkAutoImportFiles.length === 0 && legacyAutoImportFiles.length === 0) {
+      issues.push("No @spectyra/sdk/auto import found in scanned sources");
+    }
+  }
+
+  if (legacyAutoPkgRoot || legacyAutoImportFiles.length > 0 || packages.some((p) => p.hasLegacySpectyraAuto)) {
     info.push("Legacy @spectyra/auto detected — migrate to import '@spectyra/sdk/auto'");
   }
-  if (devtoolsImportFiles.length > 0) {
+  if (devtoolsImportFiles.length > 0 || packages.some((p) => p.hasLegacySpectyraDevtools)) {
     info.push("Legacy @spectyra/devtools import — prefer `import '@spectyra/sdk/auto'` (overlay is included)");
   }
 
@@ -94,9 +123,9 @@ export function scanSpectyra(projectRoot: string, files: string[]): SpectyraStat
   }
 
   return {
-    autoInstalled: legacyAutoPkg || legacyAutoImportFiles.length > 0,
+    autoInstalled: legacyAutoPkgRoot || legacyAutoImportFiles.length > 0,
     sdkInstalled,
-    devtoolsInstalled,
+    devtoolsInstalled: devtoolsInstalledResolved,
     doctorInstalled,
     legacyAutoImportFiles,
     sdkAutoImportFiles,

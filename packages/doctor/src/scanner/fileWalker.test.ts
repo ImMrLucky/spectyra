@@ -31,7 +31,7 @@ describe("walkProjectTree", () => {
     writeFileSync(join(r, "docker-compose.yml"), "services: {}", "utf8");
     writeFileSync(join(r, "random-extension-xyz"), "plain text for doctor", "utf8");
     try {
-      const res = await walkProjectTree(r, { maxFileSizeBytes: 500_000 });
+      const res = await walkProjectTree({ rootDir: r, maxFileSizeBytes: 500_000 });
       const rels = new Set(res.files.map((f) => f.relativePath.replace(/\\/g, "/")));
       expect(rels.has("deep/nested/app.vue")).toBe(true);
       expect(rels.has("x.svelte")).toBe(true);
@@ -66,7 +66,7 @@ describe("walkProjectTree", () => {
     }
     writeFileSync(join(r, "ok.ts"), "openai", "utf8");
     try {
-      const res = await walkProjectTree(r);
+      const res = await walkProjectTree({ rootDir: r });
       const rels = res.files.map((f) => f.relativePath.replace(/\\/g, "/"));
       expect(rels).toContain("ok.ts");
       expect(rels.some((p) => p.includes("node_modules"))).toBe(false);
@@ -90,12 +90,16 @@ describe("walkProjectTree", () => {
     writeFileSync(join(r, ".env.example"), "OPENAI_API_KEY=", "utf8");
     writeFileSync(join(r, ".env.sample"), "X=", "utf8");
     writeFileSync(join(r, ".env.template"), "Y=", "utf8");
+    writeFileSync(join(r, ".env.production.example"), "SAFE=", "utf8");
+    writeFileSync(join(r, ".env.local.example"), "SAFE2=", "utf8");
     try {
-      const res = await walkProjectTree(r);
+      const res = await walkProjectTree({ rootDir: r });
       const rels = new Set(res.files.map((f) => f.relativePath));
       expect(rels.has(".env.example")).toBe(true);
       expect(rels.has(".env.sample")).toBe(true);
       expect(rels.has(".env.template")).toBe(true);
+      expect(rels.has(".env.production.example")).toBe(true);
+      expect(rels.has(".env.local.example")).toBe(true);
       expect(rels.has(".env")).toBe(false);
       expect(rels.has(".env.production")).toBe(false);
       expect(res.skipped.filter((s) => s.reason === "secret-file").length).toBeGreaterThanOrEqual(2);
@@ -116,7 +120,7 @@ describe("walkProjectTree", () => {
       /* windows or permissions */
     }
     try {
-      const res = await walkProjectTree(r, { maxFileSizeBytes: 200 });
+      const res = await walkProjectTree({ rootDir: r, maxFileSizeBytes: 200 });
       const rels = new Set(res.files.map((f) => f.relativePath));
       expect(rels.has("package-lock.json")).toBe(false);
       expect(rels.has("photo.png")).toBe(false);
@@ -140,7 +144,7 @@ describe("walkProjectTree", () => {
     writeFileSync(join(r, "public", "build", "assets", "x.js"), "openai", "utf8");
     writeFileSync(join(r, "public", "ok.txt"), "safe", "utf8");
     try {
-      const res = await walkProjectTree(r);
+      const res = await walkProjectTree({ rootDir: r });
       const rels = new Set(res.files.map((f) => f.relativePath.replace(/\\/g, "/")));
       expect(rels.has("public/ok.txt")).toBe(true);
       expect([...rels].some((p) => p.includes("public/build"))).toBe(false);
@@ -160,7 +164,7 @@ describe("walkProjectTree", () => {
     try {
       try {
         chmodSync(noRead, 0);
-        const res = await walkProjectTree(r);
+        const res = await walkProjectTree({ rootDir: r });
         expect(res.files.some((f) => f.relativePath.replace(/\\/g, "/").endsWith("readable/a.txt"))).toBe(true);
         expect(res.skipped.some((s) => s.reason === "permission-error" || s.reason === "read-error")).toBe(true);
       } finally {
@@ -180,7 +184,7 @@ describe("walkProjectTree", () => {
     writeFileSync(join(r, "yarn.lock"), "x", "utf8");
     mkdirSync(join(r, "node_modules", "z"), { recursive: true });
     try {
-      const res = await walkProjectTree(r);
+      const res = await walkProjectTree({ rootDir: r });
       expect(res.skipped.filter((s) => s.reason === "lockfile").length).toBeGreaterThanOrEqual(1);
       expect(res.skipped.length).toBeGreaterThan(0);
     } finally {

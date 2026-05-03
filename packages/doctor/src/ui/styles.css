@@ -1,21 +1,19 @@
-@import url("https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;1,9..40,400&family=JetBrains+Mono:wght@400;500&display=swap");
-
 :root {
-  --bg: #050816;
-  --panel: rgba(15, 23, 42, 0.82);
-  --panel-2: rgba(30, 41, 59, 0.72);
-  --border: rgba(148, 163, 184, 0.18);
-  --text: #e5e7eb;
-  --muted: #94a3b8;
-  --accent: #8b5cf6;
-  --accent-2: #06b6d4;
+  --font: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  --mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
+  --bg: #0a0f1a;
+  --panel: rgba(14, 21, 33, 0.92);
+  --panel-2: rgba(18, 28, 46, 0.88);
+  --border: rgba(55, 138, 221, 0.14);
+  --text: #e8f1fb;
+  --muted: #7a9fc0;
+  --accent: #378add;
+  --accent-2: #1d9e75;
   --success: #22c55e;
-  --warning: #f59e0b;
+  --warning: #ef9f27;
   --danger: #ef4444;
-  --glow: linear-gradient(120deg, rgba(139, 92, 246, 0.35), rgba(6, 182, 212, 0.2));
-  --radius: 14px;
-  --font: "DM Sans", system-ui, sans-serif;
-  --mono: "JetBrains Mono", ui-monospace, monospace;
+  --glow: linear-gradient(120deg, rgba(55, 138, 221, 0.35), rgba(29, 158, 117, 0.22));
+  --radius: 12px;
 }
 
 * {
@@ -25,8 +23,8 @@ html,
 body {
   margin: 0;
   min-height: 100%;
-  background: radial-gradient(1200px 600px at 10% -10%, rgba(139, 92, 246, 0.12), transparent),
-    radial-gradient(900px 500px at 90% 0%, rgba(6, 182, 212, 0.1), transparent), var(--bg);
+  background: radial-gradient(1200px 600px at 12% -8%, rgba(55, 138, 221, 0.14), transparent),
+    radial-gradient(900px 520px at 88% 4%, rgba(29, 158, 117, 0.1), transparent), var(--bg);
   color: var(--text);
   font-family: var(--font);
   line-height: 1.5;

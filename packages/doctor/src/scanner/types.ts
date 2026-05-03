@@ -226,11 +226,22 @@ export interface IntegrationPoint {
 
 export interface PackageFinding {
   packageDir: string;
+  /** Same as packageDir; stable alias for UI/report consumers. */
+  relativePath: string;
   manifestPath: string;
   name?: string;
+  packageManager: "npm" | "pnpm" | "yarn" | "bun" | "unknown";
   hasSpectyraSdk: boolean;
   hasSpectyraAutoImport: boolean;
+  /** Declares deprecated `@spectyra/auto` in package.json. */
+  hasLegacySpectyraAuto: boolean;
+  /** Declares `@spectyra/devtools` in package.json. */
+  hasLegacySpectyraDevtools: boolean;
   aiDependencyHints: string[];
+  /** Populated after AI scan. */
+  aiFindingCount: number;
+  /** Workspace-safe install hint when SDK is missing (empty when already present). */
+  installCommand: string;
 }
 
 export interface DoctorRisk {
