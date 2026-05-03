@@ -15,16 +15,35 @@ export async function verifyIntegration(
 ): Promise<VerifyIntegrationResult> {
   const lines: VerifyLine[] = [];
   const s = result.spectyraStatus;
+  const pkgsWithAi = result.packages.filter((p) => p.aiFindingCount > 0 || result.aiFindings.some((f) => f.packageDir === p.packageDir));
+  const wrapperSteps = result.integrationPlan?.steps.filter((x) => x.kind === "wrap-llm-call" || x.kind === "wrap-central-client") ?? [];
+  const remainingUnwrapped = wrapperSteps.filter((x) => x.status === "pending" || x.status === "warning").length;
 
   lines.push({
-    ok: s.sdkInstalled,
-    label: "@spectyra/sdk installed",
-    detail: s.sdkInstalled ? undefined : "Add dependency in the package that runs LLM calls",
+    ok: pkgsWithAi.length ? pkgsWithAi.every((p) => p.hasSpectyraSdk) : s.sdkInstalled,
+    label: "@spectyra/sdk installed in packages with AI usage",
+    detail: pkgsWithAi.length
+      ? pkgsWithAi.map((p) => `${p.hasSpectyraSdk ? "ok" : "missing"}:${p.packageDir}`).join(", ")
+      : s.sdkInstalled
+        ? undefined
+        : "Add dependency in the package that runs LLM calls",
   });
   lines.push({
-    ok: s.sdkAutoImportFiles.length > 0,
-    label: "import '@spectyra/sdk/auto' found in scanned sources",
-    detail: s.sdkAutoImportFiles[0],
+    ok: pkgsWithAi.length ? pkgsWithAi.every((p) => p.hasSpectyraAutoImport) : s.sdkAutoImportFiles.length > 0,
+    label: "import '@spectyra/sdk/auto' found in server/package sources",
+    detail: s.sdkAutoImportFiles[0] ?? (pkgsWithAi.length ? pkgsWithAi.map((p) => `${p.hasSpectyraAutoImport ? "ok" : "missing"}:${p.packageDir}`).join(", ") : undefined),
+  });
+  lines.push({
+    ok: wrapperSteps.some((x) => x.status === "complete" || x.status === "ready"),
+    label: "Spectyra wrapper or framework monitor hook detected",
+    detail:
+      wrapperSteps.find((x) => x.status === "complete" || x.status === "ready")?.targetFile ??
+      "Look for createSpectyra(...), spectyra.complete(...), provider adapters, or framework monitor hooks",
+  });
+  lines.push({
+    ok: remainingUnwrapped === 0,
+    label: "No remaining unwrapped high-confidence direct calls",
+    detail: remainingUnwrapped ? `${remainingUnwrapped} wrapper step(s) still pending/warning` : undefined,
   });
   lines.push({
     ok: s.legacyAutoImportFiles.length === 0,

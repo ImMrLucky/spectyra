@@ -9,6 +9,23 @@ export function buildTopRecommendations(report: DoctorScanReport): SpectyraRecom
   const pm = report.packageManager ?? "npm";
   const list: SpectyraRecommendation[] = [];
 
+  const planSteps = (report.integrationPlan?.steps ?? []).filter(
+    (s) => s.status === "pending" || s.status === "warning" || s.status === "blocked",
+  );
+  for (const step of planSteps.slice(0, 4)) {
+    list.push({
+      priority: step.priority,
+      title: step.title,
+      summary: `${step.summary} Next: ${step.nextAction}`,
+      setupLocation: step.targetFile,
+      wrapperLocation: step.kind === "wrap-llm-call" || step.kind === "wrap-central-client" ? step.targetFile : undefined,
+      suggestedCode: step.codeBlocks[0]?.code,
+      notes: [...step.verifyChecks, ...step.notes].slice(0, 6),
+      estimatedEffort: step.kind === "install-sdk" || step.kind === "add-auto-import" ? "5 minutes" : "30 minutes",
+      confidence: step.status === "blocked" ? 0.95 : 0.88,
+    });
+  }
+
   const pkgsNeedingSdk = report.packages.filter((p) => !p.hasSpectyraSdk && report.aiFindings.some((f) => f.packageDir === p.packageDir));
   for (const p of pkgsNeedingSdk.slice(0, 6)) {
     list.push({

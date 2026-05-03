@@ -17,6 +17,7 @@ import { scanAiUsage, findingsToAiCallSites } from "./aiUsageScanner.js";
 import { scanIntegrationPoints, primaryEntryFromPoints } from "./integrationPointScanner.js";
 import { buildTopRecommendations } from "../recommendations/topRecommendations.js";
 import { buildDoctorRisks } from "./risks.js";
+import { buildIntegrationPlan } from "../recommendations/integrationPlan.js";
 
 export async function runScan(
   projectRootRaw: string,
@@ -207,6 +208,16 @@ export async function runScan(
     aiFindings,
     integrationPoints,
     recommendations: [],
+    integrationPlan: {
+      status: "not-started",
+      headline: "Integration setup plan",
+      summary: "Plan has not been generated yet.",
+      score: 0,
+      blockers: [],
+      completed: [],
+      steps: [],
+      monitorNextSteps: [],
+    },
     risks: [],
     frameworks,
     providers,
@@ -219,6 +230,7 @@ export async function runScan(
   };
 
   report.risks = buildDoctorRisks(report, spectyraStatus);
+  report.integrationPlan = buildIntegrationPlan(report);
   report.recommendations = buildTopRecommendations(report);
 
 

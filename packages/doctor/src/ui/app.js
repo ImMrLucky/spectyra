@@ -113,6 +113,82 @@ function renderSteps(data) {
     .join("");
 }
 
+function codeCard(block, attrs = "") {
+  return `
+    <div class="code-card">
+      <div class="code-title">
+        <span>${esc(block.title)}</span>
+        <button type="button" class="btn btn-small" ${attrs}>${esc(block.copyLabel ?? "Copy")}</button>
+      </div>
+      <pre class="snip">${esc(block.code)}</pre>
+    </div>`;
+}
+
+function renderIntegrationPlan(data) {
+  const plan = data.integrationPlan;
+  const sec = $("integration-plan-section");
+  if (!sec) return;
+  if (!plan) {
+    sec.hidden = true;
+    return;
+  }
+
+  sec.hidden = false;
+  $("integration-plan-headline").textContent = plan.headline ?? "Integration setup plan";
+  $("integration-plan-summary").textContent = plan.summary ?? "";
+  $("integration-plan-status").textContent = `${plan.status ?? "unknown"} · ${Math.round(plan.score ?? 0)}%`;
+  const bar = $("integration-plan-progress");
+  if (bar) bar.style.width = `${Math.max(0, Math.min(100, Number(plan.score ?? 0)))}%`;
+
+  $("integration-plan-steps").innerHTML = (plan.steps ?? [])
+    .map((step, index) => {
+      const blocks = (step.codeBlocks ?? [])
+        .map((b, blockIndex) => codeCard(b, `data-copy-step="${esc(step.id)}" data-copy-block="${blockIndex}"`))
+        .join("");
+      const checks = (step.verifyChecks ?? []).length
+        ? `<h5>Verify</h5><ul>${step.verifyChecks.map((x) => `<li>${esc(x)}</li>`).join("")}</ul>`
+        : "";
+      const notes = (step.notes ?? []).length ? `<h5>Notes</h5><ul>${step.notes.map((x) => `<li>${esc(x)}</li>`).join("")}</ul>` : "";
+      const target = step.targetFile
+        ? `<p><strong>File:</strong> <code>${esc(step.targetFile)}</code>${step.targetLine ? `:${step.targetLine}` : ""}</p>`
+        : "";
+      const pkg = step.packageDir ? `<p><strong>Package:</strong> <code>${esc(step.packageDir)}</code></p>` : "";
+      return `
+        <li class="plan-step plan-${esc(step.status)}">
+          <div class="pri">
+            <span class="status-badge">${esc(step.status)}</span>
+            <span class="pill pill-low">${esc(step.priority)}</span>
+          </div>
+          <div class="body">
+            <h4>${index + 1}. ${esc(step.title)}</h4>
+            <p>${esc(step.summary)}</p>
+            ${target}
+            ${pkg}
+            ${blocks}
+            ${checks}
+            ${notes}
+            <p class="next-action"><strong>Next:</strong> ${esc(step.nextAction)}</p>
+          </div>
+        </li>`;
+    })
+    .join("");
+
+  document.querySelectorAll("[data-copy-step]").forEach((btn) => {
+    btn.addEventListener("click", async () => {
+      const stepId = btn.getAttribute("data-copy-step");
+      const blockIndex = Number(btn.getAttribute("data-copy-block") ?? "0");
+      const step = (plan.steps ?? []).find((s) => s.id === stepId);
+      const block = step?.codeBlocks?.[blockIndex];
+      if (!block) return;
+      try {
+        await navigator.clipboard.writeText(block.code);
+      } catch {
+        /* ignore */
+      }
+    });
+  });
+}
+
 function renderTable(data) {
   const rows = data.aiFindings ?? [];
   findingsIndex = rows;
@@ -147,6 +223,15 @@ function renderTable(data) {
 function openDetail(f) {
   if (!f) return;
   const d = $("detail-content");
+  const wrapperStep = (lastData?.integrationPlan?.steps ?? []).find(
+    (s) =>
+      (s.kind === "wrap-llm-call" || s.kind === "wrap-central-client") &&
+      s.provider === f.provider &&
+      (s.targetFile === f.relativePath || s.summary?.includes(`${f.relativePath}:${f.line}`) || s.id?.includes(String(f.line))),
+  );
+  const blocks = (wrapperStep?.codeBlocks ?? [])
+    .map((b, idx) => codeCard(b, `data-detail-copy="${idx}"`))
+    .join("");
   d.innerHTML = `
     <h3>${esc(f.relativePath)}:${f.line}</h3>
     <p><strong>Provider:</strong> ${esc(f.provider)} · <strong>Usage:</strong> ${esc(f.usageType)} · <strong>Style:</strong> ${esc(
@@ -160,6 +245,7 @@ function openDetail(f) {
     <h4>Recommendation</h4>
     <p>${esc(f.recommendation?.summary ?? "")}</p>
     <pre class="snip">${esc(f.recommendation?.suggestedCode ?? "")}</pre>
+    ${wrapperStep ? `<h4>Wrapper setup step</h4><p>${esc(wrapperStep.nextAction)}</p>${blocks}` : ""}
     <button type="button" class="btn" id="copy-snippet">Copy snippet</button>
   `;
   $("detail-drawer").classList.add("open");
@@ -170,6 +256,18 @@ function openDetail(f) {
     } catch {
       /* ignore */
     }
+  });
+  document.querySelectorAll("[data-detail-copy]").forEach((btn) => {
+    btn.addEventListener("click", async () => {
+      const idx = Number(btn.getAttribute("data-detail-copy") ?? "0");
+      const block = wrapperStep?.codeBlocks?.[idx];
+      if (!block) return;
+      try {
+        await navigator.clipboard.writeText(block.code);
+      } catch {
+        /* ignore */
+      }
+    });
   });
 }
 
@@ -233,6 +331,7 @@ async function loadResult() {
   renderActionablePaths(data);
   renderFileWalk(data);
   renderProviders(data);
+  renderIntegrationPlan(data);
   renderSteps(data);
   renderTable(data);
   renderIntegrationPoints(data);

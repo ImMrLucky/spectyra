@@ -182,6 +182,65 @@ export interface SpectyraRecommendation {
   confidence: number;
 }
 
+export type DoctorStepStatus = "pending" | "complete" | "warning" | "ready" | "blocked";
+
+export type DoctorStepKind =
+  | "install-sdk"
+  | "add-auto-import"
+  | "wrap-llm-call"
+  | "wrap-central-client"
+  | "add-monitor-config"
+  | "run-app"
+  | "verify"
+  | "open-monitor";
+
+export interface DoctorCodeBlock {
+  title: string;
+  language: "bash" | "ts" | "tsx" | "js" | "jsx" | "py" | "json" | "text";
+  code: string;
+  copyLabel?: string;
+}
+
+export interface DoctorIntegrationStep {
+  id: string;
+  kind: DoctorStepKind;
+  status: DoctorStepStatus;
+  priority: "critical" | "high" | "medium" | "low";
+  title: string;
+  summary: string;
+  targetFile?: string;
+  targetLine?: number;
+  packageDir?: string;
+  provider?: AiProviderId;
+  usageType?: AiUsageType;
+  callStyle?: AiCallStyle;
+  modelHints?: string[];
+  codeBlocks: DoctorCodeBlock[];
+  verifyChecks: string[];
+  notes: string[];
+  nextAction: string;
+}
+
+export interface DoctorIntegrationPlan {
+  status: "not-started" | "in-progress" | "needs-attention" | "ready";
+  headline: string;
+  summary: string;
+  score: number;
+  blockers: string[];
+  completed: string[];
+  steps: DoctorIntegrationStep[];
+  readyMessage?: string;
+  monitorNextSteps: DoctorIntegrationStep[];
+}
+
+export interface DoctorProgressDelta {
+  sdkInstalledChanged?: boolean;
+  autoImportAdded?: string[];
+  wrappersAdded?: string[];
+  remainingUnwrappedFindings?: number;
+  newlyDetectedRisks?: DoctorRisk[];
+}
+
 export interface AiUsageFinding {
   id: string;
   filePath: string;
@@ -294,6 +353,7 @@ export interface DoctorScanReport {
   aiFindings: AiUsageFinding[];
   integrationPoints: IntegrationPoint[];
   recommendations: SpectyraRecommendation[];
+  integrationPlan: DoctorIntegrationPlan;
   risks: DoctorRisk[];
   frameworks: DetectedFramework[];
   providers: DetectedProvider[];
