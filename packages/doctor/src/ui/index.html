@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Spectyra Integration Doctor</title>
+    <link rel="stylesheet" href="/styles.css" />
+  </head>
+  <body>
+    <header class="hero">
+      <h1>Spectyra Integration Doctor</h1>
+      <p class="sub">
+        Find where your app makes AI calls and get exact Spectyra setup instructions.
+      </p>
+    </header>
+
+    <main>
+      <section class="card" id="target">
+        <h2>Scan target</h2>
+        <p><strong>Project:</strong> <span id="project-root">…</span></p>
+        <p><strong>Status:</strong> <span id="scan-status">connecting…</span></p>
+        <fieldset>
+          <legend>Where do your AI calls happen?</legend>
+          <label><input type="radio" name="placement" value="not_sure" checked /> Not sure</label>
+          <label><input type="radio" name="placement" value="backend" /> Backend</label>
+          <label><input type="radio" name="placement" value="frontend" /> Frontend</label>
+          <label><input type="radio" name="placement" value="both" /> Both</label>
+        </fieldset>
+        <button type="button" id="apply-placement">Apply &amp; rescan</button>
+      </section>
+
+      <section class="card">
+        <h2>Live scan</h2>
+        <ul id="timeline" class="timeline"></ul>
+      </section>
+
+      <section class="card" id="dashboard" hidden>
+        <h2>Findings</h2>
+        <div id="findings"></div>
+      </section>
+
+      <section class="card" id="recommendations" hidden>
+        <h2>Recommended integration</h2>
+        <div id="rec-body"></div>
+      </section>
+
+      <section class="card">
+        <h2>Verification</h2>
+        <button type="button" id="btn-verify">Run verify</button>
+        <ul id="verify-lines"></ul>
+      </section>
+
+      <section class="card muted">
+        <p>
+          Doctor is <strong>read-only</strong>. It does not upload source code. It never reads <code>.env</code>
+          contents — only detects variable <em>names</em> in source.
+        </p>
+      </section>
+    </main>
+
+    <script src="/app.js" type="module"></script>
+  </body>
+</html>

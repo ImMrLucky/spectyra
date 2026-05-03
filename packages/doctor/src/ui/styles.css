@@ -1,0 +1,104 @@
+:root {
+  --bg: #0c111d;
+  --card: #151c2c;
+  --text: #e8edf7;
+  --muted: #94a3b8;
+  --accent: #38bdf8;
+  --border: #243044;
+  font-family: ui-sans-serif, system-ui, Segoe UI, Roboto, sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  line-height: 1.5;
+}
+* {
+  box-sizing: border-box;
+}
+body {
+  margin: 0;
+  padding: 24px;
+  max-width: 960px;
+  margin-inline: auto;
+}
+.hero {
+  margin-bottom: 28px;
+}
+.hero h1 {
+  font-size: 1.75rem;
+  margin: 0 0 8px;
+}
+.sub {
+  color: var(--muted);
+  margin: 0;
+  font-size: 1rem;
+}
+.card {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 18px 20px;
+  margin-bottom: 16px;
+}
+.card h2 {
+  margin-top: 0;
+  font-size: 1.1rem;
+}
+.muted {
+  color: var(--muted);
+  font-size: 0.9rem;
+}
+.timeline {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  max-height: 280px;
+  overflow: auto;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 12px;
+}
+.timeline li {
+  padding: 4px 0;
+  border-bottom: 1px dashed var(--border);
+}
+.timeline .progress {
+  color: var(--muted);
+}
+.timeline .finding {
+  color: #a7f3d0;
+}
+.timeline .warning {
+  color: #fcd34d;
+}
+.timeline .error {
+  color: #fca5a5;
+}
+button {
+  background: var(--accent);
+  color: #0c111d;
+  border: none;
+  padding: 8px 14px;
+  border-radius: 8px;
+  font-weight: 600;
+  cursor: pointer;
+  margin-top: 8px;
+}
+button:hover {
+  filter: brightness(1.05);
+}
+fieldset {
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  margin-top: 12px;
+}
+label {
+  display: inline-block;
+  margin-right: 12px;
+  margin-top: 6px;
+}
+pre.code {
+  background: #0b1220;
+  border-radius: 8px;
+  padding: 12px;
+  overflow: auto;
+  font-size: 12px;
+  border: 1px solid var(--border);
+}
