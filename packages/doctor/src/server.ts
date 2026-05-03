@@ -137,6 +137,7 @@ export function createDoctorApp(projectRoot: string): express.Express {
 export async function startDoctorServer(opts: DoctorServerOptions): Promise<{ url: string; close: () => Promise<void> }> {
   const app = createDoctorApp(opts.projectRoot);
   const server = createServer(app);
+  let closePromise: Promise<void> | undefined;
   await new Promise<void>((resolve, reject) => {
     server.listen(opts.port, "127.0.0.1", () => resolve());
     server.on("error", reject);
@@ -144,9 +145,13 @@ export async function startDoctorServer(opts: DoctorServerOptions): Promise<{ ur
   const url = `http://127.0.0.1:${opts.port}`;
   return {
     url,
-    close: () =>
-      new Promise((resolve, reject) => {
+    close: () => {
+      if (closePromise) return closePromise;
+      if (!server.listening) return Promise.resolve();
+      closePromise = new Promise((resolve, reject) => {
         server.close((err) => (err ? reject(err) : resolve()));
-      }),
+      });
+      return closePromise;
+    },
   };
 }

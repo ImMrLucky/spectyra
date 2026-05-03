@@ -144,12 +144,18 @@ async function startUiFlow(opts: Parsed): Promise<void> {
     log.warn("Initial scan request failed — use Rescan in UI");
   }
 
+  let shuttingDown = false;
   const shutdown = async () => {
-    await close();
-    process.exit(0);
+    if (shuttingDown) return;
+    shuttingDown = true;
+    try {
+      await close();
+    } finally {
+      process.exit(0);
+    }
   };
-  process.on("SIGINT", () => void shutdown());
-  process.on("SIGTERM", () => void shutdown());
+  process.once("SIGINT", () => void shutdown());
+  process.once("SIGTERM", () => void shutdown());
 }
 
 async function main(): Promise<void> {

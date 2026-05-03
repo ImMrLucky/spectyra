@@ -243,6 +243,22 @@ function collectRequireProvider(call: CallExpression, imported: Set<AiProviderId
   if (p) imported.add(p);
 }
 
+type TraverseFn = (tree: import("@babel/types").File, opts: object) => void;
+
+function resolveTraverse(): TraverseFn | undefined {
+  const mod = babelTraverse as unknown as {
+    default?: unknown;
+    traverse?: unknown;
+  };
+  if (typeof babelTraverse === "function") return babelTraverse as unknown as TraverseFn;
+  if (typeof mod.default === "function") return mod.default as TraverseFn;
+  if (mod.default && typeof (mod.default as { default?: unknown }).default === "function") {
+    return (mod.default as { default: TraverseFn }).default;
+  }
+  if (typeof mod.traverse === "function") return mod.traverse as TraverseFn;
+  return undefined;
+}
+
 /** AST-assisted scan for JS/TS/JSX; returns partial hits merged by {@link scanAiUsage}. */
 export function scanJsTsAstSource(source: string): JsTsAstPartialHit[] {
   const lines = source.split(/\r?\n/);
@@ -294,7 +310,8 @@ export function scanJsTsAstSource(source: string): JsTsAstPartialHit[] {
     });
   };
 
-  const traverse = babelTraverse as unknown as (tree: import("@babel/types").File, opts: object) => void;
+  const traverse = resolveTraverse();
+  if (!traverse) return [];
 
   traverse(ast, {
     ImportDeclaration(path: NodePath<import("@babel/types").ImportDeclaration>) {

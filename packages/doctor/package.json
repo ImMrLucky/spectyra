@@ -1,6 +1,6 @@
 {
   "name": "@spectyra/doctor",
-  "version": "0.1.0",
+  "version": "0.1.2",
   "description": "Spectyra Integration Doctor — scan projects for AI calls and Spectyra setup guidance",
   "type": "module",
   "main": "dist/index.js",
