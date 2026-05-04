@@ -21,6 +21,26 @@
         </div>
       </header>
 
+      <section class="monitor-banner card">
+        <div>
+          <p class="eyebrow">After setup</p>
+          <h2>Run your app, trigger an LLM call, then watch Spectyra monitor and optimize it.</h2>
+          <p>
+            Once the checklist is complete, restart your app, use the feature that calls OpenAI, Anthropic, Groq, or another provider,
+            then open the SDK monitor overlay or local companion. Doctor can verify the static setup here; the monitor shows live
+            requests, token usage, waste signals, and estimated optimization savings.
+          </p>
+          <p class="hint">
+            Common env: <code>SPECTYRA_RUN_MODE=on</code>, <code>SPECTYRA_LICENSE_KEY=&lt;key&gt;</code>,
+            <code>SPECTYRA_ENVIRONMENT=development</code>
+          </p>
+        </div>
+        <div class="banner-actions">
+          <button type="button" class="btn btn-primary" id="btn-copy-run-checklist">Copy run checklist</button>
+          <button type="button" class="btn" id="btn-jump-verify">Go to verify</button>
+        </div>
+      </section>
+
       <div class="grid-cards" id="summary-cards"></div>
 
       <section class="section card" id="target">
@@ -85,6 +105,14 @@
 
       <section class="section card" id="table-section" hidden>
         <h2>AI usage</h2>
+        <div class="filter-row" id="finding-filters">
+          <button type="button" class="btn btn-small active" data-filter="all">All</button>
+          <button type="button" class="btn btn-small" data-filter="provider">Provider SDK/API</button>
+          <button type="button" class="btn btn-small" data-filter="framework">Framework</button>
+          <button type="button" class="btn btn-small" data-filter="http">HTTP</button>
+          <button type="button" class="btn btn-small" data-filter="cli">CLI Harness</button>
+          <button type="button" class="btn btn-small" data-filter="config">Config/Env</button>
+        </div>
         <div class="table-wrap">
           <table class="data" id="findings-table">
             <thead>

@@ -167,6 +167,10 @@ export async function runScan(
 
   const scannedAt = new Date().toISOString();
   const highConfidence = aiFindings.filter((f) => f.confidence >= 0.8).length;
+  const providerSdkFindings = aiFindings.filter((f) => f.callStyle === "sdk" || f.callStyle === "custom-wrapper").length;
+  const cliHarnessFindings = aiFindings.filter((f) => f.callStyle === "cli" || f.isCliHarness).length;
+  const httpFindings = aiFindings.filter((f) => f.callStyle === "http").length;
+  const frameworkFindings = aiFindings.filter((f) => f.callStyle === "framework").length;
 
   const actionableSet = new Set<string>();
   for (const f of aiFindings) actionableSet.add(f.relativePath);
@@ -190,6 +194,10 @@ export async function runScan(
       permissionOrReadWarnings: permissionOrReadErrors + providerReadFailures,
       aiFindings: aiFindings.length,
       highConfidenceFindings: highConfidence,
+      providerSdkFindings,
+      cliHarnessFindings,
+      httpFindings,
+      frameworkFindings,
       providers: providerCounts,
       usageTypes: usageCounts,
       modelsDetected: [...models].slice(0, 40),
@@ -215,6 +223,7 @@ export async function runScan(
       score: 0,
       blockers: [],
       completed: [],
+      tracks: [],
       steps: [],
       monitorNextSteps: [],
     },

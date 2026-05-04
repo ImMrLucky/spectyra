@@ -10,6 +10,7 @@ import type {
 import { classifyModelHint, extractModelLiteralsFromText } from "./modelClassifier.js";
 import { nearestPackageDirForFile } from "./monorepo.js";
 import { isJsTsFamilyPath, scanJsTsAstSource } from "./jsTsAstScanner.js";
+import { detectCliHarnessInText } from "./cliHarnessScanner.js";
 import { buildSpectyraFindingRecommendation } from "../recommendations/recommendationEngine.js";
 
 const PROVIDER_URL = [
@@ -138,7 +139,16 @@ function severityFromConfidence(c: number): "high" | "medium" | "low" {
 function dedupeFindings(rows: AiUsageFinding[]): AiUsageFinding[] {
   const m = new Map<string, AiUsageFinding>();
   for (const f of rows) {
-    const k = `${f.relativePath}|${f.line}|${f.provider}|${f.methodName ?? ""}|${f.callStyle}`;
+    const k = [
+      f.relativePath,
+      f.line,
+      f.provider,
+      f.callStyle,
+      f.framework ?? "",
+      f.methodName ?? "",
+      f.command ?? "",
+      f.usageType,
+    ].join("|");
     const prev = m.get(k);
     if (!prev || f.confidence > prev.confidence) m.set(k, f);
   }
@@ -169,7 +179,7 @@ export function scanAiUsage(
       },
     ) => {
       const line = lineOf(text, partial.index);
-      const id = `${rel}:${line}:${partial.provider}:${partial.methodName ?? ""}:${partial.callStyle}`;
+      const id = `${rel}:${line}:${partial.provider}:${partial.framework ?? ""}:${partial.methodName ?? ""}:${partial.command ?? ""}:${partial.callStyle}`;
       if (findings.some((f) => f.id === id)) return;
       const snip = partial.snippet ?? snippetAt(text, partial.index);
       const pkgDir = nearestPackageDirForFile(sf.path, projectRoot, ctx.manifestAbsPaths);
@@ -203,6 +213,11 @@ export function scanAiUsage(
           usageType: h.usageType,
           callStyle: h.callStyle,
           methodName: h.methodName,
+          framework: h.framework,
+          command: h.command,
+          commandArgs: h.commandArgs,
+          isCliHarness: h.isCliHarness,
+          cliTool: h.cliTool,
           modelHints: h.modelHints,
           envHints: h.envHints,
           urlHints: h.urlHints,
@@ -211,6 +226,29 @@ export function scanAiUsage(
           severity: severityFromConfidence(h.confidence),
         });
       }
+    }
+
+    for (const h of detectCliHarnessInText({ text, relativePath: rel, language: lang })) {
+      push({
+        index: h.index,
+        snippet: h.snippet,
+        provider: h.provider,
+        providerEvidence: h.providerEvidence,
+        usageType: h.usageType,
+        callStyle: h.callStyle,
+        methodName: h.methodName,
+        framework: h.framework,
+        command: h.command,
+        commandArgs: h.commandArgs,
+        isCliHarness: h.isCliHarness,
+        cliTool: h.cliTool,
+        modelHints: h.modelHints,
+        envHints: h.envHints,
+        urlHints: h.urlHints,
+        isStreaming: h.isStreaming,
+        confidence: h.confidence,
+        severity: severityFromConfidence(h.confidence),
+      });
     }
 
     const sdkRules: Array<{

@@ -1,4 +1,9 @@
 import type { AiProviderId, AiUsageFinding, DoctorCodeBlock, IntegrationPoint } from "../scanner/types.js";
+import {
+  buildCliHarnessIntegrationBlocks,
+  replacementCode as cliReplacementCode,
+  suggestedCliWrapperFile,
+} from "./cliHarnessCodegen.js";
 
 function firstModel(f: AiUsageFinding, fallback: string): string {
   return f.modelHints?.[0] ?? fallback;
@@ -67,6 +72,10 @@ export function languageForFinding(f: AiUsageFinding): DoctorCodeBlock["language
 }
 
 export function suggestedWrapperFile(f: AiUsageFinding, points: IntegrationPoint[] = []): string {
+  if (f.callStyle === "cli" || f.isCliHarness) {
+    return suggestedCliWrapperFile(f, points);
+  }
+
   const existingWrapper = points.find((p) => {
     if (p.type !== "llm-wrapper" && p.type !== "provider-client") return false;
     if (!f.packageDir || f.packageDir === ".") return true;
@@ -88,6 +97,14 @@ export function replacementSnippetForFinding(
   points: IntegrationPoint[] = [],
 ): DoctorCodeBlock | undefined {
   if (f.language === "python" || f.relativePath.endsWith(".py")) return undefined;
+  if (f.callStyle === "cli" || f.isCliHarness) {
+    return {
+      title: `Update ${f.relativePath}:${f.line}`,
+      language: languageForFinding(f),
+      copyLabel: "Copy CLI call replacement",
+      code: cliReplacementCode(f, suggestedCliWrapperFile(f, points)),
+    };
+  }
   const wrapperFile = suggestedWrapperFile(f, points);
   if (f.provider === "anthropic") {
     return {
@@ -118,6 +135,7 @@ export function buildWrapperCodeForFinding(
   points: IntegrationPoint[] = [],
 ): DoctorCodeBlock[] {
   if (f.language === "python" || f.relativePath.endsWith(".py")) return pythonReviewBlocks(f);
+  if (f.callStyle === "cli" || f.isCliHarness) return buildCliHarnessIntegrationBlocks(f, points);
 
   switch (f.provider) {
     case "openai":
@@ -146,6 +164,104 @@ export function buildWrapperCodeForFinding(
     default:
       return genericBlocks(f);
   }
+}
+
+function cliRunnerName(f: AiUsageFinding): string {
+  if (f.cliTool === "claude") return "runClaudeWithSpectyra";
+  if (f.cliTool === "gemini") return "runGeminiWithSpectyra";
+  if (f.cliTool === "codex") return "runCodexWithSpectyra";
+  return "runAiCliWithSpectyra";
+}
+
+function cliFactoryName(f: AiUsageFinding): string {
+  if (f.cliTool === "claude") return "createClaudeCliHarness";
+  if (f.cliTool === "gemini") return "createGeminiCliHarness";
+  if (f.cliTool === "codex") return "createCodexCliHarness";
+  return "createCliHarness";
+}
+
+function cliCommand(f: AiUsageFinding): string {
+  if (f.command) return f.command;
+  if (f.cliTool === "claude") return "claude";
+  if (f.cliTool === "gemini") return "gemini";
+  if (f.cliTool === "codex") return "codex";
+  return "your-ai-command";
+}
+
+function cliHarnessBlocks(f: AiUsageFinding, points: IntegrationPoint[]): DoctorCodeBlock[] {
+  const wrapperFile = suggestedWrapperFile(f, points);
+  const factory = cliFactoryName(f);
+  const runner = cliRunnerName(f);
+  const command = cliCommand(f);
+  const provider = f.provider === "unknown" ? "unknown" : providerLiteral(f.provider);
+  const framework = f.framework ?? "custom-ai-cli-harness";
+  const importLine =
+    factory === "createCliHarness"
+      ? `import { createCliHarness } from "@spectyra/sdk/cli";`
+      : `import { ${factory} } from "@spectyra/sdk/cli";`;
+  const defaultArgs =
+    f.cliTool === "claude" ? `\n  defaultArgs: ["--output-format", "${f.isStreaming ? "stream-json" : "json"}"],` : "";
+  const factoryArgs =
+    factory === "createCliHarness"
+      ? `{
+  command: "${command}",
+  provider: "${provider}",
+  framework: "${framework}",
+  runMode: "on",
+  licenseKey: process.env.SPECTYRA_LICENSE_KEY,
+}`
+      : `{
+  command: "${command}",
+  runMode: "on",
+  licenseKey: process.env.SPECTYRA_LICENSE_KEY,${defaultArgs}
+}`;
+  const replacement = replacementSnippetForFinding(f, points);
+
+  return [
+    {
+      title: `Create ${wrapperFile}`,
+      language: "ts",
+      copyLabel: "Copy CLI harness wrapper",
+      code: `${importLine}
+
+const aiCli = ${factory}(${factoryArgs});
+
+export async function ${runner}(prompt: string) {
+  return aiCli.run({
+    prompt,
+    metadata: {
+      provider: "${provider}",
+      framework: "${framework}",
+      taskType: "coding-agent",
+    },
+  });
+}
+`,
+    },
+    ...(f.isStreaming
+      ? [
+          {
+            title: "Streaming CLI variant",
+            language: "ts" as const,
+            copyLabel: "Copy streaming variant",
+            code: `const result = await aiCli.run({
+  prompt,
+  args: ["--output-format", "stream-json"],
+  onStdout(chunk) {
+    process.stdout.write(chunk);
+  },
+  metadata: {
+    provider: "${provider}",
+    framework: "${framework}",
+    streaming: true,
+  },
+});
+`,
+          },
+        ]
+      : []),
+    ...(replacement ? [replacement] : []),
+  ];
 }
 
 function openAiCompatibleBlocks(f: AiUsageFinding, points: IntegrationPoint[]): DoctorCodeBlock[] {

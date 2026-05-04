@@ -91,6 +91,74 @@ inferencePath: direct_provider
 
 ---
 
+## AI CLI harnesses
+
+If your app launches an AI agent through a CLI instead of calling a provider SDK directly, wrap the CLI boundary with `@spectyra/sdk/cli`. This gives command-boundary and workflow-level monitoring for duplicate runs, repeated retries, agent loops, prompt/output size, duration, and cacheable tasks.
+
+```ts
+import { createClaudeCliHarness } from "@spectyra/sdk/cli";
+
+const claude = createClaudeCliHarness({
+  runMode: "on",
+  licenseKey: process.env.SPECTYRA_LICENSE_KEY,
+});
+
+const result = await claude.run({
+  prompt,
+  metadata: {
+    taskType: "coding-agent",
+  },
+});
+```
+
+Gemini CLI:
+
+```ts
+import { createGeminiCliHarness } from "@spectyra/sdk/cli";
+
+const gemini = createGeminiCliHarness();
+const result = await gemini.run({ prompt });
+```
+
+Codex CLI:
+
+```ts
+import { createCodexCliHarness } from "@spectyra/sdk/cli";
+
+const codex = createCodexCliHarness();
+const result = await codex.run({ prompt });
+```
+
+Custom AI CLI:
+
+```ts
+import { createCliHarness } from "@spectyra/sdk/cli";
+
+const aiCli = createCliHarness({
+  command: "your-ai-command",
+  provider: "unknown",
+  framework: "custom-ai-cli-harness",
+});
+
+const result = await aiCli.run({ prompt });
+```
+
+Streaming callbacks are preserved:
+
+```ts
+await claude.run({
+  prompt,
+  args: ["--output-format", "stream-json"],
+  onStdout(chunk) {
+    process.stdout.write(chunk);
+  },
+});
+```
+
+Privacy: CLI harness monitor events are metadata-only by default. The SDK records counts, hashes, command metadata, duration, and exit status; it does not upload raw prompts or raw outputs by default.
+
+---
+
 ## What you get back
 
 `complete()` returns your normal provider object as **`providerResult`** plus a **`report`** (`SavingsReport`) with token and cost estimates.

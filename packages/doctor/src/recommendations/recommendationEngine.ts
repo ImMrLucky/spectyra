@@ -78,6 +78,50 @@ function autoImportOnlySnippet(primaryEntry: string): string {
 import "@spectyra/sdk/auto";`;
 }
 
+function cliHarnessSnippet(provider: AiProviderId): string {
+  if (provider === "anthropic") {
+    return `import { createClaudeCliHarness } from "@spectyra/sdk/cli";
+
+const claude = createClaudeCliHarness({
+  runMode: "on",
+  licenseKey: process.env.SPECTYRA_LICENSE_KEY,
+});
+
+const result = await claude.run({ prompt, metadata: { taskType: "coding-agent" } });`;
+  }
+  if (provider === "gemini" || provider === "google") {
+    return `import { createGeminiCliHarness } from "@spectyra/sdk/cli";
+
+const gemini = createGeminiCliHarness({
+  runMode: "on",
+  licenseKey: process.env.SPECTYRA_LICENSE_KEY,
+});
+
+const result = await gemini.run({ prompt, metadata: { taskType: "coding-agent" } });`;
+  }
+  if (provider === "openai") {
+    return `import { createCodexCliHarness } from "@spectyra/sdk/cli";
+
+const codex = createCodexCliHarness({
+  runMode: "on",
+  licenseKey: process.env.SPECTYRA_LICENSE_KEY,
+});
+
+const result = await codex.run({ prompt, metadata: { taskType: "coding-agent" } });`;
+  }
+  return `import { createCliHarness } from "@spectyra/sdk/cli";
+
+const aiCli = createCliHarness({
+  command: "your-ai-command",
+  provider: "unknown",
+  framework: "custom-ai-cli-harness",
+  runMode: "on",
+  licenseKey: process.env.SPECTYRA_LICENSE_KEY,
+});
+
+const result = await aiCli.run({ prompt, metadata: { taskType: "agent" } });`;
+}
+
 /** Provider-aware setup guidance using only real \`@spectyra/sdk\` exports. */
 export function buildSpectyraFindingRecommendation(args: {
   provider: AiProviderId;
@@ -94,7 +138,14 @@ export function buildSpectyraFindingRecommendation(args: {
   let suggestedCode: string;
   let title: string;
 
-  if (args.provider === "anthropic") {
+  if (args.callStyle === "cli") {
+    title = "Wrap AI CLI harness boundary with Spectyra";
+    suggestedCode = cliHarnessSnippet(args.provider);
+    notes.push(
+      "CLI harness savings are workflow-level: duplicate runs, retries, loops, prompt/output size, duration, and cacheable agent tasks.",
+      "Uses real `@spectyra/sdk/cli` exports; do not use provider SDK adapters for CLI-only usage.",
+    );
+  } else if (args.provider === "anthropic") {
     title = "Instrument Anthropic with Spectyra";
     suggestedCode = anthropicAdapterSnippet(streaming);
     notes.push("Uses `createSpectyra` + `createAnthropicAdapter` from `@spectyra/sdk`.");

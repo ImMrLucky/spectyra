@@ -1,6 +1,6 @@
 {
   "name": "@spectyra/sdk",
-  "version": "0.1.19",
+  "version": "0.1.20",
   "description": "Spectyra SDK for real-time LLM optimization",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
@@ -28,6 +28,10 @@
       "node": "./dist/auto/index.js",
       "import": "./dist/auto/index.js",
       "default": "./dist/auto/index.js"
+    },
+    "./cli": {
+      "types": "./dist/cli/index.d.ts",
+      "default": "./dist/cli/index.js"
     },
     "./overlay": {
       "types": "./dist/overlay/index.d.ts",

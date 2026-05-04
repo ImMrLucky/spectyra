@@ -12,6 +12,7 @@ const nodeBundle = defineConfig({
     "adapters/anthropic": "src/adapters/anthropic.ts",
     "adapters/groq": "src/adapters/groq.ts",
     "auto/index": "src/auto/index.ts",
+    "cli/index": "src/cli/index.ts",
     "dev/index": "src/dev/index.ts",
   },
   outDir: "dist",

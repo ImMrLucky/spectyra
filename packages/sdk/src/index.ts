@@ -90,6 +90,9 @@ export { createOpenAIAdapter } from "./adapters/openai.js";
 export { createAnthropicAdapter } from "./adapters/anthropic.js";
 export { createGroqAdapter } from "./adapters/groq.js";
 
+// CLI harnesses (Claude CLI, Gemini CLI, Codex CLI, custom AI CLIs)
+export * from "./cli/index.js";
+
 // Shared platform types (re-exported from @spectyra/core-types)
 export type {
   SpectyraRunMode,

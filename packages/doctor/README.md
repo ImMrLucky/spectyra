@@ -69,6 +69,31 @@ import '@spectyra/sdk/auto';
 
 ---
 
+## AI CLI harness support
+
+Spectyra Doctor detects apps that run AI through command-line tools such as Claude CLI, Gemini CLI, Codex CLI, Aider, OpenCode, or custom internal AI CLIs. It scans child process calls, `execa`, `zx`, shell scripts, package scripts, Dockerfiles, Makefiles, and CI workflow commands.
+
+For these apps, Doctor recommends wrapping the command boundary instead of provider SDK calls:
+
+```ts
+import { createClaudeCliHarness } from "@spectyra/sdk/cli";
+
+const claude = createClaudeCliHarness();
+
+const result = await claude.run({
+  prompt,
+  metadata: {
+    taskType: "coding-agent",
+  },
+});
+```
+
+CLI harness savings are workflow-level. Spectyra can monitor duplicate runs, repeated retries, agent loops, prompt size, output size, duration, and cacheable CLI tasks. Raw prompts and outputs are not uploaded by default.
+
+Doctor reports provider SDK/API usage and CLI harness usage separately. Mixed apps show separate setup tracks so an OpenAI SDK call gets provider wrapper guidance, while a Claude CLI call gets `@spectyra/sdk/cli` guidance.
+
+---
+
 ## CLI reference
 
 | Command | Description |

@@ -1,8 +1,9 @@
 import { parse } from "@babel/parser";
 import type { NodePath } from "@babel/traverse";
 import babelTraverse from "@babel/traverse";
-import type { CallExpression, Expression, NewExpression, ObjectMethod, ObjectProperty, SpreadElement } from "@babel/types";
-import type { AiCallStyle, AiProviderId, AiUsageType } from "./types.js";
+import type { CallExpression, Expression, NewExpression, ObjectMethod, ObjectProperty, SpreadElement, TaggedTemplateExpression } from "@babel/types";
+import type { AiCallStyle, AiCliToolId, AiProviderId, AiUsageType } from "./types.js";
+import { detectCliHarnessCommand } from "./cliHarnessScanner.js";
 
 export interface JsTsAstPartialHit {
   /** Byte offset in source for deduplication with regex scanner */
@@ -13,6 +14,11 @@ export interface JsTsAstPartialHit {
   usageType: AiUsageType;
   callStyle: AiCallStyle;
   methodName?: string;
+  framework?: string;
+  command?: string;
+  commandArgs?: string[];
+  isCliHarness?: boolean;
+  cliTool?: AiCliToolId;
   modelHints: string[];
   envHints: string[];
   urlHints: string[];
@@ -102,6 +108,19 @@ const HTTP_CHAIN_SUFFIXES = [
   "https.request",
   "undici.request",
 ];
+
+const CLI_CALL_CHAINS = new Set([
+  "spawn",
+  "exec",
+  "execFile",
+  "fork",
+  "child_process.spawn",
+  "child_process.exec",
+  "child_process.execFile",
+  "child_process.fork",
+  "execa",
+  "execaCommand",
+]);
 
 function getMemberChain(node: Expression | null | undefined): string | undefined {
   if (!node) return undefined;
@@ -243,6 +262,33 @@ function collectRequireProvider(call: CallExpression, imported: Set<AiProviderId
   if (p) imported.add(p);
 }
 
+function stringLiteralArg(arg: CallExpression["arguments"][number] | undefined): string | undefined {
+  if (!arg || arg.type === "SpreadElement") return undefined;
+  if (arg.type === "StringLiteral") return arg.value;
+  if (arg.type === "TemplateLiteral") return arg.quasis.map((q) => q.value.cooked ?? q.value.raw).join("${}");
+  return undefined;
+}
+
+function arrayStringArgs(arg: CallExpression["arguments"][number] | undefined): string[] {
+  if (!arg || arg.type === "SpreadElement" || arg.type !== "ArrayExpression") return [];
+  return arg.elements
+    .map((el) => {
+      if (!el) return undefined;
+      if (el.type === "StringLiteral") return el.value;
+      if (el.type === "TemplateLiteral") return el.quasis.map((q) => q.value.cooked ?? q.value.raw).join("${}");
+      return undefined;
+    })
+    .filter((x): x is string => Boolean(x));
+}
+
+function cliTextForCall(chain: string, call: CallExpression): string | undefined {
+  if (!CLI_CALL_CHAINS.has(chain)) return undefined;
+  const first = stringLiteralArg(call.arguments[0]);
+  if (!first) return undefined;
+  if (chain.endsWith("exec") || chain.endsWith("execaCommand")) return first;
+  return [first, ...arrayStringArgs(call.arguments[1])].join(" ");
+}
+
 type TraverseFn = (tree: import("@babel/types").File, opts: object) => void;
 
 function resolveTraverse(): TraverseFn | undefined {
@@ -334,6 +380,33 @@ export function scanJsTsAstSource(source: string): JsTsAstPartialHit[] {
         .join("\n");
       const local = `${snippetFor(line)}\n${argText}`;
 
+      const cliText = cliTextForCall(chain, path.node);
+      if (cliText) {
+        const detection = detectCliHarnessCommand(cliText, { language: "typescript" });
+        if (detection) {
+          pushHit({
+            start,
+            line,
+            column,
+            provider: detection.provider,
+            usageType: "agent",
+            callStyle: "cli",
+            methodName: chain,
+            framework: detection.framework,
+            command: detection.command,
+            commandArgs: detection.commandArgs,
+            isCliHarness: true,
+            cliTool: detection.tool,
+            modelHints: matches(local, MODEL_RE),
+            envHints: matches(local, ENV_RE),
+            urlHints: [],
+            providerEvidence: [chain, ...detection.evidence],
+            isStreaming: detection.isStreaming || /stdout\.on\s*\(\s*["']data["']|for\s+await/i.test(local),
+            confidence: chain.includes("exec") || chain.includes("spawn") || chain.includes("execa") ? 0.94 : detection.confidence,
+          });
+        }
+      }
+
       for (const rule of AI_METHOD_SUFFIXES) {
         if (chainEndsWith(chain, rule.suffix)) {
           const obj = extractObjectArgInfo(path.node);
@@ -424,6 +497,35 @@ export function scanJsTsAstSource(source: string): JsTsAstPartialHit[] {
         });
       }
     },
+    TaggedTemplateExpression(path: NodePath<TaggedTemplateExpression>) {
+      const tag = getMemberChain(path.node.tag as Expression);
+      if (tag !== "$") return;
+      const loc = path.node.loc?.start;
+      const line = loc?.line ?? 1;
+      const text = path.node.quasi.quasis.map((q) => q.value.cooked ?? q.value.raw).join("${}");
+      const detection = detectCliHarnessCommand(text, { language: "typescript" });
+      if (!detection) return;
+      pushHit({
+        start: path.node.start ?? null,
+        line,
+        column: loc?.column,
+        provider: detection.provider,
+        usageType: "agent",
+        callStyle: "cli",
+        methodName: "$",
+        framework: detection.framework,
+        command: detection.command,
+        commandArgs: detection.commandArgs,
+        isCliHarness: true,
+        cliTool: detection.tool,
+        modelHints: matches(text, MODEL_RE),
+        envHints: matches(text, ENV_RE),
+        urlHints: [],
+        providerEvidence: ["zx:$", ...detection.evidence],
+        isStreaming: detection.isStreaming,
+        confidence: 0.94,
+      });
+    },
     NewExpression(path: NodePath<NewExpression>) {
       const callee = path.node.callee;
       if (callee.type !== "Identifier" && callee.type !== "MemberExpression") return;
@@ -455,7 +557,7 @@ export function scanJsTsAstSource(source: string): JsTsAstPartialHit[] {
   const seen = new Set<string>();
   const out: JsTsAstPartialHit[] = [];
   for (const h of hits) {
-    const k = `${h.line}|${h.provider}|${h.methodName ?? ""}|${h.usageType}`;
+    const k = `${h.line}|${h.provider}|${h.callStyle}|${h.framework ?? ""}|${h.methodName ?? ""}|${h.command ?? ""}|${h.usageType}`;
     if (seen.has(k)) continue;
     seen.add(k);
     out.push(h);

@@ -22,7 +22,8 @@ export type SpectyraMonitorIntegrationMode =
   | "auto_fetch"
   | "auto_http"
   | "auto_provider_sdk"
-  | "framework_hook";
+  | "framework_hook"
+  | "cli_harness";
 
 export type SpectyraMonitorPricingSource =
   | "provider_usage"

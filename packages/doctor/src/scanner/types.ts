@@ -118,6 +118,7 @@ export interface IntegrationRecommendation {
 export type AiProviderId =
   | "openai"
   | "anthropic"
+  | "google"
   | "groq"
   | "gemini"
   | "azure-openai"
@@ -142,6 +143,15 @@ export type AiProviderId =
   | "openai-compatible"
   | "unknown";
 
+export type AiCliToolId =
+  | "claude"
+  | "gemini"
+  | "codex"
+  | "aider"
+  | "opencode"
+  | "custom-ai-cli"
+  | "unknown-ai-cli";
+
 export type AiUsageType =
   | "chat"
   | "responses"
@@ -157,7 +167,7 @@ export type AiUsageType =
   | "batch"
   | "unknown";
 
-export type AiCallStyle = "sdk" | "http" | "framework" | "custom-wrapper" | "config" | "env" | "unknown";
+export type AiCallStyle = "sdk" | "http" | "framework" | "custom-wrapper" | "cli" | "config" | "env" | "unknown";
 
 export interface ModelClassification {
   raw: string;
@@ -183,6 +193,14 @@ export interface SpectyraRecommendation {
 }
 
 export type DoctorStepStatus = "pending" | "complete" | "warning" | "ready" | "blocked";
+
+export type DoctorIntegrationTrackKind =
+  | "provider-sdk"
+  | "ai-cli-harness"
+  | "framework"
+  | "http"
+  | "config"
+  | "operations";
 
 export type DoctorStepKind =
   | "install-sdk"
@@ -214,11 +232,21 @@ export interface DoctorIntegrationStep {
   provider?: AiProviderId;
   usageType?: AiUsageType;
   callStyle?: AiCallStyle;
+  track?: DoctorIntegrationTrackKind;
   modelHints?: string[];
   codeBlocks: DoctorCodeBlock[];
   verifyChecks: string[];
   notes: string[];
   nextAction: string;
+}
+
+export interface DoctorIntegrationTrack {
+  id: string;
+  kind: DoctorIntegrationTrackKind;
+  title: string;
+  summary: string;
+  status: "not-started" | "in-progress" | "needs-attention" | "ready";
+  steps: DoctorIntegrationStep[];
 }
 
 export interface DoctorIntegrationPlan {
@@ -228,9 +256,19 @@ export interface DoctorIntegrationPlan {
   score: number;
   blockers: string[];
   completed: string[];
+  tracks: DoctorIntegrationTrack[];
   steps: DoctorIntegrationStep[];
   readyMessage?: string;
   monitorNextSteps: DoctorIntegrationStep[];
+  readiness?: DoctorIntegrationReadiness;
+}
+
+export interface DoctorIntegrationReadiness {
+  overallStatus: "not-started" | "in-progress" | "needs-attention" | "ready";
+  providerSdkStatus: "not-detected" | "not-started" | "in-progress" | "ready";
+  cliHarnessStatus: "not-detected" | "not-started" | "in-progress" | "ready";
+  blockers: string[];
+  completed: string[];
 }
 
 export interface DoctorProgressDelta {
@@ -253,6 +291,11 @@ export interface AiUsageFinding {
   usageType: AiUsageType;
   callStyle: AiCallStyle;
   methodName?: string;
+  framework?: string;
+  command?: string;
+  commandArgs?: string[];
+  isCliHarness?: boolean;
+  cliTool?: AiCliToolId;
   importName?: string;
   clientName?: string;
   modelHints: string[];
@@ -339,6 +382,10 @@ export interface DoctorScanReport {
     permissionOrReadWarnings?: number;
     aiFindings: number;
     highConfidenceFindings: number;
+    providerSdkFindings?: number;
+    cliHarnessFindings?: number;
+    httpFindings?: number;
+    frameworkFindings?: number;
     providers: Record<string, number>;
     usageTypes: Record<string, number>;
     modelsDetected: string[];
