@@ -125,8 +125,16 @@ function isCliFinding(f: AiUsageFinding): boolean {
   return f.callStyle === "cli" || f.isCliHarness === true;
 }
 
+function isPersistentCliFinding(f: AiUsageFinding): boolean {
+  return isCliFinding(f) && f.cliRunMode === "persistent-session";
+}
+
+function isAcpFinding(f: AiUsageFinding): boolean {
+  return f.callStyle === "acp" || f.isAcpHarness === true;
+}
+
 function isProviderFinding(f: AiUsageFinding): boolean {
-  return !isCliFinding(f) && (f.callStyle === "sdk" || f.callStyle === "http" || f.callStyle === "framework" || f.callStyle === "custom-wrapper");
+  return !isCliFinding(f) && !isAcpFinding(f) && (f.callStyle === "sdk" || f.callStyle === "http" || f.callStyle === "framework" || f.callStyle === "custom-wrapper");
 }
 
 function packagesForFindings(report: DoctorScanReport, predicate: (f: AiUsageFinding) => boolean): PackageFinding[] {
@@ -530,13 +538,59 @@ function buildCliHarnessTrack(report: DoctorScanReport, cliFindings: AiUsageFind
 
   const tools = [...new Set(cliFindings.map((f) => cliToolTitle(f)))];
   const claudeOnly = tools.length === 1 && tools[0] === "Claude CLI";
+  const persistentOnly = cliFindings.every(isPersistentCliFinding);
   return {
     id: "track:ai-cli-harness",
-    kind: "ai-cli-harness",
-    title: claudeOnly ? "Claude CLI harness integration" : "AI CLI harness integration",
+    kind: cliFindings.every(isPersistentCliFinding) ? "persistent-cli-session" : "ai-cli-harness",
+    title: persistentOnly ? "Persistent AI CLI Session Integration" : claudeOnly ? "Claude CLI harness integration" : "AI CLI harness integration",
     summary:
       "Spectyra found AI calls made through command-line tools. Wrap the command boundary so Spectyra can monitor and optimize duplicate runs, retries, loops, prompt size, output size, and duration.",
     status: readiness.detail.cliHarnessStatus === "not-detected" ? "not-started" : readiness.detail.cliHarnessStatus,
+    steps,
+  };
+}
+
+function buildAcpTrack(acpFindings: AiUsageFinding[]): DoctorIntegrationTrack | undefined {
+  if (!acpFindings.length) return undefined;
+  const steps: DoctorIntegrationStep[] = acpFindings.map((finding) => ({
+    id: `acp-review:${finding.relativePath}:${finding.line}`,
+    kind: "wrap-central-client",
+    status: "pending",
+    priority: finding.confidence >= 0.85 ? "high" : "medium",
+    title: `Review ACP harness at ${finding.relativePath}:${finding.line}`,
+    summary: "Doctor found Agent Client Protocol evidence. Wrap the ACP session/prompt boundary with Spectyra once the ACP SDK helper is available for this project.",
+    targetFile: finding.relativePath,
+    targetLine: finding.line,
+    packageDir: finding.packageDir,
+    provider: finding.provider,
+    usageType: finding.usageType,
+    callStyle: "acp",
+    track: "acp-harness",
+    modelHints: finding.modelHints,
+    codeBlocks: [
+      {
+        title: `Detected ACP evidence at ${finding.relativePath}:${finding.line}`,
+        language: "text",
+        code: finding.snippet,
+        copyLabel: "Copy detected snippet",
+      },
+      {
+        title: "ACP integration note",
+        language: "text",
+        code: "Install @spectyra/sdk, add import \"@spectyra/sdk/auto\" at the agent host entrypoint, then wrap the ACP session/prompt boundary when @spectyra/sdk/acp is available.",
+        copyLabel: "Copy ACP note",
+      },
+    ],
+    verifyChecks: ["ACP package/protocol methods are present", "Spectyra SDK is installed in the agent host package", "ACP prompt/session boundary has Spectyra wrapper evidence"],
+    notes: ["Low-confidence ACP references are kept under Possible AI-related references and do not generate wrapper code."],
+    nextAction: "Review the ACP host and add Spectyra at the session/prompt boundary.",
+  }));
+  return {
+    id: "track:acp-harness",
+    kind: "acp-harness",
+    title: "ACP Harness Integration",
+    summary: "Spectyra found Agent Client Protocol harness evidence. Integrate at the agent session or prompt boundary.",
+    status: "in-progress",
     steps,
   };
 }
@@ -645,9 +699,11 @@ export function buildIntegrationPlan(report: DoctorScanReport): DoctorIntegratio
   const readiness = computeIntegrationReadiness(report);
   const providerFindings = report.aiFindings.filter(isProviderFinding);
   const cliFindings = report.aiFindings.filter(isCliFinding);
+  const acpFindings = report.aiFindings.filter(isAcpFinding);
   const tracks = [
     buildProviderTrack(report, providerFindings, readiness),
     buildCliHarnessTrack(report, cliFindings, readiness),
+    buildAcpTrack(acpFindings),
   ].filter((track): track is DoctorIntegrationTrack => Boolean(track));
   const steps: DoctorIntegrationStep[] = tracks.flatMap((track) => track.steps);
   const ops = operationalSteps(readiness);

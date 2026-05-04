@@ -20,6 +20,9 @@ function depVersion(pkg: Record<string, unknown> | null, name: string): string |
 
 const SDK_AUTO_RE =
   /@spectyra\/sdk\/auto|from\s+['"]@spectyra\/sdk\/auto['"]|require\s*\(\s*['"]@spectyra\/sdk\/auto['"]/;
+const SDK_CLI_RE = /@spectyra\/sdk\/cli|createCliHarness\s*\(|createClaudeCliHarness\s*\(|createGeminiCliHarness\s*\(|createCodexCliHarness\s*\(/;
+const SDK_ACP_RE = /@spectyra\/sdk\/acp|createAcpHarness\s*\(/;
+const PROVIDER_WRAPPER_RE = /createSpectyra\s*\(|createOpenAIAdapter\s*\(|createAnthropicAdapter\s*\(|createGroqAdapter\s*\(|spectyra\.complete\s*\(/;
 const LEGACY_AUTO_RE =
   /@spectyra\/auto|from\s+['"]@spectyra\/auto['"]|require\s*\(\s*['"]@spectyra\/auto['"]/;
 const LEGACY_DEVTOOLS_RE = /@spectyra\/devtools|from\s+['"]@spectyra\/devtools/;
@@ -41,6 +44,11 @@ export function scanSpectyra(projectRoot: string, files: string[], ctx: ScanSpec
   const sdkInstalled = packages.length > 0 ? packages.some((p) => p.hasSpectyraSdk) : sdkAtRoot;
 
   const sdkAutoImportFiles: string[] = [];
+  const sdkCliImportFiles: string[] = [];
+  const sdkAcpImportFiles: string[] = [];
+  const providerWrapperFiles: string[] = [];
+  const cliWrapperFiles: string[] = [];
+  const acpWrapperFiles: string[] = [];
   const legacyAutoImportFiles: string[] = [];
   const devtoolsImportFiles: string[] = [];
   let hasDevBridge = false;
@@ -59,6 +67,15 @@ export function scanSpectyra(projectRoot: string, files: string[], ctx: ScanSpec
 
   for (const [rel, c] of entryContent) {
     if (SDK_AUTO_RE.test(c)) sdkAutoImportFiles.push(rel);
+    if (SDK_CLI_RE.test(c)) {
+      sdkCliImportFiles.push(rel);
+      cliWrapperFiles.push(rel);
+    }
+    if (SDK_ACP_RE.test(c)) {
+      sdkAcpImportFiles.push(rel);
+      acpWrapperFiles.push(rel);
+    }
+    if (PROVIDER_WRAPPER_RE.test(c)) providerWrapperFiles.push(rel);
     if (LEGACY_AUTO_RE.test(c)) legacyAutoImportFiles.push(rel);
     if (LEGACY_DEVTOOLS_RE.test(c)) devtoolsImportFiles.push(rel);
     if (/useSpectyraAutoDevBridge|createSpectyraDevBridgeConnectMiddleware|registerSpectyraDevBridgeFastify/.test(c)) {
@@ -129,6 +146,11 @@ export function scanSpectyra(projectRoot: string, files: string[], ctx: ScanSpec
     doctorInstalled,
     legacyAutoImportFiles,
     sdkAutoImportFiles,
+    sdkCliImportFiles,
+    sdkAcpImportFiles,
+    providerWrapperFiles,
+    cliWrapperFiles,
+    acpWrapperFiles,
     devtoolsImportFiles,
     autoImportFiles,
     hasDevBridge,

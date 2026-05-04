@@ -87,6 +87,11 @@ export interface SpectyraStatus {
   legacyAutoImportFiles: string[];
   /** Files importing `@spectyra/sdk/auto` (recommended). */
   sdkAutoImportFiles: string[];
+  sdkCliImportFiles?: string[];
+  sdkAcpImportFiles?: string[];
+  providerWrapperFiles?: string[];
+  cliWrapperFiles?: string[];
+  acpWrapperFiles?: string[];
   /** Files importing `@spectyra/devtools` or `/devtools/auto`. */
   devtoolsImportFiles: string[];
   /** @deprecated Use {@link sdkAutoImportFiles} or {@link legacyAutoImportFiles}. */
@@ -149,6 +154,8 @@ export type AiCliToolId =
   | "codex"
   | "aider"
   | "opencode"
+  | "copilot"
+  | "kiro"
   | "custom-ai-cli"
   | "unknown-ai-cli";
 
@@ -167,7 +174,34 @@ export type AiUsageType =
   | "batch"
   | "unknown";
 
-export type AiCallStyle = "sdk" | "http" | "framework" | "custom-wrapper" | "cli" | "config" | "env" | "unknown";
+export type AiCallStyle = "sdk" | "http" | "framework" | "custom-wrapper" | "cli" | "acp" | "config" | "env" | "unknown";
+
+export type EvidenceKind =
+  | "provider-import"
+  | "provider-constructor"
+  | "provider-method-call"
+  | "provider-url"
+  | "provider-env"
+  | "model-name"
+  | "http-ai-endpoint"
+  | "ai-framework-call"
+  | "custom-wrapper-name"
+  | "process-launcher"
+  | "ai-cli-command"
+  | "ai-cli-flag"
+  | "stdin-session"
+  | "stdout-stream"
+  | "package-script-resolution"
+  | "shell-script-resolution"
+  | "acp-protocol"
+  | "spectyra-integration";
+
+export interface DetectionEvidence {
+  kind: EvidenceKind;
+  value: string;
+  line?: number;
+  confidence: number;
+}
 
 export interface ModelClassification {
   raw: string;
@@ -197,6 +231,8 @@ export type DoctorStepStatus = "pending" | "complete" | "warning" | "ready" | "b
 export type DoctorIntegrationTrackKind =
   | "provider-sdk"
   | "ai-cli-harness"
+  | "persistent-cli-session"
+  | "acp-harness"
   | "framework"
   | "http"
   | "config"
@@ -287,6 +323,7 @@ export interface AiUsageFinding {
   column?: number;
   language: string;
   provider: AiProviderId;
+  evidence: DetectionEvidence[];
   providerEvidence: string[];
   usageType: AiUsageType;
   callStyle: AiCallStyle;
@@ -295,6 +332,11 @@ export interface AiUsageFinding {
   command?: string;
   commandArgs?: string[];
   isCliHarness?: boolean;
+  isAcpHarness?: boolean;
+  cliRunMode?: "one-shot" | "persistent-session";
+  usesStdin?: boolean;
+  writesToStdin?: boolean;
+  readsStdoutStream?: boolean;
   cliTool?: AiCliToolId;
   importName?: string;
   clientName?: string;
@@ -383,9 +425,14 @@ export interface DoctorScanReport {
     aiFindings: number;
     highConfidenceFindings: number;
     providerSdkFindings?: number;
-    cliHarnessFindings?: number;
-    httpFindings?: number;
+    httpAiFindings?: number;
     frameworkFindings?: number;
+    cliHarnessFindings?: number;
+    acpHarnessFindings?: number;
+    customWrapperFindings?: number;
+    possibleReferences?: number;
+    /** @deprecated use httpAiFindings */
+    httpFindings?: number;
     providers: Record<string, number>;
     usageTypes: Record<string, number>;
     modelsDetected: string[];
@@ -398,6 +445,7 @@ export interface DoctorScanReport {
   /** Unique relative paths where AI usage or integration work was detected (not the full file list). */
   actionableFilePaths: string[];
   aiFindings: AiUsageFinding[];
+  possibleReferences: AiUsageFinding[];
   integrationPoints: IntegrationPoint[];
   recommendations: SpectyraRecommendation[];
   integrationPlan: DoctorIntegrationPlan;

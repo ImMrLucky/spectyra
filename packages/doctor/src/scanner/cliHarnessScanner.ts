@@ -9,6 +9,10 @@ export interface CliHarnessDetection {
   isStreaming?: boolean;
   confidence: number;
   evidence: string[];
+  cliRunMode?: "one-shot" | "persistent-session";
+  usesStdin?: boolean;
+  writesToStdin?: boolean;
+  readsStdoutStream?: boolean;
 }
 
 export interface CliToolDefinition {
@@ -25,7 +29,7 @@ export interface CliToolDefinition {
 
 export type CliHarnessFindingHit = Omit<
   AiUsageFinding,
-  "id" | "recommendation" | "snippet" | "filePath" | "relativePath" | "language" | "line" | "severity" | "packageDir"
+  "id" | "recommendation" | "snippet" | "filePath" | "relativePath" | "language" | "line" | "severity" | "packageDir" | "evidence"
 > & {
   index: number;
   snippet?: string;
@@ -96,6 +100,28 @@ export const AI_CLI_TOOLS: CliToolDefinition[] = [
     envHints: ["OPENAI_API_KEY", "ANTHROPIC_API_KEY", "GEMINI_API_KEY"],
     modelHints: [/gpt-[\w.-]+/i, /claude-[\w.-]+/i, /gemini-[\w.-]+/i],
   },
+  {
+    id: "copilot",
+    provider: "unknown",
+    framework: "copilot-cli-harness",
+    commandNames: ["copilot"],
+    npmPackageHints: [],
+    strongFlags: ["--prompt", "-p", "--model"],
+    mediumFlags: ["suggest", "explain"],
+    envHints: ["GITHUB_TOKEN", "OPENAI_API_KEY"],
+    modelHints: [/gpt-[\w.-]+/i],
+  },
+  {
+    id: "kiro",
+    provider: "unknown",
+    framework: "kiro-cli-harness",
+    commandNames: ["kiro"],
+    npmPackageHints: [],
+    strongFlags: ["--prompt", "-p", "--model"],
+    mediumFlags: ["run", "exec"],
+    envHints: ["ANTHROPIC_API_KEY", "OPENAI_API_KEY"],
+    modelHints: [/claude-[\w.-]+/i, /gpt-[\w.-]+/i],
+  },
 ];
 
 const EXECUTABLE_FILE_RE =
@@ -132,6 +158,10 @@ export function detectCliHarnessInText(input: {
           envHints: detection.evidence.filter((x) => /_API_KEY|CLAUDE_CODE_/.test(x)),
           urlHints: [],
           isStreaming: detection.isStreaming,
+          cliRunMode: detection.cliRunMode ?? "one-shot",
+          usesStdin: detection.usesStdin,
+          writesToStdin: detection.writesToStdin,
+          readsStdoutStream: detection.readsStdoutStream,
           confidence: detection.confidence,
           framework: detection.framework,
           command: detection.command,
@@ -168,11 +198,14 @@ export function detectCliHarnessCommand(
     const env = def.envHints.filter((hint) => normalized.includes(hint));
     const model = def.modelHints.some((re) => re.test(normalized));
     const executable = isExecutableContext(normalized, ctx.relativePath, ctx.language);
+    const persistent = /\bstdin(?:\??\.)?\.write\s*\(|\bstdout\.on\s*\(\s*["']data["']|stdin\s*:\s*["']pipe["']/.test(normalized);
 
     if (!executable && !strong && !packageHint) continue;
     if (!executable && command && !strong && !medium && !env.length && !model) continue;
 
-    const confidence = confidenceFor({ strong, medium, env: env.length > 0, model, packageHint: Boolean(packageHint), executable });
+    const confidence = persistent
+      ? Math.max(0.9, confidenceFor({ strong, medium, env: env.length > 0, model, packageHint: Boolean(packageHint), executable }))
+      : confidenceFor({ strong, medium, env: env.length > 0, model, packageHint: Boolean(packageHint), executable });
     if (confidence < 0.65) continue;
 
     return {
@@ -182,6 +215,10 @@ export function detectCliHarnessCommand(
       command: commandName,
       commandArgs: args,
       isStreaming: STREAM_RE.test(normalized),
+      cliRunMode: persistent ? "persistent-session" : "one-shot",
+      usesStdin: persistent,
+      writesToStdin: /\bstdin(?:\??\.)?\.write\s*\(/.test(normalized),
+      readsStdoutStream: /\bstdout\.on\s*\(\s*["']data["']/.test(normalized),
       confidence,
       evidence: [...evidence, ...env, packageHint ? `package:${packageHint}` : ""].filter(Boolean),
     };

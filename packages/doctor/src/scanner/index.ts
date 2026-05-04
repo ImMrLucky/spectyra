@@ -118,7 +118,9 @@ export async function runScan(
   const primaryEntry = primaryEntryFromPoints(integrationPointsPre);
 
   on({ type: "progress", message: "Detecting AI usage…" });
-  const aiFindings = scanAiUsage(projectRoot, scannedFiles, { primaryEntry, manifestAbsPaths: manifestAbs });
+  const allAiFindings = scanAiUsage(projectRoot, scannedFiles, { primaryEntry, manifestAbsPaths: manifestAbs });
+  const aiFindings = allAiFindings.filter((f) => f.confidence >= 0.65);
+  const possibleReferences = allAiFindings.filter((f) => f.confidence < 0.65);
   for (const f of aiFindings.slice(0, 25)) {
     on({ type: "finding", message: `${f.relativePath}:${f.line} — ${f.provider} (${f.callStyle})`, data: f });
   }
@@ -168,9 +170,11 @@ export async function runScan(
   const scannedAt = new Date().toISOString();
   const highConfidence = aiFindings.filter((f) => f.confidence >= 0.8).length;
   const providerSdkFindings = aiFindings.filter((f) => f.callStyle === "sdk" || f.callStyle === "custom-wrapper").length;
+  const customWrapperFindings = aiFindings.filter((f) => f.callStyle === "custom-wrapper").length;
   const cliHarnessFindings = aiFindings.filter((f) => f.callStyle === "cli" || f.isCliHarness).length;
-  const httpFindings = aiFindings.filter((f) => f.callStyle === "http").length;
+  const httpAiFindings = aiFindings.filter((f) => f.callStyle === "http").length;
   const frameworkFindings = aiFindings.filter((f) => f.callStyle === "framework").length;
+  const acpHarnessFindings = aiFindings.filter((f) => f.callStyle === "acp" || f.isAcpHarness).length;
 
   const actionableSet = new Set<string>();
   for (const f of aiFindings) actionableSet.add(f.relativePath);
@@ -195,9 +199,13 @@ export async function runScan(
       aiFindings: aiFindings.length,
       highConfidenceFindings: highConfidence,
       providerSdkFindings,
-      cliHarnessFindings,
-      httpFindings,
+      httpAiFindings,
+      httpFindings: httpAiFindings,
       frameworkFindings,
+      cliHarnessFindings,
+      acpHarnessFindings,
+      customWrapperFindings,
+      possibleReferences: possibleReferences.length,
       providers: providerCounts,
       usageTypes: usageCounts,
       modelsDetected: [...models].slice(0, 40),
@@ -214,6 +222,7 @@ export async function runScan(
     packages,
     actionableFilePaths,
     aiFindings,
+    possibleReferences,
     integrationPoints,
     recommendations: [],
     integrationPlan: {

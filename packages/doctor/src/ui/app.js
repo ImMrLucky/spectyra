@@ -100,8 +100,10 @@ function renderSummary(data) {
     <div class="card"><h3>Providers</h3><div class="val">${Object.keys(s.providers ?? {}).length}</div><div class="hint">unique vendors</div></div>
     <div class="card"><h3>Provider SDK/API Calls</h3><div class="val">${s.providerSdkFindings ?? 0}</div><div class="hint">direct SDK/custom wrappers</div></div>
     <div class="card"><h3>AI CLI Harness Calls</h3><div class="val">${s.cliHarnessFindings ?? 0}</div><div class="hint">Claude, Gemini, Codex, custom CLI</div></div>
-    <div class="card"><h3>Direct HTTP AI Calls</h3><div class="val">${s.httpFindings ?? 0}</div><div class="hint">provider API endpoints</div></div>
+    <div class="card"><h3>Direct HTTP AI Calls</h3><div class="val">${s.httpAiFindings ?? s.httpFindings ?? 0}</div><div class="hint">provider API endpoints</div></div>
     <div class="card"><h3>Framework Calls</h3><div class="val">${s.frameworkFindings ?? 0}</div><div class="hint">Vercel AI, LangChain, LlamaIndex</div></div>
+    <div class="card"><h3>ACP Harness Calls</h3><div class="val">${s.acpHarnessFindings ?? 0}</div><div class="hint">agent protocol sessions</div></div>
+    <div class="card"><h3>Possible References</h3><div class="val">${s.possibleReferences ?? 0}</div><div class="hint">low confidence, review only</div></div>
     <div class="card"><h3>Models</h3><div class="val">${(s.modelsDetected ?? []).length}</div><div class="hint">literals / hints</div></div>
     <div class="card"><h3>Spectyra SDK</h3><div class="val">${s.spectyraInstalled ? "yes" : "no"}</div><div class="hint">any workspace package</div></div>
     <div class="card"><h3>sdk/auto</h3><div class="val">${s.spectyraAutoDetected ? "yes" : "no"}</div><div class="hint">import detected</div></div>
@@ -326,12 +328,14 @@ function matchesFindingFilter(f) {
   if (currentFindingFilter === "framework") return f.callStyle === "framework";
   if (currentFindingFilter === "http") return f.callStyle === "http";
   if (currentFindingFilter === "cli") return f.callStyle === "cli" || f.isCliHarness;
+  if (currentFindingFilter === "acp") return f.callStyle === "acp" || f.isAcpHarness;
   if (currentFindingFilter === "config") return f.callStyle === "config" || f.callStyle === "env";
   return true;
 }
 
 function styleLabel(f) {
   if (f.callStyle === "cli" || f.isCliHarness) return "CLI Harness";
+  if (f.callStyle === "acp" || f.isAcpHarness) return "ACP Harness";
   if (f.callStyle === "sdk" || f.callStyle === "custom-wrapper") return "SDK/API";
   if (f.callStyle === "framework") return "Framework";
   if (f.callStyle === "http") return "HTTP";
@@ -358,6 +362,11 @@ function openDetail(f) {
   const blocks = (wrapperStep?.codeBlocks ?? [])
     .map((b, idx) => codeCard(b, `data-detail-copy="${idx}"`))
     .join("");
+  const evidenceRows = (f.evidence ?? []).length
+    ? `<h4>Why Doctor flagged this</h4><ul>${(f.evidence ?? [])
+        .map((ev) => `<li><strong>${esc(ev.kind)}:</strong> ${esc(ev.value)} <span class="hint">(${Math.round((ev.confidence ?? 0) * 100)}%)</span></li>`)
+        .join("")}</ul>`
+    : `<p><strong>Evidence:</strong> ${esc((f.providerEvidence ?? []).join(", "))}</p>`;
   d.innerHTML = `
     <h3>${esc(f.relativePath)}:${f.line}</h3>
     <p><strong>Provider:</strong> ${esc(f.provider)} · <strong>Usage:</strong> ${esc(f.usageType)} · <strong>Call style:</strong> ${esc(styleLabel(f))}</p>
@@ -366,10 +375,10 @@ function openDetail(f) {
         ? `<div class="cli-callout"><strong>AI CLI harness detected.</strong> This app calls an AI command-line tool instead of a provider SDK. Spectyra should wrap the command boundary for duplicate run suppression, retry/loop detection, prompt optimization, CLI result caching, and monitor analytics.</div>
     <p><strong>Best wrapper:</strong> <code>${esc(cliFactoryFor(f))}</code></p>
     <p><strong>Command:</strong> <code>${esc(f.command ?? "—")}</code> <strong>Args:</strong> <code>${esc((f.commandArgs ?? []).join(" ") || "—")}</code> <strong>Streaming:</strong> ${f.isStreaming ? "yes" : "no"}</p>
-    <p class="hint">Exact token/cost data may be estimated unless the CLI exposes structured usage metadata.</p>`
+    <p class="hint">Prompt preserved by default. Exact token/cost data may be estimated unless the CLI exposes structured usage metadata.</p>`
         : `<p><strong>Best wrapper:</strong> <code>${esc(providerWrapperFor(f))}</code></p>`
     }
-    <p><strong>Evidence:</strong> ${esc((f.providerEvidence ?? []).join(", "))}</p>
+    ${evidenceRows}
     <p><strong>Models:</strong> ${esc((f.modelHints ?? []).join(", ") || "—")}</p>
     <p><strong>Env hints:</strong> ${esc((f.envHints ?? []).join(", ") || "—")}</p>
     <h4>Snippet</h4>
@@ -396,6 +405,31 @@ function openDetail(f) {
       setButtonStatus(btn, ok ? "Copied" : "Copy failed");
     });
   });
+}
+
+function renderPossibleReferences(data) {
+  const refs = data.possibleReferences ?? [];
+  const sec = $("possible-section");
+  if (!sec) return;
+  if (!refs.length) {
+    sec.hidden = true;
+    return;
+  }
+  sec.hidden = false;
+  $("possible-list").innerHTML = refs
+    .slice(0, 40)
+    .map((f) => {
+      const why = (f.evidence ?? []).map((ev) => `${ev.kind}: ${ev.value}`).join(", ") || (f.providerEvidence ?? []).join(", ");
+      return `<li>
+        <div class="pri">${Math.round((f.confidence ?? 0) * 100)}%</div>
+        <div class="body">
+          <h4>${esc(styleLabel(f))} reference — <code>${esc(f.relativePath)}</code>:${esc(f.line)}</h4>
+          <p>${esc(why)}</p>
+          <pre class="snip">${esc(f.snippet ?? "")}</pre>
+        </div>
+      </li>`;
+    })
+    .join("");
 }
 
 function cliFactoryFor(f) {
@@ -476,6 +510,7 @@ async function loadResult() {
   renderIntegrationPlan(data);
   renderSteps(data);
   renderTable(data);
+  renderPossibleReferences(data);
   renderIntegrationPoints(data);
   renderRisks(data);
   $("raw-json").textContent = JSON.stringify(data, null, 2);

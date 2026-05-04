@@ -150,4 +150,122 @@ export async function runBoth(messages, prompt) {
       rmSync(root, { recursive: true, force: true });
     }
   });
+
+  it("detects HTTP AI usage but ignores generic HTTP", () => {
+    const { root, hits } = scanSingle(
+      "src/http.ts",
+      `await fetch("/api/users");
+await axios.get("/health");
+await fetch("https://api.openai.com/v1/responses", {
+  headers: { Authorization: \`Bearer \${process.env.OPENAI_API_KEY}\` },
+});
+`,
+    );
+    try {
+      expect(hits.some((h) => h.callStyle === "http" && h.provider === "openai")).toBe(true);
+      expect(hits.every((h) => h.callStyle !== "http" || h.line > 2)).toBe(true);
+    } finally {
+      rmSync(root, { recursive: true, force: true });
+    }
+  });
+
+  it("ignores generic process launches", () => {
+    const { root, hits } = scanSingle(
+      "src/processes.ts",
+      `import { spawn } from "node:child_process";
+spawn("git", ["status"]);
+spawn("npm", ["test"]);
+spawn("bash", ["deploy.sh"]);
+spawn(toolName, params);
+`,
+    );
+    try {
+      expect(hits.some((h) => h.callStyle === "cli")).toBe(false);
+    } finally {
+      rmSync(root, { recursive: true, force: true });
+    }
+  });
+
+  it("resolves simple constants, npm scripts, and shell scripts for AI CLI usage", () => {
+    const root = join(tmpdir(), `spectyra-aiu-resolve-${Date.now()}`);
+    mkdirSync(join(root, "src"), { recursive: true });
+    mkdirSync(join(root, "scripts"), { recursive: true });
+    writeFileSync(join(root, "package.json"), JSON.stringify({ name: "t", scripts: { agent: "claude -p \"fix tests\"", test: "vitest" } }), "utf8");
+    writeFileSync(join(root, "scripts", "agent.sh"), "claude -p \"$PROMPT\"\n", "utf8");
+    const p = join(root, "src", "resolve.ts");
+    writeFileSync(
+      p,
+      `import { spawn } from "node:child_process";
+const cmd = "claude";
+const args = ["-p", prompt];
+spawn(cmd, args);
+spawn("npm", ["run", "agent"]);
+spawn("bash", ["scripts/agent.sh"]);
+`,
+      "utf8",
+    );
+    try {
+      const files: ScannableFile[] = [
+        { path: p, relativePath: "src/resolve.ts", extension: ".ts", language: "typescript", sizeBytes: 300, reason: "t" },
+      ];
+      const hits = scanAiUsage(root, files, { primaryEntry: "src/main.ts", manifestAbsPaths: [join(root, "package.json")] });
+      expect(hits.some((h) => h.providerEvidence.some((e) => e.includes("script:agent")))).toBe(true);
+      expect(hits.some((h) => h.providerEvidence.some((e) => e.includes("shell-script:scripts/agent.sh")))).toBe(true);
+      expect(hits.some((h) => h.methodName === "spawn" && h.command === "claude")).toBe(true);
+    } finally {
+      rmSync(root, { recursive: true, force: true });
+    }
+  });
+
+  it("detects persistent Claude CLI sessions", () => {
+    const { root, hits } = scanSingle(
+      "src/session.ts",
+      `import { spawn } from "node:child_process";
+const child = spawn("claude", []);
+child.stdin.write(prompt);
+child.stdout.on("data", cb);
+`,
+    );
+    try {
+      const session = hits.find((h) => h.cliRunMode === "persistent-session");
+      expect(session?.cliTool).toBe("claude");
+      expect(session?.usesStdin).toBe(true);
+      expect(session?.readsStdoutStream).toBe(true);
+    } finally {
+      rmSync(root, { recursive: true, force: true });
+    }
+  });
+
+  it("detects custom AI CLI with model evidence but not unresolved custom commands", () => {
+    const { root, hits } = scanSingle(
+      "src/custom.ts",
+      `import { spawn } from "node:child_process";
+spawn("company-agent", ["--model", "claude-3-5-sonnet", "--prompt", prompt]);
+spawn(toolName, params);
+`,
+    );
+    try {
+      expect(hits.some((h) => h.cliTool === "custom-ai-cli" && h.command === "company-agent")).toBe(true);
+      expect(hits.every((h) => h.command !== "toolName")).toBe(true);
+    } finally {
+      rmSync(root, { recursive: true, force: true });
+    }
+  });
+
+  it("detects ACP harnesses and keeps prose low-confidence", () => {
+    const strong = scanSingle(
+      "src/acp.ts",
+      `import { createClient } from "@zed-industries/agent-client-protocol";
+client.request("session/prompt", params);
+`,
+    );
+    const prose = scanSingle("README.md", "We use Claude for coding sometimes.\n", "markdown");
+    try {
+      expect(strong.hits.some((h) => h.callStyle === "acp" && h.isAcpHarness && h.confidence >= 0.85)).toBe(true);
+      expect(prose.hits.every((h) => h.confidence < 0.65)).toBe(true);
+    } finally {
+      rmSync(strong.root, { recursive: true, force: true });
+      rmSync(prose.root, { recursive: true, force: true });
+    }
+  });
 });

@@ -111,6 +111,7 @@
           <button type="button" class="btn btn-small" data-filter="framework">Framework</button>
           <button type="button" class="btn btn-small" data-filter="http">HTTP</button>
           <button type="button" class="btn btn-small" data-filter="cli">CLI Harness</button>
+          <button type="button" class="btn btn-small" data-filter="acp">ACP</button>
           <button type="button" class="btn btn-small" data-filter="config">Config/Env</button>
         </div>
         <div class="table-wrap">
@@ -129,6 +130,12 @@
             <tbody id="findings-body"></tbody>
           </table>
         </div>
+      </section>
+
+      <section class="section card" id="possible-section" hidden>
+        <h2>Possible AI-related references</h2>
+        <p class="hint">Low-confidence references are shown for review only and do not generate wrapper code.</p>
+        <ul id="possible-list" class="checklist"></ul>
       </section>
 
       <section class="section card" id="points-section" hidden>
